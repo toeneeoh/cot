@@ -1,4 +1,4 @@
-library Items requires Functions, Commands, Dungeons, PVP, Chaos, Table
+library Items requires Functions, Commands, Dungeons, PVP, Chaos
 
 globals
     real array SpdefBonus
@@ -38,29 +38,32 @@ endglobals
 
 function RechargeDialog takes integer pid, integer itid, real percentage returns nothing
     local string message = GetObjectName(itid)
-    local real totalGold = ItemData[itid][StringHash("cost")] * 100 * percentage + (GetPlayerGold(Player(pid - 1))) * percentage
-    local real totalLumber = ItemData[itid][StringHash("cost")] * 100 * percentage + (GetPlayerLumber(Player(pid - 1))) * percentage
-    local integer platCost = R2I(totalGold / 1000000. + udg_Plat_Gold[pid] * percentage)
-    local integer arcCost = R2I(totalLumber / 1000000. + udg_Arca_Wood[pid] * percentage)
-    local integer goldCost = R2I(ModuloReal(totalGold, 1000000))
-    local integer lumberCost = R2I(ModuloReal(totalLumber, 1000000))
     local integer playerGold = GetPlayerGold(Player(pid - 1))
     local integer playerLumber = GetPlayerLumber(Player(pid - 1))
+    local real goldCost = ItemData[itid][StringHash("cost")] * 100 * percentage + playerGold * percentage
+    local real lumberCost = ItemData[itid][StringHash("cost")] * 100 * percentage + playerLumber * percentage
+    local real platCost = udg_Plat_Gold[pid] * percentage
+    local real arcCost = udg_Arca_Wood[pid] * percentage
+
+    set goldCost = goldCost + (platCost - R2I(platCost)) * 1000000
+    set lumberCost = lumberCost + (arcCost - R2I(arcCost)) * 1000000
+    set platCost = R2I(platCost)
+    set arcCost = R2I(arcCost)
 
     call DialogClear(dChooseReward[pid])
 
     if platCost > 0 then
-        set message = message + "\nRecharge cost:\n|cffffffff" + I2S(platCost)+"|r |cffe3e2e2Platinum|r, |cffffffff" + RealToString(goldCost) + "|r |cffffcc00Gold|r\n"
+        set message = message + "\nRecharge cost:\n|cffffffff" + RealToString(platCost) +"|r |cffe3e2e2Platinum|r, |cffffffff" + RealToString(goldCost) + "|r |cffffcc00Gold|r\n"
     else
-        set message = message + "\nRecharge cost:\n|cffffffff" + RealToString(totalGold) + " |cffffcc00Gold|r\n"
+        set message = message + "\nRecharge cost:\n|cffffffff" + RealToString(goldCost) + " |cffffcc00Gold|r\n"
     endif
     if arcCost > 0 then
-        set message = message + "|cffffffff" + I2S(arcCost)+"|r |cff66FF66Arcadite|r, |cffffffff" + RealToString(lumberCost) + "|r |cff472e2eLumber|r"
+        set message = message + "|cffffffff" + RealToString(arcCost) + "|r |cff66FF66Arcadite|r, |cffffffff" + RealToString(lumberCost) + "|r |cff472e2eLumber|r"
     else
         set message = message + "|cffffffff" + RealToString(lumberCost) + " |cff472e2eLumber|r"
     endif
     call DialogSetMessage( dChooseReward[pid], message)
-    if (udg_Plat_Gold[pid] + playerGold / 1000000.) >= platCost and playerGold >= goldCost and (udg_Arca_Wood[pid] + playerLumber / 1000000.) >= arcCost and playerLumber >= lumberCost then  
+    if HasPlayerGold(pid, R2I(goldCost), R2I(platCost)) and HasPlayerLumber(pid, R2I(lumberCost), R2I(arcCost)) then
         set slotitem[4000 + pid] = DialogAddButton(dChooseReward[pid], "Recharge", 'y')
     endif
     call DialogAddButton(dChooseReward[pid], "Cancel", 'c')
@@ -93,6 +96,9 @@ function KillQuestHandler takes integer pid, integer itemid, integer index retur
     local User U = User.first
     local player p = Player(pid - 1)
     local integer avg = R2I((max + min) * 0.5)
+    local real x
+    local real y
+    local rect myregion = null
 
     if GetUnitLevel(Hero[pid]) < min then
         call DisplayTimedTextToPlayer(p, 0,0, 10, "You must be level |cffffcc00" + I2S(min) + "|r to begin this quest." )
@@ -140,6 +146,18 @@ function KillQuestHandler takes integer pid, integer itemid, integer index retur
         set udg_KillQuest_Status[index] = 1
         set KillQuest[index][StringHash("Count")] = 0
         set KillQuest[index][StringHash("Goal")] = IMinBJ(goal + 3, 100)
+
+        //increase max spawns by up to 50 based on last unit killed
+        if (KillQuest[index][StringHash("Goal")]) < 100 and ModuloInteger(KillQuest[index][StringHash("Goal")], 2) == 0 then
+			set myregion = SelectGroupedRegion(UnitData[KillQuest[index][StringHash("Last")]][StringHash("spawn")])
+            loop
+                set x = GetRandomReal(GetRectMinX(myregion), GetRectMaxX(myregion))
+                set y = GetRandomReal(GetRectMinY(myregion), GetRectMaxY(myregion))
+                exitwhen IsTerrainWalkable(x, y)
+            endloop
+            call CreateUnit(pfoe, KillQuest[index][StringHash("Last")], x, y, GetRandomInt(0, 359))
+            set myregion = null
+        endif
     endif
     
     set p = null
@@ -201,11 +219,12 @@ function CompleteDialog takes nothing returns nothing
 endfunction
 
 function SpellBox takes nothing returns nothing
-local player p = GetTriggerPlayer()
-local integer pid= GetPlayerId(p) + 1
-local integer ablev=udg_SlotIndex[91 + pid * 3]
+    local player p = GetTriggerPlayer()
+    local integer pid= GetPlayerId(p) + 1
+    local integer ablev=udg_SlotIndex[91 + pid * 3]
+
 	if ( GetClickedButton() == SpellButton[pid] ) then
-		call ChargePlayerGold(pid, udg_SlotIndex[92 + pid * 3], 0)
+		call ChargePlayerGold(pid, ModuloInteger(udg_SlotIndex[92 + pid * 3], 1000000), R2I(udg_SlotIndex[92 + pid * 3] / 1000000))
 		if udg_SlotIndex[90 + pid * 3]=='I101' then
 			if ablev==0 then
                 //
@@ -476,15 +495,10 @@ function onUse takes nothing returns nothing
 		elseif itemid == 'pgma' then
 			call MP(u, 500)
 		elseif itemid == 'I0MP' then
-			call HP(u, 50000)
-			call pheal(u, .08, .08)
+			call HP(u, 50000 + BlzGetUnitMaxHP(u) * 0.08)
+			call MP(u, BlzGetUnitMaxMana(u) * 0.08)
         elseif itemid == 'I0MQ' then
-			call pheal(u, .15, .15)
-        //elseif itemid == 'I0AU' then //legion's ring
-            //set t = NewTimerEx(pid)
-            //call SetItemDroppable(itm, false)
-            //call SaveItemHandle(MiscHash, 0, GetHandleId(t), itm)
-            //call TimerStart(t, 195.00, false, function LegionRing)
+			call HP(u, BlzGetUnitMaxHP(u) * 0.15)
         elseif itemid == 'vamp' then //vampiric potion
             if GetWidgetLife(Hero[pid]) >= 0.406 then
                 set VampiricPotion.add(Hero[pid], Hero[pid]).duration = 10.
@@ -520,9 +534,9 @@ function onDrop takes nothing returns nothing
         call UnitAddBonus(u, BONUS_HERO_STR, -R2I(mod * (ItemData[itemid][StringHash("str")] + ItemData[itemid][StringHash("stats")]) * (1 + Str_mod[pid] * 0.01)) )
         call UnitAddBonus(u, BONUS_HERO_AGI, -R2I(mod * (ItemData[itemid][StringHash("agi")] + ItemData[itemid][StringHash("stats")]) * (1 + Agi_mod[pid] * 0.01)) )
         call UnitAddBonus(u, BONUS_HERO_INT, -R2I(mod * (ItemData[itemid][StringHash("int")] + ItemData[itemid][StringHash("stats")]) * (1 + Int_mod[pid] * 0.01)) )
-        call UnitAddBonus(u, BONUS_LIFE_REGEN, -R2I(mod * ItemData[itemid][StringHash("regen")] * (1 + Reg_mod[pid] * 0.01)) )
         call BlzSetUnitMaxHP(u, BlzGetUnitMaxHP(u) - R2I(mod * ItemData[itemid][StringHash("health")]) )
         call SetWidgetLife(u, RMaxBJ(hp, 1))
+        set ItemRegen[pid] = ItemRegen[pid] - ItemData[itemid][StringHash("regen")]
         set ItemSpelldef[pid] = ItemSpelldef[pid] / (1 - ItemData[itemid][StringHash("mr")] * 0.01)
         set ItemTotaldef[pid] = ItemTotaldef[pid] / (1 - ItemData[itemid][StringHash("dr")] * 0.01)
         call BlzSetUnitAttackCooldown(u, BlzGetUnitAttackCooldown(u, 0) * (1 + ItemData[itemid][StringHash("bat")] * 0.01), 0)
@@ -568,13 +582,43 @@ function onPickup takes nothing returns nothing
     if KillQuest.has(itemid) then //Kill Quest
         call FlashQuestDialogButton()
         call KillQuestHandler(pid, itemid, KillQuest[itemid][StringHash("Index")])
-    
+    elseif itemid == 'I0OV' then //Gossip
+        set x = GetUnitX(gg_unit_n01F_0576)
+        set y = GetUnitY(gg_unit_n01F_0576)
+
+        if x > GetRectMaxX(gg_rct_Main_Map) then //in tavern
+            call DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Evil Shopkeeper's Brother:|r I don't know where he is.")
+        else
+            if x < GetRectCenterX(gg_rct_Main_Map) and y > GetRectCenterY(gg_rct_Main_Map) then
+                set ShopkeeperDirection[0] = "|cffffcc00North West|r"
+            elseif x > GetRectCenterX(gg_rct_Main_Map) and y > GetRectCenterY(gg_rct_Main_Map) then
+                set ShopkeeperDirection[0] = "|cffffcc00North East|r"
+            elseif x < GetRectCenterX(gg_rct_Main_Map) and y < GetRectCenterY(gg_rct_Main_Map) then
+                set ShopkeeperDirection[0] = "|cffffcc00South West|r"
+            else
+                set ShopkeeperDirection[0] = "|cffffcc00South East|r"
+            endif
+
+            set ShopkeeperDirection[1] = "|cffffcc00Evil Shopkeeper's Brother:|r My brother is currently heading " + ShopkeeperDirection[0] + " to expand his business."
+            set ShopkeeperDirection[2] = "|cffffcc00Evil Shopkeeper's Brother:|r I last heard that he was spotted traveling " + ShopkeeperDirection[0] + " to negotiate with some suppliers."
+            set ShopkeeperDirection[3] = "|cffffcc00Evil Shopkeeper's Brother:|r My brother is rumored to have traveled " + ShopkeeperDirection[0] + " to seek new markets for his products."
+            set ShopkeeperDirection[4] = "|cffffcc00Evil Shopkeeper's Brother:|r I haven't seen him for a while, but I suspect he might be up " + ShopkeeperDirection[0] + " hunting for rare items to sell."
+            set ShopkeeperDirection[5] = "|cffffcc00Evil Shopkeeper's Brother:|r He is never in one place for too long. He's probably moved " + ShopkeeperDirection[0] + " by now."
+            set ShopkeeperDirection[6] = "|cffffcc00Evil Shopkeeper's Brother:|r If I had to guess, I'd say he is currently located in the " + ShopkeeperDirection[0] + " part of the city."
+            set ShopkeeperDirection[7] = "|cffffcc00Evil Shopkeeper's Brother:|r I'm not sure where he is, but he usually heads " + ShopkeeperDirection[0] + " when he wants to avoid trouble."
+            set ShopkeeperDirection[8] = "|cffffcc00Evil Shopkeeper's Brother:|r I heard that my brother is hiding to the " + ShopkeeperDirection[0] + " of town."
+            set ShopkeeperDirection[9] = "|cffffcc00Evil Shopkeeper's Brother:|r He often travels to the " + ShopkeeperDirection[0] + ", looking for new opportunities to make a profit."
+            set ShopkeeperDirection[10] = "|cffffcc00Evil Shopkeeper's Brother:|r He is always on the move. He could be anywhere, but my guess is he's headed due " + ShopkeeperDirection[0] + "."
+
+            call DisplayTextToForce(FORCE_PLAYING, ShopkeeperDirection[GetRandomInt(1, 10)])
+        endif
+
     elseif itemid == 'I08L' then //Evil Shopkeeper
         if IsQuestDiscovered(udg_Evil_Shopkeeper_Quest_1) and IsQuestCompleted(udg_Evil_Shopkeeper_Quest_1) == false then
             loop
                 exitwhen i > 5
                 if GetItemTypeId(UnitItemInSlot(u, i)) == 'I045' then
-                    call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_COMPLETED, "TRIGSTR_4029")
+                    call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_COMPLETED, "|cffffcc00OPTIONAL QUEST COMPLETED|r\nThe Evil Shopkeeper")
                     call QuestSetCompleted(udg_Evil_Shopkeeper_Quest_1, true)
                     call QuestItemSetCompleted(udg_Quest_Req[11], true)
                     exitwhen true
@@ -584,9 +628,9 @@ function onPickup takes nothing returns nothing
         elseif IsQuestDiscovered(udg_Evil_Shopkeeper_Quest_1) == false then
             if GetUnitLevel(Hero[pid]) >= 50 then
                 call QuestSetDiscovered(udg_Evil_Shopkeeper_Quest_1, true)
-                call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "TRIGSTR_24478")
+                call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1OPTIONAL QUEST|r\nThe Evil Shopkeeper")
             else
-                call DisplayTextToPlayer(p, 0, 0, "TRIGSTR_9813")
+                call DisplayTextToPlayer(p, 0, 0, "You must be at least level 50 to begin this quest.")
             endif
         endif
     elseif itemid == 'I00L' then //The Horde
@@ -594,7 +638,7 @@ function onPickup takes nothing returns nothing
             if IsQuestDiscovered(udg_Defeat_The_Horde_Quest) == false then
                 call DestroyEffect(udg_TalkToMe20)
                 call QuestSetDiscovered(udg_Defeat_The_Horde_Quest, true)
-                call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "TRIGSTR_24574")
+                call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1OPTIONAL QUEST|r\nThe Horde")
                 call PingMinimap(12577, -15801, 4)
                 call PingMinimap(15645, -12309, 4)
                 
@@ -1327,7 +1371,7 @@ function onPickup takes nothing returns nothing
                 if BlzGroupGetSize(ug) > 1 then
                     set index = 2
                 else
-                    call DisplayTextToPlayer(p,0,0, "TRIGSTR_27898")
+                    call DisplayTextToPlayer(p,0,0, "Atleast 2 players is required to play team survival.")
                 endif
             endif
             
@@ -1585,38 +1629,6 @@ function onPickup takes nothing returns nothing
 
         call DialogAddButton(PvpDialog[pid], "Cancel", 'C')
         call DialogDisplay(p, PvpDialog[pid], true)
-        
-
-    //========================
-    //Misc
-    //========================
-    
-    elseif itemid == 'I0CC' or itemid == 'I0OG' then //Crystal Pickup
-        loop
-            exitwhen U == User.NULL
-            if itemid == 'I0CC' then
-                set i = 1
-            elseif itemid == 'I0OG' then
-                set i = 5
-            endif
-
-            if IsUnitInRangeXY(Hero[U.id], GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 1200.) and GetUnitLevel(Hero[U.id]) >= 200 then
-                if GetRandomInt(0, 50) < LoadInteger(PrestigeRank, i, 0) then
-                    set i = i + 1
-                endif
-
-                call AddCrystals(U.id, i)
-
-                if i == 1 then
-                    call DoFloatingTextUnit("+" + I2S(i) + " Crystal", Hero[U.id], 2.1, 80, 90, 9, 70, 150, 230, 0)
-                else
-                    call DoFloatingTextUnit("+" + I2S(i) + " Crystals", Hero[U.id], 2.1, 80, 90, 9, 70, 150, 230, 0)
-                endif
-            endif
-
-            set U = U.next
-        endloop
-        call RemoveItem(itm)
 
     //========================
     //Add Bonus / Bind
@@ -1634,9 +1646,9 @@ function onPickup takes nothing returns nothing
                 call UnitAddBonus(u, BONUS_HERO_STR, R2I(mod * (ItemData[itemid][StringHash("str")] + ItemData[itemid][StringHash("stats")]) * (1. + Str_mod[pid] * 0.01)) )
                 call UnitAddBonus(u, BONUS_HERO_AGI, R2I(mod * (ItemData[itemid][StringHash("agi")] + ItemData[itemid][StringHash("stats")]) * (1. + Agi_mod[pid] * 0.01)) )
                 call UnitAddBonus(u, BONUS_HERO_INT, R2I(mod * (ItemData[itemid][StringHash("int")] + ItemData[itemid][StringHash("stats")]) * (1. + Int_mod[pid] * 0.01)) )
-                call UnitAddBonus(u, BONUS_LIFE_REGEN, R2I(mod * ItemData[itemid][StringHash("regen")] * (1. + Reg_mod[pid] * 0.01)) )
                 call BlzSetUnitMaxHP(u, BlzGetUnitMaxHP(u) + R2I(mod * ItemData[itemid][StringHash("health")]))
                 call SetWidgetLife(u, x)
+                set ItemRegen[pid] = ItemRegen[pid] + ItemData[itemid][StringHash("regen")]
                 set ItemSpelldef[pid] = ItemSpelldef[pid] * (1 - ItemData[itemid][StringHash("mr")] * 0.01)
                 set ItemTotaldef[pid] = ItemTotaldef[pid] * (1 - ItemData[itemid][StringHash("dr")] * 0.01)
                 call BlzSetUnitAttackCooldown(u, BlzGetUnitAttackCooldown(u, 0) / (1 + ItemData[itemid][StringHash("bat")] * 0.01), 0)
@@ -1701,7 +1713,7 @@ function ItemInit takes nothing returns nothing
         set u = u.next
     endloop
     
-    call TriggerRegisterUnitEvent(ondrop, gg_unit_h05J_0412, EVENT_UNIT_DROP_ITEM)
+    call TriggerRegisterUnitEvent(ondrop, ASHEN_VAT, EVENT_UNIT_DROP_ITEM)
     call TriggerRegisterPlayerUnitEvent(onsell, Player(PLAYER_NEUTRAL_PASSIVE), EVENT_PLAYER_UNIT_SELL_ITEM, function boolexp)
     
     call TriggerAddCondition(onpickup, Condition(function ItemFilter))
