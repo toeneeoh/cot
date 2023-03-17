@@ -5,7 +5,6 @@ globals
     boolean taurencd = false
     boolean dwarfcd = false
     boolean deathstrikecd = false
-    boolean unstoppableforcecd = false
     boolean truestealthcd = false
     boolean legionillusioncd = false
     boolean holywardcd = false
@@ -14,7 +13,6 @@ globals
     boolean sunstrikecd = false
     unit holyward
     group deathstriketargets = CreateGroup()
-    group unstoppableforcehit = CreateGroup()
     group legionillusions = CreateGroup()
 endglobals
 
@@ -25,8 +23,8 @@ endfunction
 function BossUnpause takes nothing returns nothing
     local integer i = ReleaseTimer(GetExpiredTimer())
     
-    call PauseUnit(ChaosBoss[i], false)
-    call SetUnitAnimation(ChaosBoss[i], "stand")
+    call PauseUnit(Boss[i], false)
+    call SetUnitAnimation(Boss[i], "stand")
 endfunction
 
 /*/*/*
@@ -49,18 +47,18 @@ function TaurenStomp takes nothing returns nothing
         
     call SetTimerData(t, time + 1)
         
-    if time + 1 > 8 or IsUnitType(PreChaosBoss[BOSS_TAUREN], UNIT_TYPE_DEAD) or GetWidgetLife(PreChaosBoss[BOSS_TAUREN]) < 0.406 then
+    if time + 1 > 8 or IsUnitType(Boss[BOSS_TAUREN], UNIT_TYPE_DEAD) or GetWidgetLife(Boss[BOSS_TAUREN]) < 0.406 then
         call ReleaseTimer(t)
     else
-        call GroupEnumUnitsInRange(ug, GetUnitX(PreChaosBoss[BOSS_TAUREN]), GetUnitY(PreChaosBoss[BOSS_TAUREN]), 300.00, Condition(function ishostileEnemy))
+        call GroupEnumUnitsInRange(ug, GetUnitX(Boss[BOSS_TAUREN]), GetUnitY(Boss[BOSS_TAUREN]), 300.00, Condition(function ishostileEnemy))
         
-        call DestroyEffect(AddSpecialEffect( "Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(PreChaosBoss[BOSS_TAUREN]), GetUnitY(PreChaosBoss[BOSS_TAUREN])) )
+        call DestroyEffect(AddSpecialEffect( "Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(Boss[BOSS_TAUREN]), GetUnitY(Boss[BOSS_TAUREN])) )
 
         loop
             set target=FirstOfGroup(ug)
             exitwhen target==null
             call GroupRemoveUnit(ug, target)
-            call UnitDamageTarget(PreChaosBoss[BOSS_TAUREN],target,HMscale(4000),true,false,ATTACK_TYPE_NORMAL,DAMAGE_TYPE_MAGIC,WEAPON_TYPE_WHOKNOWS)
+            call UnitDamageTarget(Boss[BOSS_TAUREN],target,HMscale(4000),true,false,ATTACK_TYPE_NORMAL,DAMAGE_TYPE_MAGIC,WEAPON_TYPE_WHOKNOWS)
         endloop
     endif
         
@@ -103,18 +101,18 @@ function DwarfStomp takes nothing returns nothing
         
     call SetTimerData(t, time + 1)
         
-    if time + 1 > 8 or IsUnitType(PreChaosBoss[BOSS_DWARF], UNIT_TYPE_DEAD) or GetWidgetLife(PreChaosBoss[BOSS_DWARF]) < 0.406 then
+    if time + 1 > 8 or IsUnitType(Boss[BOSS_DWARF], UNIT_TYPE_DEAD) or GetWidgetLife(Boss[BOSS_DWARF]) < 0.406 then
         call ReleaseTimer(t)
     else
-        call GroupEnumUnitsInRange(ug, GetUnitX(PreChaosBoss[BOSS_DWARF]), GetUnitY(PreChaosBoss[BOSS_DWARF]), 300.00, Condition(function ishostileEnemy))
+        call GroupEnumUnitsInRange(ug, GetUnitX(Boss[BOSS_DWARF]), GetUnitY(Boss[BOSS_DWARF]), 300.00, Condition(function ishostileEnemy))
             
-        call DestroyEffect(AddSpecialEffect( "Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(PreChaosBoss[BOSS_DWARF]), GetUnitY(PreChaosBoss[BOSS_DWARF])) )
+        call DestroyEffect(AddSpecialEffect( "Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(Boss[BOSS_DWARF]), GetUnitY(Boss[BOSS_DWARF])) )
         loop
             set target=FirstOfGroup(ug)
             exitwhen target==null
             call GroupRemoveUnit(ug, target)
-            call DummyCastTarget(pboss, target, 'A04G', 1, GetUnitX(PreChaosBoss[BOSS_DWARF]), GetUnitY(PreChaosBoss[BOSS_DWARF]), "slow")
-            call UnitDamageTarget(PreChaosBoss[BOSS_DWARF],target,HMscale(8000),true,false,ATTACK_TYPE_NORMAL,DAMAGE_TYPE_MAGIC,WEAPON_TYPE_WHOKNOWS)
+            call DummyCastTarget(pboss, target, 'A04G', 1, GetUnitX(Boss[BOSS_DWARF]), GetUnitY(Boss[BOSS_DWARF]), "slow")
+            call UnitDamageTarget(Boss[BOSS_DWARF],target,HMscale(8000),true,false,ATTACK_TYPE_NORMAL,DAMAGE_TYPE_MAGIC,WEAPON_TYPE_WHOKNOWS)
         endloop
     endif
         
@@ -149,12 +147,13 @@ function ShadowStep takes unit target, real speed returns nothing
     local PlayerTimer pt
     local unit guy
     local string msg = ""
+    local integer pid = GetPlayerId(GetOwningPlayer(target)) + 1
 
     if udg_Chaos_World_On then
-        set guy = ChaosBoss[BOSS_LEGION]
+        set guy = Boss[BOSS_LEGION]
         set msg = "Shadow Step"
     else
-        set guy = PreChaosBoss[BOSS_DEATH_KNIGHT]
+        set guy = Boss[BOSS_DEATH_KNIGHT]
         set msg = "Death March"
     endif
 
@@ -174,40 +173,57 @@ function ShadowStep takes unit target, real speed returns nothing
         call BlzSetUnitFacingEx(bj_lastCreatedUnit, 270.)
         call PauseUnit(bj_lastCreatedUnit, true)
         call TimerStart(pt.getTimer(), speed, false, function ShadowStepTeleport)
+        if speed >= 4 then
+           call PlaySound("Sound\\Interface\\CreepAggroWhat1.flac")
+            if udg_Chaos_World_On then
+                call DisplayTimedTextToForce(FORCE_PLAYING, 20., "|cffffcc00Legion:|r There is no escape " + User(pid - 1).nameColored + "..")
+            else
+                call DisplayTimedTextToForce(FORCE_PLAYING, 20., "|cffffcc00Death Knight:|r Prepare yourself " + User(pid - 1).nameColored + "!")
+            endif
+        endif
     endif
 
     set guy = null
 endfunction
 
-function ShadowStepExpire takes nothing returns nothing
+function ShadowStepExpire takes nothing returns boolean
     local group ug = CreateGroup()
     local group g = CreateGroup()
     local unit guy
+    local integer i = 0
 
     if udg_Chaos_World_On then
-        set guy = ChaosBoss[BOSS_LEGION]
+        set guy = Boss[BOSS_LEGION]
     else
-        set guy = PreChaosBoss[BOSS_DEATH_KNIGHT]
+        set guy = Boss[BOSS_DEATH_KNIGHT]
     endif
 
     call GroupEnumUnitsInRect(ug, gg_rct_Main_Map, Condition(function ischar))
     call GroupEnumUnitsInRect(g, gg_rct_NoSin, Condition(function ischar))
-    call BlzGroupRemoveGroupFast(g, ug)
-    call GroupEnumUnitsInRange(g, GetUnitX(guy), GetUnitY(guy), 1500., Condition(function ischar))
-    call BlzGroupRemoveGroupFast(g, ug)
 
-    if BlzGroupGetSize(ug) > 0 then //no nearby players and player available to teleport to
-        set guy = BlzGroupUnitAt(ug, GetRandomInt(0, BlzGroupGetSize(ug) - 1)) 
-        set bj_lastCreatedEffect = AddSpecialEffect("war3mapImported\\GreySmoke.mdx", GetUnitX(guy), GetUnitY(guy))
-        call BlzSetSpecialEffectTimeScale(bj_lastCreatedEffect, 0.5)
-        call BlzSetSpecialEffectColor(bj_lastCreatedEffect, 115, 115, 115)
-        call BlzSetSpecialEffectScale(bj_lastCreatedEffect, 0.7)
-        call DestroyEffectTimed(bj_lastCreatedEffect, 3.)
+    loop
+        exitwhen i > BOSS_TOTAL
+        call GroupEnumUnitsInRangeEx(bossid, g, GetLocationX(BossLoc[i]), GetLocationY(BossLoc[i]), 2000., Condition(function ischar))
+        set i = i + 1
+    endloop
 
-        call ShadowStep(guy, 4)
+    if BlzGroupGetSize(g) > 0 then
+        call BlzGroupRemoveGroupFast(g, ug)
     endif
 
-    call TimerStart(GetExpiredTimer(), 30. - (User.AmountPlaying * 4), false, null)
+    call GroupEnumUnitsInRange(g, GetUnitX(guy), GetUnitY(guy), 1500., Condition(function ischar))
+
+    if BlzGroupGetSize(ug) > 0 and BlzGroupGetSize(g) == 0 then //no nearby players and player available to teleport to
+        set guy = BlzGroupUnitAt(ug, GetRandomInt(0, BlzGroupGetSize(ug) - 1)) 
+        if guy != null then
+            set bj_lastCreatedEffect = AddSpecialEffect("war3mapImported\\BlackSmoke.mdx", GetUnitX(guy), GetUnitY(guy))
+            call BlzSetSpecialEffectTimeScale(bj_lastCreatedEffect, 0.75)
+            call BlzSetSpecialEffectScale(bj_lastCreatedEffect, 1.)
+            call DestroyEffectTimed(bj_lastCreatedEffect, 3.)
+
+            call ShadowStep(guy, 4)
+        endif
+    endif
 
     call DestroyGroup(ug)
     call DestroyGroup(g)
@@ -215,6 +231,8 @@ function ShadowStepExpire takes nothing returns nothing
     set ug = null
     set g = null
     set guy = null
+
+    return false
 endfunction
 
 function DeathStrikeCD takes nothing returns nothing
@@ -243,7 +261,7 @@ function DeathStrike takes nothing returns nothing
         set target = FirstOfGroup(ug)
         exitwhen target == null
         call GroupRemoveUnit(ug, target)
-        call UnitDamageTarget(PreChaosBoss[BOSS_DEATH_KNIGHT], target, 10000., true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
+        call UnitDamageTarget(Boss[BOSS_DEATH_KNIGHT], target, 10000., true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
     endloop
         
     call ReleaseTimer(t)
@@ -283,7 +301,7 @@ function SunStrike takes nothing returns nothing
         exitwhen target == null
         call GroupRemoveUnit(ug, target)
 
-        call UnitDamageTarget(PreChaosBoss[BOSS_LIFE], target, HMscale(25000.), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
+        call UnitDamageTarget(Boss[BOSS_LIFE], target, HMscale(25000.), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
     endloop
 
     call RemoveSavedReal(MiscHash, 0, GetHandleId(t))
@@ -346,18 +364,18 @@ function GhostShroud takes nothing returns nothing
     local group ug = CreateGroup()
     local unit target
     
-    if IsUnitType(PreChaosBoss[BOSS_KNOWLEDGE], UNIT_TYPE_ETHEREAL) then
-        call MakeGroupInRange(bossid, ug, GetUnitX(PreChaosBoss[BOSS_KNOWLEDGE]), GetUnitY(PreChaosBoss[BOSS_KNOWLEDGE]), 500., Condition(function FilterEnemy))
+    if IsUnitType(Boss[BOSS_KNOWLEDGE], UNIT_TYPE_ETHEREAL) then
+        call MakeGroupInRange(bossid, ug, GetUnitX(Boss[BOSS_KNOWLEDGE]), GetUnitY(Boss[BOSS_KNOWLEDGE]), 500., Condition(function FilterEnemy))
 
         loop
             set target = FirstOfGroup(ug)
             exitwhen target == null
             call GroupRemoveUnit(ug, target)
 
-            call UnitDamageTarget(PreChaosBoss[BOSS_KNOWLEDGE], target, RMaxBJ(0, GetHeroInt(PreChaosBoss[BOSS_KNOWLEDGE], true) - GetHeroInt(target, true)), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
+            call UnitDamageTarget(Boss[BOSS_KNOWLEDGE], target, RMaxBJ(0, GetHeroInt(Boss[BOSS_KNOWLEDGE], true) - GetHeroInt(target, true)), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
         endloop
     else
-        call UnitRemoveAbility(PreChaosBoss[BOSS_KNOWLEDGE], 'A08M')
+        call UnitRemoveAbility(Boss[BOSS_KNOWLEDGE], 'A08M')
         call ReleaseTimer(t)
     endif
 
@@ -380,9 +398,9 @@ function ZeppelinKill takes nothing returns nothing
     local integer zepcount = 0
 
     loop
-        exitwhen bossindex > CHAOS_BOSS_TOTAL
-        if GetWidgetLife(ChaosBoss[bossindex]) >= 0.406 and IsUnitInRangeLoc(ChaosBoss[bossindex], ChaosBossLoc[bossindex], 1500.) then
-            call GroupEnumUnitsInRange(ug, GetUnitX(ChaosBoss[bossindex]), GetUnitY(ChaosBoss[bossindex]), 900., Condition(function iszeppelin))
+        exitwhen bossindex > BOSS_TOTAL
+        if GetWidgetLife(Boss[bossindex]) >= 0.406 and IsUnitInRangeLoc(Boss[bossindex], BossLoc[bossindex], 1500.) then
+            call GroupEnumUnitsInRange(ug, GetUnitX(Boss[bossindex]), GetUnitY(Boss[bossindex]), 900., Condition(function iszeppelin))
             set zepcount = BlzGroupGetSize(ug)
             loop
                 set u = FirstOfGroup(ug)
@@ -391,8 +409,8 @@ function ZeppelinKill takes nothing returns nothing
                 call ExpireUnit(u)
             endloop
             if zepcount > 0 then
-                call DestroyEffect(AddSpecialEffect( "Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(ChaosBoss[bossindex]), GetUnitY(ChaosBoss[bossindex])) )
-                call SetUnitAnimation(ChaosBoss[bossindex], "attack slam")
+                call DestroyEffect(AddSpecialEffect( "Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(Boss[bossindex]), GetUnitY(Boss[bossindex])) )
+                call SetUnitAnimation(Boss[bossindex], "attack slam")
             endif
         endif
         set bossindex = bossindex + 1
@@ -416,26 +434,29 @@ function TrueStealth takes nothing returns nothing
     local real y = LoadReal(MiscHash, 1, GetHandleId(t))
     local group ug = CreateGroup()
     local unit target
+    local real heal = 0.
         
     call GroupEnumUnitsInRange(ug, x, y, 400., Condition(function isplayerAlly))
 
-    call UnitRemoveAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'Amrf')
-    call UnitRemoveAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'A043')
-    call UnitRemoveAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'BOwk')
-    call UnitRemoveAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'Avul')
-    call SetUnitXBounded(ChaosBoss[BOSS_ABSOLUTE_HORROR], x)
-    call SetUnitYBounded(ChaosBoss[BOSS_ABSOLUTE_HORROR], y)
-    call PauseUnit(ChaosBoss[BOSS_ABSOLUTE_HORROR], true)
-    call SetUnitAnimation(ChaosBoss[BOSS_ABSOLUTE_HORROR], "attack slam")
+    call UnitRemoveAbility(Boss[BOSS_ABSOLUTE_HORROR], 'Amrf')
+    call UnitRemoveAbility(Boss[BOSS_ABSOLUTE_HORROR], 'A043')
+    call UnitRemoveAbility(Boss[BOSS_ABSOLUTE_HORROR], 'BOwk')
+    call UnitRemoveAbility(Boss[BOSS_ABSOLUTE_HORROR], 'Avul')
+    call SetUnitXBounded(Boss[BOSS_ABSOLUTE_HORROR], x)
+    call SetUnitYBounded(Boss[BOSS_ABSOLUTE_HORROR], y)
+    call PauseUnit(Boss[BOSS_ABSOLUTE_HORROR], true)
+    call SetUnitAnimation(Boss[BOSS_ABSOLUTE_HORROR], "attack slam")
     call TimerStart(NewTimerEx(BOSS_ABSOLUTE_HORROR), 0.4, false, function BossUnpause)
         
     call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x, y))
     set target = FirstOfGroup(ug)
     if target != null then
+        set heal = GetWidgetLife(target)
         call DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", target, "origin"))
-        call UnitDamageTarget(ChaosBoss[BOSS_ABSOLUTE_HORROR], target, HMscale(125000), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
-        call DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAuraTarget.mdl", ChaosBoss[BOSS_ABSOLUTE_HORROR], "chest"))
-        call SetUnitState(ChaosBoss[BOSS_ABSOLUTE_HORROR], UNIT_STATE_LIFE, GetWidgetLife(ChaosBoss[BOSS_ABSOLUTE_HORROR]) + BlzGetUnitMaxHP(ChaosBoss[BOSS_ABSOLUTE_HORROR]) * 0.33)
+        call UnitDamageTarget(Boss[BOSS_ABSOLUTE_HORROR], target, HMscale(80000) + BlzGetUnitMaxHP(target) * 0.3, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
+        call DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAuraTarget.mdl", Boss[BOSS_ABSOLUTE_HORROR], "chest"))
+        set heal = RMaxBJ(0, heal - GetWidgetLife(target))
+        call SetUnitState(Boss[BOSS_ABSOLUTE_HORROR], UNIT_STATE_LIFE, GetWidgetLife(Boss[BOSS_ABSOLUTE_HORROR]) + heal)
     endif
         
     call RemoveSavedReal(MiscHash, 0, GetHandleId(t))
@@ -458,14 +479,14 @@ Slaughter Queen
 function ResetSlaughterMS takes nothing returns nothing
     call ReleaseTimer(GetExpiredTimer())
 
-    call SetUnitMoveSpeed(ChaosBoss[BOSS_SLAUGHTER_QUEEN], 300)
+    call SetUnitMoveSpeed(Boss[BOSS_SLAUGHTER_QUEEN], 300)
 endfunction
 
 function SlaughterAvatar takes nothing returns nothing
     call ReleaseTimer(GetExpiredTimer())
 
-    call IssueImmediateOrder(ChaosBoss[BOSS_SLAUGHTER_QUEEN], "avatar")
-    call SetUnitMoveSpeed(ChaosBoss[BOSS_SLAUGHTER_QUEEN], 270)
+    call IssueImmediateOrder(Boss[BOSS_SLAUGHTER_QUEEN], "avatar")
+    call SetUnitMoveSpeed(Boss[BOSS_SLAUGHTER_QUEEN], 270)
     call TimerStart(NewTimer(), 10., false, function ResetSlaughterMS)
     set BossSpellCD[1] = false
 endfunction
@@ -477,7 +498,7 @@ Satan
 */*/*/
 
 function SatanFlameStrike takes real x, real y returns nothing
-    local unit dummy = GetDummy(GetUnitX(ChaosBoss[BOSS_SATAN]), GetUnitY(ChaosBoss[BOSS_SATAN]), 'A0DN', 1, DUMMY_RECYCLE_TIME) 
+    local unit dummy = GetDummy(GetUnitX(Boss[BOSS_SATAN]), GetUnitY(Boss[BOSS_SATAN]), 'A0DN', 1, DUMMY_RECYCLE_TIME) 
 
     call SetUnitOwner(dummy, pboss, false)
     call SaveInteger(MiscHash, GetHandleId(dummy), 'sflm', 10)
@@ -493,48 +514,39 @@ Thanatos
 */*/*/
 
 function ThanatosSwiftHunt takes nothing returns nothing
-    local real dist = 0
-    local real angle = 0
+    local integer pid = GetTimerData(GetExpiredTimer())
+    local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
     local unit target = null
     local group ug = CreateGroup()
-    local group g = CreateGroup()
 
-    call ReleaseTimer(GetExpiredTimer())
+    if GetWidgetLife(Boss[BOSS_THANATOS]) >= 0.406 then
+        call GroupEnumUnitsInRange(ug, pt.x, pt.y, 200., Condition(function ishostileEnemy))
 
-    if GetWidgetLife(ChaosBoss[BOSS_THANATOS]) >= 0.406 then
-        call GroupEnumUnitsInRange(ug, GetUnitX(ChaosBoss[BOSS_THANATOS]), GetUnitY(ChaosBoss[BOSS_THANATOS]), 900., Condition(function ishostileEnemy))
-        call GroupEnumUnitsInRange(g, GetUnitX(ChaosBoss[BOSS_THANATOS]), GetUnitY(ChaosBoss[BOSS_THANATOS]), 250., Condition(function ishostileEnemy))
-        call BlzGroupRemoveGroupFast(g, ug)
-        set target = BlzGroupUnitAt(ug, GetRandomInt(0, IMaxBJ(0, BlzGroupGetSize(ug) - 1)))
-
-        if target != null then
-            call SetUnitXBounded(ChaosBoss[BOSS_THANATOS], GetUnitX(target))
-            call SetUnitYBounded(ChaosBoss[BOSS_THANATOS], GetUnitY(target))
-            call BlzSetUnitFacingEx(ChaosBoss[BOSS_THANATOS], GetUnitFacing(target))
-            call IssueTargetOrder(ChaosBoss[BOSS_THANATOS], "smart", target)
-            call UnitDamageTarget(ChaosBoss[BOSS_THANATOS], target, HMscale(1500000), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
-        endif
+        call SetUnitXBounded(Boss[BOSS_THANATOS], pt.x)
+        call SetUnitYBounded(Boss[BOSS_THANATOS], pt.y)
+        call SetUnitAnimation(Boss[BOSS_THANATOS], "attack")
+        loop
+            set target = FirstOfGroup(ug)
+            exitwhen target == null
+            call GroupRemoveUnit(ug, target)
+            call DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Coup de Grace.mdx", target, "chest"))
+            call UnitDamageTarget(Boss[BOSS_THANATOS], target, HMscale(1500000), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
+        endloop
     endif
 
+    call TimerList[pid].removePlayerTimer(pt)
+
     call DestroyGroup(ug)
-    call DestroyGroup(g)
 
     set target = null
     set ug = null
-    set g = null
 endfunction
 
 /*/*/*
 
-Legion
+Pure Existence
 
 */*/*/
-
-function ExistenceProtectionExpire takes nothing returns nothing
-    call ReleaseTimer(GetExpiredTimer())
-
-    call UnitRemoveAbility(ChaosBoss[BOSS_EXISTENCE], 'ACmi')
-endfunction
 
 /*/*/*
 
@@ -545,7 +557,7 @@ Legion
 function LegionIllusionCD takes nothing returns nothing
     call ReleaseTimer(GetExpiredTimer())
     
-    call UnitRemoveAbility(ChaosBoss[BOSS_LEGION], 'A08C')
+    call UnitRemoveAbility(Boss[BOSS_LEGION], 'A08C')
 
     set legionillusioncd = false
 endfunction
@@ -572,12 +584,12 @@ function PositionLegionIllusions takes nothing returns nothing
     local integer i = 1
 
     if BlzGroupGetSize(legionillusions) >= 7 then
-        call SetUnitXBounded(ChaosBoss[BOSS_LEGION], x2)
-        call SetUnitYBounded(ChaosBoss[BOSS_LEGION], y2)
-        call SetUnitPathing(ChaosBoss[BOSS_LEGION], false)
-        call SetUnitPathing(ChaosBoss[BOSS_LEGION], true)
-        call BlzSetUnitFacingEx(ChaosBoss[BOSS_LEGION], bj_RADTODEG * Atan2(y2 - y, x2 - x))
-        call IssuePointOrder(ChaosBoss[BOSS_LEGION], "attack", x, y)
+        call SetUnitXBounded(Boss[BOSS_LEGION], x2)
+        call SetUnitYBounded(Boss[BOSS_LEGION], y2)
+        call SetUnitPathing(Boss[BOSS_LEGION], false)
+        call SetUnitPathing(Boss[BOSS_LEGION], true)
+        call BlzSetUnitFacingEx(Boss[BOSS_LEGION], bj_RADTODEG * Atan2(y2 - y, x2 - x))
+        call IssuePointOrder(Boss[BOSS_LEGION], "attack", x, y)
 
         loop
             set target = FirstOfGroup(legionillusions)
@@ -617,15 +629,15 @@ function LegionIllusion takes nothing returns nothing
     local integer i2 = 0
     local timer t
 
-    call GroupEnumUnitsInRange(ug, GetUnitX(ChaosBoss[BOSS_LEGION]), GetUnitY(ChaosBoss[BOSS_LEGION]), 750., Condition(function isplayerAlly))
+    call GroupEnumUnitsInRange(ug, GetUnitX(Boss[BOSS_LEGION]), GetUnitY(Boss[BOSS_LEGION]), 1000., Condition(function isplayerAlly))
     set target = FirstOfGroup(ug)
 
     if target != null then
         set x = GetUnitX(target)
         set y = GetUnitY(target)
     else
-        set x = GetUnitX(ChaosBoss[BOSS_LEGION])
-        set y = GetUnitY(ChaosBoss[BOSS_LEGION])
+        set x = GetUnitX(Boss[BOSS_LEGION])
+        set y = GetUnitY(Boss[BOSS_LEGION])
     endif
 
     loop
@@ -642,10 +654,10 @@ function LegionIllusion takes nothing returns nothing
         endif
     endloop
 
-    call DestroyEffectTimed(AddSpecialEffect("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageCaster.mdl", GetUnitX(ChaosBoss[BOSS_LEGION]), GetUnitY(ChaosBoss[BOSS_LEGION])), 2)
+    call DestroyEffectTimed(AddSpecialEffect("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageCaster.mdl", GetUnitX(Boss[BOSS_LEGION]), GetUnitY(Boss[BOSS_LEGION])), 2)
 
-    call UnitAddAbility(ChaosBoss[BOSS_LEGION], 'A08C')
-    call IssueImmediateOrder(ChaosBoss[BOSS_LEGION], "mirrorimage")
+    call UnitAddAbility(Boss[BOSS_LEGION], 'A08C')
+    call IssueImmediateOrder(Boss[BOSS_LEGION], "mirrorimage")
 
     set t = NewTimer()
     call SaveReal(MiscHash, 0, GetHandleId(t), x)
@@ -674,84 +686,70 @@ Azazoth
 Forgotten Leader
 
 */*/*/
-
-function UnstoppableForceCD takes nothing returns nothing
-    call ReleaseTimer(GetExpiredTimer())
-    
-    set unstoppableforcecd = false
-endfunction
     
 function UnstoppableForceMovement takes nothing returns nothing
-    local timer t = GetExpiredTimer()
-    local integer time = GetTimerData(t)
-    local real x = LoadReal(MiscHash, 0, GetHandleId(t))
-    local real y = LoadReal(MiscHash, 1, GetHandleId(t))
+    local integer pid = GetTimerData(GetExpiredTimer())
+    local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
     local group ug = CreateGroup()
     local unit target
-    local real angle = Atan2(y - GetUnitY(ChaosBoss[BOSS_FORGOTTEN_LEADER]), x - GetUnitX(ChaosBoss[BOSS_FORGOTTEN_LEADER]))
         
-    if GetWidgetLife(ChaosBoss[BOSS_FORGOTTEN_LEADER]) < 0.406 then
-        call ReleaseTimer(t)
+    if GetWidgetLife(Boss[BOSS_FORGOTTEN_LEADER]) < 0.406 then
+        call TimerList[pid].removePlayerTimer(pt)
         call DestroyGroup(ug)
         set ug = null
-        set t = null
         return
     endif
 
-    call GroupEnumUnitsInRange(ug, GetUnitX(ChaosBoss[BOSS_FORGOTTEN_LEADER]), GetUnitY(ChaosBoss[BOSS_FORGOTTEN_LEADER]), 400., Condition(function isplayerunit))
+    call GroupEnumUnitsInRange(ug, GetUnitX(Boss[BOSS_FORGOTTEN_LEADER]), GetUnitY(Boss[BOSS_FORGOTTEN_LEADER]), 400., Condition(function isplayerunit))
         
     loop
         set target = FirstOfGroup(ug)
         exitwhen target == null
         call GroupRemoveUnit(ug, target)
-        if IsUnitInGroup(target, unstoppableforcehit) == false then
-            call GroupAddUnit(unstoppableforcehit, target)
-            call UnitDamageTarget(ChaosBoss[BOSS_FORGOTTEN_LEADER], target, HMscale(5000000.), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
+        if IsUnitInGroup(target, pt.ug) == false then
+            call GroupAddUnit(pt.ug, target)
+            call UnitDamageTarget(Boss[BOSS_FORGOTTEN_LEADER], target, HMscale(50000000.), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
         endif
     endloop
         
-    if IsUnitInRangeXY(ChaosBoss[BOSS_FORGOTTEN_LEADER], x, y, 125.) or DistanceCoords(x, y, GetUnitX(ChaosBoss[BOSS_FORGOTTEN_LEADER]), GetUnitY(ChaosBoss[BOSS_FORGOTTEN_LEADER])) > 2500. then
-        call SetUnitPathing(ChaosBoss[BOSS_FORGOTTEN_LEADER], true)
-        call IssueImmediateOrder(ChaosBoss[BOSS_FORGOTTEN_LEADER], "stand")
-        call PauseUnit(ChaosBoss[BOSS_FORGOTTEN_LEADER], false)
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x + 200, y))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x - 200, y))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x, y + 200))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x, y - 200))
+    if IsUnitInRangeXY(Boss[BOSS_FORGOTTEN_LEADER], pt.x, pt.y, 125.) or DistanceCoords(pt.x, pt.y, GetUnitX(Boss[BOSS_FORGOTTEN_LEADER]), GetUnitY(Boss[BOSS_FORGOTTEN_LEADER])) > 2500. then
+        call SetUnitPathing(Boss[BOSS_FORGOTTEN_LEADER], true)
+        call IssueImmediateOrder(Boss[BOSS_FORGOTTEN_LEADER], "stand")
+        call PauseUnit(Boss[BOSS_FORGOTTEN_LEADER], false)
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", pt.x + 200, pt.y))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", pt.x - 200, pt.y))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", pt.x, pt.y + 200))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", pt.x, pt.y - 200))
         
-        call RemoveSavedReal(MiscHash, 0, GetHandleId(t))
-        call RemoveSavedReal(MiscHash, 1, GetHandleId(t))
-        call ReleaseTimer(t)
+        call TimerList[pid].removePlayerTimer(pt)
     else
-        call SetUnitPathing(ChaosBoss[BOSS_FORGOTTEN_LEADER], false)
-        call SetUnitXBounded(ChaosBoss[BOSS_FORGOTTEN_LEADER], GetUnitX(ChaosBoss[BOSS_FORGOTTEN_LEADER]) + 55 * Cos(angle))
-        call SetUnitYBounded(ChaosBoss[BOSS_FORGOTTEN_LEADER], GetUnitY(ChaosBoss[BOSS_FORGOTTEN_LEADER]) + 55 * Sin(angle))
-        call IssueImmediateOrder(ChaosBoss[BOSS_FORGOTTEN_LEADER], "stop")
+        call SetUnitPathing(Boss[BOSS_FORGOTTEN_LEADER], false)
+        call SetUnitXBounded(Boss[BOSS_FORGOTTEN_LEADER], GetUnitX(Boss[BOSS_FORGOTTEN_LEADER]) + 55 * Cos(pt.angle))
+        call SetUnitYBounded(Boss[BOSS_FORGOTTEN_LEADER], GetUnitY(Boss[BOSS_FORGOTTEN_LEADER]) + 55 * Sin(pt.angle))
+        call IssueImmediateOrder(Boss[BOSS_FORGOTTEN_LEADER], "stop")
     endif
     
     call DestroyGroup(ug)
         
-    set t = null
     set ug = null
     set target = null
 endfunction
     
 function UnstoppableForce takes nothing returns nothing
-    local timer t = GetExpiredTimer()
-    local timer t2 = NewTimer()
-    local real x = LoadReal(MiscHash, 0, GetHandleId(t))
-    local real y = LoadReal(MiscHash, 1, GetHandleId(t))
+    local integer pid = GetTimerData(GetExpiredTimer())
+    local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
 
-    call SaveReal(MiscHash, 0, GetHandleId(t2), x)
-    call SaveReal(MiscHash, 1, GetHandleId(t2), y)
-    call TimerStart(t2, 0.03, true, function UnstoppableForceMovement)
-        
-    call RemoveSavedReal(MiscHash, 0, GetHandleId(t))
-    call RemoveSavedReal(MiscHash, 1, GetHandleId(t))
-    call ReleaseTimer(t)
-        
-    set t = null
-    set t2 = null
+    call TimerStart(pt.getTimer(), 0.03, true, function UnstoppableForceMovement)
+endfunction
+
+function XallaSummon takes nothing returns nothing
+    local integer pid = GetTimerData(GetExpiredTimer())
+    local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
+
+    call UnitApplyTimedLife(CreateUnit(Player(pid - 1), 'o034', pt.x + 400 * Cos((pt.angle + 90) * bj_DEGTORAD), pt.y + 400 * Sin((pt.angle + 90) * bj_DEGTORAD), pt.angle), 'BTLF', 120.)
+    call UnitApplyTimedLife(CreateUnit(Player(pid - 1), 'o034', pt.x + 400 * Cos((pt.angle - 90) * bj_DEGTORAD), pt.y + 400 * Sin((pt.angle - 90) * bj_DEGTORAD), pt.angle), 'BTLF', 120.)
+
+    call TimerList[pid].removePlayerTimer(pt)
 endfunction
 
 /*
