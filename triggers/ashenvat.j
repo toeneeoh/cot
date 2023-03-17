@@ -17,10 +17,12 @@ private function DTP takes player p, real dur, string msg returns nothing
 endfunction
 
 private function PT takes integer id, integer num returns string
+    local string s = GetObjectName(id)
+
     if num > 0 then
-        return GetObjectName(id) + " x" + I2S(num)
+        return s + " x" + I2S(num)
     else
-        return GetObjectName(id)
+        return s
     endif
 endfunction
 
@@ -33,6 +35,7 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
     local integer i = 0
     local boolean sfx = false
     local player p = GetOwningPlayer(u2)
+    local real angle = 0.
 
     call RemoveUnit(u)
 
@@ -41,7 +44,8 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
             exitwhen i > 5
             set itm = UnitItemInSlot(ASHEN_VAT, i)
             call UnitRemoveItemFromSlot(ASHEN_VAT, i)
-            call SetItemPosition(itm, 20275 + 75 * i, -20400)
+            set angle = i * bj_PI * 0.333
+            call SetItemPosition(itm, GetUnitX(ASHEN_VAT) + 160 * Cos(angle) - 15, GetUnitY(ASHEN_VAT) + 150 * Sin(angle) + 15)
             set i = i + 1
         endloop
     elseif id == 'e01I' then //fuse
@@ -59,6 +63,14 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
         endloop
         loop //thanatos boots leg
             exitwhen ItemCreation_Item('I0JT',1,'I00Q',1,'I0IT',1,'item',0,'item',0,'item',0,'I023',1,ASHEN_VAT,0,0,0,true) == false
+            set sfx = true
+        endloop
+        loop //legion ring rare
+            exitwhen ItemCreation_Item('rnsp',1,'I00T',1,'I0D0',1,'I0AU',1,'item',0,'item',0,'I0NK',1,ASHEN_VAT,0,0,0,true) == false
+            set sfx = true
+        endloop
+        loop //legion ring leg
+            exitwhen ItemCreation_Item('I04Y',1,'I06I',1,'I0NK',1,'item',0,'item',0,'item',0,'I0NL',1,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop //chaos shield
@@ -207,7 +219,7 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
 
         elseif itid == 'I0IT' then //legion staff rare
     call DTP(p, 60, FUSE + PT('I0JT', 0) + ADD + PT('I00Q', 0) + ADD + HL(PT('I0IT', 0)) + " = " + PT('I023', 0))
-    
+
         elseif itid == 'I0JT' then //thanatos's boots of rift walking rare
     call DTP(p, 60, FUSE + PT('I0MR', 0) + ADD + PT('I00P', 0) + ADD + PT('I096', 0) + " = " + HL(PT('I0JT', 0)))
     call DTP(p, 60, FUSE + HL(PT('I0JT', 0)) + ADD + PT('I00Q', 0) + ADD + PT('I0IT', 0) + " = " + PT('I023', 0))
@@ -235,6 +247,31 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
 
         elseif itid == 'I01J' then //chaos shield
     call DTP(p, 60, FUSE + PT('I0BY', 0) + ADD + PT('I09Y', 0) + ADD + PT('I0OD', 0) + ADD + PT('I0AI', 0) + ADD + PT('I0AH', 0) + ADD + PT('I08N', 0) + " = " + HL(PT('I01J', 0)))
+
+        elseif itid == 'rnsp' then //waug's ring
+    call DTP(p, 60, FUSE + HL(PT('rnsp', 0)) + ADD + PT('I00T', 0) + ADD + PT('I0D0', 0) + ADD + PT('I0AU', 0) + " = " + PT('I0NK', 0))
+
+        elseif itid == 'I00T' then //lesser ring of struggle
+    call DTP(p, 60, FUSE + PT('rnsp', 0) + ADD + HL(PT('I00T', 0)) + ADD + PT('I0D0', 0) + ADD + PT('I0AU', 0) + " = " + PT('I0NK', 0))
+
+        elseif itid == 'I0D0' then //ring of struggle
+    call DTP(p, 60, FUSE + PT('rnsp', 0) + ADD + PT('I00T', 0) + ADD + HL(PT('I0D0', 0)) + ADD + PT('I0AU', 0) + " = " + PT('I0NK', 0))
+
+        elseif itid == 'I0AU' then //legion ring
+    call DTP(p, 60, FUSE + PT('rnsp', 0) + ADD + PT('I00T', 0) + ADD + PT('I0D0', 0) + ADD + HL(PT('I0AU', 0)) + " = " + PT('I0NK', 0))
+    
+        elseif itid == 'I0NK' then //legion ring rare
+    call DTP(p, 60, FUSE + PT('rnsp', 0) + ADD + PT('I00T', 0) + ADD + PT('I0D0', 0) + ADD + PT('I0AU', 0) + " = " + HL(PT('I0NK', 0)))
+    call DTP(p, 60, FUSE + PT('I04Y', 0) + ADD + PT('I06I', 0) + ADD + HL(PT('I0NK', 0)) + " = " + PT('I0NL', 0))
+
+        elseif itid == 'I04Y' then //void ring
+    call DTP(p, 60, FUSE + HL(PT('I04Y', 0)) + ADD + PT('I06I', 0) + ADD + PT('I0NK', 0) + " = " + PT('I0NL', 0))
+
+        elseif itid == 'I06I' then //ring of existence rare
+    call DTP(p, 60, FUSE + PT('I04Y', 0) + ADD + HL(PT('I06I', 0)) + ADD + PT('I0NK', 0) + " = " + PT('I0NL', 0))
+
+        elseif itid == 'I0NL' then //legion ring leg
+    call DTP(p, 60, FUSE + PT('I04Y', 0) + ADD + PT('I06I', 0) + ADD + PT('I0NK', 0) + " = " + HL(PT('I0NL', 0)))
 
         elseif itid == 'I0N8' then //absolute fang
     call DTP(p, 60, FUSE + HL(PT('I0N8', 2)) + ADD + PT('I033', 0) + " = " + PT('I0NB', 0))
@@ -346,8 +383,8 @@ endfunction
 //===========================================================================
 function AshenVatInit takes nothing returns nothing
     local trigger ashen = CreateTrigger()
-    set ASHEN_VAT = gg_unit_h05J_0412
 
+    call SetUnitPosition(ASHEN_VAT, 20478.027, -20244.473)
     call TriggerRegisterUnitEvent(ashen, ASHEN_VAT, EVENT_UNIT_SELL)
     call TriggerAddAction(ashen, function Trig_Ashen_Vat_Actions )
 
