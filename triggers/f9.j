@@ -38,7 +38,8 @@ library Quest requires Functions
 		-load (loads your profile/heroes to be selected from in your current game)
 		-forcesave (after a timer/prompt, your character will be removed & saved)
 		-autosave (automatically saves your hero every 30 minutes)
-		-deleteallmymoney (deletes all your gold, lumber, platinum, arcadite, crystals, and time played)", "ReplaceableTextures\\PassiveButtons\\PASBTNStatUp.blp")
+		-savetime (time until you can save again)
+		-restime (time until you can recharge your ankh again)", "ReplaceableTextures\\PassiveButtons\\PASBTNStatUp.blp")
 	call CreateQuestBJ( bj_QUESTTYPE_REQ_DISCOVERED, "Commands 2",    "-st (show time until next save)
 		-bppc (buy platinum converter)
 		-bpac (buy arcadite converter)
@@ -58,9 +59,10 @@ library Quest requires Functions
 		-color # (changes your player color)
 		-unstuck (uhh)
 		-tome (displays how many tomes can be bought)
-		-aa (toggles auto attacking)", "ReplaceableTextures\\PassiveButtons\\PASBTNStatUp.blp")
+		-aa (toggles auto attacking)
+		-deleteallmymoney (deletes all your gold, lumber, platinum, arcadite, crystals, and time played)", "ReplaceableTextures\\PassiveButtons\\PASBTNStatUp.blp")
 	
-	call CreateQuestBJ( bj_QUESTTYPE_OPT_DISCOVERED, "Bum Stage", "After you’ve picked a hero of your choice, you should buy a house or a nation sold by the salesmen located at right side of town. Place your nation/house near one of the goldmines located around the map. A house has higher XP rate then a nation, while a nation has better resource gathering and units.", "ReplaceableTextures\\CommandButtons\\BTNTaurenHut.blp" )
+	call CreateQuestBJ( bj_QUESTTYPE_OPT_DISCOVERED, "Bum Stage", "After you’ve picked a hero of your choice, you should buy a house or a nation sold by the salesmen located in a corner of the town. Place your nation/house near one of the goldmines located around the map. A house has higher XP rate then a nation, while a nation has better resource gathering and units.", "ReplaceableTextures\\CommandButtons\\BTNTaurenHut.blp" )
 		set udg_Bum_Stage = GetLastCreatedQuestBJ()
 		call CreateQuestBJ( bj_QUESTTYPE_REQ_DISCOVERED, "Colors", "1 |c00FF0303Red|r
 	2 |c000042FFBlue|r
@@ -113,7 +115,7 @@ library Quest requires Functions
 		call CreateQuestItemBJ( GetLastCreatedQuestBJ(), "Kill the Yeti" )
 		set udg_Quest_Req[9] = GetLastCreatedQuestItemBJ()
 		// ----------------------------------------
-		call CreateQuestBJ( bj_QUESTTYPE_OPT_UNDISCOVERED, "TRIGSTR_2084", "TRIGSTR_2085", "ReplaceableTextures\\CommandButtons\\BTNBloodMage2.tga" )
+		call CreateQuestBJ( bj_QUESTTYPE_OPT_UNDISCOVERED, "The Forgotten Mystic", "In the Great War against the Goddesses, only one Medean escaped. He lived his life devoted to studying the mystic arts, with the sole purpose of avenging his fallen brethren only to later be corrupted by the very feeling of hate that fueled his desire.  In his madness he was an easy target for the Goddesses to control. He now hides somewhere in Medea, constantly growing in power.", "ReplaceableTextures\\CommandButtons\\BTNBloodMage2.tga" )
 		set udg_Mist_Quest = GetLastCreatedQuestBJ()
 		// ----------------------------------------
 		call CreateQuestBJ( bj_QUESTTYPE_OPT_UNDISCOVERED, "The Minotaur", "The Tauran are a proud and rather gentle race.  The spent thier time training and learning to be one with nature.  Respecting all those around them and making sure never to upset the delicate balance of life.  But as time passed and the Orcs began to abuse thier ways the few tauran that escaped grew bitter and violent.", "ReplaceableTextures\\CommandButtons\\BTNHeroTaurenChieftain.tga" )
@@ -146,21 +148,12 @@ library Quest requires Functions
 		call CreateQuestBJ( bj_QUESTTYPE_OPT_UNDISCOVERED, "The Ice Troll Cheiftan", "Da's Dingo!  The Ice trolls are begining to get pissed for all the coments on their troll accent and now want to scalp anything that moves.  Defeat them and prove to them it is indeed a jamacian accent!", "ReplaceableTextures\\CommandButtons\\BTNHeadHunterBerserker.tga" )
 		set udg_Icetroll_Quest = GetLastCreatedQuestBJ()
 		// ----------------------------------------
-		call CreateQuestBJ( bj_QUESTTYPE_OPT_UNDISCOVERED, "The Trifire Mage", "TRIGSTR_2107", "ReplaceableTextures\\CommandButtons\\BTNRevenant.tga" )
-		set udg_Trifire_Mage_Quest = GetLastCreatedQuestBJ()
-		// ----------------------------------------
 		call CreateQuestBJ( bj_QUESTTYPE_OPT_UNDISCOVERED, "The Blacksmith's Ore", "A blacksmith has asked that you bring 6 Iron Golem Ores to him. He seeks to create a weapon before his old age finally forces him to retire. He has agreed that you can keep the Item he creates with the Ores.", "ReplaceableTextures\\CommandButtons\\BTNDeathPact.blp" )
 		set udg_Iron_Golem_Fist_Quest = GetLastCreatedQuestBJ()
 		// ----------------------------------------
 		call CreateQuestBJ( bj_QUESTTYPE_OPT_UNDISCOVERED, "The Horde", "The Horde has spread and began to grow in numbers by the second.  They lie in wait, patiently waiting unitl their number are enough to take over the land.  Defeat them before they can organize a full scale attack and desimate the nations of your comrades.", "ReplaceableTextures\\CommandButtons\\BTNThrall.tga" )
 		set udg_Defeat_The_Horde_Quest = GetLastCreatedQuestBJ()
 		// ----------------------------------------
-		call CreateQuestBJ( bj_QUESTTYPE_OPT_UNDISCOVERED, "TRIGSTR_2118", "TRIGSTR_2119", "ReplaceableTextures\\CommandButtons\\BTNGreenHydra.tga" )
-		set udg_Secret_Hero_Quest = GetLastCreatedQuestBJ()
-		call CreateQuestItemBJ( GetLastCreatedQuestBJ(), "TRIGSTR_2120" )
-		set udg_Quest_Req[16] = GetLastCreatedQuestItemBJ()
-		call CreateQuestItemBJ( GetLastCreatedQuestBJ(), "TRIGSTR_2121" )
-		set udg_Quest_Req[17] = GetLastCreatedQuestItemBJ()
 		call CreateQuestBJ( bj_QUESTTYPE_OPT_UNDISCOVERED, "The Omega P's Pick", "The Leaders of Team P must be stopped, destroy them and bring back both thier picks as proof to recive the ultimate pick of the Team P hordes.", "ReplaceableTextures\\CommandButtons\\BTNPeon.tga" )
 		set udg_Evil_Shopkeeper_Quest_2 = GetLastCreatedQuestBJ()
 	endfunction
