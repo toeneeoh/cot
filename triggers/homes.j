@@ -15,7 +15,7 @@ function OnResearch takes nothing returns nothing
         set urhome[pid] = 4
         
 		call DisplayTextToForce(FORCE_PLAYING, ( User.fromIndex(pid - 1).nameColored + " has upgraded to a grand nation!" ) )
-        call DisplayTextToPlayer(p, 0, 0, "Your grand nation allows you to gain experience faster than a nation or home." )
+        call DisplayTextToPlayer(p, 0, 0, "Your grand nation allows you to gain experience faster than a regular nation." )
 	elseif uid == 'h047' then //medean court
 		call SetUnitAbilityLevel(u, 'A0A5', 2)
 		call SetUnitAbilityLevel(u, 'A0A7', 2)
@@ -116,7 +116,7 @@ function BuildBase takes nothing returns nothing
 		set urhome[pid] = htype
     elseif htype == 4 then
 		call DisplayTextToForce( FORCE_PLAYING, ( User.fromIndex(pid - 1).nameColored + " has built a grand nation and is not a bum anymore." ) )
-        call DisplayTextToPlayer( GetOwningPlayer(u),0,0, "Your grand nation allows you to gain experience faster than a nation or home." )
+        call DisplayTextToPlayer( GetOwningPlayer(u),0,0, "Your grand nation allows you to gain experience faster than a regular nation." )
         set urhome[pid] = htype
 	elseif htype == 5 then
 		call DisplayTextToForce( FORCE_PLAYING, ( User.fromIndex(pid - 1).nameColored + " has built a chaotic home and is not a bum anymore." ) )
@@ -124,11 +124,11 @@ function BuildBase takes nothing returns nothing
 		set urhome[pid] = htype
 	elseif htype == 6 then
 		call DisplayTextToForce( FORCE_PLAYING, ( User.fromIndex(pid - 1).nameColored + " has built a chaotic home and is not a bum anymore." ) )
-		call DisplayTextToPlayer( GetOwningPlayer(u),0,0, "Your chaotic home allows you to gain experience 70% faster than a lounge." )
+		call DisplayTextToPlayer( GetOwningPlayer(u),0,0, "Your chaotic home allows you to gain 60% more experience than a lounge." )
 		set urhome[pid] = htype
 	elseif htype == 7 then
 		call DisplayTextToForce( FORCE_PLAYING, ( User.fromIndex(pid - 1).nameColored + " has built a chaotic nation and is not a bum anymore." ) )
-		call DisplayTextToPlayer( GetOwningPlayer(u),0,0, "Your chaotic nation allows you to gain experience 40% faster than a lounge and can create powerful chaotic units." )
+		call DisplayTextToPlayer( GetOwningPlayer(u),0,0, "Your chaotic nation allows you to gain 30% more experience than a lounge and can create powerful chaotic units." )
 		set urhome[pid] = htype
 	endif
 
