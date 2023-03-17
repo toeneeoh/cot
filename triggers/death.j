@@ -73,7 +73,6 @@ function DeathHandler takes integer pid returns nothing
 
     set GodsParticipant[pid] = false
 
-    call CleanupGods()
     call CleanupSummons(p)
     
     if RectContainsCoords(gg_rct_PrechaosTrainingSpawn, x, y) then //Clear Training
@@ -148,16 +147,16 @@ function DeathHandler takes integer pid returns nothing
             
     elseif IsUnitInGroup(Hero[pid], AzazothPlayers) then //Azazoth reset
         call GroupRemoveUnit(AzazothPlayers, Hero[pid])
-        call DisplayTimedTextToForce(FORCE_PLAYING, 10.00, "TRIGSTR_27632")
+        call DisplayTimedTextToForce(FORCE_PLAYING, 10.00, "|c00ff3333Azazoth: Mortal weakling, begone! Your flesh is not even worth for me to annihilate.")
         call SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
         call PanCameraToTimedLocForPlayer(p, TownCenter, 0)
         if BlzGroupGetSize(AzazothPlayers) == 0 then
-            call UnitRemoveBuffsBJ(bj_REMOVEBUFFS_ALL, ChaosBoss[BOSS_AZAZOTH])
-            call SetUnitLifePercentBJ(ChaosBoss[BOSS_AZAZOTH], 100)
-            call SetUnitManaPercentBJ(ChaosBoss[BOSS_AZAZOTH], 100)
+            call UnitRemoveBuffsBJ(bj_REMOVEBUFFS_ALL, Boss[BOSS_AZAZOTH])
+            call SetUnitLifePercentBJ(Boss[BOSS_AZAZOTH], 100)
+            call SetUnitManaPercentBJ(Boss[BOSS_AZAZOTH], 100)
             set FightingAzazoth = false
-            call SetUnitPosition(ChaosBoss[BOSS_AZAZOTH], GetRectCenterX(gg_rct_Azazoth_Spawn_AGD), GetRectCenterY(gg_rct_Azazoth_Spawn_AGD))
-            call BlzSetUnitFacingEx(ChaosBoss[BOSS_AZAZOTH], 90.00)
+            call SetUnitPosition(Boss[BOSS_AZAZOTH], GetRectCenterX(gg_rct_Azazoth_Boss_Spawn), GetRectCenterY(gg_rct_Azazoth_Boss_Spawn))
+            call BlzSetUnitFacingEx(Boss[BOSS_AZAZOTH], 90.00)
         endif
     elseif IsPlayerInForce(p, NAGA_GROUP) then //Naga dungeon
         call ForceRemovePlayer(NAGA_GROUP, p)
@@ -213,7 +212,6 @@ function HeroGraveExpire takes nothing returns nothing
         if ResurrectionRevival[pid] > 0 then //hp res
             set heal = 20 + 10 * GetUnitAbilityLevel(Hero[ResurrectionRevival[pid]], 'A048')
             call RevivePlayer(pid, GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), heal, heal)
-            set ResurrectionCD[ResurrectionRevival[pid]] = 600 - 100 * GetUnitAbilityLevel(Hero[ResurrectionRevival[pid]], 'A048')
         elseif ReincarnationRevival[pid] then //pr passive
             call RevivePlayer(pid, GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), 100, 100)
             call BlzUnitHideAbility(Hero[pid], 'A04A', true)
@@ -232,7 +230,7 @@ function HeroGraveExpire takes nothing returns nothing
             
             call RevivePlayer(pid, GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), heal, heal)
         elseif udg_Hardcore[pid] then //hardcore death
-            call DisplayTextToPlayer(p, 0, 0, "TRIGSTR_292")
+            call DisplayTextToPlayer(p, 0, 0, "You have died on Hardcore mode, you cannot revive.")
             call DeathHandler(pid)
 
             call SharedRepick(p)
@@ -307,6 +305,7 @@ function SpawnGrave takes nothing returns nothing
     call SetUnitFlyHeight(HeroTimedLife[pid], 200., 0.)
     call SetUnitTimeScale(HeroTimedLife[pid], 0.099)
     call SetUnitAnimation(HeroTimedLife[pid], "birth")
+    call PauseUnit(HeroTimedLife[pid], true)
     call SetUnitColor(HeroTimedLife[pid], GetPlayerColor(Player(pid - 1)))
 
     call TimerStart(HeroGraveTimer[pid], 12.5, false, null)
@@ -325,15 +324,14 @@ function SpawnGrave takes nothing returns nothing
     set itm = null
 endfunction
 
-function AssignGoldXp takes unit u, unit u2 returns nothing
+function AssignGoldXp takes unit u, unit u2, boolean awardGold returns nothing
     local integer i = 0
     local unit target
     local integer uid = GetUnitTypeId(u)
     local integer pid2 = GetPlayerId(GetOwningPlayer(u2)) + 1
+    local real expbase = udg_Experience_Table[GetUnitLevel(u)] / 700.
     local real maingold = 0
     local real teamgold = 0
-    local real expbase = 0
-    local integer xplevel = 0
     local integer herocount
     local integer pid
     local integer size = 0
@@ -341,37 +339,19 @@ function AssignGoldXp takes unit u, unit u2 returns nothing
     local string s = ""
     local player p
     local User U = User.first
+
+    if awardGold then
+        set maingold = udg_RewardGold[GetUnitLevel(u)] * GetRandomReal(0.8, 1.2) 
+    endif
     
+    //boss bounty
 	if IsUnitType(u, UNIT_TYPE_HERO) == true then
-		loop
-			exitwhen i>udg_PermanentInteger[12]
-			if BossUnit[i]==uid then
-				set maingold = BossGold[i] *GetRandomReal(0.8, 1.2)
-				set xplevel = BossXplvl[i]
-				exitwhen true
-			endif
-			set i = i + 1
-		endloop
+        set expbase = expbase * 15
+        set maingold = expbase * 87.5
 		if HardMode > 0 then
-			set xplevel = R2I(xplevel * 1.3)
-			set maingold = maingold * 2
+			set expbase = R2I(expbase * 1.3)
+			set maingold = maingold * 1.3
 		endif
-	else
-		loop
-			exitwhen i>udg_PermanentInteger[6]
-			if udg_RewardUnits[i]==uid then
-				set maingold = udg_RewardGold[GetUnitLevel(u)] * GetRandomReal(0.8, 1.2)
-				exitwhen true
-			endif
-			set i = i + 1
-		endloop
-	endif
-    
-	set xplevel = IMaxBJ(xplevel, GetUnitLevel(u))
-	if xplevel > 1200 then
-		set expbase = xplevel * xplevel / 280.
-	else
-		set expbase = udg_Experience_Table[xplevel] / 700.
 	endif
 
     //nearby allies
@@ -379,8 +359,9 @@ function AssignGoldXp takes unit u, unit u2 returns nothing
         exitwhen U == User.NULL
         set pid = GetPlayerId(U.toPlayer()) + 1
         //dark savior soul steal
-        if IsUnitInRange(Hero[pid], u, 1000.00) and GetWidgetLife(Hero[pid]) >= 0.406 and GetUnitAbilityLevel(Hero[pid], 'A08Z') > 0 then
+        if IsUnitInRange(Hero[pid], u, 1000. * LBOOST(pid)) and GetWidgetLife(Hero[pid]) >= 0.406 and GetUnitAbilityLevel(Hero[pid], 'A08Z') > 0 then
             call HP(Hero[pid], BlzGetUnitMaxHP(Hero[pid]) * 0.04)
+            call MP(Hero[pid], BlzGetUnitMaxMana(Hero[pid]) * 0.04)
         endif
         if IsUnitInRange(Hero[pid], u, 1800.00) and GetWidgetLife(Hero[pid]) >= 0.406 and pid != pid2 then
             if (GetHeroLevel(Hero[pid]) >= (GetUnitLevel(u) - 20)) and (GetHeroLevel(Hero[pid])) >= GetUnitLevel(Hero[pid2]) - LEECH_CONSTANT then
@@ -397,11 +378,9 @@ function AssignGoldXp takes unit u, unit u2 returns nothing
     
 	set herocount = BlzGroupGetSize(xpgroup)
     
-    if herocount > 1 then
-		set expbase = expbase * (1.5 / herocount)
+    if herocount > 0 then
+        set expbase = expbase * (1.2 / herocount)
         set teamgold = maingold * (1. / herocount)
-    else
-        set expbase = expbase * 1.2
     endif
     
 	loop
@@ -462,26 +441,26 @@ function ReviveGods takes nothing returns nothing
     
     call RemoveUnit(powercrystal)
     
-    set PreChaosBoss[BOSS_LIFE] = CreateUnitAtLoc(pboss, PreChaosBossID[BOSS_LIFE], PreChaosBossLoc[12], 225)
+    set Boss[BOSS_LIFE] = CreateUnitAtLoc(pboss, BossID[BOSS_LIFE], BossLoc[12], 225)
 
-    call PauseUnit(PreChaosBoss[BOSS_LIFE], true)
-    call ShowUnit(PreChaosBoss[BOSS_LIFE], false)
+    call PauseUnit(Boss[BOSS_LIFE], true)
+    call ShowUnit(Boss[BOSS_LIFE], false)
 
-    set PreChaosBoss[BOSS_HATE] = CreateUnitAtLoc(pboss, 'E00B', PreChaosBossLoc[13], 225)
-    set PreChaosBoss[BOSS_LOVE] = CreateUnitAtLoc(pboss, 'E00D', PreChaosBossLoc[14], 225)
-    set PreChaosBoss[BOSS_KNOWLEDGE] = CreateUnitAtLoc(pboss, 'E00C', PreChaosBossLoc[15], 225)
+    set Boss[BOSS_HATE] = CreateUnitAtLoc(pboss, 'E00B', BossLoc[13], 225)
+    set Boss[BOSS_LOVE] = CreateUnitAtLoc(pboss, 'E00D', BossLoc[14], 225)
+    set Boss[BOSS_KNOWLEDGE] = CreateUnitAtLoc(pboss, 'E00C', BossLoc[15], 225)
     
     loop //give back items
         exitwhen i2 > 16
         loop
             exitwhen i > 5
-            call UnitAddItemById(PreChaosBoss[i2], BossItemType[i2 * 6 + i])
+            call UnitAddItemById(Boss[i2], BossItemType[i2 * 6 + i])
             set i = i + 1
         endloop
-        call SetHeroLevel(PreChaosBoss[i2], BossLevel[i2], false)
+        call SetHeroLevel(Boss[i2], BossLevel[i2], false)
         if HardMode > 0 then //reapply hardmode
-            call SetHeroStr(PreChaosBoss[i2], GetHeroStr(PreChaosBoss[i2],true) * 2, true)
-            call BlzSetUnitBaseDamage(PreChaosBoss[i2], BlzGetUnitBaseDamage(PreChaosBoss[i2], 0) * 2, 0)
+            call SetHeroStr(Boss[i2], GetHeroStr(Boss[i2],true) * 2, true)
+            call BlzSetUnitBaseDamage(Boss[i2], BlzGetUnitBaseDamage(Boss[i2], 0) * 2 + 1, 0)
         endif
         set i2 = i2 + 1
         set i = 0
@@ -496,106 +475,65 @@ function ReviveGods takes nothing returns nothing
 endfunction
 
 function BossRespawn takes nothing returns nothing
-    local timer t = GetExpiredTimer()
-    local integer uid = GetTimerData(t)
+    local PlayerTimer pt = TimerList[bossid].getTimerFromHandle(GetExpiredTimer())
+    local integer uid = pt.agi
     local integer i = 0
     local integer i2 = 0
-    local boolean flag = false
-    local real facing
     local group ug = CreateGroup()
 
+    //find boss index
     loop
-        exitwhen ChaosBossID[i] == uid or i > CHAOS_BOSS_TOTAL
+        exitwhen BossID[i] == uid or i > BOSS_TOTAL
         set i = i + 1
     endloop
 
-    if i > CHAOS_BOSS_TOTAL then
-        set flag = true
-        set i = 0
-        loop
-            exitwhen PreChaosBossID[i] == uid or i > BOSS_TOTAL
-            set i = i + 1
-        endloop
-    endif
-
-    if flag then //prechaos
-        set uid = PreChaosBossID[i]
-    
-        if udg_Chaos_World_On then
-            call ReleaseTimer(t)
-            call DestroyGroup(ug)
-            set ug = null
-            set t = null
-            return
-        endif
-
-        set facing = PreChaosBossFacing[i]
-        if uid == PreChaosBossID[BOSS_LIFE] then //revive gods
+    if i <= BOSS_TOTAL then
+        if uid == BossID[BOSS_LIFE] then //revive gods
             call ReviveGods()
-            call DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" + PreChaosBossName[i] + " have revived.|r")
+            call DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" + BossName[i] + " have revived.|r")
         else
-            if uid == 'H040' then //death knight
+            if uid == 'H040' or uid == 'H04R' then //death knight / legion
                 loop
-                    call RemoveLocation(PreChaosBossLoc[i])
-                    set PreChaosBossLoc[i] = GetRandomLocInRect(gg_rct_Main_Map)
-                    call GroupEnumUnitsInRangeOfLoc(ug, PreChaosBossLoc[i], 4000., Condition(function isbase))
-                    if IsTerrainWalkable(GetLocationX(PreChaosBossLoc[i]), GetLocationY(PreChaosBossLoc[i])) and BlzGroupGetSize(ug) == 0 and RectContainsLoc(gg_rct_Town_Boundry, PreChaosBossLoc[i]) == false and RectContainsLoc(gg_rct_Top_of_Town, PreChaosBossLoc[i]) == false then
+                    call RemoveLocation(BossLoc[i])
+                    set BossLoc[i] = GetRandomLocInRect(gg_rct_Main_Map)
+                    call GroupEnumUnitsInRangeOfLoc(ug, BossLoc[i], 4000., Condition(function isbase))
+                    if IsTerrainWalkable(GetLocationX(BossLoc[i]), GetLocationY(BossLoc[i])) and BlzGroupGetSize(ug) == 0 and RectContainsLoc(gg_rct_Town_Boundry, BossLoc[i]) == false and RectContainsLoc(gg_rct_Top_of_Town, BossLoc[i]) == false then
                         exitwhen true
                     endif
                 endloop
             endif
-            set PreChaosBoss[i] = CreateUnitAtLoc(pboss, uid, PreChaosBossLoc[i], facing)
-            call DestroyEffect(AddSpecialEffectLoc("Abilities\\Spells\\Orc\\Reincarnation\\ReincarnationTarget.mdl", PreChaosBossLoc[i]))
+
+            set Boss[i] = CreateUnitAtLoc(pboss, uid, BossLoc[i], BossFacing[i])
+            call DestroyEffect(AddSpecialEffectLoc("Abilities\\Spells\\Orc\\Reincarnation\\ReincarnationTarget.mdl", BossLoc[i]))
+            set i2 = 0
             loop //give back items
                 exitwhen i2 > 5
-                call UnitAddItemById(PreChaosBoss[i], BossItemType[i * 6 + i2])
+                call UnitAddItemById(Boss[i], BossItemType[BOSS_TOTAL * i + i2])
                 set i2 = i2 + 1
             endloop
-            call SetHeroLevel(PreChaosBoss[i], BossLevel[i], false)
+            call SetHeroLevel(Boss[i], BossLevel[i], false)
             if HardMode > 0 then //reapply hardmode
-                call SetHeroStr(PreChaosBoss[i], GetHeroStr(PreChaosBoss[i],true) * 2, true)
-                call BlzSetUnitBaseDamage(PreChaosBoss[i], BlzGetUnitBaseDamage(PreChaosBoss[i], 0) * 2, 0)
+                call SetHeroStr(Boss[i], GetHeroStr(Boss[i],true) * 2, true)
+                call BlzSetUnitBaseDamage(Boss[i], BlzGetUnitBaseDamage(Boss[i], 0) * 2 + 1, 0)
             endif
-            call DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" + PreChaosBossName[i] + " has revived.|r")
+            call DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" + BossName[i] + " has revived.|r")
         endif
-    else //chaos
-        set uid = ChaosBossID[i]
-        set facing = GetRandomReal(0, 359)
-        if i == BOSS_LEGION then //legion
-            loop
-                call RemoveLocation(ChaosBossLoc[i])
-                set ChaosBossLoc[i] = GetRandomLocInRect(gg_rct_Main_Map)
-                call GroupEnumUnitsInRangeOfLoc(ug, ChaosBossLoc[i], 4000., Condition(function isbase))
-                if IsTerrainWalkable(GetLocationX(ChaosBossLoc[i]), GetLocationY(ChaosBossLoc[i])) and BlzGroupGetSize(ug) == 0 and RectContainsLoc(gg_rct_Town_Boundry, ChaosBossLoc[i]) == false and RectContainsLoc(gg_rct_Top_of_Town, ChaosBossLoc[i]) == false then
-                    exitwhen true
-                endif
-            endloop
-        endif
-        set ChaosBoss[i] = CreateUnitAtLoc(pboss, uid, ChaosBossLoc[i], facing)
-        call DestroyEffect(AddSpecialEffectLoc("Abilities\\Spells\\Orc\\Reincarnation\\ReincarnationTarget.mdl", ChaosBossLoc[i]))
-        call SetHeroLevel(ChaosBoss[i], BossLevel[i], false)
-        if HardMode > 0 then //reapply hardmode
-            call SetHeroStr(ChaosBoss[i], GetHeroStr(ChaosBoss[i], true) * 2, true)
-            call BlzSetUnitBaseDamage(ChaosBoss[i], BlzGetUnitBaseDamage(ChaosBoss[i], 0) * 2, 0)
-        endif
-        set i2 = 0
-        loop //give items
-            exitwhen ChaosBossItem[i * CHAOS_BOSS_TOTAL + i2] == 0
-            call UnitAddItem(ChaosBoss[i], CreateItem(ChaosBossItem[i * CHAOS_BOSS_TOTAL + i2], 30000, 30000))
-            set i2 = i2 + 1
-        endloop
-        call DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" + ChaosBossName[i] + " has revived.|r")
     endif
 
-    call DestroyGroup(ug)
-    call ReleaseTimer(t)
+    call TimerList[bossid].removePlayerTimer(pt)
 
-    set t = null
+    call DestroyGroup(ug)
+
     set ug = null
 endfunction
 
 function BossHandler takes integer uid returns nothing
     local real delay = 600. 
+    local PlayerTimer pt
+
+    if CWLoading then
+        return
+    endif
 
     if IsUnitIdType(uid, UNIT_TYPE_HERO) == false then
         set delay = 300.
@@ -611,25 +549,32 @@ function BossHandler takes integer uid returns nothing
         if DeadGods == 3 then //spawn goddess of life
             if GodsRepeatFlag == false then
                 set GodsRepeatFlag = true
-                call DoTransmissionBasicsXYBJ(PreChaosBossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(PreChaosBoss[BOSS_LIFE]), GetUnitY(PreChaosBoss[BOSS_LIFE]), null, "Goddess of Life", "This is your last chance.", 6 )
+                call DoTransmissionBasicsXYBJ(BossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE]), null, "Goddess of Life", "This is your last chance.", 6 )
             endif
         
-            call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(PreChaosBoss[BOSS_LIFE]), GetUnitY(PreChaosBoss[BOSS_LIFE])))
-            call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(PreChaosBoss[BOSS_LIFE]), GetUnitY(PreChaosBoss[BOSS_LIFE])))
-            call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(PreChaosBoss[BOSS_LIFE]), GetUnitY(PreChaosBoss[BOSS_LIFE])))
-            call ShowUnit(PreChaosBoss[BOSS_LIFE], true)
-            call PauseUnit(PreChaosBoss[BOSS_LIFE], true)
-            call UnitAddAbility(PreChaosBoss[BOSS_LIFE], 'Avul')
-            call UnitAddAbility(PreChaosBoss[BOSS_LIFE], 'A08L')
+            call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE])))
+            call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE])))
+            call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE])))
+            call ShowUnit(Boss[BOSS_LIFE], true)
+            call PauseUnit(Boss[BOSS_LIFE], true)
+            call UnitAddAbility(Boss[BOSS_LIFE], 'Avul')
+            call UnitAddAbility(Boss[BOSS_LIFE], 'A08L')
             call TimerStart(NewTimer(), 6., false, function GoddessOfLife)
         endif
 
         return
-    elseif uid == PreChaosBossID[BOSS_LIFE] then
+    elseif uid == BossID[BOSS_LIFE] then
         set DeadGods = 4
         call DisplayTimedTextToForce(FORCE_PLAYING, 10, "You may now -flee if you wish.")
         call TimerStart(NewTimer(), 6., false, function PowerCrystal)
+    elseif BANISH_FLAG and (uid == BossID[BOSS_DEATH_KNIGHT] or uid == BossID[BOSS_LEGION]) then
+        //banish death knight / legion
+        return
     endif
+
+    set pt = TimerList[bossid].addTimer(bossid)
+    set pt.agi = uid
+    set pt.tag = 'boss'
 
     set delay = delay * BossDelay
 
@@ -637,7 +582,7 @@ function BossHandler takes integer uid returns nothing
         set delay = 5.
     endif
     
-    call TimerStart(NewTimerEx(uid), delay, false, function BossRespawn)
+    call TimerStart(pt.getTimer(), delay, false, function BossRespawn)
 endfunction
 
 function onDeath takes nothing returns nothing
@@ -650,43 +595,33 @@ function onDeath takes nothing returns nothing
     local player p2 = GetOwningPlayer(u2)
     local integer pid = GetPlayerId(p) + 1
     local integer kpid = GetPlayerId(p2) + 1
-    local location loc
     local integer rand = GetRandomInt(0, 99)
     local group ug = CreateGroup()
     local integer i = 0
     local integer i2 = 0
-    local integer ic = 0
     local integer myquest = 0
     local item itm
     local unit target
     local timer t
-    local boolean dropflag = true
-    local boolean spawnflag = true
+    local boolean dropflag = false
+    local boolean spawnflag = false
+    local boolean goldxpflag = false
     local boolean training = false
     local BossItemList il = BossItemList.create()
+    local User U = User.first
 
     //determine gold, xp, and spawn
-    
-    if IsUnitIllusion(u) then
-        set dropflag = false
-        set spawnflag = false
-    endif
-
     if IsEnemy(pid) and IsUnitEnemy(u, p2) then //Gold & XP
         if RectContainsCoords(gg_rct_Training_Chaos, x, y) then
-            set dropflag = false
-            set spawnflag = false
             set training = true
             call RemoveUnit(u)
         elseif RectContainsCoords(gg_rct_Training_Prechaos, x, y) then
-            set spawnflag = false
+            set dropflag = true
             set training = true
-            call AssignGoldXp(u, u2)
+            set goldxpflag = true
             call RemoveUnit(u)
         elseif IsUnitInGroup(u, ColoWaveGroup) then //Colo 
-            set dropflag = false
-            set spawnflag = false
-            call AssignGoldXp(u, u2)
+            set goldxpflag = true
             call GroupRemoveUnit(ColoWaveGroup, u)
 
             set udg_GoldWon_Colo = udg_GoldWon_Colo + R2I(udg_RewardGold[GetUnitLevel(u)] / udg_Gold_Mod[ColoPlayerCount])
@@ -698,9 +633,7 @@ function onDeath takes nothing returns nothing
                 call TimerStart(NewTimer(), 3., false, function AdvanceColo)
             endif
         elseif IsUnitInGroup(u, StruggleWaveGroup) then //struggle enemies
-            set dropflag = false
-            set spawnflag = false
-            call AssignGoldXp(u, u2)
+            set goldxpflag = true
             call GroupRemoveUnit( StruggleWaveGroup, u )
 
             set udg_GoldWon_Struggle= udg_GoldWon_Struggle + R2I( udg_RewardGold[GetUnitLevel(u)]*.65 *udg_Gold_Mod[udg_Struggle_Pcount] )
@@ -711,8 +644,6 @@ function onDeath takes nothing returns nothing
                 call TimerStart(NewTimer(), 3., false, function AdvanceStruggle)
             endif
         elseif IsUnitInGroup(u, NAGA_ENEMIES) then //naga dungeon
-            set dropflag = false
-            set spawnflag = false
             call GroupRemoveUnit(NAGA_ENEMIES, u)
             
             if BlzGroupGetSize(NAGA_ENEMIES) <= 0 then
@@ -729,7 +660,7 @@ function onDeath takes nothing returns nothing
                     call TimerDialogDisplay(NAGA_TIMER_DISPLAY, false)
                     if not timerflag then //time restriction
                         call CreateItemEx('I0NN', x, y, false) //token
-                        if NAGA_PLAYERS > 4 and GetRandomInt(0, 99) < 50 then
+                        if NAGA_PLAYERS > 3 and GetRandomInt(0, 99) < 50 then
                             call CreateItemEx('I0NN', x, y, false)
                         endif
                     endif
@@ -754,11 +685,20 @@ function onDeath takes nothing returns nothing
             set powercrystal = null
             call BeginChaos() //chaos
         else
-            call AssignGoldXp(u, u2)
+            set dropflag = true
+            set spawnflag = true
+            set goldxpflag = true
         endif
-    else
+    endif
+
+    if IsUnitIllusion(u) then
         set dropflag = false
         set spawnflag = false
+        set goldxpflag = false
+    endif
+
+    if goldxpflag then
+        call AssignGoldXp(u, u2, true)
     endif
     
     //========================
@@ -1208,11 +1148,11 @@ function onDeath takes nothing returns nothing
             call CreateItemEx('I030', x, y, true) // 
         elseif uid == 'E00C' then // goddess of knowledge
             call CreateItemEx('I031', x, y, true) // 
-        elseif uid == PreChaosBossID[BOSS_LIFE] then // goddess of life
+        elseif uid == BossID[BOSS_LIFE] then // goddess of life
             call CreateItemEx('I04I', x, y, true) // 
         elseif uid == 'N038' then // Demon Prince
             call CreateItemEx('I04Q', x, y, true) //heart
-            call MakeCrystals(1, HardMode, x, y)
+            call AwardCrystals(1, HardMode, u)
         elseif uid == 'N017' then // Absolute Horror
             call il.addItem('I0N7')
             call il.addItem('I0N8')
@@ -1224,7 +1164,7 @@ function onDeath takes nothing returns nothing
             else
                 call BossDrop(il, 1 + HardMode, 85, x, y)
             endif
-            call MakeCrystals(2, HardMode, x, y)
+            call AwardCrystals(2, HardMode, u)
         elseif uid == 'O02B' then // Slaughter
             call il.addItem('I0AE')
             call il.addItem('I04F')
@@ -1238,7 +1178,7 @@ function onDeath takes nothing returns nothing
             else
                 call BossDrop(il, 1 + HardMode, 85, x, y)
             endif
-            call MakeCrystals(3, HardMode, x, y)
+            call AwardCrystals(3, HardMode, u)
         elseif uid == 'O02H' then // Dark Soul
             call il.addItem('I05A')
 
@@ -1261,7 +1201,7 @@ function onDeath takes nothing returns nothing
             else
                 call BossDrop(il, 1 + HardMode, 70, x, y)
             endif
-            call MakeCrystals(3, HardMode, x, y)
+            call AwardCrystals(3, HardMode, u)
         elseif uid == 'O02I' then //Satan
             call il.addItem('I0BX')
             call il.addItem('I05J')
@@ -1276,7 +1216,7 @@ function onDeath takes nothing returns nothing
             else
                 call BossDrop(il, 1 + HardMode, 65, x, y)
             endif
-            call MakeCrystals(5, HardMode, x, y)
+            call AwardCrystals(5, HardMode, u)
         elseif uid == 'O02K' then // Thanatos
             call il.addItem('I04E')
             call il.addItem('I0MR')
@@ -1291,7 +1231,7 @@ function onDeath takes nothing returns nothing
             else
                 call BossDrop(il, 1 + HardMode, 65, x, y)
             endif
-            call MakeCrystals(5, HardMode, x, y)
+            call AwardCrystals(5, HardMode, u)
         elseif uid == 'H04R' then //Legion
             call il.addItem('I0B5')
             call il.addItem('I0B7')
@@ -1310,7 +1250,7 @@ function onDeath takes nothing returns nothing
             else
                 call BossDrop(il, 1 + HardMode, 60, x, y)
             endif
-            call MakeCrystals(8, HardMode, x, y)
+            call AwardCrystals(8, HardMode, u)
         elseif uid == 'O02M' then // Existence
             call il.addItem('I018')
             call il.addItem('I0BY')
@@ -1325,7 +1265,7 @@ function onDeath takes nothing returns nothing
             else
                 call BossDrop(il, 1 + HardMode, 60, x, y)
             endif
-            call MakeCrystals(8, HardMode, x, y)
+            call AwardCrystals(8, HardMode, u)
         elseif uid == 'O03G' then //Forgotten Leader
             call il.addItem('I0OB')
             call il.addItem('I0O1')
@@ -1337,7 +1277,7 @@ function onDeath takes nothing returns nothing
             else
                 call BossDrop(il, 1 + HardMode, 30, x, y)
             endif
-            call MakeCrystals(12, HardMode, x, y)
+            call AwardCrystals(12, HardMode, u)
         elseif uid == 'O02T' then //Azazoth
             call il.addItem('I0BS')
             call il.addItem('I0BV')
@@ -1356,7 +1296,7 @@ function onDeath takes nothing returns nothing
             else
                 call BossDrop(il, 1 + HardMode, 60, x, y)
             endif
-            call MakeCrystals(12, HardMode, x, y)
+            call AwardCrystals(12, HardMode, u)
         endif
         
         set i = 0
@@ -1387,6 +1327,7 @@ function onDeath takes nothing returns nothing
 
 		if KillQuest[myquest][StringHash("Count")] >= KillQuest[myquest][StringHash("Goal")] then
 			set udg_KillQuest_Status[myquest] = 2
+            set KillQuest[myquest][StringHash("Last")] = uid
 			call DisplayTimedTextToForce(FORCE_PLAYING, 12, KillQuest[myquest].string[StringHash("Name")] + " quest completed, talk to the Huntsman for your reward.")
 		endif
 	endif
@@ -1408,7 +1349,7 @@ function onDeath takes nothing returns nothing
     
     //kroresh
     if u == gg_unit_N01N_0050 then
-        call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_COMPLETED, "TRIGSTR_27384")
+        call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_COMPLETED, "|cffffcc00OPTIONAL QUEST COMPLETE|r\nThe Horde")
         call QuestSetCompleted(udg_Defeat_The_Horde_Quest, true)
         set udg_TalkToMe20=AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl",gg_unit_n02Q_0382,"overhead")
     
@@ -1428,26 +1369,26 @@ function onDeath takes nothing returns nothing
     
     //zeknen
     elseif u == gg_unit_O01A_0372 then
-        call DoTransmissionBasicsXYBJ(PreChaosBossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(PreChaosBoss[BOSS_LIFE]), GetUnitY(PreChaosBoss[BOSS_LIFE]), null, "Goddess of Life", "You are foolish to challenge us in our realm. Prepare yourself.", 7.5 )
+        call DoTransmissionBasicsXYBJ(BossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE]), null, "Goddess of Life", "You are foolish to challenge us in our realm. Prepare yourself.", 7.5 )
         
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(PreChaosBoss[BOSS_HATE]), GetUnitY(PreChaosBoss[BOSS_HATE])))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(PreChaosBoss[BOSS_HATE]), GetUnitY(PreChaosBoss[BOSS_HATE])))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(PreChaosBoss[BOSS_HATE]), GetUnitY(PreChaosBoss[BOSS_HATE])))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(PreChaosBoss[BOSS_LOVE]), GetUnitY(PreChaosBoss[BOSS_LOVE])))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(PreChaosBoss[BOSS_LOVE]), GetUnitY(PreChaosBoss[BOSS_LOVE])))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(PreChaosBoss[BOSS_LOVE]), GetUnitY(PreChaosBoss[BOSS_LOVE])))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(PreChaosBoss[BOSS_KNOWLEDGE]), GetUnitY(PreChaosBoss[BOSS_KNOWLEDGE])))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(PreChaosBoss[BOSS_KNOWLEDGE]), GetUnitY(PreChaosBoss[BOSS_KNOWLEDGE])))
-        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(PreChaosBoss[BOSS_KNOWLEDGE]), GetUnitY(PreChaosBoss[BOSS_KNOWLEDGE])))
-        call ShowUnit(PreChaosBoss[BOSS_HATE], true)
-        call ShowUnit(PreChaosBoss[BOSS_LOVE], true)
-        call ShowUnit(PreChaosBoss[BOSS_KNOWLEDGE], true)
-        call PauseUnit(PreChaosBoss[BOSS_HATE], true)
-        call PauseUnit(PreChaosBoss[BOSS_LOVE], true)
-        call PauseUnit(PreChaosBoss[BOSS_KNOWLEDGE], true)
-        call UnitAddAbility(PreChaosBoss[BOSS_HATE], 'Avul')
-        call UnitAddAbility(PreChaosBoss[BOSS_LOVE], 'Avul')
-        call UnitAddAbility(PreChaosBoss[BOSS_KNOWLEDGE], 'Avul')
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_HATE]), GetUnitY(Boss[BOSS_HATE])))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_HATE]), GetUnitY(Boss[BOSS_HATE])))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_HATE]), GetUnitY(Boss[BOSS_HATE])))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_LOVE]), GetUnitY(Boss[BOSS_LOVE])))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_LOVE]), GetUnitY(Boss[BOSS_LOVE])))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_LOVE]), GetUnitY(Boss[BOSS_LOVE])))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_KNOWLEDGE]), GetUnitY(Boss[BOSS_KNOWLEDGE])))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_KNOWLEDGE]), GetUnitY(Boss[BOSS_KNOWLEDGE])))
+        call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_KNOWLEDGE]), GetUnitY(Boss[BOSS_KNOWLEDGE])))
+        call ShowUnit(Boss[BOSS_HATE], true)
+        call ShowUnit(Boss[BOSS_LOVE], true)
+        call ShowUnit(Boss[BOSS_KNOWLEDGE], true)
+        call PauseUnit(Boss[BOSS_HATE], true)
+        call PauseUnit(Boss[BOSS_LOVE], true)
+        call PauseUnit(Boss[BOSS_KNOWLEDGE], true)
+        call UnitAddAbility(Boss[BOSS_HATE], 'Avul')
+        call UnitAddAbility(Boss[BOSS_LOVE], 'Avul')
+        call UnitAddAbility(Boss[BOSS_KNOWLEDGE], 'Avul')
         call TimerStart(NewTimer(), 7., false, function SpawnGods)
     endif
     
@@ -1460,12 +1401,12 @@ function onDeath takes nothing returns nothing
     if u == mybase[pid] then
         if u2 != null then
             if GetPlayerId(p2) > 7 then
-                call DisplayTimedTextToForce(FORCE_PLAYING, 45, GetPlayerName(p) + "'s base was destroyed by " + GetUnitName(u2) + ".")
+                call DisplayTimedTextToForce(FORCE_PLAYING, 45, User(pid - 1).nameColored + "'s base was destroyed by " + GetUnitName(u2) + ".")
             else
-                call DisplayTimedTextToForce(FORCE_PLAYING, 45, GetPlayerName(p) + "'s base was destroyed by " + GetPlayerName(p2) + ".")
+                call DisplayTimedTextToForce(FORCE_PLAYING, 45, User(pid - 1).nameColored + "'s base was destroyed by " + GetPlayerName(p2) + ".")
             endif
         else
-            call DisplayTimedTextToForce(FORCE_PLAYING, 45, GetPlayerName(p) + "'s base has been destroyed.")
+            call DisplayTimedTextToForce(FORCE_PLAYING, 45, User(pid - 1).nameColored + "'s base has been destroyed.")
         endif
 
         set urhome[pid] = 0
@@ -1505,7 +1446,6 @@ function onDeath takes nothing returns nothing
         call SetPlayerTechResearched(p, 'R015', 1)
         call SetPlayerTechResearched(p, 'R016', 1)
         call SetPlayerTechResearched(p, 'R017', 1)
-        call SetPlayerTechResearched(p, 'R018', 1)
 
         call ExperienceControl(pid)
         
@@ -1579,8 +1519,40 @@ function onDeath takes nothing returns nothing
     //========================
 
     elseif IsBoss(uid) and p == pboss and IsUnitIllusion(u) == false then 
+        set i = 0
+        loop
+            exitwhen BossID[i] == uid or BossID[i] == uid or i > BOSS_TOTAL
+            set i = i + 1
+        endloop
+
+        //add up player boss damage
+        set i2 = 0
+        loop
+            exitwhen U == User.NULL
+            set i2 = i2 + BossDamage[U.id * BOSS_TOTAL + i]
+            set U = U.next
+        endloop
+
+        set U = User.first
+        //print percentage contribution
+        loop
+            exitwhen U == User.NULL
+            if BossDamage[U.id * BOSS_TOTAL + i] >= 1. then
+                call DisplayTimedTextToForce(FORCE_PLAYING, 20., U.nameColored + " contributed |cffffcc00" + R2S(BossDamage[U.id * BOSS_TOTAL + i] * 100. / RMaxBJ(I2R(i2), 1.)) + "%|r damage to " + GetUnitName(u) + ".")
+            endif
+            set U = U.next
+        endloop
+
         call RemoveUnitTimed(u, 6.)
         call BossHandler(uid)
+
+        //reset boss damage recorded
+        set i2 = 0
+        loop
+            exitwhen i2 > PLAYER_CAP
+            set BossDamage[i2 * BOSS_TOTAL + i] = 0
+            set i2 = i2 + 1
+        endloop
 
     elseif IsCreep(u) and spawnflag then //Creep Respawn
         set t = NewTimerEx(uid)
