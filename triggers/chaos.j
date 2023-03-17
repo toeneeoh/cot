@@ -9,13 +9,10 @@ globals
     unit godsportal = null
     integer DeadGods = 0
 
-    integer array BossItem
-    integer array ChaosBossID
-    string array ChaosBossName
-    integer array ChaosBossItem
     integer forgottenCount = 0
     integer array forgottenTypes
     unit forgottenSpawner
+    boolean BANISH_FLAG = false
 endglobals
 
 function OpenGodsPortal takes nothing returns nothing
@@ -30,27 +27,6 @@ function OpenGodsPortal takes nothing returns nothing
     set PathtoGodsisOpen = true
 endfunction
 
-function CleanupGods takes nothing returns nothing
-    local integer i = 1
-    
-    loop
-        exitwhen i > 8
-        if GodsParticipant[i] then
-            set i = -1
-            exitwhen true
-        endif
-        set i = i + 1
-    endloop
-    
-    //heal gods
-    if i != -1 then
-        call SetWidgetLife(PreChaosBoss[BOSS_LIFE], BlzGetUnitMaxHP(PreChaosBoss[BOSS_LIFE]))
-        call SetWidgetLife(PreChaosBoss[BOSS_HATE], BlzGetUnitMaxHP(PreChaosBoss[BOSS_HATE]))
-        call SetWidgetLife(PreChaosBoss[BOSS_LOVE], BlzGetUnitMaxHP(PreChaosBoss[BOSS_LOVE]))
-        call SetWidgetLife(PreChaosBoss[BOSS_KNOWLEDGE], BlzGetUnitMaxHP(PreChaosBoss[BOSS_KNOWLEDGE]))
-    endif
-endfunction
-
 function PowerCrystal takes nothing returns nothing
     call ReleaseTimer(GetExpiredTimer())
     
@@ -60,19 +36,19 @@ endfunction
 function GoddessOfLife takes nothing returns nothing
     call ReleaseTimer(GetExpiredTimer())
 
-    call PauseUnit(PreChaosBoss[BOSS_LIFE], false)
-    call UnitRemoveAbility(PreChaosBoss[BOSS_LIFE], 'Avul')
+    call PauseUnit(Boss[BOSS_LIFE], false)
+    call UnitRemoveAbility(Boss[BOSS_LIFE], 'Avul')
 endfunction
 
 function SpawnGods takes nothing returns nothing
     call ReleaseTimer(GetExpiredTimer())
     
-    call PauseUnit(PreChaosBoss[BOSS_HATE], false)
-    call UnitRemoveAbility(PreChaosBoss[BOSS_HATE], 'Avul')
-    call PauseUnit(PreChaosBoss[BOSS_LOVE], false)
-    call UnitRemoveAbility(PreChaosBoss[BOSS_LOVE], 'Avul')
-    call PauseUnit(PreChaosBoss[BOSS_KNOWLEDGE], false)
-    call UnitRemoveAbility(PreChaosBoss[BOSS_KNOWLEDGE], 'Avul')
+    call PauseUnit(Boss[BOSS_HATE], false)
+    call UnitRemoveAbility(Boss[BOSS_HATE], 'Avul')
+    call PauseUnit(Boss[BOSS_LOVE], false)
+    call UnitRemoveAbility(Boss[BOSS_LOVE], 'Avul')
+    call PauseUnit(Boss[BOSS_KNOWLEDGE], false)
+    call UnitRemoveAbility(Boss[BOSS_KNOWLEDGE], 'Avul')
 endfunction
 
 function ZeknenExpire takes nothing returns nothing
@@ -98,11 +74,20 @@ function BeginChaos takes nothing returns nothing
 	local unit target
 	local group ug = CreateGroup()
     local group g = CreateGroup()
+    local real x = 0.
+    local real y = 0.
 	local location loc
     local item itm
     local real r
     local User u = User.first
     
+    //stop prechaos boss respawns
+    call TimerList[bossid].stopAllTimersWithTag('boss')
+
+    //reset legion jump timer
+    call PauseTimer(wanderingTimer)
+    call TimerStart(wanderingTimer, 2040. - (User.AmountPlaying * 240), true, function ShadowStepExpire)
+
     set CWLoading = true
     set udg_Chaos_World_On = true
 
@@ -127,7 +112,6 @@ function BeginChaos takes nothing returns nothing
 	call DestroyQuest( udg_Paladin_Quest )
 	call DestroyQuest( udg_Sasquatch_Quest )
 	call DestroyQuest( udg_Tauren_Cheiftan_Quest )
-	call DestroyQuest( udg_Trifire_Mage_Quest )
 	
 	call TriggerSleepAction(3.00)
     call DisplayTimedTextToForce(FORCE_PLAYING, 30, "Please be patient... the chaotic world is setting up.")
@@ -143,7 +127,7 @@ function BeginChaos takes nothing returns nothing
     call DestroyEffect(udg_TalkToMe13)
     call DestroyEffect(udg_TalkToMe20)
     call RemoveUnit( gg_unit_O01A_0372 ) //zeknen
-	call RemoveUnit( gg_unit_h03A_0060 )
+	call RemoveUnit( gg_unit_h03A_0005  )
 	call RemoveUnit( gg_unit_n01Q_0045 )
 	call RemoveUnit( gg_unit_n00Z_0004 )
     call RemoveUnit( gg_unit_n0A1_0164 )
@@ -158,9 +142,9 @@ function BeginChaos takes nothing returns nothing
     call ShowUnit( gg_unit_n02B_0049, true )//
     call ShowUnit( gg_unit_n02C_0048, true )//
 
-    set r = GetUnitFacing(gg_unit_h036_0059)
-    set loc = Location(GetUnitX(gg_unit_h036_0059), GetUnitY(gg_unit_h036_0059))
-    call RemoveUnit(gg_unit_h036_0059)
+    set r = GetUnitFacing(gg_unit_h036_0002)
+    set loc = Location(GetUnitX(gg_unit_h036_0002), GetUnitY(gg_unit_h036_0002))
+    call RemoveUnit(gg_unit_h036_0002)
     call CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), 'h009', loc, r)
     call RemoveLocation(loc)
     set r = GetUnitFacing(gg_unit_h059_0714)
@@ -204,15 +188,19 @@ function BeginChaos takes nothing returns nothing
     call CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), 'n03V', loc, r)
     call RemoveLocation(loc)
 
+    //clean up bosses
     set i = 0
 	
     loop
         exitwhen i > BOSS_TOTAL
-        call RemoveUnit(PreChaosBoss[i])
-        call RemoveLocation(PreChaosBossLoc[i])
-        set PreChaosBoss[i] = null
+        call RemoveUnit(Boss[i])
+        call RemoveLocation(BossLoc[i])
+        set Boss[i] = null
+        set BossID[i] = 0
         set i = i + 1
     endloop
+
+    set BOSS_TOTAL = 9
 
 	call GroupEnumUnitsInRect(ug, bj_mapInitialPlayableArea, Condition(function ChaosTransition)) //need exception for struggle / colo
     call GroupEnumUnitsOfPlayer(g, Player(PLAYER_NEUTRAL_PASSIVE), Condition(function isvillager))
@@ -239,7 +227,7 @@ function BeginChaos takes nothing returns nothing
     set udg_PunchingBag[2] = CreateUnitAtLoc(pfoe, 'h02G', loc, r)
     call RemoveLocation(loc)
     
-    call CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'n0A2', 1571, -200, 180) // chaos merchant
+    call CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'n0A2', 1344., 1472., 270.) // chaos merchant
     call CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'n01K', -12363, -1185, 0) // naga npc
     //call CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'ngol', 15957, -15953, 175) // gold mine
 
@@ -256,13 +244,13 @@ function BeginChaos takes nothing returns nothing
     loop
 		exitwhen u == User.NULL
             set i = GetPlayerId(u.toPlayer()) + 1
-            if RectContainsCoords(gg_rct_Colosseum, GetUnitX(Hero[i]), GetUnitY(Hero[i])) == false and RectContainsCoords(gg_rct_Infinite_Struggle, GetUnitX(Hero[i]), GetUnitY(Hero[i])) == false then
-                set loc = GetRectCenter(gg_rct_Town_Boundry)
+            set x = GetUnitX(Hero[i])
+            set y = GetUnitY(Hero[i])
+            if RectContainsCoords(gg_rct_Colosseum, x, y) == false and RectContainsCoords(gg_rct_Infinite_Struggle, x, y) == false and RectContainsCoords(gg_rct_Church, x, y) == false then
                 set GodsParticipant[i] = false
                 call SetCameraBoundsRectForPlayerEx( u.toPlayer(), gg_rct_Main_Map_Vision )
-                call SetUnitPositionLoc(Hero[i], loc)
-                call PanCameraToTimedLocForPlayer( u.toPlayer(), loc, 0 )
-                call RemoveLocation(loc)
+                call SetUnitPositionLoc(Hero[i], TownCenter)
+                call PanCameraToTimedForPlayer( u.toPlayer(), GetUnitX(Hero[i]), GetUnitY(Hero[i]), 0.)
                 call EnterWeather(Hero[i])
             endif
 		set u = u.next
@@ -276,16 +264,10 @@ function BeginChaos takes nothing returns nothing
         
 		if i < 6 then
 			set target = CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), 'n036', loc, GetRandomReal(0, 360.00) )
-            call IssueImmediateOrder(target, "metamorphosis")
-            call UnitAddAbility(target, 'Aloc')
 		elseif i < 11 then
 			set target = CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), 'n035', loc, GetRandomReal(0, 360.00) )
-            call IssueImmediateOrder(target, "metamorphosis")
-            call UnitAddAbility(target, 'Aloc')
 		elseif i < 16 then
 			set target = CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), 'n037', loc, GetRandomReal(0, 360.00) )
-            call IssueImmediateOrder(target, "metamorphosis")
-            call UnitAddAbility(target, 'Aloc')
 		endif
 		
 		call RemoveLocation(loc)
@@ -295,105 +277,153 @@ function BeginChaos takes nothing returns nothing
 	call SetWaterBaseColorBJ( 150.00, 0.00, 0.00, 0 )
     
 	set HardMode = 0
+    set BANISH_FLAG = false
 	
 	// ------------------
 	// bosses
 	// ------------------
 
-    set ChaosBossLoc[BOSS_DEMON_PRINCE] = GetRectCenter(gg_rct_Demon_Wiz_and_Norm_Boss) //demon prince
-	set ChaosBoss[BOSS_DEMON_PRINCE] = CreateUnitAtLoc( pboss, 'N038', ChaosBossLoc[BOSS_DEMON_PRINCE], 315.00 )
-    set ChaosBossID[BOSS_DEMON_PRINCE] = 'N038'
-    set ChaosBossName[BOSS_DEMON_PRINCE] = "Demon Prince"
-	call SetHeroLevel( ChaosBoss[BOSS_DEMON_PRINCE], 200, false )
-    set BossLevel[BOSS_DEMON_PRINCE] = 200
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_DEMON_PRINCE] = 'I04R'
+    set BossLoc[0] = GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn) //demon prince
+    call SetDoodadAnimation(7810., 1203., 1000., 'D05Q', false, "death", false)
+    set BossFacing[0] = 315.00
+	set Boss[0] = CreateUnitAtLoc( pboss, 'N038', BossLoc[0], BossFacing[0])
+    set BossID[0] = 'N038'
+    set BossName[0] = "Demon Prince"
+	call SetHeroLevel( Boss[0], 200, false )
+    set BossLevel[0] = 200
+    set BossItemType[BOSS_TOTAL * 0] = 'I04R'
+    set BossItemType[BOSS_TOTAL * 0 + 1] = 0
+    set BossItemType[BOSS_TOTAL * 0 + 2] = 0
+    set BossItemType[BOSS_TOTAL * 0 + 3] = 0
+    set BossItemType[BOSS_TOTAL * 0 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 0 + 5] = 0
     
-    set ChaosBossLoc[BOSS_ABSOLUTE_HORROR] = GetRectCenter(gg_rct_Absolute_Horror_Spawn) //absolute horror
-	set ChaosBoss[BOSS_ABSOLUTE_HORROR] = CreateUnitAtLoc( pboss, 'N017', ChaosBossLoc[BOSS_ABSOLUTE_HORROR], 270.00 )
-    set ChaosBossID[BOSS_ABSOLUTE_HORROR] = 'N017'
-    set ChaosBossName[BOSS_ABSOLUTE_HORROR] = "Absolute Horror"
-	call SetHeroLevel( ChaosBoss[BOSS_ABSOLUTE_HORROR], 230, false )
-    set BossLevel[BOSS_ABSOLUTE_HORROR] = 230
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_ABSOLUTE_HORROR] = 'I0ND'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_ABSOLUTE_HORROR + 1] = 'I0NH'
+    set BossLoc[1] = GetRectCenter(gg_rct_Absolute_Horror_Spawn) //absolute horror
+    set BossFacing[1] = 270.00
+	set Boss[1] = CreateUnitAtLoc( pboss, 'N017', BossLoc[1], BossFacing[1])
+    set BossID[1] = 'N017'
+    set BossName[1] = "Absolute Horror"
+	call SetHeroLevel( Boss[1], 230, false )
+    set BossLevel[1] = 230
+    set BossItemType[BOSS_TOTAL * 1] = 'I0ND'
+    set BossItemType[BOSS_TOTAL * 1 + 1] = 'I0NH'
+    set BossItemType[BOSS_TOTAL * 1 + 2] = 0
+    set BossItemType[BOSS_TOTAL * 1 + 3] = 0
+    set BossItemType[BOSS_TOTAL * 1 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 1 + 5] = 0
     
-	set ChaosBossLoc[BOSS_SLAUGHTER_QUEEN] = Location(-5400, -15470) //slaughter queen
-	set ChaosBoss[BOSS_SLAUGHTER_QUEEN] = CreateUnitAtLoc( pboss, 'O02B', ChaosBossLoc[BOSS_SLAUGHTER_QUEEN], 135.00 )
-    set ChaosBossID[BOSS_SLAUGHTER_QUEEN] = 'O02B'
-    set ChaosBossName[BOSS_SLAUGHTER_QUEEN] = "Slaughter Queen"
-	call SetHeroLevel( ChaosBoss[BOSS_SLAUGHTER_QUEEN], 290, false )
-    set BossLevel[BOSS_SLAUGHTER_QUEEN] = 290 
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_SLAUGHTER_QUEEN] = 'I0OT'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_SLAUGHTER_QUEEN + 1] = 'I0BH'
+	set BossLoc[2] = Location(-5400, -15470) //slaughter queen
+    set BossFacing[2] = 135.00
+	set Boss[2] = CreateUnitAtLoc( pboss, 'O02B', BossLoc[2], BossFacing[2])
+    set BossID[2] = 'O02B'
+    set BossName[2] = "Slaughter Queen"
+	call SetHeroLevel( Boss[2], 290, false )
+    set BossLevel[2] = 290 
+    set BossItemType[BOSS_TOTAL * 2] = 'I0OT'
+    set BossItemType[BOSS_TOTAL * 2 + 1] = 'I0BH'
+    set BossItemType[BOSS_TOTAL * 2 + 2] = 0
+    set BossItemType[BOSS_TOTAL * 2 + 3] = 0
+    set BossItemType[BOSS_TOTAL * 2 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 2 + 5] = 0
     
-	set ChaosBossLoc[BOSS_SATAN] = GetRectCenter(gg_rct_Hell_Spawn_Boss) //satan
-	set ChaosBoss[BOSS_SATAN] = CreateUnitAtLoc( pboss, 'O02I', ChaosBossLoc[BOSS_SATAN], 315.00 )
-    set ChaosBossID[BOSS_SATAN] = 'O02I'
-    set ChaosBossName[BOSS_SATAN] = "Satan"
-	call SetHeroLevel( ChaosBoss[BOSS_SATAN], 310, false )
-    set BossLevel[BOSS_SATAN] = 310
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_SATAN] = 'I07N'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_SATAN + 1] = 'I0OD'
+	set BossLoc[3] = GetRectCenter(gg_rct_Hell_Boss_Spawn) //satan
+    set BossFacing[3] = 315.00
+	set Boss[3] = CreateUnitAtLoc( pboss, 'O02I', BossLoc[3], BossFacing[3])
+    set BossID[3] = 'O02I'
+    set BossName[3] = "Satan"
+	call SetHeroLevel( Boss[3], 310, false )
+    set BossLevel[3] = 310
+    set BossItemType[BOSS_TOTAL * 3] = 'I07N'
+    set BossItemType[BOSS_TOTAL * 3 + 1] = 'I0OD'
+    set BossItemType[BOSS_TOTAL * 3 + 2] = 0
+    set BossItemType[BOSS_TOTAL * 3 + 3] = 0
+    set BossItemType[BOSS_TOTAL * 3 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 3 + 5] = 0
     
-	set ChaosBossLoc[BOSS_DARK_SOUL] = GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn) //dark soul
-	set ChaosBoss[BOSS_DARK_SOUL] = CreateUnitAtLoc( pboss, 'O02H', ChaosBossLoc[BOSS_DARK_SOUL], bj_UNIT_FACING )
-    set ChaosBossID[BOSS_DARK_SOUL] = 'O02H'
-    set ChaosBossName[BOSS_DARK_SOUL] = "Essence of Darkness"
-	call SetHeroLevel( ChaosBoss[BOSS_DARK_SOUL], 300, false )
-    set BossLevel[BOSS_DARK_SOUL] = 300
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_DARK_SOUL] = 'I0EK'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_DARK_SOUL + 1] = 'I03K'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_DARK_SOUL + 2] = 'I0AH'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_DARK_SOUL + 3] = 'I0AI'
+	set BossLoc[4] = GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn) //dark soul
+    set BossFacing[4] = bj_UNIT_FACING
+	set Boss[4] = CreateUnitAtLoc( pboss, 'O02H', BossLoc[4], BossFacing[4])
+    set BossID[4] = 'O02H'
+    set BossName[4] = "Essence of Darkness"
+	call SetHeroLevel( Boss[4], 300, false )
+    set BossLevel[4] = 300
+    set BossItemType[BOSS_TOTAL * 4] = 'I0EK'
+    set BossItemType[BOSS_TOTAL * 4 + 1] = 'I03K'
+    set BossItemType[BOSS_TOTAL * 4 + 2] = 'I0AH'
+    set BossItemType[BOSS_TOTAL * 4 + 3] = 'I0AI'
+    set BossItemType[BOSS_TOTAL * 4 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 4 + 5] = 0
     
-	set ChaosBossLoc[BOSS_LEGION] = GetRectCenter(gg_rct_To_The_Forrest) //legion
-	set ChaosBoss[BOSS_LEGION] = CreateUnitAtLoc( pboss, 'H04R', ChaosBossLoc[BOSS_LEGION], bj_UNIT_FACING )
-    set ChaosBossID[BOSS_LEGION] = 'H04R'
-    set ChaosBossName[BOSS_LEGION] = "Legion"
-	call SetHeroLevel( ChaosBoss[BOSS_LEGION], 340, false )
-	call SelectHeroSkill( ChaosBoss[BOSS_LEGION], 'A0F0' )
-    set BossLevel[BOSS_LEGION] = 340
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_LEGION] = 'I0IQ'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_LEGION + 1] = 'I0J6'
+	set BossLoc[5] = GetRectCenter(gg_rct_To_The_Forrest) //legion
+    set BossFacing[5] = bj_UNIT_FACING
+	set Boss[5] = CreateUnitAtLoc( pboss, 'H04R', BossLoc[5], BossFacing[5])
+    set BossID[5] = 'H04R'
+    set BossName[5] = "Legion"
+	call SetHeroLevel( Boss[5], 340, false )
+	call SelectHeroSkill( Boss[5], 'A0F0' )
+    set BossLevel[5] = 340
+    set BossItemType[BOSS_TOTAL * 5] = 'I0IQ'
+    set BossItemType[BOSS_TOTAL * 5 + 1] = 'I0J6'
+    set BossItemType[BOSS_TOTAL * 5 + 2] = 0
+    set BossItemType[BOSS_TOTAL * 5 + 3] = 0
+    set BossItemType[BOSS_TOTAL * 5 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 5 + 5] = 0
     
-	set ChaosBossLoc[BOSS_THANATOS] = GetRandomLocInRect(gg_rct_Thanatos_Spawn) //thanatos
-	set ChaosBoss[BOSS_THANATOS] = CreateUnitAtLoc( pboss, 'O02K', ChaosBossLoc[BOSS_THANATOS], bj_UNIT_FACING )
-    set ChaosBossID[BOSS_THANATOS] = 'O02K'
-    set ChaosBossName[BOSS_THANATOS] = "Thanatos"
-	call SetHeroLevel( ChaosBoss[BOSS_THANATOS], 320, false )
-    set BossLevel[BOSS_THANATOS] = 320
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_THANATOS] = 'I06H'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_THANATOS + 1] = 'I023'
+	set BossLoc[6] = GetRandomLocInRect(gg_rct_Thanatos_Boss_Spawn) //thanatos
+    set BossFacing[6] = bj_UNIT_FACING
+	set Boss[6] = CreateUnitAtLoc( pboss, 'O02K', BossLoc[6], BossFacing[6])
+    set BossID[6] = 'O02K'
+    set BossName[6] = "Thanatos"
+	call SetHeroLevel( Boss[6], 320, false )
+    set BossLevel[6] = 320
+    set BossItemType[BOSS_TOTAL * 6] = 'I06H'
+    set BossItemType[BOSS_TOTAL * 6 + 1] = 'I023'
+    set BossItemType[BOSS_TOTAL * 6 + 2] = 0
+    set BossItemType[BOSS_TOTAL * 6 + 3] = 0
+    set BossItemType[BOSS_TOTAL * 6 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 6 + 5] = 0
     
-    set ChaosBossLoc[BOSS_EXISTENCE] = GetRandomLocInRect(gg_rct_Existence_Boss) //existence
-	set ChaosBoss[BOSS_EXISTENCE] = CreateUnitAtLoc( pboss, 'O02M', ChaosBossLoc[BOSS_EXISTENCE], bj_UNIT_FACING )
-    set ChaosBossID[BOSS_EXISTENCE] = 'O02M'
-    set ChaosBossName[BOSS_EXISTENCE] = "Pure Existence"
-	call SetHeroLevel( ChaosBoss[BOSS_EXISTENCE], 340, false )
-    set BossLevel[BOSS_EXISTENCE] = 340
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_EXISTENCE] = 'I09E'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_EXISTENCE + 1] = 'I09O'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_EXISTENCE + 2] = 'I0G2'
+    set BossLoc[7] = GetRandomLocInRect(gg_rct_Existence_Boss_Spawn) //existence
+    set BossFacing[7] = bj_UNIT_FACING
+	set Boss[7] = CreateUnitAtLoc( pboss, 'O02M', BossLoc[7], BossFacing[7])
+    set BossID[7] = 'O02M'
+    set BossName[7] = "Pure Existence"
+	call SetHeroLevel( Boss[7], 340, false )
+    set BossLevel[7] = 340
+    set BossItemType[BOSS_TOTAL * 7] = 'I09E'
+    set BossItemType[BOSS_TOTAL * 7 + 1] = 'I09O'
+    set BossItemType[BOSS_TOTAL * 7 + 2] = 'I0G2'
+    set BossItemType[BOSS_TOTAL * 7 + 3] = 0
+    set BossItemType[BOSS_TOTAL * 7 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 7 + 5] = 0
 
-	set ChaosBossLoc[BOSS_AZAZOTH] = GetRectCenter(gg_rct_Azazoth_Spawn_AGD) //azazoth
-    set ChaosBoss[BOSS_AZAZOTH] = CreateUnitAtLoc( pboss, 'O02T', ChaosBossLoc[BOSS_AZAZOTH], 270.00 )
-    set ChaosBossID[BOSS_AZAZOTH] = 'O02T'
-    set ChaosBossName[BOSS_AZAZOTH] = "Azazoth"
-	call SetHeroLevel( ChaosBoss[BOSS_AZAZOTH], 380, false )
-    set BossLevel[BOSS_AZAZOTH] = 380
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_AZAZOTH] = 'I0LV'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_AZAZOTH + 1] = 'I0KR'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_AZAZOTH + 2] = 'I0LX'
+	set BossLoc[8] = GetRectCenter(gg_rct_Azazoth_Boss_Spawn) //azazoth
+    set BossFacing[8] = 270.00
+    set Boss[8] = CreateUnitAtLoc( pboss, 'O02T', BossLoc[8], BossFacing[8])
+    set BossID[8] = 'O02T'
+    set BossName[8] = "Azazoth"
+	call SetHeroLevel( Boss[8], 380, false )
+    set BossLevel[8] = 380
+    set BossItemType[BOSS_TOTAL * 8] = 'I0LV'
+    set BossItemType[BOSS_TOTAL * 8 + 1] = 'I0KR'
+    set BossItemType[BOSS_TOTAL * 8 + 2] = 'I0LX'
+    set BossItemType[BOSS_TOTAL * 8 + 3] = 0
+    set BossItemType[BOSS_TOTAL * 8 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 8 + 5] = 0
     
-	set ChaosBossLoc[BOSS_FORGOTTEN_LEADER] = GetRectCenter(gg_rct_Forgotten_Leader) //forgotten leader
-	set ChaosBoss[BOSS_FORGOTTEN_LEADER] = CreateUnitAtLoc( pboss, 'O03G', ChaosBossLoc[BOSS_FORGOTTEN_LEADER], 135.00 )
-    set ChaosBossID[BOSS_FORGOTTEN_LEADER] = 'O03G'
-    set ChaosBossName[BOSS_FORGOTTEN_LEADER] = "The Forgotten Leader"
-	call SetHeroLevel( ChaosBoss[BOSS_FORGOTTEN_LEADER], 370, false )
-    set BossLevel[BOSS_FORGOTTEN_LEADER] = 370
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_FORGOTTEN_LEADER] = 'I0NW'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_FORGOTTEN_LEADER + 1] = 'I0O3'
-    set ChaosBossItem[CHAOS_BOSS_TOTAL * BOSS_FORGOTTEN_LEADER + 2] = 'I019'
+	set BossLoc[9] = GetRectCenter(gg_rct_Forgotten_Leader_Boss_Spawn) //forgotten leader
+    set BossFacing[9] = 135.00
+	set Boss[9] = CreateUnitAtLoc( pboss, 'O03G', BossLoc[9], BossFacing[9])
+    set BossID[9] = 'O03G'
+    set BossName[9] = "The Forgotten Leader"
+	call SetHeroLevel( Boss[9], 370, false )
+    set BossLevel[9] = 370
+    set BossItemType[BOSS_TOTAL * 9] = 'I0NW'
+    set BossItemType[BOSS_TOTAL * 9 + 1] = 'I0O3'
+    set BossItemType[BOSS_TOTAL * 9 + 2] = 'I019'
+    set BossItemType[BOSS_TOTAL * 9 + 3] = 0
+    set BossItemType[BOSS_TOTAL * 9 + 4] = 0
+    set BossItemType[BOSS_TOTAL * 9 + 5] = 0
 	
 	call CreateUnit( Player(PLAYER_NEUTRAL_PASSIVE), 'n04P', GetRectCenterX(gg_rct_Azazoth_Circle_Spawn), GetRectCenterY(gg_rct_Azazoth_Circle_Spawn), 270.00 )
 	set udg_Azazoth_Pre_Battle_Locust = CreateUnit( Player(PLAYER_NEUTRAL_PASSIVE), 'O02U', GetRectCenterX(gg_rct_Azazoth_Circle_Spawn), GetRectCenterY(gg_rct_Azazoth_Circle_Spawn), 228.00 )
@@ -406,15 +436,16 @@ function BeginChaos takes nothing returns nothing
     set i = 0
 
     loop
-        exitwhen i > CHAOS_BOSS_TOTAL
+        exitwhen i > BOSS_TOTAL
         set i2 = 0
 
         set firstTimeDrop[i] = false
         loop
-            exitwhen ChaosBossItem[i * CHAOS_BOSS_TOTAL + i2] == 0 or i2 > 5
-            set itm = CreateItem(ChaosBossItem[i * CHAOS_BOSS_TOTAL + i2], 30000, 30000)
-            call UnitAddItem(ChaosBoss[i], itm)
-            call SetUnitCreepGuard(ChaosBoss[i], true)
+            exitwhen BossItemType[i * BOSS_TOTAL + i2] == 0 or i2 > 5
+            set BossNearbyPlayers[i] = 0
+            set itm = CreateItem(BossItemType[i * BOSS_TOTAL + i2], 30000, 30000)
+            call UnitAddItem(Boss[i], itm)
+            call SetUnitCreepGuard(Boss[i], true)
             set i2 = i2 + 1
         endloop
 
@@ -425,29 +456,29 @@ function BeginChaos takes nothing returns nothing
 	// chaotic enemies
 	// ------------------
 
-	set target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'h01M', GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1), bj_UNIT_FACING )
+	set target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'h01M', GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1), 180.00 )
 	call SetUnitPathing( target, false )
     call SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1))
     
-	set target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'h01M', GetRectCenterX(gg_rct_ColoBanner2), GetRectCenterY(gg_rct_ColoBanner2), 90.00 )
+	set target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'h01M', GetRectCenterX(gg_rct_ColoBanner2), GetRectCenterY(gg_rct_ColoBanner2), 0 )
 	call SetUnitPathing( target, false )
     call SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner2), GetRectCenterY(gg_rct_ColoBanner2))
     
-	set target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'h01M', GetRectCenterX(gg_rct_ColoBanner3), GetRectCenterY(gg_rct_ColoBanner3), 90.00 )
+	set target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'h01M', GetRectCenterX(gg_rct_ColoBanner3), GetRectCenterY(gg_rct_ColoBanner3), 180.00 )
 	call SetUnitPathing( target, false )
     call SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner3), GetRectCenterY(gg_rct_ColoBanner3))
 
-	set target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'h01M', GetRectCenterX(gg_rct_ColoBanner4), GetRectCenterY(gg_rct_ColoBanner4) , bj_UNIT_FACING )
+	set target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), 'h01M', GetRectCenterX(gg_rct_ColoBanner4), GetRectCenterY(gg_rct_ColoBanner4) , 0 )
 	call SetUnitPathing( target, false )
     call SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner4), GetRectCenterY(gg_rct_ColoBanner4) )
     
     call TriggerSleepAction(1.00)
 
-	call ChaosSpawn()
+	call SpawnCreeps(1)
 
     call TriggerSleepAction(1.00)
 
-    set forgottenSpawner = CreateUnit(pboss, 'o02E', 15241, -12600, bj_UNIT_FACING)
+    set forgottenSpawner = CreateUnit(pboss, 'o02E', 15100., -12650., bj_UNIT_FACING)
     call SetUnitAnimation(forgottenSpawner, "Stand Work")
     call SpawnForgotten()
     call SpawnForgotten()
