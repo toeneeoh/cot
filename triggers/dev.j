@@ -6,7 +6,9 @@ globals
     button array SEARCH_NEXT
     integer array SEARCH_PAGE
     boolean array BUDDHA_MODE
-    boolean EXTRA_DEBUG = true
+    boolean EXTRA_DEBUG = false
+    boolean array nocd
+	boolean array nocost
 endglobals
 
 function Dec2Hex takes integer dec returns string
@@ -410,16 +412,20 @@ function DevCommands takes nothing returns nothing
         call BlzSetUnitIntegerField(PlayerSelectedUnit[pid], UNIT_IF_DEFENSE_TYPE, S2I(SubString(message, 6, StringLength(message))))
     elseif message == "-boost" then
         if BOOST_OFF then
+            call DisplayTextToPlayer(currentPlayer, 0, 0, "Boost enabled.")
             set BOOST_OFF = false
         else
+            call DisplayTextToPlayer(currentPlayer, 0, 0, "Boost disabled.")
             set BOOST_OFF = true
         endif
     elseif SubString(message, 0, 5) == "-hurt" then
         call SetWidgetLife(PlayerSelectedUnit[pid], GetWidgetLife(PlayerSelectedUnit[pid]) - BlzGetUnitMaxHP(PlayerSelectedUnit[pid]) * 0.01 * S2I(SubString(message, 6, StringLength(message))))
     elseif message == "-buddha" then
         if BUDDHA_MODE[pid] then
+            call DisplayTextToPlayer(currentPlayer, 0, 0, "Buddha disabled.")
             set BUDDHA_MODE[pid] = false
         else
+            call DisplayTextToPlayer(currentPlayer, 0, 0, "Buddha enabled.")
             set BUDDHA_MODE[pid] = true
         endif
     elseif message == "-votekicktest" then
@@ -469,6 +475,21 @@ function DevCommands takes nothing returns nothing
         call ShadowStepExpire()
     elseif message == "-hasabil" and GetUnitAbilityLevel(Hero[pid], 'A00D') > 0 then
         call DEBUGMSG("Yes!")
+    elseif SubString(message, 0, 7) == "-rotate" then
+        call BlzSetUnitFacingEx(PlayerSelectedUnit[pid], S2R(SubString(message, 8, StringLength(message))))
+    elseif message == "-position" then
+        call DEBUGMSG(R2S(GetUnitX(PlayerSelectedUnit[pid])) + " " + R2S(GetUnitY(PlayerSelectedUnit[pid])))
+    elseif message == "-prestigehack" then
+        set Profiles[pid].hd.prestige = 2
+    elseif message == "-quickshit" then
+        call SetHeroLevel(PlayerSelectedUnit[pid], 400, false)
+        set udg_TimePlayed[pid] = 625
+        call SetHeroStat(PlayerSelectedUnit[pid], MainStat(PlayerSelectedUnit[pid]), 123456)
+        call CreateHeroItem(PlayerSelectedUnit[pid], pid, 'I06H', 0)
+        call CreateHeroItem(PlayerSelectedUnit[pid], pid, 'I0G2', 0)
+        call CreateHeroItem(PlayerSelectedUnit[pid], pid, 'I0D4', 0)
+    elseif SubString(message, 0, 4) == "-dmg" then
+        call BlzSetUnitBaseDamage(PlayerSelectedUnit[pid], S2I(SubString(message, 5, StringLength(message))), 0)
     endif
 endfunction
 
@@ -476,6 +497,8 @@ private function init takes nothing returns nothing
     local trigger devcmd = CreateTrigger()
     local trigger search = CreateTrigger()
     local integer i = 0
+
+    set SAVE_LOAD_VERSION = 1000
 
 	loop
 		exitwhen i > 6
