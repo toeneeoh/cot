@@ -8,70 +8,47 @@ globals
     unit array DUMMY_LIST
     group DUMMY_STACK = CreateGroup()
     integer DUMMY_COUNT = 0
-    real DUMMY_RECYCLE_TIME = 10.
+    real DUMMY_RECYCLE_TIME = 5.
     unit TEMP_DUMMY
     multiboard MULTI_BOARD
     integer ColoPlayerCount = 0
     boolean BOOST_OFF = false
     integer callbackCount = 0
     integer array passedValue
+    real array BaseExperience
 endglobals
 
+type itemlist extends integer array [1]
+
 struct BossItemList
-    integer array items[64]
-    integer size
+    itemlist list
+    integer size = 0
 
     method addItem takes integer id returns nothing
-        set items[size] = id
+        set list[size] = id
         set size = size + 1
     endmethod
 
     method pickItem takes nothing returns integer
-        local integer i
-        local integer id = 0
-        local real dc = 1. / RMaxBJ(.size, 1)
-
-        loop
-            exitwhen id > 0
-            set i = 0
-
-            loop
-                exitwhen i >= .size
-                if GetRandomReal(0, 1) <= dc then
-                    set id = .items[i]
-                    exitwhen true
-                endif
-                set i = i + 1
-            endloop
-        endloop
-
-        return id
+        return list[GetRandomInt(0, size - 1)]
     endmethod
 
     method onDestroy takes nothing returns nothing
         local integer i = 0
-
-        set .size = 0
+        
         loop
-            exitwhen i > 64
-            set items[i] = 0
+            exitwhen i > size
+            set list[i] = 0
             set i = i + 1
         endloop
+
+        set size = 0
     endmethod
-
-    static method create takes nothing returns thistype
-        local thistype il = thistype.allocate()
-
-        return il
-    endmethod
-
 endstruct
 
 function DEBUGMSG takes string s returns nothing
     static if LIBRARY_dev then
-        if EXTRA_DEBUG then
-            call DisplayTimedTextToForce(FORCE_PLAYING, 30., s)
-        endif
+        call DisplayTimedTextToForce(FORCE_PLAYING, 30., s)
     endif
 endfunction
 
@@ -250,44 +227,25 @@ function MatchString takes string s, string s2 returns boolean
     return false
 endfunction
 
-function ParseNewLine takes string s, integer i returns string
-    local integer begin = 0
-    local integer index = 0
-    local integer index2 = 2
-    local integer count = 0
-    local string s2 = ""
-    
-    loop
-        exitwhen count >= i or index > 999
-        if SubString(s, index, index2) == "\n" then
-            set count = count + 1
-            set s2 = SubString(s, begin, index)
-            set begin = index2
-        endif
-        set index = index + 1
-        set index2 = index2 + 1
-    endloop
-    
-    return s2
-endfunction
-
-function SoundHandler takes string path, player p returns nothing
+function SoundHandler takes string path, boolean is3D, player p, unit u returns nothing
     local sound s
     local string ss = ""
-    
+
     if p != null then
         if GetLocalPlayer() == p then
             set ss = path
         endif
-        set s = CreateSoundFromLabel(ss, false, false, false, 10, 10)
+        set s = CreateSound(path, false, is3D, is3D, 12700, 12700, "")
     else
-        set s = CreateSoundFromLabel(path, false, false, false, 10, 10)
+        set s = CreateSound(path, false, is3D, is3D, 12700, 12700, "")
+    endif
+
+    if u != null then
+        call AttachSoundToUnit(s, u)
     endif
 
     call StartSound(s)
     call KillSoundWhenDone(s)
-    
-    set s = null
 endfunction
 
 function RemainingTimeString takes timer t returns string
@@ -421,7 +379,7 @@ endfunction
 
 function isvillager takes nothing returns boolean
     local integer id = GetUnitTypeId(GetFilterUnit())
-	if id == 'h04A' or id == 'n02V' or id == 'n03U' or id == 'n09Q' or id == 'n09T' or id == 'n09O' or id == 'n09P' or id == 'n09R' or id == 'n09S' or id == 'nvk2' or id == 'nvlw' or id == 'nvlk' or id == 'nvil' or id == 'nvl2' or id == 'H01Y' or id == 'H01T' or id == 'n036' or id == 'n035' or id == 'n037' or id == 'n03S' or id == 'n01I' or id == 'n0A3' or id == 'n0A4' or id == 'n0A5' or id == 'n0A6' or id == 'h00G' then
+	if id == 'n02V' or id == 'n03U' or id == 'n09Q' or id == 'n09T' or id == 'n09O' or id == 'n09P' or id == 'n09R' or id == 'n09S' or id == 'nvk2' or id == 'nvlw' or id == 'nvlk' or id == 'nvil' or id == 'nvl2' or id == 'H01Y' or id == 'H01T' or id == 'n036' or id == 'n035' or id == 'n037' or id == 'n03S' or id == 'n01I' or id == 'n0A3' or id == 'n0A4' or id == 'n0A5' or id == 'n0A6' or id == 'h00G' then
         return true
 	endif
 	return false
@@ -477,31 +435,35 @@ function ChaosTransition takes nothing returns boolean
 endfunction
 
 function isplayerAlly takes nothing returns boolean
-	return GetWidgetLife(GetFilterUnit()) >= 0.406 and GetPlayerId(GetOwningPlayer(GetFilterUnit())) < 8 and IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == true and GetUnitTypeId(GetFilterUnit()) != BACKPACK
+	return GetWidgetLife(GetFilterUnit()) >= 0.406 and GetPlayerId(GetOwningPlayer(GetFilterUnit())) <= PLAYER_CAP and IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == true and GetUnitTypeId(GetFilterUnit()) != BACKPACK
 endfunction
 
 function iszeppelin takes nothing returns boolean
     return (GetUnitTypeId(GetFilterUnit()) == 'nzep' and GetWidgetLife(GetFilterUnit()) >= 0.406)
 endfunction
 
+function isplayerunitRegion takes nothing returns boolean
+    return (IsUnitType(GetFilterUnit(),UNIT_TYPE_DEAD)==false and GetPlayerId(GetOwningPlayer(GetFilterUnit())) <= PLAYER_CAP and GetUnitTypeId(GetFilterUnit()) != DUMMY)
+endfunction
+
 function isplayerunit takes nothing returns boolean
-    return (IsUnitType(GetFilterUnit(),UNIT_TYPE_DEAD)==false and GetPlayerId(GetOwningPlayer(GetFilterUnit())) < 8 and GetUnitAbilityLevel(GetFilterUnit(),'Avul') == 0)
+    return (IsUnitType(GetFilterUnit(),UNIT_TYPE_DEAD)==false and GetPlayerId(GetOwningPlayer(GetFilterUnit())) <= PLAYER_CAP and GetUnitAbilityLevel(GetFilterUnit(),'Avul') == 0 and GetUnitTypeId(GetFilterUnit()) != DUMMY)
 endfunction
 
 function ishostileEnemy takes nothing returns boolean
 local integer i=GetPlayerId(GetOwningPlayer(GetFilterUnit()))
-	return (IsUnitType(GetFilterUnit(),UNIT_TYPE_DEAD)==false and GetUnitAbilityLevel(GetFilterUnit(), 'Avul') ==0 and i < 9)
+	return (IsUnitType(GetFilterUnit(),UNIT_TYPE_DEAD)==false and GetUnitAbilityLevel(GetFilterUnit(), 'Avul') ==0 and i <= PLAYER_CAP and GetUnitTypeId(GetFilterUnit()) != DUMMY)
 endfunction
 
 function isalive takes nothing returns boolean
-	return (IsUnitType(GetFilterUnit(),UNIT_TYPE_DEAD)==false and GetUnitAbilityLevel(GetFilterUnit(),'Avul') == 0)
+	return (IsUnitType(GetFilterUnit(),UNIT_TYPE_DEAD)==false and GetUnitAbilityLevel(GetFilterUnit(),'Avul') == 0 and GetUnitTypeId(GetFilterUnit()) != DUMMY)
 endfunction
 
 function IsBoss takes integer uid returns boolean
     local integer i = 0
 
     loop
-        exitwhen ChaosBossID[i] == uid or PreChaosBossID[i] == uid or i > BOSS_TOTAL
+        exitwhen BossID[i] == uid or BossID[i] == uid or i > BOSS_TOTAL
         set i = i + 1
     endloop
 
@@ -555,6 +517,130 @@ function AddCrystals takes integer pid, integer num returns nothing
     call SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_FOOD_USED, udg_Crystals[pid])
 endfunction
 
+function AttackDelay takes nothing returns nothing
+    local PlayerTimer pt = TimerList[0].getTimerFromHandle(GetExpiredTimer())
+
+    call BlzSetUnitWeaponBooleanField(pt.caster, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, true)
+    call IssueTargetOrderById(pt.caster, 852173, pt.target)
+
+    call TimerList[0].removePlayerTimer(pt)
+endfunction
+
+function InstantAttack takes unit source, unit target returns nothing
+    local PlayerTimer pt = TimerList[0].addTimer(0)
+
+    set pt.caster = source
+    set pt.target = target
+
+    call UnitAddAbility(source, 'IATK')
+    call TimerStart(pt.getTimer(), 0.05, false, function AttackDelay)
+endfunction
+
+function GetDummy takes real x, real y, integer abil, integer ablev, real dur returns unit
+    if BlzGroupGetSize(DUMMY_STACK) > 0 then
+        set TEMP_DUMMY = BlzGroupUnitAt(DUMMY_STACK, 0) 
+        call GroupRemoveUnit(DUMMY_STACK, TEMP_DUMMY)
+        call PauseUnit(TEMP_DUMMY, false)
+    else
+        set DUMMY_LIST[DUMMY_COUNT] = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), DUMMY, x, y, 0)
+        set TEMP_DUMMY = DUMMY_LIST[DUMMY_COUNT]
+        set DUMMY_COUNT = DUMMY_COUNT + 1
+        call UnitAddAbility(TEMP_DUMMY, 'Amrf')
+        call UnitRemoveAbility(TEMP_DUMMY, 'Amrf')
+        call UnitAddAbility(TEMP_DUMMY, 'Aloc')
+        call SetUnitPathing(TEMP_DUMMY, false)
+        call TriggerRegisterUnitEvent(ACQUIRE_TRIGGER, TEMP_DUMMY, EVENT_UNIT_ACQUIRED_TARGET)
+    endif
+
+    if UnitAddAbility(TEMP_DUMMY, abil) then
+        call SetUnitAbilityLevel(TEMP_DUMMY, abil, ablev)
+        call SaveInteger(MiscHash, GetHandleId(TEMP_DUMMY), 'dspl', abil)
+    endif
+
+    if dur > 0 then
+        call RemoveUnitTimed(TEMP_DUMMY, dur)
+    endif
+
+    //reset attack cooldown
+    call BlzSetUnitAttackCooldown(TEMP_DUMMY, 5., 0)
+    call UnitSetBonus(TEMP_DUMMY, BONUS_ATTACK_SPEED, 0.)
+
+    call SetUnitXBounded(TEMP_DUMMY, x)
+    call SetUnitYBounded(TEMP_DUMMY, y)
+
+    return TEMP_DUMMY
+endfunction
+
+function IndexShield takes integer index returns nothing
+    local integer pid = GetPlayerId(GetOwningPlayer(shieldtarget[index])) + 1
+
+    if shieldunit[index] != null then
+        call SetUnitScale(shieldunit[index], 0., 0., 0.)
+        call SetUnitVertexColor(shieldunit[index], 255, 255, 255, 255)
+        call SetUnitTimeScale(shieldunit[index], -99)
+        call TimerList[pid].stopAllTimersWithTag('garm') //gaia armor attachment
+        set Buff.get(null, shieldtarget[index], ProtectionBuff.typeid).duration = 0. //high priestess protection attack speed
+
+        set isShielded[index] = false
+        set shieldtarget[index] = null
+        set shieldpercent[index] = 0
+        set shieldhp[index] = 0
+        set shieldmax[index] = 0
+    endif
+endfunction
+
+function ShieldExpire takes nothing returns nothing
+    local integer pid = GetTimerData(GetExpiredTimer())
+    local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
+    
+    if isShielded[pt.agi] then
+        set shieldhp[pt.agi] = shieldhp[pt.agi] - pt.dmg
+        set shieldmax[pt.agi] = shieldmax[pt.agi] - pt.dmg
+        
+        if shieldmax[pt.agi] <= 0 then
+            call IndexShield(pt.agi)
+        endif
+    endif
+    
+    call TimerList[pid].removePlayerTimer(pt)
+endfunction
+
+function Shield takes unit u, real amount, real dur returns nothing
+    local integer pid = GetPlayerId(GetOwningPlayer(u)) + 1
+    local PlayerTimer pt = TimerList[pid].addTimer(pid)
+    local integer i = GetUnitId(u)
+    
+    if shieldunit[i] == null then
+        set shieldunit[i] = GetDummy(GetUnitX(u), GetUnitY(u), 0, 0, 0) 
+        call BlzSetUnitSkin(shieldunit[i], 'h00H')
+        call SetUnitScale(shieldunit[i], 1., 1., 1.)
+        call SetUnitFlyHeight(shieldunit[i], 250.00, 0)
+        call UnitDisableAbility(shieldunit[i], 'Amov', true)
+        call SetUnitUserData(shieldunit[i], i)
+        call GroupAddUnit(shieldGroup, shieldunit[i])
+        call SetUnitVertexColor(shieldunit[i], 255, 255, 255, 255)
+    endif
+    
+    set shieldtarget[i] = u
+
+    if isShielded[i] == false then
+        set shieldpercent[i] = 0
+        set shieldhp[i] = amount
+        set shieldmax[i] = amount
+        set isShielded[i] = true
+        call SetUnitAnimation(shieldunit[i], "birth")
+        call SetUnitScale(shieldunit[i], 1., 1., 1.)
+        call SetUnitColor(shieldunit[i], PLAYER_COLOR_CYAN)
+    else
+        set shieldhp[i] = shieldhp[i] + amount
+        set shieldmax[i] = shieldmax[i] + amount
+    endif
+
+    set pt.dmg = amount
+    set pt.agi = i
+    call TimerStart(pt.getTimer(), dur, false, function ShieldExpire)
+endfunction
+
 function RemovePlayerUnits takes integer pid returns nothing
     local group ug = CreateGroup()
     local unit target
@@ -579,6 +665,7 @@ function RemovePlayerUnits takes integer pid returns nothing
             endloop
         endif
         if GetUnitTypeId(target) != DUMMY and target != hsdummy[pid] then
+            call IndexShield(GetUnitId(target))
             call RemoveUnit(target)
         endif
     endloop
@@ -623,7 +710,7 @@ endfunction
 function CustomLightingPlayerCheck takes integer i, real x, real y returns nothing
     if RectContainsCoords(gg_rct_Main_Map_Vision, x, y) and CustomLighting[i] != 1 then
         set CustomLighting[i] = 1
-        if charLightId[i] != 1 then
+        if charLightId[i] != 1 and HeroID[i] > 0 then
             call UnitRemoveAbility(Hero[i], 'A0AN')
             call UnitRemoveAbility(Hero[i], 'A0B8')
             set charLightId[i] = 1
@@ -633,7 +720,7 @@ function CustomLightingPlayerCheck takes integer i, real x, real y returns nothi
         endif
     elseif RectContainsCoords(gg_rct_Naga_Dungeon_Reward, x, y) and CustomLighting[i] != 2 then
         set CustomLighting[i] = 2
-        if charLightId[i] != 1 then
+        if charLightId[i] != 1 and HeroID[i] > 0 then
             call UnitRemoveAbility(Hero[i], 'A0AN')
             call UnitRemoveAbility(Hero[i], 'A0B8')
             set charLightId[i] = 1
@@ -643,7 +730,7 @@ function CustomLightingPlayerCheck takes integer i, real x, real y returns nothi
         endif
     elseif RectContainsCoords(gg_rct_Naga_Dungeon, x, y) and not RectContainsCoords(gg_rct_Naga_Dungeon_Reward, x, y) and CustomLighting[i] != 3 then
         set CustomLighting[i] = 3
-        if charLightId[i] != 2 then
+        if charLightId[i] != 2 and HeroID[i] > 0 then
             call UnitAddAbility(Hero[i], 'A0AN')
             call UnitRemoveAbility(Hero[i], 'A0B8')
             set charLightId[i] = 2
@@ -653,7 +740,7 @@ function CustomLightingPlayerCheck takes integer i, real x, real y returns nothi
         endif
     elseif RectContainsCoords(gg_rct_Naga_Dungeon_Boss, x, y) and CustomLighting[i] != 4 then
         set CustomLighting[i] = 4
-        if charLightId[i] != 2 then
+        if charLightId[i] != 2 and HeroID[i] > 0 then
             call UnitAddAbility(Hero[i], 'A0AN')
             call UnitRemoveAbility(Hero[i], 'A0B8')
             set charLightId[i] = 2
@@ -663,27 +750,27 @@ function CustomLightingPlayerCheck takes integer i, real x, real y returns nothi
         endif
     elseif RectContainsCoords(gg_rct_Church, x, y) and CustomLighting[i] != 5 then
         set CustomLighting[i] = 5
-        if charLightId[i] != 2 then
-            call UnitAddAbility(Hero[i], 'A0AN')
+        if charLightId[i] != 1 and HeroID[i] > 0 then
+            call UnitRemoveAbility(Hero[i], 'A0AN')
             call UnitRemoveAbility(Hero[i], 'A0B8')
-            set charLightId[i] = 2
+            set charLightId[i] = 1
         endif
         if GetLocalPlayer() == Player(i - 1) then
-            call SetDayNightModels("","")
+            call SetDayNightModels("Environment\\DNC\\DNCLordaeron\\DNCLordaeronTerrain\\DNCLordaeronTerrain.mdx","Environment\\DNC\\DNCLordaeron\\DNCLordaeronTerrain\\DNCLordaeronTerrain.mdx")
         endif
     elseif RectContainsCoords(gg_rct_Tavern, x, y) and CustomLighting[i] != 6 then
         set CustomLighting[i] = 6
-        if charLightId[i] != 2 then
-            call UnitAddAbility(Hero[i], 'A0AN')
+        if charLightId[i] != 1 and HeroID[i] > 0 then
+            call UnitRemoveAbility(Hero[i], 'A0AN')
             call UnitRemoveAbility(Hero[i], 'A0B8')
-            set charLightId[i] = 2
+            set charLightId[i] = 1
         endif
         if GetLocalPlayer() == Player(i - 1) then
-            call SetDayNightModels("","")
+            call SetDayNightModels("Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx","Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx")
         endif
     elseif RectContainsCoords(gg_rct_Cave, x, y) and CustomLighting[i] != 7 then
         set CustomLighting[i] = 7
-        if charLightId[i] != 2 then
+        if charLightId[i] != 2 and HeroID[i] > 0 then
             call UnitAddAbility(Hero[i], 'A0B8')
             call UnitRemoveAbility(Hero[i], 'A0AN')
             set charLightId[i] = 2
@@ -959,7 +1046,6 @@ function SetSaveSlot takes integer pid returns nothing
         set Profiles[pid].currentSlot = -1
     endif
 endfunction
-
 
 function onLoadButtonClick takes nothing returns nothing
     local button buttonClicked = GetClickedButton()
@@ -1263,6 +1349,56 @@ function ClearColo takes nothing returns nothing
     set u = null
 endfunction
 
+function ShowHeroCircle takes player p, boolean show returns nothing
+    if show then
+        if GetLocalPlayer() == p then
+            call BlzSetUnitSkin(gg_unit_H02A_0568, GetUnitTypeId(gg_unit_H02A_0568))
+            call BlzSetUnitSkin(gg_unit_H03N_0612, GetUnitTypeId(gg_unit_H03N_0612))
+            call BlzSetUnitSkin(gg_unit_H04Z_0604, GetUnitTypeId(gg_unit_H04Z_0604))
+            call BlzSetUnitSkin(gg_unit_H012_0605, GetUnitTypeId(gg_unit_H012_0605))
+            call BlzSetUnitSkin(gg_unit_U003_0081, GetUnitTypeId(gg_unit_U003_0081))
+            call BlzSetUnitSkin(gg_unit_H01N_0606, GetUnitTypeId(gg_unit_H01N_0606))
+            call BlzSetUnitSkin(gg_unit_H01S_0607, GetUnitTypeId(gg_unit_H01S_0607))
+            call BlzSetUnitSkin(gg_unit_H05B_0608, GetUnitTypeId(gg_unit_H05B_0608))
+            call BlzSetUnitSkin(gg_unit_H029_0617, GetUnitTypeId(gg_unit_H029_0617))
+            call BlzSetUnitSkin(gg_unit_O02S_0615, GetUnitTypeId(gg_unit_O02S_0615))
+            call BlzSetUnitSkin(gg_unit_H00R_0610, GetUnitTypeId(gg_unit_H00R_0610))
+            call BlzSetUnitSkin(gg_unit_E00G_0616, GetUnitTypeId(gg_unit_E00G_0616))
+            call BlzSetUnitSkin(gg_unit_E012_0613, GetUnitTypeId(gg_unit_E012_0613))
+            call BlzSetUnitSkin(gg_unit_E00W_0614, GetUnitTypeId(gg_unit_E00W_0614))
+            call BlzSetUnitSkin(gg_unit_E002_0585, GetUnitTypeId(gg_unit_E002_0585))
+            call BlzSetUnitSkin(gg_unit_O03J_0609, GetUnitTypeId(gg_unit_O03J_0609))
+            call BlzSetUnitSkin(gg_unit_E015_0586, GetUnitTypeId(gg_unit_E015_0586))
+            call BlzSetUnitSkin(gg_unit_E008_0587, GetUnitTypeId(gg_unit_E008_0587))
+            call BlzSetUnitSkin(gg_unit_E00X_0611, GetUnitTypeId(gg_unit_E00X_0611))
+        endif
+    else
+        if GetLocalPlayer() == p then
+            call BlzSetUnitSkin(gg_unit_H02A_0568, 'eRez')
+            call BlzSetUnitSkin(gg_unit_H03N_0612, 'eRez')
+            call BlzSetUnitSkin(gg_unit_H04Z_0604, 'eRez')
+            call BlzSetUnitSkin(gg_unit_H012_0605, 'eRez')
+            call BlzSetUnitSkin(gg_unit_U003_0081, 'eRez')
+            call BlzSetUnitSkin(gg_unit_H01N_0606, 'eRez')
+            call BlzSetUnitSkin(gg_unit_H01S_0607, 'eRez')
+            call BlzSetUnitSkin(gg_unit_H05B_0608, 'eRez')
+            call BlzSetUnitSkin(gg_unit_H029_0617, 'eRez')
+            call BlzSetUnitSkin(gg_unit_O02S_0615, 'eRez')
+            call BlzSetUnitSkin(gg_unit_H00R_0610, 'eRez')
+            call BlzSetUnitSkin(gg_unit_E00G_0616, 'eRez')
+            call BlzSetUnitSkin(gg_unit_E012_0613, 'eRez')
+            call BlzSetUnitSkin(gg_unit_E00W_0614, 'eRez')
+            call BlzSetUnitSkin(gg_unit_E002_0585, 'eRez')
+            call BlzSetUnitSkin(gg_unit_O03J_0609, 'eRez')
+            call BlzSetUnitSkin(gg_unit_E015_0586, 'eRez')
+            call BlzSetUnitSkin(gg_unit_E008_0587, 'eRez')
+            call BlzSetUnitSkin(gg_unit_E00X_0611, 'eRez')
+        endif
+        call ShowUnit(gg_unit_n02S_0098, false)
+        call ShowUnit(gg_unit_n02S_0098, true)
+    endif
+endfunction
+
 function SharedRepick takes player p returns nothing //any instance of player removal (leave, repick, permanent death, forcesave, afk removal)
     local integer pid = GetPlayerId(p) + 1
     local integer i = 0
@@ -1321,6 +1457,7 @@ function SharedRepick takes player p returns nothing //any instance of player re
     call RemovePlayerUnits(pid)
 
     call TimerList[pid].stopAllTimers()
+    call IndexShield(GetUnitId(Hero[pid]))
 
     set Hero[pid] = null
     set HeroID[pid] = 0
@@ -1335,10 +1472,12 @@ function SharedRepick takes player p returns nothing //any instance of player re
 	set DmgBase[pid] = 0
 	set SpellTakenBase[pid] = 0
     set ItemEvasion[pid] = 0
+    set ItemRegen[pid] = 0
     set ItemSpellboost[pid] = 0
     set ItemMovespeed[pid] = 0
     set ItemSpelldef[pid] = 1
     set ItemTotaldef[pid] = 1
+    set TotalRegen[pid] = 0
     set TotalEvasion[pid] = 0
     set ItemGoldRate[pid] = 0
     set udg_HeroCanUsePlate[pid] = false
@@ -1357,7 +1496,6 @@ function SharedRepick takes player p returns nothing //any instance of player re
     set BloodBank[pid] = 0
     set BardSong[pid] = 0
     set ReincarnationPRCD[pid] = 0
-    set ResurrectionCD[pid] = 0
     set hardcoreClicked[pid] = false
     set FlamingBowBonus[pid] = 0
     set FlamingBowCount[pid] = 0
@@ -1370,6 +1508,8 @@ function SharedRepick takes player p returns nothing //any instance of player re
     set hounds[pid * 10 + 3] = null
     set hounds[pid * 10 + 4] = null
     set hounds[pid * 10 + 5] = null
+    set CustomLighting[pid] = 0
+    set charLightId[i] = 0
 
     //reset unit limit
     set workerCount[pid] = 0
@@ -1382,7 +1522,6 @@ function SharedRepick takes player p returns nothing //any instance of player re
     call SetPlayerTechResearched(p, 'R015', 1)
     call SetPlayerTechResearched(p, 'R016', 1)
     call SetPlayerTechResearched(p, 'R017', 1)
-    call SetPlayerTechResearched(p, 'R018', 1)
 
     set sniperstance[pid] = false
     set udg_Hardcore[pid] = false
@@ -1390,7 +1529,7 @@ function SharedRepick takes player p returns nothing //any instance of player re
 
     call Profiles[pid].hd.wipeData()
     set newcharacter[pid] = true
-    call SetSaveSlot(pid) //repicking set you to an empty save slot
+    call SetSaveSlot(pid) //repicking sets you to an empty save slot
     
     set i = 1
     
@@ -1445,10 +1584,6 @@ endfunction
 
 function DistanceCoords takes real x, real y, real x2, real y2 returns real
 	return SquareRoot(Pow(x - x2, 2) + Pow(y - y2, 2))
-endfunction
-
-function RefundMana takes unit u returns nothing
-	//call SetUnitState(u,UNIT_STATE_MANA,GetUnitState(u,UNIT_STATE_MANA) +BlzGetAbilityManaCost(GetSpellAbilityId(),GetUnitAbilityLevel(u,GetSpellAbilityId())) )
 endfunction
 
 function ExpireUnit takes unit u returns nothing
@@ -1540,25 +1675,6 @@ function HasItemType takes unit u, integer itid returns boolean
     set itm = null
     
     return false
-endfunction
-
-function RemoveEnemyVision takes nothing returns nothing
-    local integer pid = ReleaseTimer(GetExpiredTimer())
-    
-    call UnitShareVision(Hero[pid], pboss, false)
-    call UnitShareVision(Hero[pid], pfoe, false)
-endfunction
-
-function EnemyVisionAggro takes unit source, widget target, real amount, boolean attack, boolean ranged, attacktype attackType, damagetype damageType, weapontype weaponType returns nothing
-    local integer pid = GetPlayerId(GetOwningPlayer(source)) + 1
-    local unit utarget = W2U(target)
-    
-    if IsEnemy(GetPlayerId(GetOwningPlayer(utarget))) and source == Hero[pid] then
-        call UnitShareVision(Hero[pid], GetOwningPlayer(utarget), true)
-        call TimerStart(NewTimerEx(pid), 20., false, function RemoveEnemyVision)
-    endif
-    
-    set utarget = null
 endfunction
 
 function GetResurrectionItem takes integer pid, boolean charge returns item
@@ -1670,7 +1786,7 @@ function SelectGroupedRegion takes integer groupnumber returns rect
 	return RegionCount[GetRandomInt(lowBound, highBound - 1)]
 endfunction
 
-function MainSpawn takes nothing returns nothing
+function SpawnCreeps takes integer flag returns nothing
     local integer i = 0
     local integer i2 = 0
     local integer typeIndex = 0
@@ -1679,48 +1795,21 @@ function MainSpawn takes nothing returns nothing
     local real y
     
     loop
-        set typeIndex = UnitData[0][i]
+        set typeIndex = UnitData[flag][i]
         set i2 = 0
-        exitwhen UnitData[0][i] == 0
+        exitwhen UnitData[flag][i] == 0
 		loop
 			exitwhen i2 >= UnitData[typeIndex][StringHash("count")]
 			set myregion = SelectGroupedRegion(UnitData[typeIndex][StringHash("spawn")])
-            set x = GetRandomReal(GetRectMinX(myregion), GetRectMaxX(myregion))
-            set y = GetRandomReal(GetRectMinY(myregion), GetRectMaxY(myregion))
-            if IsTerrainWalkable(x, y) then
-                call CreateUnit(pfoe, typeIndex, x, y, GetRandomInt(0, 359))
-                set myregion = null
-                set i2 = i2 + 1
-            endif
+            loop
+                set x = GetRandomReal(GetRectMinX(myregion), GetRectMaxX(myregion))
+                set y = GetRandomReal(GetRectMinY(myregion), GetRectMaxY(myregion))
+                exitwhen IsTerrainWalkable(x, y)
+            endloop
+            call CreateUnit(pfoe, typeIndex, x, y, GetRandomInt(0, 359))
+            set myregion = null
+            set i2 = i2 + 1
 		endloop
-
-		set i = i + 1
-    endloop
-endfunction
-
-function ChaosSpawn takes nothing returns nothing
-    local integer typeIndex = 0
-    local integer i = 0
-    local integer i2 = 0
-    local rect myregion = null
-    local real x
-    local real y
-
-    loop
-        set typeIndex = UnitData[1][i]
-        set i2 = 0
-        exitwhen UnitData[1][i] == 0
-        loop
-            exitwhen i2 >= UnitData[typeIndex][StringHash("count")]
-            set myregion = SelectGroupedRegion(UnitData[typeIndex][StringHash("spawn")])
-            set x = GetRandomReal(GetRectMinX(myregion), GetRectMaxX(myregion))
-            set y = GetRandomReal(GetRectMinY(myregion), GetRectMaxY(myregion))
-            if IsTerrainWalkable(x, y) then
-                call CreateUnit(pfoe, typeIndex, x, y, GetRandomInt(0, 359))
-                set myregion = null
-                set i2 = i2 + 1
-            endif
-        endloop
 
 		set i = i + 1
     endloop
@@ -1748,53 +1837,6 @@ function CreateHeroItem takes unit Hero, integer pid, integer myitem, integer it
 	call UnitAddItem(Hero, itm)
 
 	set itm = null
-endfunction
-
-function StoreItems takes integer pid returns nothing
-    local integer i = 0
-    local integer i2 = 0
-    local HeroData myHero = Profiles[pid].hd
-    local integer index = Profiles[pid].pageIndex
-    local item array itms
-
-    loop
-        exitwhen i > 5
-        set itms[i] = UnitItemInSlot(Hero[pid], i)
-        set itms[i + 6] = UnitItemInSlot(Backpack[pid], i)
-        set i = i + 1
-    endloop
-
-    loop
-        exitwhen i2 > 1
-
-        set i = 0
-        set index = index + 1
-
-        if index > 2 then
-            set index = 0
-        endif
-
-        loop
-            exitwhen i > 5
-            set itms[i + 12 + 6 * i2] = myHero.items[i + 6 + 6 * index]
-            set i = i + 1
-        endloop
-
-        set i2 = i2 + 1
-    endloop
-
-    set i = 0
-
-    loop
-        exitwhen i > 23
-
-        set myHero.items[i] = itms[i]
-        set itms[i] = null
-
-        set i = i + 1
-    endloop
-
-    set Profiles[pid].pageIndex = 0
 endfunction
 
 function IsBindItem takes integer id returns boolean
@@ -1972,10 +2014,59 @@ function DudToItem takes item dud, unit u, real x, real y returns item
     return itm
 endfunction
 
-function CostAdjust takes integer cost, real divisor returns integer
-	set cost = R2I(cost / divisor)
+function StoreItems takes integer pid returns nothing
+    local integer i = 0
+    local integer i2 = 0
+    local HeroData myHero = Profiles[pid].hd
+    local integer index = Profiles[pid].pageIndex
+    local item array itms
 
-	return cost
+    loop
+        exitwhen i > 5
+        set itms[i] = UnitItemInSlot(Hero[pid], i)
+        set itms[i + 6] = UnitItemInSlot(Backpack[pid], i)
+        set i = i + 1
+    endloop
+
+    loop
+        exitwhen i2 > 1
+
+        set i = 0
+        set index = index + 1
+
+        if index > 2 then
+            set index = 0
+        endif
+
+        loop
+            exitwhen i > 5
+            set itms[i + 12 + 6 * i2] = myHero.items[i + 6 + 6 * index]
+            set i = i + 1
+        endloop
+
+        set i2 = i2 + 1
+    endloop
+
+    set i = 0
+
+    loop
+        exitwhen i > 23
+
+        set myHero.items[i] = itms[i]
+        //token bind thing
+        if GetItemTypeId(myHero.items[i]) == 'I0NN' then
+            call BindItem(myHero.items[i], pid)
+        endif
+        set itms[i] = null
+
+        set i = i + 1
+    endloop
+
+    set Profiles[pid].pageIndex = 0
+endfunction
+
+function CostAdjust takes integer cost, real divisor returns integer
+	return R2I(cost / divisor)
 endfunction
 
 function IndexWells takes integer index returns nothing
@@ -2004,17 +2095,7 @@ function RequiredXP takes integer level returns integer
 endfunction
 
 function HMscale takes real dmg returns integer
-    if HardMode > 0 then
-        return R2I(dmg * 2)
-    endif
-
-    return R2I(dmg)
-endfunction
-
-function pheal takes unit u, real hp, real mp returns nothing
-local integer pid= GetPlayerId(GetOwningPlayer(u)) +1
-	call SetUnitState(u, UNIT_STATE_LIFE, GetUnitState(u, UNIT_STATE_LIFE) + hp * BlzGetUnitMaxHP(u) )
-	call SetUnitState(u, UNIT_STATE_MANA, GetUnitState(u, UNIT_STATE_MANA) + mp * BlzGetUnitMaxHP(u) )
+    return R2I(dmg * (HardMode + 1))
 endfunction
 
 function CheckShields takes unit u returns integer
@@ -2036,82 +2117,17 @@ function CheckShields takes unit u returns integer
 endfunction
 
 function BOOST takes integer pid returns real
-    if BOOST_OFF then
-        return (1. + BoostValue[pid])
+    static if LIBRARY_dev then
+        if BOOST_OFF then
+            return (1. + BoostValue[pid])
+        endif
     endif
-	return (1. + BoostValue[pid]) * GetRandomReal(0.8, 1.2)
+
+	return (1. + BoostValue[pid] + GetRandomReal(-0.2, 0.2))
 endfunction
 
 function LBOOST takes integer pid returns real
 	return 1. + 0.5 * BoostValue[pid]
-endfunction
-
-function Spellhit takes unit u returns real
-	return SpellTaken[GetPlayerId(GetOwningPlayer(u))+1]
-endfunction
-
-function CrystalExpire takes nothing returns nothing
-    local timer t = GetExpiredTimer()
-    local integer i = 0
-    local integer i2 = GetTimerData(t)
-    local integer time = LoadInteger(MiscHash, i2 + 1, GetHandleId(t))
-    local item itm
-    
-    call SaveInteger(MiscHash, i2 + 1, GetHandleId(t), time - 5)
-    
-    loop
-        exitwhen i > i2
-        set itm = LoadItemHandle(MiscHash, i, GetHandleId(t))
-        if GetItemX(itm) != 0 and time - 5 <= 15 then
-            call PingMinimap(GetItemX(itm), GetItemY(itm), 1)
-            if time - 5 == 5 then
-                call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetItemX(itm), GetItemY(itm)))
-            endif
-        endif
-        if time - 5 <= 0 then
-            call RemoveItem(itm)
-            call RemoveSavedHandle(MiscHash, i, GetHandleId(t))
-        endif
-        set i = i + 1
-    endloop
-    
-    if time - 5 <= 0 then
-        call RemoveSavedInteger(MiscHash, i2 + 1, GetHandleId(t))
-        call ReleaseTimer(t)
-    endif
-    
-    set t = null
-    set itm = null
-endfunction
-
-function MakeCrystals takes integer count, integer hm, real x, real y returns nothing
-    local integer i = 0
-    local timer t = NewTimer()
-
-	if hm > 0 then
-		set count = count * 2
-	endif
-
-	loop
-        exitwhen count <= 0
-        if R2I(count / 5.) > 0 then
-			call SaveItemHandle(MiscHash, i, GetHandleId(t), CreateItem('I0OG', x,y))
-            set count = count - 5
-            set i = i + 1
-        endif
-
-		if count > 0 then
-			call SaveItemHandle(MiscHash, i, GetHandleId(t), CreateItem('I0CC', x,y))
-			set count = count - 1
-            set i = i + 1
-		endif
-	endloop
-	
-    call SetTimerData(t, i)
-    call SaveInteger(MiscHash, i + 1, GetHandleId(t), 30)
-    call TimerStart(t, 5.00, true, function CrystalExpire)
-    
-    set t = null
 endfunction
 
 function BossDrop takes BossItemList il, integer rolls, integer dp, real x, real y returns nothing
@@ -2138,10 +2154,9 @@ function GetHeroStat takes integer stat, unit u, boolean bonuses returns integer
         return GetHeroInt(u, bonuses)
     elseif (stat == 3) then
         return GetHeroAgi(u, bonuses)
-    else
-        // Unrecognized hero stat - return 0
-        return 0
     endif
+
+    return 0
 endfunction
 
 function LineContainsBox takes real x, real y, real x2, real y2, real MinX, real MinY, real MaxX, real MaxY, real rate returns boolean
@@ -2162,10 +2177,6 @@ function LineContainsBox takes real x, real y, real x2, real y2, real MinX, real
     endloop
     
     return false
-endfunction
-
-function Stand takes nothing returns nothing
-    call SetUnitAnimation(Hero[ReleaseTimer(GetExpiredTimer())], "stand")
 endfunction
 
 function AllocateStatPoints takes player p, integer points returns nothing
@@ -2235,51 +2246,32 @@ function SpawnForgotten takes nothing returns nothing
     endif
 endfunction
 
-//pre-assigned tree id's only, used for OG and DS tree-killing abilities
-function DestroyTreesInRange_Enum takes nothing returns nothing 
-local destructable Tree = GetEnumDestructable()
-	if (GetDestructableTypeId(Tree)=='ITtw' or GetDestructableTypeId(Tree)=='B00B' or GetDestructableTypeId(Tree)=='ITtc' or GetDestructableTypeId(Tree)=='NTtc' or GetDestructableTypeId(Tree)=='WTst' ) and Pow(bj_cineFadeContinueRed-GetDestructableX(Tree),2)+Pow(bj_cineFadeContinueGreen-GetDestructableY(Tree),2) <= bj_enumDestructableRadius then
-		call KillDestructable(Tree)
+//pre-assigned tree id's only, used for tree-killing abilities
+function EnumDestroyTreesInRange takes nothing returns nothing 
+    local destructable d = GetEnumDestructable()
+    local integer did = GetDestructableTypeId(d)
+    local real x = LoadReal(MiscHash, 'tree', 0)
+    local real y = LoadReal(MiscHash, 'tree', 1)
+    local real range = LoadReal(MiscHash, 'tree', 2)
+
+	if (did == 'ITtw' or did == 'JTtw' or did == 'FTtw' or did == 'NTtw' or did == 'B00B' or did == 'B00H' or did == 'ITtc' or did =='NTtc' or did == 'WTst' or did == 'WTtw') and DistanceCoords(x, y, GetDestructableX(d), GetDestructableY(d)) <= range then
+		call KillDestructable(d)
 	endif
-	set Tree = null
+
+	set d = null
 endfunction
 
-function DestroyTreesInRange takes real X, real Y, real Range returns nothing
-	call SetRect(TempRect, X-Range,Y-Range,X+Range,Y+Range)
-	set bj_cineFadeContinueRed = X
-	set bj_cineFadeContinueGreen = Y
-	set bj_enumDestructableRadius = Range*Range
-	call EnumDestructablesInRect(TempRect, null, function DestroyTreesInRange_Enum)
-endfunction
+function DestroyTreesInRange takes real x, real y, real range returns nothing
+    local rect r = Rect(x - range, y - range, x + range, y + range)
 
-function GetDummy takes real x, real y, integer abil, integer ablev, real dur returns unit
-    if BlzGroupGetSize(DUMMY_STACK) > 0 then
-        set TEMP_DUMMY = BlzGroupUnitAt(DUMMY_STACK, 0) 
-        call GroupRemoveUnit(DUMMY_STACK, TEMP_DUMMY)
-        call PauseUnit(TEMP_DUMMY, false)
-    else
-        set DUMMY_LIST[DUMMY_COUNT] = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), DUMMY, x, y, 0)
-        set TEMP_DUMMY = DUMMY_LIST[DUMMY_COUNT]
-        set DUMMY_COUNT = DUMMY_COUNT + 1
-        call UnitAddAbility(TEMP_DUMMY, 'Amrf')
-        call UnitRemoveAbility(TEMP_DUMMY, 'Amrf')
-        call UnitAddAbility(TEMP_DUMMY, 'Aloc')
-        call SetUnitPathing(TEMP_DUMMY, false)
-    endif
+    call SaveReal(MiscHash, 'tree', 0, x)
+    call SaveReal(MiscHash, 'tree', 1, y)
+    call SaveReal(MiscHash, 'tree', 2, range)
+	call EnumDestructablesInRect(r, null, function EnumDestroyTreesInRange)
+    call FlushChildHashtable(MiscHash, 'tree')
 
-    if UnitAddAbility(TEMP_DUMMY, abil) then
-        call SetUnitAbilityLevel(TEMP_DUMMY, abil, ablev)
-        call SaveInteger(MiscHash, GetHandleId(TEMP_DUMMY), 'dspl', abil)
-    endif
-
-    if dur > 0 then
-        call RemoveUnitTimed(TEMP_DUMMY, dur)
-    endif
-
-    call SetUnitXBounded(TEMP_DUMMY, x)
-    call SetUnitYBounded(TEMP_DUMMY, y)
-
-    return TEMP_DUMMY
+    call RemoveRect(r)
+    set r = null
 endfunction
 
 function DummyCast takes player owner, integer abil, integer ablev, real x, real y, string order returns nothing
@@ -2312,11 +2304,10 @@ function DummyCastPoint takes player owner, real x2, real y2, integer abil, inte
 endfunction
 
 function StunUnit takes integer pid, unit target, real duration returns nothing
-    local Stun stun
-    set stun = Stun.add(Hero[pid], target)
+    local Stun stun = Stun.add(Hero[pid], target)
 
     if IsUnitType(target, UNIT_TYPE_HERO) then
-        set stun.duration = duration / 2.
+        set stun.duration = duration * 0.5
     else
         set stun.duration = duration
     endif
@@ -2338,56 +2329,6 @@ function RealToString takes real stattoconvert returns string
 	return statdisplay
 endfunction
 
-function IndexShields takes integer index returns nothing
-    //call SetUnitPosition(shieldunit[index], 30000, -30000)
-    //call SetUnitTimeScale(shieldunit[index], -99)
-
-    call SetUnitScale(shieldunit[index], 0., 0., 0.)
-    call SetUnitTimeScale(shieldunit[index], -99)
-        
-    loop
-        exitwhen index > shieldindexmax
-        set shieldunit[index] = shieldunit[index + 1]
-        set shieldtarget[index] = shieldtarget[index + 1]
-        set shieldpercent[index] = shieldpercent[index + 1]
-        set shieldhp[index] = shieldhp[index + 1]
-        set shieldmax[index] = shieldmax[index + 1]
-        set isShielded[index] = isShielded[index + 1]
-        set index = index + 1
-    endloop
-        
-    set shieldindexmax = shieldindexmax - 1
-endfunction
-
-function ShieldExpire takes nothing returns nothing
-    local timer t = GetExpiredTimer()
-    local unit u = LoadUnitHandle(MiscHash, 0, GetHandleId(t))
-    local real amount = LoadReal(MiscHash, 1,  GetHandleId(t))
-    local integer i = 0
-    
-    loop
-        exitwhen u == shieldunit[i] or i > 500
-        set i = i + 1
-    endloop
-    
-    if i < 500 then
-        set shieldhp[i] = shieldhp[i] - amount
-        set shieldmax[i] = shieldmax[i] - amount
-        
-        if shieldmax[i] <= 0 then
-            call IndexShields(i)
-        endif
-    endif
-    
-    call RemoveSavedHandle(MiscHash, 0, GetHandleId(t))
-    call RemoveSavedReal(MiscHash, 1, GetHandleId(t))
-    
-    call ReleaseTimer(t)
-    
-    set u = null
-    set t = null
-endfunction
-
 function kgold takes real gold returns string
     local integer g = R2I(gold)
 
@@ -2396,18 +2337,6 @@ function kgold takes real gold returns string
 	else
 		return "+" + I2S(g)
 	endif
-endfunction
-
-function isXpGoldGiver takes unit u returns boolean
-local integer pid= GetPlayerId(GetOwningPlayer(u))
-	if IsUnitType(u,UNIT_TYPE_SUMMONED) then
-		return false
-	elseif IsUnitIllusion(u) then
-		return false
-	elseif pid==10 or pid==11 or pid==foe then
-		return true
-	endif
-	return false
 endfunction
 
 function AzazothExit takes nothing returns nothing
@@ -2447,51 +2376,8 @@ function IsCreep takes unit u returns boolean
     elseif IsUnitType(u, UNIT_TYPE_HERO) == true then
         return false
     endif
+
     return true
-endfunction
-
-function Shield takes unit u, real amount, real dur returns nothing
-    local timer t = NewTimer()
-    local integer i = 0
-    
-    loop
-        exitwhen u == shieldtarget[i] or i > 100
-        set i = i + 1
-    endloop
-    
-    if u != shieldtarget[i] then
-        set shieldindexmax = shieldindexmax + 1
-        set i = shieldindexmax
-    endif
-
-    if shieldunit[i] == null then
-        set shieldunit[i] = GetDummy(GetUnitX(u), GetUnitY(u), 0, 0, 0) 
-        call BlzSetUnitSkin(shieldunit[i], 'h00H')
-        call SetUnitScale(shieldunit[i], 1.05, 1.05, 1.05)
-        call SetUnitColor(shieldunit[i], GetPlayerColor(Player(2)))
-        call SetUnitFlyHeight(shieldunit[i], 250.00, 0)
-        call PauseUnit(shieldunit[i], true)
-    endif
-    
-    set shieldtarget[i] = u
-
-    if isShielded[i] == false then
-        set shieldpercent[i] = 0
-        set shieldhp[i] = amount
-        set shieldmax[i] = amount
-        set isShielded[i] = true
-        call SetUnitAnimation(shieldunit[i], "birth")
-        call SetUnitScale(shieldunit[i], 1., 1., 1.)
-    else
-        set shieldhp[i] = shieldhp[i] + amount
-        set shieldmax[i] = shieldmax[i] + amount
-    endif
-
-    call SaveUnitHandle(MiscHash, 0, GetHandleId(t), shieldunit[i])
-    call SaveReal(MiscHash, 1, GetHandleId(t), amount)
-    call TimerStart(t, dur, false, function ShieldExpire)
-    
-    set t = null
 endfunction
 
 function getRect takes real x, real y returns rect
@@ -2511,81 +2397,36 @@ endfunction
 function ExperienceControl takes integer pid returns nothing
     local integer HeroLevel = GetHeroLevel(Hero[pid])
     local real xpRate = 0
+    local integer count = 0
     
-    //1 nation, 2 home, 3 grand home, 4 grand nation, 5 abode, 6 chaotic home, 7 chaotic nation
-    
-	if urhome[pid] == 0 then
-		if HeroLevel < 40 then
-			set xpRate = 150
-		else
-			set xpRate = 0
-		endif
-    else
-        if ( HeroLevel < 20 ) then
-			set xpRate=400
-		elseif ( HeroLevel < 40 ) then
-			set xpRate=300
-		elseif ( HeroLevel < 60 ) then
-			set xpRate=200
-		elseif ( HeroLevel < 80 ) then
-			set xpRate=160
-		elseif ( HeroLevel < 100 ) then
-			set xpRate=120
-		elseif ( HeroLevel < 120 ) then
-			set xpRate=100
-		elseif ( HeroLevel < 140 ) then
-			set xpRate=80
-		elseif ( HeroLevel < 160 ) then
-			set xpRate=60
-		elseif ( HeroLevel < 180 ) then
-			set xpRate=30
-        elseif ( HeroLevel < 200 ) then
-			set xpRate=10
-        elseif ( HeroLevel > 200 ) then
-			set xpRate=0
-		endif
+    //1 nation, 2 home, 3 grand home, 4 grand nation, 5 lounge, 6 satan home, 7 chaotic nation
+
+    //get multiple of 5 from hero level
+    if urhome[pid] > 0 then
+        set xpRate = BaseExperience[R2I(HeroLevel / 5.) * 5]
+
+        if urhome[pid] == 1 then
+            set xpRate = xpRate * .6
+        elseif urhome[pid] == 2 then
+            set xpRate = xpRate * 1.0
+        elseif urhome[pid] == 3 then
+            set xpRate = xpRate * 1.1
+        elseif urhome[pid] == 4 then
+            set xpRate = xpRate * .9
+        elseif urhome[pid] == 5 then
+            set xpRate = xpRate * 1.0
+        elseif urhome[pid] == 6 then
+            set xpRate = xpRate * 1.6
+        elseif urhome[pid] == 7 then
+            set xpRate = xpRate * 1.3
+        endif
+    elseif HeroLevel < 15 then
+        set xpRate = 100
     endif
 
-	if urhome[pid]==1 then
-		set xpRate=xpRate * .6
-	elseif urhome[pid]==2 then
-        set xpRate=xpRate * .8
-	elseif urhome[pid]==3 then
-        set xpRate = xpRate * 1.1
-    elseif urhome[pid]==4 then
-		set xpRate = xpRate * .9
-	elseif urhome[pid]>4 then
-		if ( HeroLevel < 200 ) then
-			set xpRate=25
-		elseif ( HeroLevel < 220 ) then
-			set xpRate=15
-		elseif ( HeroLevel < 240 ) then
-			set xpRate=10
-		elseif ( HeroLevel < 260 ) then
-			set xpRate=7
-		elseif ( HeroLevel < 280 ) then
-			set xpRate=4.5
-		elseif ( HeroLevel < 300 ) then
-			set xpRate=3
-		elseif ( HeroLevel < 320 ) then
-			set xpRate=2
-		elseif ( HeroLevel < 340 ) then
-			set xpRate=1.35
-		elseif ( HeroLevel < 360 ) then
-			set xpRate=0.7
-		elseif ( HeroLevel < 380 ) then
-			set xpRate=0.33
-		elseif ( HeroLevel < 400 ) then
-			set xpRate=0.15
-		else
-			set xpRate=0
-		endif
-		if urhome[pid] == 6 then
-			set xpRate = xpRate * 1.7
-		elseif urhome[pid] == 7 then
-			set xpRate = xpRate * 1.4
-		endif
-	endif
+    if urhome[pid] <= 4 and HeroLevel >= 180 then
+        set xpRate = 0
+    endif
 	
 	if InColo[pid] then
 		set xpRate = xpRate * udg_Colloseum_XP[pid] * (0.6 + 0.4 * ColoPlayerCount)
@@ -2597,17 +2438,18 @@ function ExperienceControl takes integer pid returns nothing
 endfunction
 
 function Plat_Effect takes player Owner returns nothing
-local integer i=0
-local real x=GetUnitX(Hero[GetConvertedPlayerId(Owner)])
-local real y=GetUnitY(Hero[GetConvertedPlayerId(Owner)])
+    local integer i = 0
+    local real x = GetUnitX(Hero[GetConvertedPlayerId(Owner)])
+    local real y = GetUnitY(Hero[GetConvertedPlayerId(Owner)])
+
 	loop
-		exitwhen i>40
+		exitwhen i > 40
 		call DestroyEffect( AddSpecialEffect( "Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl" ,x+GetRandomInt(-200,200) ,y+GetRandomInt(-200,200) ) )
-		set i=i+1
+		set i = i + 1
 	endloop
 endfunction
 
-//gives player gold, factors in prestige bonus, and automatically converts into Plat as needed
+//gives player gold, factors in prestige bonus, and automatically converts into plat as needed
 function AwardGold takes player p, real goldawarded, boolean displaymessage returns integer
     local integer pid = GetPlayerId(p) + 1
     local integer goldWon
@@ -2704,50 +2546,68 @@ function ChargePlayerLumber takes integer pid, integer lumberCost, integer arcCo
 	call SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_LUMBER, playerLumber - lumberCharge)
 endfunction
 
-function convert255 takes real percentage returns integer
-local integer result = R2I(percentage * 2.55)
-	if (result < 0) then
-		set result = 0
-	elseif (result > 255) then
-		set result = 255
-	endif
-	return result
-endfunction
-
-function DoFloatingTextUnit takes string s, unit u, real dur,real speed,real zOffset,real size, integer red, integer green, integer blue, integer transparency returns nothing
+function DoFloatingTextUnit takes string s, unit u, real dur, real speed, real zOffset, real size, integer red, integer green, integer blue, integer transparency returns nothing
     set bj_lastCreatedTextTag = CreateTextTag()
 
-	call SetTextTagText(bj_lastCreatedTextTag,s,size*0.0023)
-	call SetTextTagPos(bj_lastCreatedTextTag,GetUnitX(u),GetUnitY(u),zOffset)
+	call SetTextTagText(bj_lastCreatedTextTag, s, size * 0.0023)
+	call SetTextTagPos(bj_lastCreatedTextTag, GetUnitX(u), GetUnitY(u), zOffset)
 	call SetTextTagColor(bj_lastCreatedTextTag, red, green, blue, 255 - transparency)
-	call SetTextTagPermanent(bj_lastCreatedTextTag,false)
-	call SetTextTagVelocity(bj_lastCreatedTextTag,0,speed / 1803.)
-	call SetTextTagLifespan(bj_lastCreatedTextTag,dur)
-	call SetTextTagFadepoint(bj_lastCreatedTextTag,dur-.4)
+	call SetTextTagPermanent(bj_lastCreatedTextTag, false)
+	call SetTextTagVelocity(bj_lastCreatedTextTag, 0, speed / 1803.)
+	call SetTextTagLifespan(bj_lastCreatedTextTag, dur)
+	call SetTextTagFadepoint(bj_lastCreatedTextTag, dur - .4)
 endfunction
 
-function DoFloatingTextCoords takes string s, real x, real y, real dur,real speed,real zOffset,real size,real red,real green,real blue,real transparency returns nothing
+function DoFloatingTextCoords takes string s, real x, real y, real dur, real speed, real zOffset, real size, integer red, integer green, integer blue, integer transparency returns nothing
     set bj_lastCreatedTextTag = CreateTextTag()
 
-	call SetTextTagText(bj_lastCreatedTextTag,s,size*0.0023)
+	call SetTextTagText(bj_lastCreatedTextTag, s, size * 0.0023)
 	call SetTextTagPos(bj_lastCreatedTextTag, x, y, zOffset)
-	call SetTextTagColor(bj_lastCreatedTextTag,convert255(red),convert255(green),convert255(blue),convert255(100.0-transparency))
-	call SetTextTagPermanent(bj_lastCreatedTextTag,false)
-	call SetTextTagVelocity(bj_lastCreatedTextTag,0,speed / 1803.)
-	call SetTextTagLifespan(bj_lastCreatedTextTag,dur)
-	call SetTextTagFadepoint(bj_lastCreatedTextTag,dur-.4)
+	call SetTextTagColor(bj_lastCreatedTextTag, red, green, blue, 255 - transparency)
+	call SetTextTagPermanent(bj_lastCreatedTextTag, false)
+	call SetTextTagVelocity(bj_lastCreatedTextTag, 0, speed / 1803.)
+	call SetTextTagLifespan(bj_lastCreatedTextTag, dur)
+	call SetTextTagFadepoint(bj_lastCreatedTextTag, dur - .4)
+endfunction
+
+function AwardCrystals takes integer count, integer hm, unit boss returns nothing
+    local User u = User.first
+    local real x = GetUnitX(boss)
+    local real y = GetUnitY(boss)
+
+	if hm > 0 then
+		set count = count * 2
+	endif
+
+	loop
+        exitwhen u == User.NULL
+
+        if IsUnitInRangeXY(Hero[u.id], x, y, NEARBY_BOSS_RANGE) and GetHeroLevel(Hero[u.id]) >= GetUnitLevel(boss) then
+            call AddCrystals(u.id, count)
+
+            if count == 1 then
+                call DoFloatingTextUnit("+" + I2S(count) + " Crystal", Hero[u.id], 2.1, 80, 90, 9, 70, 150, 230, 0)
+            else
+                call DoFloatingTextUnit("+" + I2S(count) + " Crystals", Hero[u.id], 2.1, 80, 90, 9, 70, 150, 230, 0)
+            endif
+        endif
+
+        set u = u.next
+	endloop
 endfunction
 
 function HP takes unit u, real hp returns nothing
-local integer pid= GetPlayerId(GetOwningPlayer(u)) +1
-	call SetUnitState(u, UNIT_STATE_LIFE, GetUnitState(u,UNIT_STATE_LIFE) + hp )
-    call DoFloatingTextUnit( RealToString(hp), u,2,50,0,10,125,255,125,0)
+    local integer pid = GetPlayerId(GetOwningPlayer(u)) + 1
+
+	call SetUnitState(u, UNIT_STATE_LIFE, GetUnitState(u, UNIT_STATE_LIFE) + hp)
+    call DoFloatingTextUnit(RealToString(hp), u, 2, 50, 0, 10, 125, 255, 125, 0)
 endfunction
 
 function MP takes unit u, real hp returns nothing
-local integer pid= GetPlayerId(GetOwningPlayer(u)) +1
-	call SetUnitState(u, UNIT_STATE_MANA, GetUnitState(u,UNIT_STATE_MANA) + hp )
-    call DoFloatingTextUnit(RealToString(hp) , u , 1 , 60 , 0 , 10 , 0, 255, 255 , 0)
+    local integer pid = GetPlayerId(GetOwningPlayer(u)) + 1
+
+	call SetUnitState(u, UNIT_STATE_MANA, GetUnitState(u, UNIT_STATE_MANA) + hp)
+    call DoFloatingTextUnit(RealToString(hp), u, 2, 50, -70, 10, 0, 255, 255, 0)
 endfunction
 
 function PaladinEnrage takes boolean b returns nothing
@@ -2782,45 +2642,6 @@ function PaladinEnrage takes boolean b returns nothing
     
     set ug = null
     set target = null
-endfunction
-
-function ApplyFade takes nothing returns nothing
-    local timer t = GetExpiredTimer()
-    local integer amount = GetTimerData(t)
-    local unit u = LoadUnitHandle(MiscHash, 0, GetHandleId(t))
-    local integer direction = LoadInteger(MiscHash, 1, GetHandleId(t))
-    local integer r = BlzGetUnitIntegerField(u, UNIT_IF_TINTING_COLOR_RED)
-    local integer g = BlzGetUnitIntegerField(u, UNIT_IF_TINTING_COLOR_BLUE)
-    local integer b = BlzGetUnitIntegerField(u, UNIT_IF_TINTING_COLOR_GREEN)
-
-    if GetUnitAbilityLevel(u, 'A05W') > 0 then //magnetic stance
-        set r = 255
-        set g = 25
-        set b = 25
-    endif
-    
-    call SetTimerData(t, amount - 1)
-    
-    if amount <= 0 then
-        call RemoveSavedInteger(MiscHash, 1, GetHandleId(t))
-        call RemoveSavedHandle(MiscHash, 0, GetHandleId(t))
-        call ReleaseTimer(t)
-    else
-        if GetWidgetLife(u) >= 0.406 then
-            if direction > 0 then //1 hide, -1 show
-                call SetUnitVertexColor(u, r, g, b, amount * 7)
-            else
-                call SetUnitVertexColor(u, r, g, b, 255 - amount * 7)
-            endif
-        else
-            call RemoveSavedInteger(MiscHash, 1, GetHandleId(t))
-            call RemoveSavedHandle(MiscHash, 0, GetHandleId(t))
-            call ReleaseTimer(t)
-        endif
-    endif
-    
-    set t = null
-    set u = null
 endfunction
 
 function EnableItems takes integer pid returns nothing
@@ -2866,14 +2687,45 @@ function Undespawn takes nothing returns nothing
     set target = null
 endfunction
 
+function ApplyFade takes nothing returns nothing
+    local integer pid = GetTimerData(GetExpiredTimer())
+    local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
+    local integer r = BlzGetUnitIntegerField(pt.target, UNIT_IF_TINTING_COLOR_RED)
+    local integer g = BlzGetUnitIntegerField(pt.target, UNIT_IF_TINTING_COLOR_BLUE)
+    local integer b = BlzGetUnitIntegerField(pt.target, UNIT_IF_TINTING_COLOR_GREEN)
+
+    if GetUnitAbilityLevel(pt.target, 'A05W') > 0 then //magnetic stance
+        set r = 255
+        set g = 25
+        set b = 25
+    endif
+    
+    set pt.str = pt.str - 1
+    
+    if pt.str <= 0 then
+        call TimerList[pid].removePlayerTimer(pt)
+    else
+        if GetWidgetLife(pt.target) >= 0.406 then
+            if pt.agi > 0 then //1 hide, -1 show
+                call SetUnitVertexColor(pt.target, r, g, b, pt.str * 7)
+            else
+                call SetUnitVertexColor(pt.target, r, g, b, 255 - pt.str * 7)
+            endif
+        else
+            call TimerList[pid].removePlayerTimer(pt)
+        endif
+    endif
+endfunction
+
 function Fade takes unit u, integer times, real rate, integer direction returns nothing
-    local timer t = NewTimerEx(times)
-    
-    call SaveUnitHandle(MiscHash, 0, GetHandleId(t), u)
-    call SaveInteger(MiscHash, 1, GetHandleId(t), direction)
-    call TimerStart(t, rate, true, function ApplyFade)
-    
-    set t = null
+    local integer pid = GetPlayerId(GetOwningPlayer(u)) + 1
+    local PlayerTimer pt = TimerList[pid].addTimer(pid)
+
+    set pt.target = u
+    set pt.agi = direction
+    set pt.str = times
+
+    call TimerStart(pt.getTimer(), rate, true, function ApplyFade)
 endfunction
 
 function ApplyFadeSFX takes nothing returns nothing
@@ -2923,7 +2775,7 @@ function FadeSFX takes effect e, boolean b, boolean remove returns nothing
     set t = null
 endfunction
 
-function HideSummonPart2 takes nothing returns nothing
+function HideSummonDelay takes nothing returns nothing
     local integer pid = GetTimerData(GetExpiredTimer())
     local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
 
@@ -2939,7 +2791,7 @@ function HideSummon takes nothing returns nothing
     call SetUnitXBounded(pt.target, 30000)
     call SetUnitYBounded(pt.target, 30000)
 
-    call TimerStart(GetExpiredTimer(), 1., false, function HideSummonPart2)
+    call TimerStart(GetExpiredTimer(), 1., false, function HideSummonDelay)
 endfunction
 
 function SummonExpire takes unit u returns nothing
@@ -2978,6 +2830,8 @@ function SummonDurationXPBar takes nothing returns nothing
     local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
     local integer lev = GetHeroLevel(pt.target)
 
+    call DEBUGMSG(RealToString(pt.dur))
+
     if GetUnitTypeId(pt.target) == SUMMON_GOLEM and BorrowedLife[pid * 10] > 0 then
         set BorrowedLife[pid * 10] = BorrowedLife[pid * 10] - 0.5
     elseif GetUnitTypeId(pt.target) == SUMMON_DESTROYER and BorrowedLife[pid * 10 + 1] > 0 then
@@ -2987,10 +2841,7 @@ function SummonDurationXPBar takes nothing returns nothing
     endif
 
     if pt.dur <= 0 then
-        call TimerList[pid].removePlayerTimer(pt)
-        if IsUnitHidden(pt.target) == false then
-            call SummonExpire(pt.target)
-        endif
+        call SummonExpire(pt.target)
     else
         call UnitStripHeroLevel(pt.target, 1)
         call SetHeroXP(pt.target, R2I(RequiredXP(lev - 1) + ((lev + 1) * pt.dur * 100 / pt.armor) - 1), false)
@@ -3028,6 +2879,8 @@ function RecallSummons takes integer pid returns nothing
         set target = BlzGroupUnitAt(SummonGroup, index)
         if GetOwningPlayer(target) == p and (GetUnitTypeId(target) == SUMMON_HOUND or GetUnitTypeId(target) == SUMMON_GOLEM or GetUnitTypeId(target) == SUMMON_DESTROYER) and IsUnitHidden(target) == false then
             call SetUnitPosition(target, x, y)
+            call SetUnitPathing(target, false)
+            call SetUnitPathing(target, true)
             call BlzSetUnitFacingEx(target, GetUnitFacing(Hero[pid]))
             call EnterWeather(target)
         endif
@@ -3039,33 +2892,21 @@ function RecallSummons takes integer pid returns nothing
     set target = null
 endfunction
 
-function periodicIsSecond takes integer count, real rate, real time returns boolean
-    local integer interval = R2I(1 / rate)
-    
-    loop
-        exitwhen count < interval
-        set count = count - interval
-        if count < 0 then
-            return false
-        endif
-    endloop
-    
-    loop
-        exitwhen count < 0
-        if count == 0 or count / interval == time then
-            return true
-        endif
-        set count = count - interval
-    endloop
-
-    return false
-endfunction
-
 function reselect takes unit u returns nothing
 	if (GetLocalPlayer() == GetOwningPlayer(u)) then
         call ClearSelection()
 		call SelectUnit(u, true)
 	endif
+endfunction
+
+function FilterHound takes nothing returns boolean
+    if GetWidgetLife(GetFilterUnit()) >= 0.406 and GetUnitTypeId(GetFilterUnit()) == SUMMON_HOUND then
+        if GetOwningPlayer(GetFilterUnit()) == Player(passedValue[callbackCount] - 1) then
+            return true
+        endif
+    endif
+
+    return false
 endfunction
 
 function FilterEnemyDead takes nothing returns boolean
@@ -3091,16 +2932,6 @@ endfunction
 function FilterAllyHero takes nothing returns boolean
     if IsUnitType(GetFilterUnit(),UNIT_TYPE_DEAD) == false and IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == true and GetWidgetLife(GetFilterUnit()) >= 0.406 and GetUnitAbilityLevel(GetFilterUnit(),'Avul') == 0 and GetUnitAbilityLevel(GetFilterUnit(),'Aloc') == 0 and GetUnitTypeId(GetFilterUnit()) != DUMMY then
         if IsUnitAlly(GetFilterUnit(), Player(passedValue[callbackCount] - 1)) == true then
-            return true
-        endif
-    endif
-
-    return false
-endfunction
-
-function FilterRoyalGuardian takes nothing returns boolean
-    if IsUnitType(GetFilterUnit(),UNIT_TYPE_DEAD) == false and IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == true and GetWidgetLife(GetFilterUnit()) >= 0.406 and GetUnitAbilityLevel(GetFilterUnit(),'Avul') == 0 and GetUnitAbilityLevel(GetFilterUnit(),'Aloc') == 0 and GetUnitTypeId(GetFilterUnit()) != DUMMY then
-        if IsUnitAlly(GetFilterUnit(), Player(passedValue[callbackCount] - 1)) == true and GetUnitTypeId(GetFilterUnit()) == HERO_ROYAL_GUARDIAN and GetOwningPlayer(GetFilterUnit()) != Player(passedValue[callbackCount] - 1) then
             return true
         endif
     endif
@@ -3217,7 +3048,7 @@ function AdvanceColo takes nothing returns nothing
                 call SpawnColoUnits(ColoEnemyType_sec[udg_Wave],looptotal)
             endif
             set ColoWaveCount = ColoWaveCount + 1
-            call DoFloatingTextCoords("Wave " + I2S(ColoWaveCount), GetLocationX(ColosseumCenter), GetLocationY(ColosseumCenter), 3.20, 32.0, 0, 18.0, 100, 0, 0, 0)
+            call DoFloatingTextCoords("Wave " + I2S(ColoWaveCount), GetLocationX(ColosseumCenter), GetLocationY(ColosseumCenter), 3.20, 32.0, 0, 18.0, 255, 0, 0, 0)
         elseif ColoCount_main[udg_Wave] <= 0 then
             set U = User.first
 
@@ -3332,7 +3163,6 @@ function MoveForce takes force f, real x, real y, rect cam returns nothing
         endif
         set U = U.next
     endloop
-
 endfunction
 
 function AdvanceStruggle takes nothing returns nothing
@@ -3382,15 +3212,9 @@ function AdvanceStruggle takes nothing returns nothing
     if udg_Struggle_Pcount <= 0 then
         call ClearStruggle()
     else
-        if udg_Struggle_WaveU[udg_Struggle_WaveN] == 0 then // Struggle Won
+        if udg_Struggle_WaveU[udg_Struggle_WaveN] <= 0 then // Struggle Won
             set udg_GoldWon_Struggle= R2I(udg_GoldWon_Struggle * 1.5)
             call SetTextTagTextBJ( StruggleText, ( "Gold won: " + I2S(udg_GoldWon_Struggle) ), 10.00 )
-            loop
-                set u = FirstOfGroup(ug)
-                exitwhen u == null
-                call GroupRemoveUnit(ug, u)
-                call RemoveUnit(u)
-            endloop
 
             set U = User.first
             
@@ -3423,15 +3247,12 @@ function AdvanceStruggle takes nothing returns nothing
                 endif
             endloop
             
-            set udg_Struggle_WaveN = 0
-            set udg_GoldWon_Struggle = 0
-            set udg_Struggle_WaveUCN = 0
-            call PauseTimer(strugglespawn)
+            call ClearStruggle()
         else
             if udg_Struggle_WaveN > 40 then
-                call DoFloatingTextCoords("Wave " + I2S(udg_Struggle_WaveN - 40), GetRectCenterX(gg_rct_Infinite_Struggle), GetRectCenterY(gg_rct_Infinite_Struggle), 3.80, 32.0, 0, 18.0, 100, 0, 0, 0)
+                call DoFloatingTextCoords("Wave " + I2S(udg_Struggle_WaveN - 40), GetRectCenterX(gg_rct_Infinite_Struggle), GetRectCenterY(gg_rct_Infinite_Struggle), 3.80, 32.0, 0, 18.0, 255, 0, 0, 0)
             else
-                call DoFloatingTextCoords("Wave " + I2S(udg_Struggle_WaveN), GetRectCenterX(gg_rct_Infinite_Struggle), GetRectCenterY(gg_rct_Infinite_Struggle), 3.80, 32.0, 0, 18.0, 100, 0, 0, 0)
+                call DoFloatingTextCoords("Wave " + I2S(udg_Struggle_WaveN), GetRectCenterX(gg_rct_Infinite_Struggle), GetRectCenterY(gg_rct_Infinite_Struggle), 3.80, 32.0, 0, 18.0, 255, 0, 0, 0)
             endif
         endif
 	endif
@@ -3565,31 +3386,10 @@ function UpdateTooltips takes nothing returns nothing
 
                 call BlzSetItemExtendedTooltip(GetItemFromUnit(Hero[i], 'I04Q'), s[i])
             endif
-
-            //sniper stance
-            if HeroID[i] == HERO_MARKSMAN then
-                set s[i] = "Enable Sniper Stance - [|cffffcc00E|r]"
-                set s[i + 8] = "The marksman steadies his aim, granting |cffFFCC00450 attack range|r and halved |cffffcc00Tri-Rocket|r cooldown.|nGives a |cffffcc00100%|r chance to hit for |cffFFCC004x|r additional damage.|nWhile active you have |cffffcc00100|r movespeed.|n|cff0080C02 second cooldown.|r"
-                set s[i + 16] = "The Elite Marksman fires 3 rockets in a cone in front of him, dealing (|cff00D23F<A06I,Area1> x Agi|r + |cffE15F0810% Attack Damage|r) spell damage, the recoil of which sends him flying backwards a short distance. Can |cffFFCC00triple-hit|r if used at very close range to an enemy.\n|cff0080C06 second cooldown.|r"
-                
-                if sniperstance[i] then
-                    set s[i] = "Disable Sniper Stance - [|cffffcc00E|r]"
-                    set s[i + 8] = "Switches back to your normal stance, allowing you to move again at normal speed, but lose the |cffFFCC00450 attack range|r, reduced |cffffcc00Tri-Rocket|r cooldown, and |cffffcc00Critical Strike|r.\n|cff0080C02 second cooldown.|r"
-                    set s[i + 16] = "The Elite Marksman fires 3 rockets in a cone in front of him, dealing (|cff00D23F<A06I,Area1> x Agi|r + |cffE15F0810% Attack Damage|r) spell damage, the recoil of which sends him flying backwards a short distance. Can |cffFFCC00triple-hit|r if used at very close range to an enemy.\n|cff0080C03 second cooldown.|r"
-                endif
-            endif
         endif
 
         set u = u.next
     endloop
-
-    call BlzSetAbilityTooltip('A049', s[GetPlayerId(GetLocalPlayer()) + 1], 0)
-    call BlzSetAbilityExtendedTooltip('A049', s[GetPlayerId(GetLocalPlayer()) + 9], 0)
-    call BlzSetAbilityExtendedTooltip('A06I', s[GetPlayerId(GetLocalPlayer()) + 17], 0)
-    call BlzSetAbilityExtendedTooltip('A06I', s[GetPlayerId(GetLocalPlayer()) + 17], 1)
-    call BlzSetAbilityExtendedTooltip('A06I', s[GetPlayerId(GetLocalPlayer()) + 17], 2)
-    call BlzSetAbilityExtendedTooltip('A06I', s[GetPlayerId(GetLocalPlayer()) + 17], 3)
-    call BlzSetAbilityExtendedTooltip('A06I', s[GetPlayerId(GetLocalPlayer()) + 17], 4)
 endfunction
 
 function ActivatePrestige takes player p returns nothing
@@ -3641,7 +3441,20 @@ function ActivatePrestige takes player p returns nothing
 	endif
 endfunction
 
-function Taunt takes unit hero, integer pid, boolean aggro, integer allythreat, integer herothreat returns nothing
+function SwitchAggro takes nothing returns nothing
+    local integer id = ReleaseTimer(GetExpiredTimer())
+    local unit u = GetUnitById(id)
+    local unit target = GetUnitTarget(u)
+
+    call FlushChildHashtable(ThreatHash, id)
+    call IssueTargetOrder(u, "smart", target)
+    call SaveInteger(ThreatHash, id, THREAT_TARGET_INDEX, GetUnitId(target))
+
+    set u = null
+    set target = null
+endfunction
+
+function Taunt takes unit hero, integer pid, real aoe, boolean bossaggro, integer allythreat, integer herothreat returns nothing
     local group enemyGroup = CreateGroup()
     local group allyGroup = CreateGroup()
     local player p = GetOwningPlayer(hero)
@@ -3651,9 +3464,10 @@ function Taunt takes unit hero, integer pid, boolean aggro, integer allythreat, 
     local integer index = 0
     local integer count2 = 0
     local integer index2 = 0
+    local integer i = 0
 
-    call MakeGroupInRange(pid, enemyGroup, GetUnitX(hero), GetUnitY(hero), 800., Condition(function FilterEnemy))
-    call MakeGroupInRange(pid, allyGroup, GetUnitX(hero), GetUnitY(hero), 800., Condition(function FilterAlly))
+    call MakeGroupInRange(pid, enemyGroup, GetUnitX(hero), GetUnitY(hero), aoe, Condition(function FilterEnemy))
+    call MakeGroupInRange(pid, allyGroup, GetUnitX(hero), GetUnitY(hero), aoe, Condition(function FilterAlly))
 
     set count = BlzGroupGetSize(enemyGroup)
     set count2 = BlzGroupGetSize(allyGroup)
@@ -3661,19 +3475,43 @@ function Taunt takes unit hero, integer pid, boolean aggro, integer allythreat, 
     if count > 0 then
         loop
             set target = BlzGroupUnitAt(enemyGroup, index)
-            call SaveInteger(ThreatHash, GetUnitId(target), GetUnitId(hero), IMinBJ(THREAT_CAP - 1, LoadInteger(ThreatHash, GetUnitId(target), GetUnitId(hero)) + herothreat))
-            if aggro then
+            set i = LoadInteger(ThreatHash, GetUnitId(target), GetUnitId(hero))
+            call SaveInteger(ThreatHash, GetUnitId(target), GetUnitId(hero), IMaxBJ(0, i + herothreat))
+            if IsBoss(GetUnitId(target)) then
+                if bossaggro then
+                    call IssueTargetOrder(target, "smart", hero)
+                    call SaveInteger(ThreatHash, GetUnitId(target), THREAT_TARGET_INDEX, GetUnitId(hero))
+                endif
+                if i >= THREAT_CAP then
+                    if GetUnitById(LoadInteger(ThreatHash, GetUnitId(target), THREAT_TARGET_INDEX)) == hero then
+                        call FlushChildHashtable(ThreatHash, GetUnitId(target))
+                    else //switch target
+                        set bj_lastCreatedUnit = GetDummy(GetUnitX(target), GetUnitY(target), 0, 0, 1.5)
+                        call BlzSetUnitSkin(bj_lastCreatedUnit, 'h00N')
+                        if GetLocalPlayer() == p then
+                            call BlzSetUnitSkin(bj_lastCreatedUnit, 'h01O')
+                        endif
+                        call SetUnitScale(bj_lastCreatedUnit, 2.5, 2.5, 2.5)
+                        call SetUnitFlyHeight(bj_lastCreatedUnit, 250.00, 0.)
+                        call SetUnitAnimation(bj_lastCreatedUnit, "birth")
+                        call TimerStart(NewTimerEx(GetUnitId(target)), 1.5, false, function SwitchAggro)
+                    endif
+                    call SaveInteger(ThreatHash, GetUnitId(target), THREAT_TARGET_INDEX, GetUnitId(hero))
+                else //lower everyone else's threat 
+                    loop
+                        set target2 = BlzGroupUnitAt(allyGroup, index2)
+                        if target2 != hero then
+                            call SaveInteger(ThreatHash, GetUnitId(target), GetUnitId(target2), IMaxBJ(0, LoadInteger(ThreatHash, GetUnitId(target), GetUnitId(target2)) - allythreat))
+                        endif
+                        set index2 = index2 + 1
+                        exitwhen index2 >= count2
+                    endloop
+                endif
+            //so that cast aggro doesnt taunt normal enemies
+            elseif allythreat > 0 then
                 call IssueTargetOrder(target, "smart", hero)
                 call SaveInteger(ThreatHash, GetUnitId(target), THREAT_TARGET_INDEX, GetUnitId(hero))
             endif
-            loop
-                set target2 = BlzGroupUnitAt(allyGroup, index2)
-                if target2 != hero then
-                    call SaveInteger(ThreatHash, GetUnitId(target), GetUnitId(target2), IMaxBJ(0, LoadInteger(ThreatHash, GetUnitId(target), GetUnitId(target2)) - allythreat))
-                endif
-                set index2 = index2 + 1
-                exitwhen index2 >= count2
-            endloop
 
             set index = index + 1
             exitwhen index >= count
@@ -3686,6 +3524,77 @@ function Taunt takes unit hero, integer pid, boolean aggro, integer allythreat, 
     set p = null
     set enemyGroup = null
     set allyGroup = null
+    set target = null
+    set target2 = null
+endfunction
+
+private function ProximityFilter takes nothing returns boolean
+    return (GetUnitTypeId(GetFilterUnit()) != DUMMY and GetUnitAbilityLevel(GetFilterUnit(), 'Avul') == 0 and GetPlayerId(GetOwningPlayer(GetFilterUnit())) < PLAYER_CAP)
+endfunction
+
+function AcquireProximity takes unit source, unit target, real dist returns unit
+    local integer index = 0
+    local integer count = 0
+    local group ug = CreateGroup()
+    local real x = GetUnitX(source)
+    local real y = GetUnitY(source)
+    local integer i = 0
+    local unit orig = target
+
+    call GroupEnumUnitsInRange(ug, x, y, dist, Filter(function ProximityFilter))
+    set count = BlzGroupGetSize(ug)
+    if count > 0 then
+        loop
+            set target = BlzGroupUnitAt(ug, index)
+            //dont acquire the same target
+            if SquareRoot(Pow(x - GetUnitX(target), 2) + Pow(y - GetUnitY(target), 2)) < dist and LoadInteger(ThreatHash, GetUnitId(source), THREAT_TARGET_INDEX) != GetUnitId(orig) then
+                set dist = SquareRoot(Pow(x - GetUnitX(target), 2) + Pow(y - GetUnitY(target), 2)) 
+                set i = index
+            endif
+            set index = index + 1
+            exitwhen index >= count
+        endloop
+        set target = BlzGroupUnitAt(ug, i)
+        call DestroyGroup(ug)
+
+        set ug = null
+        set orig = null
+        return target
+    endif
+
+    call DestroyGroup(ug)
+
+    set ug = null
+    set orig = null
+    return target
+endfunction
+
+function RunDropAggro takes nothing returns nothing
+    local integer pid = GetTimerData(GetExpiredTimer())
+    local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
+    local unit target
+    local unit target2
+    local group ug = CreateGroup()
+
+    call MakeGroupInRange(pid, ug, GetUnitX(pt.target), GetUnitY(pt.target), 800., Condition(function FilterEnemy))
+
+    loop
+        set target = FirstOfGroup(ug)
+        exitwhen target == null
+        call GroupRemoveUnit(ug, target)
+        if GetUnitTarget(target) == pt.target then
+            set target2 = AcquireProximity(target, pt.target, 800.)
+            call IssueTargetOrder(target, "smart", target2)
+            call SaveInteger(ThreatHash, GetUnitId(target), THREAT_TARGET_INDEX, GetUnitId(target2))
+            //call DEBUGMSG("aggro to " + GetUnitName(target2))
+        endif
+    endloop
+
+    call TimerList[pid].removePlayerTimer(pt)
+
+    call DestroyGroup(ug)
+
+    set ug = null
     set target = null
     set target2 = null
 endfunction
@@ -3709,18 +3618,6 @@ function KillEverythingLol takes nothing returns nothing
     set ug = null
 endfunction
 
-function MetamorphosisInvulnExpire takes nothing returns nothing
-    local integer pid = ReleaseTimer(GetExpiredTimer())
-    
-    set HeroInvul[pid] = false
-
-    if ismetamorphosis[pid] then
-        set ismetamorphosis[pid] = false
-        call GroupRemoveUnit(AffectedByWeather, Hero[pid])
-        call EnterWeather(Hero[pid])
-    endif
-endfunction
-
 function RevivePlayer takes integer pid, real x, real y, real percenthp, real percentmana returns nothing
     local player p = Player(pid - 1)
 
@@ -3728,19 +3625,19 @@ function RevivePlayer takes integer pid, real x, real y, real percenthp, real pe
     call SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]) * percenthp)
     call SetUnitState(Hero[pid], UNIT_STATE_MANA, GetUnitState(Hero[pid], UNIT_STATE_MAX_MANA) * percentmana)
     call PanCameraToTimedForPlayer(p, x, y, 0)
+    set udg_DashDistance[pid] = 0
+    call SetUnitFlyHeight(Hero[pid], 0, 0)
+    call reselect(Hero[pid])
+    call SetUnitTimeScale(Hero[pid], 1.)
+    call SetUnitPropWindow(Hero[pid], bj_DEGTORAD * 60.)
+    call SetUnitPathing(Hero[pid], true)
+    call RemoveLocation(FlightTarget[pid])
     
-    if GetLocalPlayer() == p then
-        call ClearSelection()
-        call SelectUnit(Hero[pid], true)
-    endif
-
     call EnterWeather(Hero[pid])
 
     if MultiShot[pid] then
         call IssueImmediateOrder(Hero[pid], "defend")
     endif
-
-    call TimerStart(NewTimerEx(pid), 0.5, false, function MetamorphosisInvulnExpire)
     
     set p = null
 endfunction
@@ -3804,8 +3701,8 @@ function ItemProfMod takes integer id, integer pid returns real
 endfunction
 
 function Roundmana takes real manac returns integer
-	if manac>99999 then
-		return 1000*R2I(manac / 1000)
+	if manac > 99999 then
+		return 1000 * R2I(manac / 1000)
 	endif
 	return R2I(manac)
 endfunction
@@ -3821,7 +3718,7 @@ function UnitSpecification takes unit u returns nothing
 		call BlzUnitDisableAbility(u,'A0IS',true,true)
 		call BlzUnitDisableAbility(u,'A0SO',true,true)
 		call BlzUnitDisableAbility(u,'A0SX',true,true)
-		call BlzUnitDisableAbility(u,'A0RK',true,true)
+		call BlzUnitDisableAbility(u,'A00E',true,true)
 		call BlzUnitDisableAbility(u,'A00I',true,true)
 		call BlzUnitDisableAbility(u,'A00O',true,true)
         call BlzUnitDisableAbility(u,'A0CP',true,true)
@@ -3841,15 +3738,8 @@ function UnitSpecification takes unit u returns nothing
         call UnitRemoveAbility(u, 'A0CP') //immolations and orb effects
         call UnitRemoveAbility(u, 'A0UP')
         call UnitRemoveAbility(u, 'A00D')
-        call UnitRemoveAbility(u, 'A00E')
-        call UnitRemoveAbility(u, 'A00Q')
-        call UnitRemoveAbility(u, 'A00W')
-        call UnitRemoveAbility(u, 'A00X')
         call UnitRemoveAbility(u, 'A00V')
-        call UnitRemoveAbility(u, 'A013')
         call UnitRemoveAbility(u, 'A01O')
-        call UnitRemoveAbility(u, 'A01H')
-        call UnitRemoveAbility(u, 'A019')
         call UnitRemoveAbility(u, 'A00Y')
         call UnitRemoveAbility(u, 'AIcf')
         call UnitRemoveAbility(u, 'A0CQ')
@@ -3873,9 +3763,20 @@ function UnitSpecification takes unit u returns nothing
         set BardMelodyCost[pid] = Roundmana(GetUnitState(u, UNIT_STATE_MANA) * .1)
 		call BlzSetUnitAbilityManaCost(u, 'A02H', GetUnitAbilityLevel(u, 'A02H') - 1, R2I(BardMelodyCost[pid]))
 		call BlzSetUnitAbilityManaCost(u, 'A09Y', GetUnitAbilityLevel(u, 'A09Y') - 1, Roundmana(maxmana * .02))
+	elseif uid == HERO_DARK_SAVIOR or uid == HERO_DARK_SAVIOR_DEMON then
+		call BlzSetUnitAbilityManaCost(u, 'A019', GetUnitAbilityLevel(u, 'A019') - 1, Roundmana(maxmana * .1))
+		call BlzSetUnitAbilityManaCost(u, 'A074', GetUnitAbilityLevel(u, 'A074') - 1, Roundmana(maxmana * .1))
+	elseif uid == HERO_ELEMENTALIST then
+		call BlzSetUnitAbilityManaCost(u, 'A0GV', GetUnitAbilityLevel(u, 'A0GV') - 1, Roundmana(maxmana * .05))
+		call BlzSetUnitAbilityManaCost(u, 'A011', GetUnitAbilityLevel(u, 'A011') - 1, Roundmana(maxmana * .15))
+		call BlzSetUnitAbilityManaCost(u, 'A01U', GetUnitAbilityLevel(u, 'A01U') - 1, Roundmana(maxmana * .05))
+		call BlzSetUnitAbilityManaCost(u, 'A04H', GetUnitAbilityLevel(u, 'A04H') - 1, Roundmana(maxmana * .25))
 	elseif uid == HERO_HIGH_PRIEST then
-		call BlzSetUnitAbilityManaCost(u, 'A048', GetUnitAbilityLevel(u, 'A048') - 1, Roundmana(GetUnitState(u, UNIT_STATE_MANA) *.3) )
-        call BlzSetUnitAbilityManaCost(u, 'A0DU', GetUnitAbilityLevel(u, 'A0DU') - 1, Roundmana(maxmana * .02) )
+		call BlzSetUnitAbilityManaCost(u, 'A0JD', GetUnitAbilityLevel(u, 'A0JD') - 1, Roundmana(maxmana * .1))
+		call BlzSetUnitAbilityManaCost(u, 'A0JE', GetUnitAbilityLevel(u, 'A0JE') - 1, Roundmana(maxmana * .05))
+		call BlzSetUnitAbilityManaCost(u, 'A0JG', GetUnitAbilityLevel(u, 'A0JG') - 1, Roundmana(maxmana * .1))
+		call BlzSetUnitAbilityManaCost(u, 'A0J3', GetUnitAbilityLevel(u, 'A0J3') - 1, Roundmana(maxmana * .5))
+		call BlzSetUnitAbilityManaCost(u, 'A048', GetUnitAbilityLevel(u, 'A048') - 1, Roundmana(GetUnitState(u, UNIT_STATE_MANA)))
     elseif uid == HERO_PHOENIX_RANGER then
         //
     elseif uid == HERO_THUNDERBLADE then
