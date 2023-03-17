@@ -93,21 +93,61 @@ endfunction
 function MonsoonTooltip takes integer pid, integer level returns string
     local string tt = ""
     
-    set tt = "The Thunder-Blade calls forth " + HL(I2S(1 + level)) + " thunder waves from the skies that deal " + HL(RealToString(MonsoonFormula(pid))) + " spell damage to each target in the area."
+    set tt = "The Thunder Blade calls forth " + HL(I2S(1 + level)) + " thunder waves from the skies that deal " + HL(RealToString(MonsoonFormula(pid))) + " spell damage to each target in the area."
     set tt = tt + nl + "|cff0080C014 second cooldown.|r"
     
     return tt
 endfunction
 
-function ReincarnationTooltip takes integer pid, integer level returns string
-    local string tt = ""
-    
-    set tt = "Call forth a great blessing from the heavens above to revive an ally with " + HL(I2S(20 + 10 * level) + "%") + " Max Health / Mana by targeting their tombstone."
-    set tt = tt + nl + "Cooldown is refunded if the target player revives by other means."
-    set tt = tt + nl + "Casting any other spell will reduce the remaining cooldown of " + HL("Resurrection") + " by " + HL("2") + " seconds."
-    set tt = tt + nl + "|c000080c0" + I2S(600 - 100 * level) + " second cooldown (" + I2S(ResurrectionCD[pid]) + ").|r"
-    
-    return tt
+function SniperStanceFormula takes integer pid returns real
+    local integer i = 0
+    local integer id = 0
+    local real crit = 5.
+
+    loop
+        exitwhen i > 5
+        set id = GetItemTypeId(UnitItemInSlot(Hero[pid], i))
+
+        set crit = crit + (ItemData[id][StringHash("crit")]) * (ItemData[id][StringHash("chance")]) * 0.02
+
+        set i = i + 1
+    endloop
+
+    return crit
 endfunction
-    
+
+function SniperStanceTooltip takes integer pid returns string
+    if sniperstance[pid] then
+        return "Disable Sniper Stance - [|cffffcc00F|r]" 
+    else
+        return "Enable Sniper Stance - [|cffffcc00F|r]" 
+    endif
+endfunction
+
+function SniperStanceExtendedTooltip takes integer pid returns string
+    if sniperstance[pid] then
+        return "Switches back to your normal stance, allowing you to shoot and move at normal speed, but lose the |cffFFCC00450 attack range|r, reduced |cffffcc00Tri-Rocket|r cooldown, and |cffffcc00critical strike|r.
+|cffffcc00Critical damage: " + R2S(SniperStanceFormula(pid)) + "x|r
+|cff0080C02 second cooldown.|r" 
+    else
+        return "The marksman steadies his aim, granting |cffFFCC00450 attack range|r, halved |cffffcc00Tri-Rocket|r cooldown, and halved base attack speed.
+Every item that grants |cffffcc00critical strike|r has a |cffffcc00100%|r chance to proc and is |cffffcc00100%|r stronger, but with an adjusted damage multiplier.
+|cffffcc00Critical damage: " + R2S(SniperStanceFormula(pid)) + "x|r
+While active you have |cffffcc00100|r movespeed.
+|cff0080C02 second cooldown.|r" 
+    endif
+endfunction
+
+function TriRocketTooltip takes integer pid, integer level returns string
+    if sniperstance[pid] then
+        return "The Elite Marksman fires 3 rockets in a cone in front of him, dealing (|cff00D23F" + I2S(level) + " x Agi|r + |cffE15F08" + I2S(level) + "0% Attack Damage|r) spell damage, the recoil of which sends him flying backwards |cffffcc00250|r range.
+Can |cffFFCC00triple-hit|r if used at close range of an enemy.
+|cff0080C03 second cooldown.|r"
+    else
+        return "The Elite Marksman fires 3 rockets in a cone in front of him, dealing (|cff00D23F" + I2S(level) + " x Agi|r + |cffE15F08" + I2S(level) + "0% Attack Damage|r) spell damage, the recoil of which sends him flying backwards |cffffcc00250|r range.
+Can |cffFFCC00triple-hit|r if used at close range of an enemy.
+|cff0080C06 second cooldown.|r" 
+    endif
+endfunction
+
 endlibrary
