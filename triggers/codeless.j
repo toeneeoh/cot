@@ -1,14 +1,14 @@
 library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
 
-    private constant function uppercolor takes nothing returns string
+    private function uppercolor takes nothing returns string
         return "|cffff0000"
     endfunction
 
-    private constant function lowercolor takes nothing returns string
+    private function lowercolor takes nothing returns string
         return "|cff00ff00"
     endfunction
 
-    private constant function numcolor takes nothing returns string
+    private function numcolor takes nothing returns string
         return "|cff0000ff"
     endfunction
 
@@ -119,6 +119,12 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
         local player p = GetTriggerPlayer()
         local integer pid = GetPlayerId(p) + 1
 
+        if LEFT_CHURCH[pid] then
+            call DisplayTimedTextToPlayer(p, 0, 0, 20, "You cannot -loadh anymore!")
+            set p = null
+			return
+        endif
+
         if Profiles[pid].profileHash == 0 then
             call DisplayTimedTextToPlayer(p, 0, 0, 20, "You must load your profile first.")
             set p = null
@@ -131,43 +137,10 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
 			return
         endif
 
+        set newcharacter[pid] = false
         call DisplayHeroSelectionDialog(pid)
 
         set p = null
-    endfunction
-
-    function ActionSave takes player p returns boolean
-		local integer pid = GetPlayerId(p) + 1
-        
-        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or GetWidgetLife(Hero[pid]) < 0.406 then
-            call DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
-            return false
-        endif
-
-        static if LIBRARY_dev then
-            set GAME_STATE = 2
-        endif
-        
-        if GAME_STATE <= 1 then
-            return false
-        endif
-
-		if autosave[pid] or udg_Hardcore[pid] then
-            call TimerStart(SaveTimer[pid], 1800, false, null)
-		endif
-
-        if GetLocalPlayer() == p then
-            call ClearTextMessages()
-        endif
-
-        if newcharacter[pid] then
-            set newcharacter[pid] = false
-            call SetSaveSlot(pid)
-        endif
-
-        call Profiles[pid].saveCharacter()
-
-        return true
     endfunction
     
     function SaveForceRemove takes player whichPlayer returns nothing
@@ -210,9 +183,53 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
         
         set itm = null
     endfunction
+
+    function ActionSave takes player p returns boolean
+		local integer pid = GetPlayerId(p) + 1
+
+        if LEFT_CHURCH[pid] == false then
+            call DisplayTextToPlayer(p, 0, 0, "You must leave the church to save.")
+            return false
+        endif
+        
+        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or GetWidgetLife(Hero[pid]) < 0.406 then
+            call DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
+            return false
+        endif
+
+        static if LIBRARY_dev then
+            set GAME_STATE = 2
+        endif
+        
+        if GAME_STATE <= 1 then
+            return false
+        endif
+
+		if autosave[pid] or udg_Hardcore[pid] then
+            call TimerStart(SaveTimer[pid], 1800, false, null)
+		endif
+
+        if GetLocalPlayer() == p then
+            call ClearTextMessages()
+        endif
+
+        if newcharacter[pid] then
+            set newcharacter[pid] = false
+            call SetSaveSlot(pid)
+        endif
+
+        call Profiles[pid].saveCharacter()
+
+        return true
+    endfunction
     
     function ActionSaveForce takes player p, boolean b returns nothing
 		local integer pid = GetPlayerId(p) + 1
+
+        if LEFT_CHURCH[pid] == false then
+            call DisplayTextToPlayer(p, 0, 0, "You must leave the church to save.")
+            return
+        endif
         
         if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or GetWidgetLife(Hero[pid]) < 0.406 then
             call DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
@@ -237,7 +254,6 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
         else
             call SaveForceRemove(p)
         endif
-
     endfunction
 
     function CodelessSaveLoadInit takes nothing returns nothing
@@ -248,9 +264,7 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
         loop
 			exitwhen u == User.NULL
 			call TriggerRegisterPlayerChatEvent(loadTrigger, u.toPlayer(), "-load", true)
-            static if LIBRARY_dev then
-                call TriggerRegisterPlayerChatEvent(loadHeroTrigger, u.toPlayer(), "-loadh", true)
-            endif
+            call TriggerRegisterPlayerChatEvent(loadHeroTrigger, u.toPlayer(), "-loadh", true)
 			set u = u.next
         endloop
         
