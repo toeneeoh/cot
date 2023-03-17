@@ -66,7 +66,7 @@ public function Item takes integer itid1, integer req1, integer itid2, integer r
         set i2 = 0
         loop
             exitwhen i2 > 5
-            if creatingunit == gg_unit_h05J_0412 then //vat
+            if creatingunit == ASHEN_VAT then //vat
                 set itm = UnitItemInSlot(creatingunit, i2)
                 if GetItemTypeId(itm) == 'I04Q' then //demon golem fist heart
                     if HeartDealt[GetItemUserData(itm)] < 500000 and HeartHits[GetItemUserData(itm)] < 1000 then
@@ -146,7 +146,7 @@ public function Item takes integer itid1, integer req1, integer itid2, integer r
                     loop
                         set i2 = i2 + 1
                         exitwhen i2 > itemsNeeded[i]
-                        if creatingunit == gg_unit_h05J_0412 then
+                        if creatingunit == ASHEN_VAT then
                             if HasItemType(creatingunit, itemType[i]) then
                                 call unchargedremove(creatingunit, GetItemFromUnit(creatingunit, itemType[i]) )
                             endif
