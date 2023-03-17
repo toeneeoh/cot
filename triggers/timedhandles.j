@@ -40,28 +40,36 @@ library TimedHandles uses optional TimerUtils
     endglobals
 
     function RecycleDummy takes unit u returns nothing
-        local integer i = LoadInteger(MiscHash, GetHandleId(u), 'dspl')
+        local integer i
 
-        call BlzSetUnitName(u, " ")
-        call BlzSetUnitWeaponBooleanField(u, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
-        call SetUnitOwner(u, Player(PLAYER_NEUTRAL_PASSIVE), true)
-        call BlzSetUnitSkin(u, DUMMY)
-        call SetUnitXBounded(u, 30000.)
-        call SetUnitYBounded(u, 30000.)
-        if i > 0 then
-            call UnitRemoveAbility(u, i)
+        if u != null then
+            set i = LoadInteger(MiscHash, GetHandleId(u), 'dspl')
+
+            call SetUnitAnimation(u, "stand")
+            call SetUnitPropWindow(u, bj_DEGTORAD * 180.)
+            call BlzSetUnitName(u, " ")
+            call BlzSetUnitWeaponBooleanField(u, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
+            call SetUnitOwner(u, Player(PLAYER_NEUTRAL_PASSIVE), true)
+            call BlzSetUnitSkin(u, DUMMY)
+            call SetUnitXBounded(u, 30000.)
+            call SetUnitYBounded(u, 30000.)
+            if i > 0 then
+                call UnitRemoveAbility(u, i)
+            endif
+            call FlushChildHashtable(MiscHash, GetHandleId(u))
+            call UnitAddAbility(u, 'Aloc')
+            call UnitAddAbility(u, 'Avul')
+            call SetUnitFlyHeight(u, GetUnitDefaultFlyHeight(u), 0)
+            call SetUnitScale(u, 1, 1, 1)
+            call SetUnitVertexColor(u, 255, 255, 255, 255)
+            call SetUnitTimeScale(u, 1.)
+            call BlzUnitClearOrders(u, false)
+            call BlzUnitDisableAbility(u, 'Amov', false, false)
+            call PauseUnit(u, true)
+            call GroupAddUnit(DUMMY_STACK, u)
+            call BlzSetUnitAttackCooldown(u, 0.01, 0)
+            call UnitAddBonus(u, BONUS_ATTACK_SPEED, 400.)
         endif
-        call FlushChildHashtable(MiscHash, GetHandleId(u))
-        call UnitAddAbility(u, 'Aloc')
-        call UnitAddAbility(u, 'Avul')
-        call SetUnitFlyHeight(u, GetUnitDefaultFlyHeight(u), 0)
-        call SetUnitScale(u, 1, 1, 1)
-        call SetUnitVertexColor(u, 255, 255, 255, 255)
-        call SetUnitTimeScale(u, 1.)
-        call BlzUnitClearOrders(u, false)
-        call BlzUnitDisableAbility(u, 'Amov', false, false)
-        call PauseUnit(u, true)
-        call GroupAddUnit(DUMMY_STACK, u)
     endfunction
 
     // here you may add or remove handle types
@@ -100,6 +108,7 @@ library TimedHandles uses optional TimerUtils
                 if uid == DUMMY then //reset defaults
                     call RecycleDummy(u)
                 else
+                    call FlushChildHashtable(ThreatHash, GetUnitId(u))
                     call FlushChildHashtable(MiscHash, GetHandleId(u))
                     call RemoveUnit(u)
                 endif
@@ -113,6 +122,7 @@ library TimedHandles uses optional TimerUtils
             
             method DestroyEffectThing takes effect e returns nothing
                 call BlzSetSpecialEffectScale(e, 0)
+                call BlzSetSpecialEffectAlpha(e, 0)
                 call DestroyEffect(e)
             endmethod
             

@@ -1,11 +1,6 @@
 library UnitIndex
     globals
         constant integer DETECT_LEAVE_ABILITY = 'uDex'
-        constant integer THREAT_TARGET_INDEX = 10000
-        constant integer THREAT_CAP = 2000
-
-        trigger ACQUIRE_TRIGGER = CreateTrigger()
-        hashtable ThreatHash = InitHashtable()
         unit array UI_UNIT
         integer array UI_LIST
         integer UI_INDEX = 0
@@ -41,20 +36,6 @@ library UnitIndex
 
             set UI_UNIT[i] = null
         endif
-    endfunction
-
-    private function AcquireTarget takes nothing returns boolean
-        local unit target = GetEventTargetUnit()
-        local unit source = GetTriggerUnit()
-        
-        if GetPlayerController(GetOwningPlayer(source)) != MAP_CONTROL_USER then
-            call IssueTargetOrder(source, "smart", target)
-            call SaveInteger(ThreatHash, GetUnitId(source), THREAT_TARGET_INDEX, GetUnitId(target))
-        endif
-
-        set target = null
-        set source = null
-        return false
     endfunction
 
     private function IndexUnit takes nothing returns boolean
@@ -97,7 +78,6 @@ library UnitIndex
 
         call GroupEnumUnitsOfPlayer(ug, pboss, Filter(function IndexUnit)) //index preplaced bosses
         call TriggerRegisterEnterRegion(CreateTrigger(), WorldBounds.worldRegion, Filter(function IndexUnit))
-        call TriggerAddCondition(ACQUIRE_TRIGGER, Filter(function AcquireTarget))
 
         call DestroyGroup(ug)
 

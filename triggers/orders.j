@@ -4,18 +4,12 @@ globals
     trigger pointOrder = CreateTrigger()
     boolean array bpmoving
     timer array bpmove
-    boolean array ismetamorphosis
+    real array metamorphosis
     unit array LAST_TARGET
     real array LAST_TARGET_X
     real array LAST_TARGET_Y
     boolean array Moving
 endglobals
-
-function UnImmolation takes nothing returns nothing
-    local integer pid = ReleaseTimer(GetExpiredTimer())
-    
-    call IssueImmediateOrderById(Hero[pid], 852178)
-endfunction
 
 function OnOrder takes nothing returns nothing
     local unit u = GetTriggerUnit()
@@ -23,13 +17,29 @@ function OnOrder takes nothing returns nothing
     local integer pid = GetPlayerId(p) + 1
     local integer hl = GetHeroLevel(u)
     local integer id = GetIssuedOrderId()
-    local real num
+    local real x = GetUnitX(u)
+    local real y = GetUnitY(u)
+    local real hp = 0
     local integer i = 0
     local group ug
+    local PlayerTimer pt
+    local User U = User.first
 
     static if LIBRARY_dev then
-        //call BJDebugMsg(OrderId2String(id))
-        //call BJDebugMsg(I2S(id))
+        if EXTRA_DEBUG then
+            call BJDebugMsg(OrderId2String(id))
+            call BJDebugMsg(I2S(id))
+        endif
+    endif
+
+    if id == 851971 then //smart, after 3 seconds drop aggro from all nearby enemies and redirect to allies
+        set pt = TimerList[pid].getTimerWithTargetTag(u, 'aggr')
+        if pt == 0 then
+            set pt = TimerList[pid].addTimer(pid)
+            set pt.target = u
+            set pt.tag = 'aggr' 
+            call TimerStart(pt.getTimer(), 3., true, function RunDropAggro)
+        endif
     endif
 
     if id == 852056 then //undefend
@@ -41,14 +51,36 @@ function OnOrder takes nothing returns nothing
         endif
     endif
 
-    //destroyer move (dark summoner)
-    if GetUnitTypeId(u) == SUMMON_DESTROYER and GetOrderPointX() != 0 and GetOrderPointY() != 0 then
-        set destroyerTarget[pid] = null
-        call UnitClearBonus(u, BONUS_ATTACK_SPEED)
-        set destroyerAttackSpeed[pid] = 0
-        call PauseTimer(destroyertimer[pid])
+    if id == 852150 then //faeriefireon devour
+        set pt = TimerList[pid].getTimerWithTargetTag(u, 'blif')
+        if pt != 0 then
+            call TimerList[pid].removePlayerTimer(pt)
+        endif
+        set pt = TimerList[pid].addTimer(pid)
+        set pt.tag = 'dvou'
+        set pt.target = u
+        call TimerStart(pt.getTimer(), 1., true, function DevourAutocast)
+    endif
+
+    if id == 852151 then //faeriefireoff devour
+        call TimerList[pid].stopAllTimersWithTag('dvou')
     endif
     
+    if id == 852102 then //bloodluston borrowed life
+        set pt = TimerList[pid].getTimerWithTargetTag(u, 'dvou')
+        if pt != 0 then
+            call TimerList[pid].removePlayerTimer(pt)
+        endif
+        set pt = TimerList[pid].addTimer(pid)
+        set pt.tag = 'blif'
+        set pt.target = u
+        call TimerStart(pt.getTimer(), 1., true, function BorrowedLifeAutocast)
+    endif
+
+    if id == 852103 then //bloodlustoff borrowed life
+        call TimerList[pid].stopAllTimersWithTag('blif')
+    endif
+
     //unit limits
     if id == 'h01P' or id == 'h03Y' or id == 'h04B' or id == 'n09E' or id == 'n00Q' or id == 'n023' or id == 'n09F' or id == 'h010' or id == 'h04U' or id == 'h053' then //worker
         if workerCount[pid] < 5 or (workerCount[pid] < 15 and id == 'h053') or (workerCount[pid] < 30 and id == 'n00Q') then
@@ -150,35 +182,36 @@ function OnOrder takes nothing returns nothing
         call DestroyEffect(overloadEffect[pid])
     endif
 
-    //assassin phantom slash
-    if id == 852177 and GetUnitAbilityLevel(u, 'A07Y') > 0 then
-        call TimerStart(NewTimerEx(pid), 0.01, false, function UnImmolation)
+    //assassin phantomslash
+    if id == 852177 and GetUnitAbilityLevel(u, 'A07Y') > 0 and GetUnitAbilityLevel(u, 'BPSE') == 0 then
         if MouseX[pid] != 0 and MouseY[pid] != 0 then
+            call BlzUnitDisableAbility(u, 'A07Y', true, false)
+
+            call SetUnitState(u, UNIT_STATE_MANA, GetUnitState(u, UNIT_STATE_MANA) - BlzGetUnitMaxMana(u) * (.1 - 0.025 * GetUnitAbilityLevel(u, 'A07Y')))
             set PhantomSlashing[pid] = true
             set TotalEvasion[pid] = 100
-            call UnitAddAbility(u, 'Aeth')
-            set udg_A_CB_Index_Max = ( udg_A_CB_Index_Max + 1 )
-            set udg_A_CB_Point[udg_A_CB_Index_Max] = Location(MouseX[pid], MouseY[pid])
-            set udg_A_CB_Caster[udg_A_CB_Index_Max] = u
-            set udg_A_CB_Moving[udg_A_CB_Index_Max] = true
-            set udg_A_CB_Range[udg_A_CB_Index_Max] = SquareRoot(Pow(MouseX[pid] - GetUnitX(u), 2) + Pow(MouseY[pid] - GetUnitY(u), 2))
-            set udg_A_CB_HitRange[udg_A_CB_Index_Max] = 200.00
-            if udg_A_CB_Range[udg_A_CB_Index_Max] > 750.00 then
-                set udg_A_CB_Range[udg_A_CB_Index_Max] = 750.00
+            set pt = TimerList[pid].addTimer(pid)
+            set pt.dur = SquareRoot(Pow(MouseX[pid] - GetUnitX(u), 2) + Pow(MouseY[pid] - GetUnitY(u), 2))
+            set pt.speed = 60.
+            set pt.dmg = GetHeroAgi(u, true) * 1.5 * BOOST(pid)
+            set pt.angle = Atan2(MouseY[pid] - GetUnitY(u), MouseX[pid] - GetUnitX(u))
+            set pt.target = u
+            set pt.ug = CreateGroup()
+            if pt.dur > 750. then
+                set pt.dur = 750.
             endif
-            //call DestroyEffectTimed(AddSpecialEffectTarget("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageCaster.mdl", u, "origin"), 0.01 * udg_A_CB_Range[udg_A_CB_Index_Max])
-            set udg_A_CB_Angle[udg_A_CB_Index_Max] = bj_RADTODEG * Atan2(MouseY[pid] - GetUnitY(u), MouseX[pid] - GetUnitX(u))
+
+            call TimerStart(pt.getTimer(), 0.03, true, function PhantomSlashPeriodic)
+
+            call SetUnitTimeScale(u, 1.5)
+            call SetUnitAnimationByIndex(u, 5)
+            call BlzSetUnitFacingEx(u, pt.angle * bj_RADTODEG)
+
             set bj_lastCreatedEffect = AddSpecialEffect("war3mapImported\\ShadowWarrior.mdl", GetUnitX(Hero[pid]), GetUnitY(Hero[pid]))
             call BlzSetSpecialEffectColorByPlayer(bj_lastCreatedEffect, p)
-            call BlzSetSpecialEffectYaw(bj_lastCreatedEffect, bj_DEGTORAD * udg_A_CB_Angle[udg_A_CB_Index_Max])
+            call BlzSetSpecialEffectYaw(bj_lastCreatedEffect, pt.angle)
             call FadeSFX(bj_lastCreatedEffect, true, true)
             call BlzPlaySpecialEffect(bj_lastCreatedEffect, ANIM_TYPE_ATTACK)
-            set udg_A_CB_Targets[udg_A_CB_Index_Max] = CreateGroup()
-            set udg_A_CB_Dmg[udg_A_CB_Index_Max] = GetHeroAgi(u,true) * 1.5 * BOOST(pid)
-            set udg_A_CB_Animation[udg_A_CB_Index_Max] = true
-            set udg_A_CB_BuffEffect[udg_A_CB_Index_Max] = true
-            set udg_A_CB_BuffEffectTrigger[udg_A_CB_Index_Max] = phantomslash
-            call SetUnitTimeScalePercent( udg_A_CB_Caster[udg_A_CB_Index_Max], 1000.00 )
         endif
     endif
     
@@ -194,15 +227,16 @@ function OnOrder takes nothing returns nothing
             set bloodMistEffect[pid] = null
         endif
     endif
-    
-    //dark savior metamorphosis
-    if (id == OrderId("metamorphosis") and GetUnitAbilityLevel(u, 'BEme') == 0) and GetUnitTypeId(u) == HERO_DARK_SAVIOR then
-        call SetUnitLifePercentBJ(u, ( GetUnitLifePercent(u) - 50. ) )
 
-        if GetWidgetLife(u) >= 0.406 then
-            set HeroInvul[pid] = true
-            call TimerStart(NewTimerEx(pid), 1.0, false, function MetamorphosisStart)
-        endif
+    //steed charge
+    if id == 852180 and HeroID[pid] == HERO_ROYAL_GUARDIAN then
+        set pt = TimerList[pid].addTimer(pid)
+        set pt.x = SteedChargeX[pid]
+        set pt.y = SteedChargeY[pid]
+        set pt.dur = 1.
+        set pt.angle = Atan2(pt.y - GetUnitY(Hero[pid]), pt.x - GetUnitX(Hero[pid]))
+
+        call TimerStart(pt.getTimer(), 0.03, true, function SteedCharge)
     endif
     
     //backpack ai
@@ -241,25 +275,6 @@ function OnTargetOrder takes nothing returns nothing
         //call DEBUGMSG(OrderId2String(id))
     endif
 
-    //crystal warning
-    if (GetItemTypeId(itm) == 'I0CC' or GetItemTypeId(itm) == 'I0OG') and GetHeroLevel(u) < 200 then
-        call DoFloatingTextUnit("You cannot earn |c006969FFCrystals|r before level 200!", u, 2.1, 80, 90, 9, 150, 150, 150, 0)
-        call IssueImmediateOrder(u, "stop")
-    endif
-
-    /*//dark summoner summons devour
-    if (GetUnitTypeId(u) == SUMMON_GOLEM or GetUnitTypeId(u) == SUMMON_DESTROYER) and OrderId2String(id) == "faeriefire" and GetUnitTypeId(u2) != SUMMON_HOUND then
-        call IssueImmediateOrder(u, "stop")
-    endif*/
-    
-    //destroyer swap target (dark summoner)
-    if GetUnitTypeId(u) == SUMMON_DESTROYER and u2 != destroyerTarget[pid] and (id == 851971 or id == 851983) then
-        set destroyerTarget[pid] = null
-        call UnitClearBonus(u, BONUS_ATTACK_SPEED)
-        set destroyerAttackSpeed[pid] = 0
-        call PauseTimer(destroyertimer[pid])
-    endif
-    
     //hero targets enemy
     if u == Hero[pid] and IsUnitEnemy(u2, Player(pid - 1)) then
         set LAST_TARGET[pid] = u2
@@ -272,7 +287,7 @@ function OnTargetOrder takes nothing returns nothing
         //gyro
         if GetWidgetLife(helicopter[pid]) >= 0.406 and (OrderId2String(id) == "smart" or OrderId2String(id) == "attack") then
             call GroupEnumUnitsInRangeEx(pid, helitargets[pid], GetUnitX(u2), GetUnitY(u2), 700., Condition(function FilterEnemy))
-            call GroupEnumUnitsInRangeEx(pid, helitargets[pid], GetUnitX(u), GetUnitY(u), 800., Condition(function FilterEnemy))
+            call GroupEnumUnitsInRangeEx(pid, helitargets[pid], GetUnitX(u), GetUnitY(u), 1200., Condition(function FilterEnemy))
             call SetUnitFacing(helicopter[pid], bj_RADTODEG * Atan2(GetUnitY(u2) - GetUnitY(helicopter[pid]), GetUnitX(u2) - GetUnitX(helicopter[pid])))
         endif
     endif

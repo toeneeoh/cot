@@ -8,7 +8,6 @@ globals
     unit array well
     integer wellcount = 0
     integer array wellheal
-    boolean array clickedbackpack
     real array MouseX
     real array MouseY
     integer array moveCounter
@@ -41,6 +40,13 @@ function RightClickUp takes nothing returns nothing
     if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_LEFT then
         if BP_DESELECT[pid] then
             call TimerStart(NewTimerEx(pid), 0.01, false, function UnselectBP)
+        endif
+
+        if hselection[pid] then
+            if GetLocalPlayer() == GetTriggerPlayer() then
+                call ClearSelection()
+                call SelectUnit(hsdummy[pid], true)
+            endif
         endif
     endif
 

@@ -34,7 +34,7 @@ library Map requires Functions
         call DisplayTimedTextToForce(FORCE_PLAYING, 45.00, "Official Site for updates, bug reports, and official non-hacked downloads:\n|c009ebef5https://curseoftime.wordpress.com/|r\nAlso, don't forget to join our |c000080c0Discord|r server:\n|c009ebef5https://discord.gg/peSTvTd|r")
         call DisplayTextToForce(FORCE_PLAYING, " ")
         call DisplayTextToForce(FORCE_PLAYING, " ")
-        call DisplayTimedTextToForce(FORCE_PLAYING, 45.0, "\nType |c006969ff-new|r if you are completely new\nor |c00ff7f00-load|r if you want to load/create a hero.")
+        call DisplayTimedTextToForce(FORCE_PLAYING, 45.0, "\nType |c006969ff-new profile|r if you are completely new\nor |c00ff7f00-load|r if you want to load/create a hero.")
         call DisplayTimedTextToForce(FORCE_PLAYING, 15.00, "Please read the Quests Menu for updates.")  
         call SetPlayerAllianceStateBJ( pboss, pfoe, bj_ALLIANCE_ALLIED )
         call SetPlayerAllianceStateBJ( pfoe, pboss, bj_ALLIANCE_ALLIED )

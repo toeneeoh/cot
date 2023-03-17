@@ -1,4 +1,4 @@
-library Weather initializer weathersetup requires Functions, TimerUtils
+library Weather initializer weathersetup requires Functions
 
 globals
 	timer WeatherTimer= CreateTimer()
@@ -9,7 +9,6 @@ globals
     unit WeatherUnit
     location array fsLoc
 	integer array weatherability
-    integer array weatherabilitysmall
 	string array weathernames
 	real array weatheratkspd
     integer weatheriterations = 0
@@ -81,101 +80,63 @@ function weathersetup takes nothing returns nothing
     set weatheratkspd[0] = 1
 	set weathernames[i]  ="There is currently a Hurricane."
 	set weatherability[i]='S008'
-    set weatherabilitysmall[i]='A0KM'
 	set weatheratkspd[i] =0.55
-set i=2
+    set i=2
 	set weathernames[i]  ="It is snowing heavily."
 	set weatherability[i]='S003'
-    set weatherabilitysmall[i]='A0KL'
 	set weatheratkspd[i] =0.65
-set i=3
+    set i=3
 	set weathernames[i]  ="It is snowing."
 	set weatherability[i]='S002'
-    set weatherabilitysmall[i]='A0KT'
 	set weatheratkspd[i] =0.75
-set i=4
+    set i=4
 	set weathernames[i]  ="It is foggy."
 	set weatherability[i]='S009'
-    set weatherabilitysmall[i]='A0KJ'
 	set weatheratkspd[i] =0.7
-set i=5
+    set i=5
 	set weathernames[i]  ="It is raining heavily."
 	set weatherability[i]='S005'
-    set weatherabilitysmall[i]='A0KK'
 	set weatheratkspd[i] =1.
-set i=6
+    set i=6
 	set weathernames[i]  ="It is raining."
 	set weatherability[i]='S004'
-    set weatherabilitysmall[i]='A0KO'
 	set weatheratkspd[i] =1.
-set i=7
+    set i=7
 	set weathernames[i]  ="It is currently clear."
 	set weatherability[i]='S007'
-    set weatherabilitysmall[i]='S00K'
 	set weatheratkspd[i] =1
-set i=8
+    set i=8
 	set weathernames[i]  ="It is currently sunny."
 	set weatherability[i]='S006'
-    set weatherabilitysmall[i]='S00M'
 	set weatheratkspd[i] =1.15
-set i=9
+    set i=9
 	set weathernames[i]  ="We are blessed with Divine Grace."
 	set weatherability[i]='S00A'
-    set weatherabilitysmall[i]='S00L'
 	set weatheratkspd[i] =1.3
-set i=10
-	set weathernames[i]  ="There is currently a Siphoning Mist." //faster atk, less spellboost
-	set weatherability[i]='S00F'        // boost enemy atk speed as well
-    set weatherabilitysmall[i]='A0KQ'
+    set i=10
+	set weathernames[i]  ="There is currently a Siphoning Mist." 
+	set weatherability[i]='S00F' 
 	set weatheratkspd[i] =1.5
-	
-set i=11
+    set i=11
 	set weathernames[i]  ="There is currently a Chaotic Hurricane."
 	set weatherability[i]='S00E'
-    set weatherabilitysmall[i]='A0K8'
 	set weatheratkspd[i] =0.35
-set i=12
+    set i=12
 	set weathernames[i]  ="There is currently Chaotic Heavy Snow."
 	set weatherability[i]='S00D'
-    set weatherabilitysmall[i]='A0K7'
 	set weatheratkspd[i] =0.6
-set i=14
+    set i=14
 	set weathernames[i]  ="There is currently Chaotic Fog."
 	set weatherability[i]='S00B'
-    set weatherabilitysmall[i]='A0K4'
 	set weatheratkspd[i] =0.55
-set i=15
+    set i=15
 	set weathernames[i]  ="There is currently Chaotic Heavy Rain."
 	set weatherability[i]='S00C'
-    set weatherabilitysmall[i]='A0K5'
 	set weatheratkspd[i] = 1.
-set i=17
-	set weathernames[i]  ="There is currently a Firestorm." //leaks demonic energies, boosting spells 25%, but 30% more damage taken
+    set i=17
+	set weathernames[i]  ="There is currently a Firestorm." 
 	set weatherability[i]='S00J'
-    set weatherabilitysmall[i]='A0KR'
 	set weatheratkspd[i] =1.
-endfunction
-
-function isweather takes nothing returns boolean
-    local integer pid = GetPlayerId(GetOwningPlayer(GetFilterUnit())) + 1
-
-    return (pid < 9 and IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO))
-endfunction
-
-function updateWeather takes nothing returns nothing
-    local unit u = GetEnumUnit()
-    local real x = GetUnitX(u)
-    local real y = GetUnitY(u)
-    
-    if RectContainsCoords(gg_rct_Main_Map, x, y) or RectContainsCoords(gg_rct_Infinite_Struggle, x ,y) then
-        call ApplyWeather(u)
-    endif
-    
-    set u = null
-endfunction
-
-function ClearWeatherGroup takes nothing returns nothing
-    call ClearWeather(GetEnumUnit())
 endfunction
 
 function Trig_Weather_Actions takes nothing returns nothing
@@ -185,20 +146,19 @@ function Trig_Weather_Actions takes nothing returns nothing
     local integer min = 0
     local integer max = 1000
     local integer rand
-    local group ug = CreateGroup()
-    
-    set weatheriterations = weatheriterations + 1
-
-    call ForGroup(AffectedByWeather, function ClearWeatherGroup)
-    call GroupClear(AffectedByWeather)
-
-    call GroupEnumUnitsInRect(ug, gg_rct_Main_Map, function isweather)
-    call BlzGroupAddGroupFast(ug, AffectedByWeather)
-    call DestroyGroup(ug)
-    set ug = null
+    local unit target
     
     set firestormActive = false
+    set weatheriterations = weatheriterations + 1
 
+    loop
+        set target = FirstOfGroup(AffectedByWeather)
+        exitwhen target == null
+        call GroupRemoveUnit(AffectedByWeather, target)
+        call ClearWeather(target)
+    endloop
+
+    call GroupEnumUnitsInRect(AffectedByWeather, gg_rct_Main_Map, Filter(function isplayerunitRegion))
     call UnitRemoveAbility(WeatherUnit, weatherability[udg_Weather])
 
 	if GetTimeOfDay() < 6 or GetTimeOfDay() > 16 then
@@ -228,6 +188,8 @@ function Trig_Weather_Actions takes nothing returns nothing
         elseif rand < 410 * donation then //Firestorm - 6%
             set udg_Weather= 17
             set dur= dur*.5
+            set firestormActive = true
+            call TimerStart(NewTimer(), 7., false, function FirestormStart)
         elseif rand < 470 * donation then //Siphoning Mist - 6%
             set udg_Weather= 10
 			set dur= dur*.5
@@ -281,7 +243,7 @@ function Trig_Weather_Actions takes nothing returns nothing
 		endif
 	endif
 
-	if rand < 350 then //to avoid repeating foul weather
+	if rand < 350 then //to avoid repeating bad weather
 		set prevweather = 1
 	endif
 
@@ -294,13 +256,21 @@ function Trig_Weather_Actions takes nothing returns nothing
     endif
 
     call UnitAddAbility(WeatherUnit, weatherability[udg_Weather])
-    
-    call ForGroup(AffectedByWeather, function updateWeather) //apply weather to units affected by weather
 
-    if udg_Weather == 17 then
-        set firestormActive = true
-        call TimerStart(NewTimer(), 7., false, function FirestormStart)
+    set i = 0
+    set max = BlzGroupGetSize(AffectedByWeather)
+    
+    if max > 0 then
+        loop
+            set target = BlzGroupUnitAt(AffectedByWeather, i)
+            call ApplyWeather(target)
+
+            set i = i + 1
+            exitwhen i >= max
+        endloop
     endif
+
+    set target = null
 endfunction
 
 //===========================================================================

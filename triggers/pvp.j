@@ -25,8 +25,8 @@ function DuelCountdown takes nothing returns nothing
         //start!
         call PauseUnit(Hero[pid], false)
         call PauseUnit(Hero[tpid], false)
-        call SoundHandler("Sound\\Interface\\GameFound.wav", Player(pid - 1))
-        call SoundHandler("Sound\\Interface\\GameFound.wav", Player(tpid - 1))
+        call SoundHandler("Sound\\Interface\\GameFound.wav", false, Player(pid - 1), null)
+        call SoundHandler("Sound\\Interface\\GameFound.wav", false, Player(tpid - 1), null)
         call DisplayTextToPlayer(Player(pid - 1), 0, 0, "FIGHT!")
         call DisplayTextToPlayer(Player(tpid - 1), 0, 0, "FIGHT!")
         
@@ -35,8 +35,8 @@ function DuelCountdown takes nothing returns nothing
         call ReleaseTimer(t)
     else
         //tick
-        call SoundHandler("Sound\\Interface\\BattleNetTick.wav", Player(pid - 1))
-        call SoundHandler("Sound\\Interface\\BattleNetTick.wav", Player(tpid - 1))
+        call SoundHandler("Sound\\Interface\\BattleNetTick.wav", false, Player(pid - 1), null)
+        call SoundHandler("Sound\\Interface\\BattleNetTick.wav", false, Player(tpid - 1), null)
         call DisplayTextToPlayer(Player(pid - 1), 0, 0, I2S(time + 1) + "...")
         call DisplayTextToPlayer(Player(tpid - 1), 0, 0, I2S(time + 1) + "...")
     endif

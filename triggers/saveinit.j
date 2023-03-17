@@ -692,6 +692,8 @@ function SaveSetup takes nothing returns nothing
     set udg_SaveItemType[635] = 'I0BD' //slaughterer rod rare
     set udg_SaveItemType[636] = 'I0OS' //slaughterer rod rare +1
     set udg_SaveItemType[637] = 'I0OT' //slaughterer rod rare +2
+    set udg_SaveItemType[638] = 'I0NK' //legion ring rare
+    set udg_SaveItemType[639] = 'I0NL' //legion ring legendary
 	call SaveInteger(SAVE_TABLE, KEY_ITEMS, udg_SaveItemType[1], 1)
 	call SaveInteger(SAVE_TABLE, KEY_ITEMS, udg_SaveItemType[2], 2)
 	call SaveInteger(SAVE_TABLE, KEY_ITEMS, udg_SaveItemType[3], 3)
@@ -1329,7 +1331,9 @@ function SaveSetup takes nothing returns nothing
 	call SaveInteger(SAVE_TABLE, KEY_ITEMS, udg_SaveItemType[635], 635)
 	call SaveInteger(SAVE_TABLE, KEY_ITEMS, udg_SaveItemType[636], 636)
 	call SaveInteger(SAVE_TABLE, KEY_ITEMS, udg_SaveItemType[637], 637)
-    set udg_SaveItemTypeMax = 637 
+	call SaveInteger(SAVE_TABLE, KEY_ITEMS, udg_SaveItemType[638], 638)
+	call SaveInteger(SAVE_TABLE, KEY_ITEMS, udg_SaveItemType[639], 639)
+    set udg_SaveItemTypeMax = 639 
 endfunction
 
 endlibrary

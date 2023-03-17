@@ -6,6 +6,7 @@ library SaveHelperLib requires Functions
         string savecode = ""
         boolean array newcharacter
         boolean LOAD_SAFE = true
+        boolean array LEFT_CHURCH
     endglobals
 
     private function LoadProfile_OnLoad takes nothing returns nothing

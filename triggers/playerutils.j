@@ -120,11 +120,12 @@ library PlayerUtils requires Functions
             endmethod
        
             method operator hex takes nothing returns string
-                return OriginalHex[GetHandleId(this.color)]
+                return Hex[this]
             endmethod
        
             method operator color= takes playercolor c returns nothing
                 call SetPlayerColor(this.handle, c)
+                set Hex[this] = OriginalHex[GetHandleId(c)]
            
                 static if (ARRAY_LOOKUP) then
                     set CurrentColor[this] = c
@@ -275,7 +276,8 @@ library PlayerUtils requires Functions
                     call FogModifierStart(CreateFogModifierRect(p, FOG_OF_WAR_VISIBLE, gg_rct_Tavern, false, false))
                     call FogModifierStart(CreateFogModifierRect(p, FOG_OF_WAR_VISIBLE, gg_rct_Church, false, false))
                     call FogModifierStart(CreateFogModifierRect(p, FOG_OF_WAR_VISIBLE, gg_rct_InfiniteStruggleCameraBounds, false, false))
-                    call FogModifierStart(CreateFogModifierRect(p, FOG_OF_WAR_VISIBLE, gg_rct_TownVision, false, false))
+                    call FogModifierStart(CreateFogModifierRect(p, FOG_OF_WAR_VISIBLE, gg_rct_Town_Vision, false, false))
+                    call FogModifierStart(CreateFogModifierRect(p, FOG_OF_WAR_VISIBLE, gg_rct_Town_Vision_2, false, false))
                     call FogModifierStart(CreateFogModifierRect(p, FOG_OF_WAR_VISIBLE, gg_rct_Colosseum, false, false))
                     call FogModifierStart(CreateFogModifierRect(p, FOG_OF_WAR_VISIBLE, gg_rct_Arena1, false, false))
                     call FogModifierStart(CreateFogModifierRect(p, FOG_OF_WAR_VISIBLE, gg_rct_Arena2, false, false))

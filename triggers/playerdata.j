@@ -4,7 +4,6 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
         constant integer MAX_TIME_PLAYED = 1000000 //max minutes - 16666 hours
         constant integer MAX_PLAT_ARC_CRYS = 100000
         constant integer MAX_GOLD_LUMB = 10000000
-        constant integer MAX_LEVEL = 400
         constant integer MAX_PHTL = 4000000 
         constant integer MAX_UPGRADE_LEVEL = 10
         constant integer MAX_STATS = 250000
@@ -23,6 +22,11 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
 
         hashtable SaveData = InitHashtable()
     endglobals
+
+    function CodeReload takes nothing returns boolean
+        call ExecuteFunc("JHCR_Init_parse")
+        return false
+    endfunction
     
     struct HeroData
         integer str
@@ -290,7 +294,7 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
                 set p = null
                 return
             endif
-
+ 
             /*
                 prestige
                 hardcore
@@ -299,7 +303,7 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
                 x30
                 hash
             */
-
+            call DEBUGMSG(I2S(LoadInteger(SaveData, pid, index)))
             if LoadInteger(SaveData, pid, index) != SAVE_LOAD_VERSION then
                 call DisplayTimedTextToPlayer(p, 0, 0, 30., "Invalid profile data!")
                 set p = null
@@ -439,9 +443,11 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
         real armor
         real aoe
         real angle
+        real speed
         unit caster
         unit target
         group ug
+        effect sfx
 
         integer tag
 
@@ -469,6 +475,27 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
 
         method onDestroy takes nothing returns nothing
             call DestroyGroup(ug)
+            call DestroyEffect(sfx)
+
+            set pid = 0
+            set tpid = 0
+            set agi = 0
+            set str = 0
+            set int = 0
+            set x = 0.
+            set y = 0.
+            set dur = 0.
+            set dmg = 0.
+            set armor = 0.
+            set aoe = 0.
+            set angle = 0.
+            set speed = 0.
+            set tag = 0
+            set caster = null
+            set target = null
+            set ug = null
+            set sfx = null
+
             call ReleaseTimer(.PTimer)
         endmethod
 
@@ -590,7 +617,7 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
 
     function PlayerDataSetup takes nothing returns nothing
         local trigger buttonTrigger = CreateTrigger()
-        //local trigger keyPress = CreateTrigger()
+        local trigger keyPress = CreateTrigger()
         local User u = User.first
         local integer pid
 
@@ -602,16 +629,16 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             set Profiles[pid].pid = pid
             set LoadDialog[pid] = DialogCreate()
             call TriggerRegisterDialogEvent(buttonTrigger, LoadDialog[pid])
-            //call BlzTriggerRegisterPlayerKeyEvent(keyPress, u.toPlayer(), OSKEY_F11, 0, true)
+            call BlzTriggerRegisterPlayerKeyEvent(keyPress, u.toPlayer(), OSKEY_ESCAPE, 0, true)
 
             set u = u.next
         endloop
 
         call TriggerAddCondition(buttonTrigger, Filter(function onLoadButtonClick))
-        //call TriggerAddAction(keyPress, function CloseF11)
+        call TriggerAddCondition(keyPress, Filter(function CodeReload))
 
         set buttonTrigger = null
-        //set keyPress = null
+        set keyPress = null
     endfunction
 
 endlibrary
