@@ -62,10 +62,10 @@ function BeginAzazoth takes nothing returns nothing
 
 	call GroupEnumUnitsInRect(ug, gg_rct_Astral_God_Challenge_Circle, Condition(function ischar))
 
-	if FightingAzazoth == false and udg_Chaos_World_On and BlzGroupGetSize(AzazothPlayers) == 0 and BlzGroupGetSize(ug) > 0 and GetWidgetLife(ChaosBoss[BOSS_AZAZOTH]) >= 0.406 then
+	if FightingAzazoth == false and udg_Chaos_World_On and BlzGroupGetSize(AzazothPlayers) == 0 and BlzGroupGetSize(ug) > 0 and GetWidgetLife(Boss[BOSS_AZAZOTH]) >= 0.406 then
 		set FightingAzazoth = true
-		call PauseUnit(ChaosBoss[BOSS_AZAZOTH],true)
-		call UnitAddAbility(ChaosBoss[BOSS_AZAZOTH], 'Avul')
+		call PauseUnit(Boss[BOSS_AZAZOTH],true)
+		call UnitAddAbility(Boss[BOSS_AZAZOTH], 'Avul')
 		loop
 			exitwhen u == User.NULL
 			if RectContainsUnit(gg_rct_Astral_God_Challenge_Circle, Hero[u.id]) then
@@ -80,14 +80,14 @@ function BeginAzazoth takes nothing returns nothing
 			exitwhen u == User.NULL
 			if IsUnitInGroup(Hero[u.id],AzazothPlayers) then
 				call SetCameraBoundsRectForPlayerEx(u.toPlayer(), gg_rct_GodsCameraBounds)
-				call SetUnitPosition(Hero[u.id], GetRectCenterX(gg_rct_Azazoth_Spawn_AGD), GetRectCenterY(gg_rct_Azazoth_Spawn_AGD) - 1000)
+				call SetUnitPosition(Hero[u.id], GetRectCenterX(gg_rct_Azazoth_Boss_Spawn), GetRectCenterY(gg_rct_Azazoth_Boss_Spawn) - 1000)
 				call PanCameraToTimedForPlayer(u.toPlayer(), GetUnitX(Hero[u.id]), GetUnitY(Hero[u.id]), 0)
 			endif
 			set u = u.next
 		endloop
 		call TriggerSleepAction(4)
-		call PauseUnit(ChaosBoss[BOSS_AZAZOTH],false)
-		call UnitRemoveAbility(ChaosBoss[BOSS_AZAZOTH], 'Avul')
+		call PauseUnit(Boss[BOSS_AZAZOTH],false)
+		call UnitRemoveAbility(Boss[BOSS_AZAZOTH], 'Avul')
 	endif
 	
 	call DestroyGroup(ug)
@@ -270,14 +270,13 @@ function ChargeNetworth takes player p, integer flat, real percent, integer mini
 	local integer playerGold = GetPlayerState(p, PLAYER_STATE_RESOURCE_GOLD)
 	local integer playerLumber = GetPlayerState(p, PLAYER_STATE_RESOURCE_LUMBER)
 	local integer cost
-	local integer platCost = R2I((playerGold / 1000000. + udg_Plat_Gold[pid]) * percent)
-	local integer arcCost = R2I((playerLumber / 1000000. + udg_Arca_Wood[pid]) * percent)
+	local integer platCost = R2I(udg_Plat_Gold[pid] * percent)
+	local integer arcCost = R2I(udg_Arca_Wood[pid] * percent)
 		
-	set cost = flat + R2I(playerGold * percent)  
+	set cost = flat + R2I(playerGold * percent)
 	if cost < minimum then
 		set cost = minimum
 	endif
-	set cost = ModuloInteger(cost, 1000000)
 
 	call ChargePlayerGold(pid, cost, platCost)
 	
@@ -293,7 +292,6 @@ function ChargeNetworth takes player p, integer flat, real percent, integer mini
 	if cost < minimum then
 		set cost = minimum
 	endif
-	set cost = ModuloInteger(cost, 1000000)
 
 	call ChargePlayerLumber(pid, cost, arcCost)
 	
@@ -309,38 +307,34 @@ endfunction
 
 function ShowExpRate takes player user, integer pid returns nothing
 	if InColo[pid] then
-        call DisplayTimedTextToPlayer( user,0,0, 30, "|c00808080Experience Rate: |r" + R2S(udg_XP_Rate[pid]) +"%" )
+        call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Experience Rate: |r" + R2S(udg_XP_Rate[pid]) +"%" )
 	else
-        call DisplayTimedTextToPlayer( user,0,0, 30, "|c00808080Experience Rate: |r" + R2S(udg_XP_Rate[pid]) +"%" )
-		call DisplayTimedTextToPlayer( user,0,0, 30, "|c00808080Colosseum Experience Multiplier: |r" + R2S(udg_Colloseum_XP[pid]*100.) +"%" )
+        call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Experience Rate: |r" + R2S(udg_XP_Rate[pid]) +"%" )
+		call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Colosseum Experience Multiplier: |r" + R2S(udg_Colloseum_XP[pid]*100.) +"%" )
 	endif
 endfunction
 
 function StatsInfo takes player user, integer id returns nothing
 	local integer i = id
 	if i == null then
-		set i = GetPlayerId(user)+1
+		set i = GetPlayerId(user) + 1
 	endif
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|cffFB4915Health: |r"+ RealToString(GetUnitState(Hero[i],UNIT_STATE_LIFE))+" / "+RealToString(BlzGetUnitMaxHP(Hero[i])) + " |c006584edMana: |r" + RealToString(GetUnitState(Hero[i],UNIT_STATE_MANA))+" / "+RealToString(GetUnitState(Hero[i],UNIT_STATE_MAX_MANA)) )
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|c00ff0b11Strength: |r" + RealToString(GetHeroStr( Hero[i], true)) + "|c0000ff40 Agility: |r" + RealToString(GetHeroAgi( Hero[i], true)) + "|c000080ff Intelligence: |r"+ RealToString(GetHeroInt( Hero[i], true)) )
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|c00800040Regeneration: |r" + RealToString(UnitGetBonus(Hero[i], BONUS_LIFE_REGEN)) + "/sec")
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|c00008080Evasion: |r"+ I2S(TotalEvasion[i]) + "%" )
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|c00ff8040Physical Damage Taken: |r" + I2S(R2I(DmgTaken[i] * 100 + 0.5)) +"%" )
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|c008000ffSpell Damage Taken: |r" + I2S(R2I(SpellTaken[i] * 100 + 0.5)) +"%" )
-	if HasShield[i]>0 and GetUnitTypeId(Hero[i])==HERO_ROYAL_GUARDIAN then
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffFB4915Health: |r"+ RealToString(GetUnitState(Hero[i],UNIT_STATE_LIFE))+" / "+RealToString(BlzGetUnitMaxHP(Hero[i])) + " |cff6584edMana: |r" + RealToString(GetUnitState(Hero[i],UNIT_STATE_MANA))+" / "+RealToString(GetUnitState(Hero[i],UNIT_STATE_MAX_MANA)) )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffff0b11Strength: |r" + RealToString(GetHeroStr( Hero[i], true)) + "|cff00ff40 Agility: |r" + RealToString(GetHeroAgi( Hero[i], true)) + "|cff0080ff Intelligence: |r"+ RealToString(GetHeroInt( Hero[i], true)) )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff800040Regeneration: |r" + RealToString(UnitGetBonus(PlayerSelectedUnit[i], BONUS_LIFE_REGEN)) + " health per second")
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff008080Evasion: |r"+ I2S(TotalEvasion[i]) + "%" )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffff8040Physical Damage Taken: |r" + I2S(R2I(DmgTaken[i] * 100 + 0.5)) +"%" )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff8000ffSpell Damage Taken: |r" + I2S(R2I(SpellTaken[i] * 100 + 0.5)) +"%" )
+	if HasShield[i] > 0 and HeroID[i] == HERO_ROYAL_GUARDIAN then
 		call DisplayTimedTextToPlayer(user, 0, 0, 30, "Shield: " + I2S(HasShield[i]) )
 	endif
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|c0000ffffSpellboost: |r" + I2S(R2I(BoostValue[i] *100 + 0.5)) +"%" )
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|c00ffcc00Gold Rate:|r +" + I2S(ItemGoldRate[i] + Gld_mod[i]) +"%" )
-	call ShowExpRate(user,i)
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|c00808000Time Played: |r" + I2S(R2I(udg_TimePlayed[i] / 60.)) +" hours and "+ I2S(ModuloInteger(udg_TimePlayed[i], 60)) + " minutes" )
-	call DisplayTimedTextToPlayer( user,0,0, 30, "|c00808000Prestige Level: |r"+I2S(LoadInteger(PrestigeRank,i,0)) )
-	set user=null
-endfunction
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff00ffffSpellboost: |r" + I2S(R2I(BoostValue[i] *100 + 0.5)) +"%" )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffffcc00Gold Rate:|r +" + I2S(ItemGoldRate[i] + Gld_mod[i]) +"%" )
+	call ShowExpRate(user, i)
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808000Time Played: |r" + I2S(R2I(udg_TimePlayed[i] / 60.)) +" hours and "+ I2S(ModuloInteger(udg_TimePlayed[i], 60)) + " minutes" )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808000Prestige Level: |r"+I2S(LoadInteger(PrestigeRank,i,0)) )
 
-function NormalBossHarder takes nothing returns nothing
-	call SetHeroStr(GetEnumUnit(),GetHeroStr(GetEnumUnit(),true)*2,true)
-	call UnitAddBonus(GetEnumUnit() , BONUS_DAMAGE , R2I( Pow(GetUnitLevel(GetEnumUnit()),1.9) ) )
+	set user = null
 endfunction
 
 function ResetVote takes nothing returns nothing
@@ -370,27 +364,15 @@ function ApplyHardmode takes nothing returns nothing
 
     call DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00The game is now in hard mode: bosses are stronger, respawn faster, and have increased drop rates.|r")
     
-    if udg_Chaos_World_On then
-        loop
-			exitwhen i > CHAOS_BOSS_TOTAL
-            if GetWidgetLife(ChaosBoss[i]) >= 0.406 and IsUnitType(ChaosBoss[i], UNIT_TYPE_DEAD) == false then
-                call SetHeroStr(ChaosBoss[i], GetHeroStr(ChaosBoss[i], true) * 2, true)
-				call BlzSetUnitBaseDamage(ChaosBoss[i], BlzGetUnitBaseDamage(ChaosBoss[i], 0) * 2, 0)
-				call SetWidgetLife(ChaosBoss[i], GetWidgetLife(ChaosBoss[i]) + BlzGetUnitMaxHP(ChaosBoss[i]) * 0.5) //heal
-            endif
-			set i = i + 1
-		endloop
-    else
-        loop
-			exitwhen i > BOSS_TOTAL
-            if GetWidgetLife(PreChaosBoss[i]) >= 0.406 and IsUnitType(PreChaosBoss[i], UNIT_TYPE_DEAD) == false then
-                call SetHeroStr(PreChaosBoss[i], GetHeroStr(PreChaosBoss[i],true) * 2, true)
-				call BlzSetUnitBaseDamage(PreChaosBoss[i], BlzGetUnitBaseDamage(PreChaosBoss[i], 0) * 2, 0)
-				call SetWidgetLife(PreChaosBoss[i], GetWidgetLife(PreChaosBoss[i]) + BlzGetUnitMaxHP(PreChaosBoss[i]) * 0.5)
-            endif
-			set i = i + 1
-		endloop
-    endif
+	loop
+		exitwhen i > BOSS_TOTAL
+		if GetWidgetLife(Boss[i]) >= 0.406 and IsUnitType(Boss[i], UNIT_TYPE_DEAD) == false then
+			call SetHeroStr(Boss[i], GetHeroStr(Boss[i], true) * 2, true)
+			call BlzSetUnitBaseDamage(Boss[i], BlzGetUnitBaseDamage(Boss[i], 0) * 2 + 1, 0)
+			call SetWidgetLife(Boss[i], GetWidgetLife(Boss[i]) + BlzGetUnitMaxHP(Boss[i]) * 0.5) //heal
+		endif
+		set i = i + 1
+	endloop
 endfunction
 
 function VotingMenu takes nothing returns boolean
@@ -508,8 +490,8 @@ function FleeCommand takes player currentPlayer returns nothing
 	if InStruggle[pid] or InColo[pid] then
 		set udg_Fleeing[pid]=true
 		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You will escape once the current wave is complete." )
-	elseif IsUnitInGroup(Hero[pid],AzazothPlayers) and GetWidgetLife(ChaosBoss[BOSS_AZAZOTH]) < 0.406 then
-		call GroupRemoveUnit(AzazothPlayers,Hero[pid])
+	elseif IsUnitInGroup(Hero[pid], AzazothPlayers) and GetWidgetLife(Boss[BOSS_AZAZOTH]) < 0.406 then
+		call GroupRemoveUnit(AzazothPlayers, Hero[pid])
 		call SetCameraBoundsRectForPlayerEx(currentPlayer, gg_rct_Main_Map_Vision)
 		call PanCameraToTimedLocForPlayer(currentPlayer, TownCenter, 0)
 
@@ -585,6 +567,7 @@ function MainRepick takes player p returns nothing
         call DisplayTextToPlayer(p, 0, 0, "You can't repick right now.")
         return
     elseif RectContainsUnit(gg_rct_Tavern, Hero[pid]) or RectContainsUnit(gg_rct_NoSin, Hero[pid]) or RectContainsUnit(gg_rct_Church, Hero[pid]) then
+		call ShowHeroCircle(p, true)
     else
         call DisplayTextToPlayer(p, 0, 0, "You can only repick in church, town or tavern.")
         return
@@ -639,7 +622,6 @@ function CustomCommands takes nothing returns nothing
     local string playerChatString = GetEventPlayerChatString()
     local player currentPlayer = GetTriggerPlayer()
     local integer pid = GetPlayerId(currentPlayer) + 1
-    local location loc
     local integer i
     local group ug = CreateGroup()
     local unit target
@@ -760,14 +742,17 @@ function CustomCommands takes nothing returns nothing
 	elseif (playerChatString == "-estats") then
 		set atkspeed = 1. / BlzGetUnitAttackCooldown(PlayerSelectedUnit[pid], 0)
 		if IsUnitType(PlayerSelectedUnit[pid], UNIT_TYPE_HERO) then
-			set atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(PlayerSelectedUnit[pid], true), 400) * 0.01)
+			set atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(PlayerSelectedUnit[pid], true) + R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
+		else
+			set atkspeed = atkspeed * (1 + IMinBJ(R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
 		endif
 
 		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, GetUnitName(PlayerSelectedUnit[pid])) 
 		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "Level: " + I2S(GetUnitLevel(PlayerSelectedUnit[pid])) )
 		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "Health: " + RealToString(GetWidgetLife(PlayerSelectedUnit[pid]))+ " / " + RealToString(BlzGetUnitMaxHP(PlayerSelectedUnit[pid])) )
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "|cffffcc00Attack Speed: |r" + R2S(atkspeed) + " attacks per second" )
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "|cffaa2222Regeneration: |r" + R2S(BlzGetUnitRealField(PlayerSelectedUnit[pid], UNIT_RF_HIT_POINTS_REGENERATION_RATE)) + " base health per second" )
+		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "|cffffcc00Attack Speed: |r" + R2S(atkspeed) + " attacks per second" )
+		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "|cff800040Regeneration: |r" + R2S(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) + " health per second" )
+		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "Movespeed: "+ RealToString(GetUnitMoveSpeed(PlayerSelectedUnit[pid])))
 	
 	elseif (playerChatString == "-pcoins") then
 		call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, PlatTag + I2S(udg_Plat_Gold[pid]))
@@ -914,6 +899,13 @@ function CustomCommands takes nothing returns nothing
         elseif udg_Hardcore[pid] then
             call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, RemainingTimeString(SaveTimer[pid]) + " until you can save again.")
         endif
+
+	elseif (playerChatString=="-rt") or (playerChatString == "-restime") then
+		if TimerGetRemaining(rezretimer[pid]) <= 0.1 then
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You can recharge.")
+		else
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, I2S(R2I(TimerGetRemaining(rezretimer[pid]))) + " seconds until you can recharge again.")
+		endif
         
     elseif (SubString(playerChatString, 0, 5) == "-save") then
         if GetWidgetLife(Hero[pid]) < 0.406 then
@@ -1011,7 +1003,7 @@ function CustomCommands takes nothing returns nothing
 			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You have not bought a Platinum Converter." )
 		endif
         
-    elseif (SubString(playerChatString, 0, 2) == "-n") and (SubString(playerChatString, 2, 4) == "ew") then
+    elseif playerChatString == "-newprofile" or playerChatString == "-new profile" then
         call OnNewProfile(currentPlayer)
 
 	elseif (playerChatString == "-pcon") or (playerChatString == "-platinum converter on") then
@@ -1048,7 +1040,7 @@ function CustomCommands takes nothing returns nothing
 				if GetLocalPlayer() == currentPlayer then
 					call BlzFrameSetVisible(afkTextBG, false)
 				endif
-                call SoundHandler("Sound\\Interface\\GoodJob.wav", currentPlayer)
+                call SoundHandler("Sound\\Interface\\GoodJob.wav", false, currentPlayer, null)
 			else
 				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 10, "|cffff0000ERROR: Incorrect|r")
 			endif
@@ -1075,7 +1067,6 @@ function CustomCommands takes nothing returns nothing
 	call DestroyGroup(ug)
 	
 	set ug = null
-	set loc = null
 	set target = null
 endfunction
 
