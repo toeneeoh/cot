@@ -1,32 +1,44 @@
 library DamageSystem requires Functions, Spells, Death, PVP, Bosses, Dungeons optional dev
 
 globals
+    constant integer THREAT_TARGET_INDEX = 10000
+    constant integer THREAT_CAP = 4000
+    trigger ACQUIRE_TRIGGER = CreateTrigger()
+    hashtable ThreatHash = InitHashtable()
+
     trigger BeforeArmor = CreateTrigger()
     //trigger AfterArmor = CreateTrigger()
     boolean array HeroInvul
     real array HeartDealt
     real array HeartHits
+    integer array BossDamage
     boolean ignoreflag = false
     timer SUPER_DUMMY_TIMER = CreateTimer()
+    real SUPER_DUMMY_TOTAL_PHYSICAL = 0.
+    real SUPER_DUMMY_TOTAL_MAGIC = 0.
     real SUPER_DUMMY_TOTAL = 0.
     real SUPER_DUMMY_LAST = 0.
     real SUPER_DUMMY_DPS = 0.
 
     constant damagetype PHYSICAL = DAMAGE_TYPE_NORMAL
     constant damagetype SPELL = DAMAGE_TYPE_MAGIC
+    constant damagetype PURE = DAMAGE_TYPE_DIVINE
 endglobals
 
-function SwitchAggro takes nothing returns nothing
-    local integer id = ReleaseTimer(GetExpiredTimer())
-    local unit u = GetUnitById(id)
-    local unit target = GetUnitTarget(u)
+function AcquireTarget takes nothing returns boolean
+    local unit target = GetEventTargetUnit()
+    local unit source = GetTriggerUnit()
 
-    call FlushChildHashtable(ThreatHash, id)
-    call IssueTargetOrder(u, "smart", target)
-    call SaveInteger(ThreatHash, id, THREAT_TARGET_INDEX, GetUnitId(target))
+    if GetUnitTypeId(source) == DUMMY then
+        call BlzSetUnitWeaponBooleanField(source, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
+    elseif GetPlayerController(GetOwningPlayer(source)) != MAP_CONTROL_USER then
+        call SaveInteger(ThreatHash, GetUnitId(source), THREAT_TARGET_INDEX, GetUnitId(AcquireProximity(source, target, 800.)))
+        call TimerStart(NewTimerEx(GetUnitId(target)), 0.03, false, function SwitchAggro)
+    endif
 
-    set u = null
     set target = null
+    set source = null
+    return false
 endfunction
 
 function SUPER_DUMMY_HIDE_TEXT takes nothing returns nothing
@@ -53,17 +65,19 @@ function SUPER_DUMMY_DPS_UPDATE takes nothing returns nothing
     else
         set SUPER_DUMMY_DPS = RMaxBJ(SUPER_DUMMY_DPS, SUPER_DUMMY_TOTAL / count)
         call SetTimerData(t, count + 1)
-        call BlzFrameSetText(dummyText, "Last Hit: " + R2S(SUPER_DUMMY_LAST) + "\nTotal: " + R2S(SUPER_DUMMY_TOTAL) + "\nDPS: " + R2S(SUPER_DUMMY_DPS))
+        call BlzFrameSetText(dummyText, "Last Hit: " + RealToString(SUPER_DUMMY_LAST) + "\nTotal |cffE15F08Physical|r: " + RealToString(SUPER_DUMMY_TOTAL_PHYSICAL)+ "\nTotal |cff8000ffMagic|r: " + RealToString(SUPER_DUMMY_TOTAL_MAGIC)+ "\nTotal: " + RealToString(SUPER_DUMMY_TOTAL) + "\nDPS: " + RealToString(SUPER_DUMMY_DPS))
     endif
 
     set t = null
 endfunction
 
 function SUPER_DUMMY_RESET takes nothing returns nothing
+    set SUPER_DUMMY_TOTAL_PHYSICAL = 0
+    set SUPER_DUMMY_TOTAL_MAGIC = 0
     set SUPER_DUMMY_TOTAL = 0
     set SUPER_DUMMY_LAST = 0
     set SUPER_DUMMY_DPS = 0
-    call BlzFrameSetText(dummyText, "Last Hit: 0.00 \nTotal: 0.00 \nDPS: 0.00")
+    call BlzFrameSetText(dummyText, "Last Hit: 0 \nTotal |cffE15F08Physical|r: 0 \nTotal |cff8000ffMagic|r: 0 \nTotal: 0 \nDPS: 0")
 endfunction
 
 function ReduceArmorCalc takes real dmg, unit source, unit target returns real
@@ -102,44 +116,25 @@ function ApplyArmorCalc takes real dmg, unit source, unit target, damagetype TYP
     local integer dtype = BlzGetUnitIntegerField(target, UNIT_IF_DEFENSE_TYPE)
     local integer atype = BlzGetUnitWeaponIntegerField(source, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0)
 
-    if (dtype == 6 or dtype == 7) then //chaos armor
-        set value = value * 0.03
-    endif
-
-    if TYPE == PHYSICAL then
-        if atype == 5 then
-            set value = value * 350
+    if TYPE != PURE then
+        if (dtype == 6 or dtype == 7) then //chaos armor
+            set value = value * 0.03
         endif
 
-        if armor >= 0 then
-            set value = value - (value * (0.05 * armor / (1 + 0.05 * armor)))
-        else
-            set value = value * (2 - Pow(0.94, (-armor)))
+        if TYPE == PHYSICAL then
+            if atype == 5 then
+                set value = value * 350
+            endif
+
+            if armor >= 0 then
+                set value = value - (value * (0.05 * armor / (1 + 0.05 * armor)))
+            else
+                set value = value * (2 - Pow(0.94, (-armor)))
+            endif
         endif
     endif
 
     return value
-endfunction
-
-function AdjustArmorCalc takes real dmg, unit source, unit target, damagetype TYPE returns real //before
-    local real armor = BlzGetUnitArmor(target)
-    local real value = 1
-    local integer pid = GetPlayerId(GetOwningPlayer(source)) + 1
-    local integer tpid = GetPlayerId(GetOwningPlayer(target)) + 1
-
-    if udg_Chaos_World_On and IsEnemy(tpid) then
-        set value = value * 0.03
-    endif
-
-    if TYPE == PHYSICAL then
-        if armor >= 0 then
-            set value = 1 - (0.05 * armor / (1 + 0.05 * armor))
-        else
-            set value = 2 - Pow(0.94, (-armor))
-        endif
-    endif
-
-    return dmg / value
 endfunction
 
 function OnDamageBeforeArmor takes nothing returns nothing
@@ -155,7 +150,7 @@ function OnDamageBeforeArmor takes nothing returns nothing
     local real lowboost = LBOOST(pid)
     local integer ablevel = 0
     local real dmg = 0.
-    local integer crit = 1
+    local real crit = 1
     local real unitangle = 0.
     local integer i = 0
     local timer t = null
@@ -163,8 +158,8 @@ function OnDamageBeforeArmor takes nothing returns nothing
     local group ug = CreateGroup()
     local PlayerTimer pt
 
-    //force random shit to be magic damage?
-    if damageType != PHYSICAL and damageType != SPELL then
+    //force unknown damage to magic damage?
+    if damageType != PHYSICAL and damageType != SPELL and damageType != PURE then
         call BlzSetEventDamageType(SPELL)
     endif
 
@@ -195,7 +190,7 @@ function OnDamageBeforeArmor takes nothing returns nothing
         //master rogue piercing strikes
         if GetRandomInt(0, 99) < 20 and GetUnitAbilityLevel(source, 'A0QU') > 0 then
             set pt = TimerList[pid].getTimerWithTargetTag(target, 'pstr')
-            if pt == 0 then
+            if pt.tag != 'pstr' then
                 set pt = TimerList[pid].addTimer(pid)
                 set pt.target = target
                 set pt.tag = 'pstr'
@@ -249,14 +244,13 @@ function OnDamageBeforeArmor takes nothing returns nothing
 	            call DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", target, "origin"))
             endif
         endif
-        //master rogue windwalk
+        //master rogue hidden guise
         if Windwalk[pid] then
             set Windwalk[pid] = false
             set ablevel= GetUnitAbilityLevel(source, 'A0F5')
             set dmg = dmg + ((UnitGetBonus(source, BONUS_DAMAGE) + GetHeroAgi(source,true )) * .25 * ablevel + GetHeroAgi(source,true ) * ablevel) * boost
             call DestroyEffect( AddSpecialEffectTarget( "Abilities\\Spells\\Orc\\Devour\\DevourEffectArt.mdl", source, "chest" ) )
             call UnitRemoveAbility(source,'BOwk')
-            call AddUnitAnimationProperties(source, "alternate", false)
         endif
         //master rogue backstab
         if GetUnitAbilityLevel(source,'A0QP') > 0 and uid == HERO_MASTER_ROGUE then
@@ -300,16 +294,16 @@ function OnDamageBeforeArmor takes nothing returns nothing
                 call UnitAddBonus(source, BONUS_DAMAGE, R2I(FlamingBowBonus[pid]))
             endif
         endif
-        //savior bash
+        //holy bash (savior)
         if GetUnitAbilityLevel(source, 'A0GG') > 0 and uid == HERO_SAVIOR then
             set ablevel= GetUnitAbilityLevel(source, 'A0GG')
             set saviorBashCount[pid] = saviorBashCount[pid] + 1
-            if saviorBashCount[pid] > 9 then
+            if saviorBashCount[pid] > 10 then
+                set dmg = ablevel * (GetHeroStr(source, true) + UnitGetBonus(source, BONUS_DAMAGE) * .4 ) * boost 
                 set saviorBashCount[pid] = 0
-                set dmg = dmg + (((UnitGetBonus(source, BONUS_DAMAGE) + GetHeroStr(source,true)) * .3) + GetHeroStr(source, true) * (0.4 + 0.1 * ablevel)) * boost
-                call StunUnit(pid, target, 2)
-                call DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\PhoenixMissile\\Phoenix_Missile.mdl", GetUnitX(target),GetUnitY(target) ) )
-                call SaviorBashHeal(pid, ablevel)
+                call StunUnit(pid, target, 2.)
+                call UnitDamageTarget(Hero[pid], target, dmg, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
+                call SaviorBashHeal(pid)
             endif
         endif
         //bard encore (song of war)
@@ -331,10 +325,16 @@ function OnDamageBeforeArmor takes nothing returns nothing
         endif
         //destroyer critical strike (dark summoner)
         if uid == SUMMON_DESTROYER then
-            if destroyerDevourStacks[pid] >= 4 then
-                set ablevel = 15
-            else
-                set ablevel = 10
+            set ablevel = 10
+
+            if destroyerDevourStacks[pid] >= 2 then
+                if GetRandomInt(0, 99) < 25 then
+                    set crit = crit + 2
+                endif
+
+                if destroyerDevourStacks[pid] >= 4 then
+                    set ablevel = 15
+                endif
             endif
         
             if GetRandomInt(0, 99) < ablevel then
@@ -344,15 +344,15 @@ function OnDamageBeforeArmor takes nothing returns nothing
         endif
         //dark savior dark blade
         if GetUnitAbilityLevel(source, 'B01A') > 0 then
-            if ismetamorphosis[pid] then
-                set dmg = dmg + GetHeroInt(source, true) * (0.4 + GetUnitAbilityLevel(source, 'AEim') * 0.1) * boost
-            else
-                if GetUnitManaPercent(source) >= 1.00 then
-                    set dmg = dmg + GetHeroInt(source, true) * (0.4 + GetUnitAbilityLevel(source, 'AEim') * 0.1)  * boost
-                    call SetUnitManaPercentBJ( source, ( GetUnitManaPercent(source) - 1.00 ) )
+            set dmg = dmg + GetHeroInt(source, true) * (0.6 + GetUnitAbilityLevel(source, 'AEim') * 0.1) * boost
+            if GetUnitManaPercent(source) >= 0.5 then
+                if metamorphosis[pid] > 0 then
+                    call SetUnitManaPercentBJ( source, ( GetUnitManaPercent(source) + 0.5 ) )
                 else
-                    call IssueImmediateOrder( source, "unimmolation" )
+                    call SetUnitManaPercentBJ( source, ( GetUnitManaPercent(source) - 1.00 ) )
                 endif
+            else
+                call IssueImmediateOrder( source, "unimmolation" )
             endif
         endif
         //oblivion guard infernal strikes
@@ -381,17 +381,19 @@ function OnDamageBeforeArmor takes nothing returns nothing
 
         //master rogue instant death
         if GetUnitAbilityLevel(source,'A0QQ') > 0 and uid == HERO_MASTER_ROGUE then
-            if GetRandomInt(0, 99) < 5 * lowboost then
-                set crit = crit + InstantDeathFormula(pid)
+            if GetUnitAbilityLevel(source,'A0QP') > 0 and RAbsBJ(unitangle - GetUnitFacing(target)) < 45 and (IsUnitType(target,UNIT_TYPE_STRUCTURE) == false) then
+                if GetRandomInt(0, 99) < 10 * lowboost then
+                    set crit = crit + InstantDeathFormula(pid)
+                endif
+            else
+                if GetRandomInt(0, 99) < 5 * lowboost then
+                    set crit = crit + InstantDeathFormula(pid)
+                endif
             endif
-        endif
-        //elite marksman sniper stance
-        if uid == HERO_MARKSMAN_SNIPER then
-            set crit = crit + 4
         endif
 
         //arcanist cds
-        set i = 2
+        set i = 3
         if arcanosphereActive[pid] then
             set ArcaneBoltsCD[pid] = BlzGetUnitAbilityCooldownRemaining(Hero[pid], 'A08X') - i
             if ArcaneBoltsCD[pid] > 0 then
@@ -454,24 +456,31 @@ function OnDamageBeforeArmor takes nothing returns nothing
             call UnitDamageTarget(source, target, 5000, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
             call DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\AnimateDead\\AnimateDeadTarget.mdl", target, "origin"))
         endif
-        //Item crits (restricted to players.)
-        if HeroID[pid] > 0 then
+ 
+        //item crits (players)
+        if source == Hero[pid] then
             set i = 0
 
             loop
                 exitwhen i > 5
                 set ablevel = GetItemTypeId(UnitItemInSlot(Hero[pid], i))
+
                 if GetRandomInt(0, 99) < (ItemData[ablevel][StringHash("chance")]) then
                     set crit = crit + (ItemData[ablevel][StringHash("crit")])
                 endif
+
                 set i = i + 1
             endloop
-
-            if crit > 1 then
-                set amount = amount * crit //add all crits together
-            endif
         endif
-    elseif damageType == SPELL and IsEnemy(tpid) then //innate enemy spell resist
+
+        //elite marksman sniper stance
+        if uid == HERO_MARKSMAN_SNIPER then
+            set crit = SniperStanceFormula(pid)
+        endif
+
+        //crit multiplier
+        set amount = amount * crit
+    elseif damageType == SPELL and IsEnemy(tpid) then //enemy magic resist
         if tuid == 'n01M' then //magnataur
             set amount = amount * 0.7
         elseif tuid == 'n01R' then //frost drake
@@ -482,16 +491,20 @@ function OnDamageBeforeArmor takes nothing returns nothing
             set amount = amount * 0.7
         elseif tuid == 'n02L' then //devourer
             set amount = amount * 0.7
-        elseif tuid == 'O02H' then //dark soul
-            set amount = amount * 0.7
-        elseif tuid == 'O02M' then //pure existence
-            set amount = amount * 0.7
-        elseif tuid == 'O02T' then //azazoth
-            set amount = amount * 0.5
+        endif
+
+        //protected existence
+        if GetUnitAbilityLevel(target, 'Aexi') > 0 then
+            set amount = amount * 0.66
+        endif
+
+        //astral shield
+        if GetUnitAbilityLevel(target, 'Azas') > 0 then
+            set amount = amount * 0.33
         endif
         
         if HasItemType(target, 'I03Y') then
-            set amount= amount * 0.5
+            set amount = amount * 0.5
         endif
 
         if tuid == 'U00G' or tuid == 'H045' then
@@ -519,7 +532,7 @@ function OnDamageBeforeArmor takes nothing returns nothing
                 endif
                 //master of elements (earth)
                 if GetUnitAbilityLevel(target,'B01V') > 0 then
-                    call UnitDamageTarget(target, source, GetHeroInt(target, true) * 0.3 * BOOST(tpid), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    call UnitDamageTarget(target, source, GetHeroInt(target, true) * 0.5 * BOOST(tpid), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
                 endif
                 //counter strike
                 if GetRandomInt(0, 99) < 14 and GetUnitAbilityLevel(target,'A0FL') > 0 and CounterCd[tpid] == false then
@@ -547,166 +560,171 @@ function OnDamageBeforeArmor takes nothing returns nothing
         
     */*/*/
     
-    if target == PreChaosBoss[BOSS_HELLFIRE] and GetWidgetLife(PreChaosBoss[BOSS_HELLFIRE]) >= 0.406 then //Hellfire Magi
-        set i = GetRandomInt(1, 15)
-        if trifirecd == false then
-            if i==1 then
-                call IssuePointOrder(target, "carrionswarm", GetUnitX(source), GetUnitY(source) )
-            elseif i==2 then
-                call IssuePointOrder(target, "flamestrike", GetUnitX(source), GetUnitY(source) )
-            endif
-            if i < 3 then
-                set trifirecd = true
-                call TimerStart(NewTimer(), 3.00, false, function TrifireCD)
-            endif
-        endif
-    elseif target == PreChaosBoss[BOSS_TAUREN] and GetWidgetLife(PreChaosBoss[BOSS_TAUREN]) >= 0.406 then //Tauren
-        set i = GetRandomInt(1,15)
-        if i==1 then
-            call IssuePointOrder( PreChaosBoss[BOSS_TAUREN], "carrionswarm", GetUnitX(source), GetUnitY(source))
-        elseif i==2 and taurencd == false then
-            set taurencd = true
-            call SetUnitAnimation(PreChaosBoss[BOSS_TAUREN], "slam")
-            call DoFloatingTextUnit( "War Stomp" , PreChaosBoss[BOSS_TAUREN] , 1.75 , 70 , 0 , 11 , 120, 105, 50 , 0)
-            call TimerStart(NewTimer(), 1.0, true, function TaurenStomp)
-            call TimerStart(NewTimer(), 13., false, function TaurenStompCD)
-        endif
-    elseif target == PreChaosBoss[BOSS_DWARF] and GetWidgetLife(PreChaosBoss[BOSS_DWARF]) >= 0.406 then //Dwarf
-        set i = GetRandomInt(0,100)
-        if dwarfcd == false then
-            if i<3 then
-                call IssueImmediateOrder(PreChaosBoss[BOSS_DWARF], "avatar")
-            elseif i<10 then
-                set dwarfcd = true
-                call SetUnitAnimation(PreChaosBoss[BOSS_DWARF], "slam")
-                call DoFloatingTextUnit( "Thunder Clap" , PreChaosBoss[BOSS_DWARF] , 1.75 , 70 , 0 , 11 , 0, 255, 255 , 0)
-                call TimerStart(NewTimer(), 1.0, true, function DwarfStomp)
-                call TimerStart(NewTimer(), 14., false, function DwarfStompCD)
-            endif
-        endif
-    elseif target == PreChaosBoss[BOSS_DEATH_KNIGHT] and GetWidgetLife(PreChaosBoss[BOSS_DEATH_KNIGHT]) >= 0.406 then //Death Knight
-        set i = GetRandomInt(0, 99)
-        if i < 10 and BossSpellCD[10] == false then //shadow step
-            set BossSpellCD[10] = true
-            call ShadowStep(source, 1.5)
-            call TimerStart(NewTimerEx(10), 20.00, false, function BossCD)
-        elseif i < 8 and deathstrikecd == false then
-            call GroupEnumUnitsInRange(deathstriketargets, GetUnitX(PreChaosBoss[BOSS_DEATH_KNIGHT]), GetUnitY(PreChaosBoss[BOSS_DEATH_KNIGHT]), 1250., Condition(function isplayerunit))
-            call DoFloatingTextUnit( "Death Strikes" , PreChaosBoss[BOSS_DEATH_KNIGHT] , 1.75 , 70 , 0 , 11 , 110, 0, 110 , 0)
-            set deathstrikecd = true
-            loop
-                set u = FirstOfGroup(deathstriketargets)
-                exitwhen u == null
-                call GroupRemoveUnit(deathstriketargets, u)
-                if BlzGroupGetSize(deathstriketargets) < 4 then
-                    set t = NewTimer()
-                    set bj_lastCreatedUnit = GetDummy(GetUnitX(u), GetUnitY(u), 0, 0, DUMMY_RECYCLE_TIME) 
-                    call SetUnitScale(bj_lastCreatedUnit, 4., 4., 4.)
-                    call BlzSetUnitSkin(bj_lastCreatedUnit, 'e01F')
-                    call SaveReal(MiscHash, GetHandleId(t), 0, GetUnitX(u))
-                    call SaveReal(MiscHash, GetHandleId(t), 1, GetUnitY(u))
-                    call SaveUnitHandle(MiscHash, GetHandleId(t), 2, bj_lastCreatedUnit)
-                    call TimerStart(t, 3, false, function DeathStrike)
+    //prechaos bosses
+    if udg_Chaos_World_On == false then
+        if target == Boss[BOSS_HELLFIRE] and GetWidgetLife(Boss[BOSS_HELLFIRE]) >= 0.406 then //Hellfire Magi
+            set i = GetRandomInt(1, 15)
+            if trifirecd == false then
+                if i==1 then
+                    call IssuePointOrder(target, "carrionswarm", GetUnitX(source), GetUnitY(source) )
+                elseif i==2 then
+                    call IssuePointOrder(target, "flamestrike", GetUnitX(source), GetUnitY(source) )
                 endif
-            endloop
-            call TimerStart(NewTimer(), 8.00, false, function DeathStrikeCD)
-        endif
-    //Goddesses
-    elseif (target == PreChaosBoss[BOSS_HATE] or target == PreChaosBoss[BOSS_LOVE] or target == PreChaosBoss[BOSS_KNOWLEDGE]) then
-        //Love Holy Ward
-        if GetWidgetLife(PreChaosBoss[BOSS_LOVE]) >= 0.406 and (GetWidgetLife(PreChaosBoss[BOSS_LOVE]) / BlzGetUnitMaxHP(PreChaosBoss[BOSS_LOVE])) <= 0.8 then
-            if holywardcd == false then
-                set holywardcd = true
-                set holyward = CreateUnit(pboss, 'o009', GetRandomReal(GetRectMinX(gg_rct_Crystal_Spawn) - 600, GetRectMaxX(gg_rct_Crystal_Spawn) + 600), GetRandomReal(GetRectMinY(gg_rct_Crystal_Spawn) - 600, GetRectMaxY(gg_rct_Crystal_Spawn) + 600), 0)
-            
-                call MakeGroupInRange(bossid, ug, GetUnitX(holyward), GetUnitY(holyward), 1250, Condition(function FilterEnemy))
-                call BlzSetUnitMaxHP(holyward, 10 * BlzGroupGetSize(ug))
-                
-                call TimerStart(NewTimer(), 10, false, function HolyWard)
-                call TimerStart(NewTimer(), 40, false, function HolyWardCD)
-
-                call GroupClear(ug)
+                if i < 3 then
+                    set trifirecd = true
+                    call TimerStart(NewTimer(), 3.00, false, function TrifireCD)
+                endif
             endif
-        endif
-
-        //Knowledge Ghost Shroud
-        if GetWidgetLife(PreChaosBoss[BOSS_KNOWLEDGE]) >= 0.406 and (GetWidgetLife(PreChaosBoss[BOSS_KNOWLEDGE]) / BlzGetUnitMaxHP(PreChaosBoss[BOSS_KNOWLEDGE])) <= 0.8 then
-            call IssueTargetOrder(PreChaosBoss[BOSS_KNOWLEDGE], "silence", source)
-            call IssueTargetOrder(PreChaosBoss[BOSS_KNOWLEDGE], "hex", source)
-
+        elseif target == Boss[BOSS_TAUREN] and GetWidgetLife(Boss[BOSS_TAUREN]) >= 0.406 then //Tauren
+            set i = GetRandomInt(1,15)
+            if i==1 then
+                call IssuePointOrder( Boss[BOSS_TAUREN], "carrionswarm", GetUnitX(source), GetUnitY(source))
+            elseif i==2 and taurencd == false then
+                set taurencd = true
+                call SetUnitAnimation(Boss[BOSS_TAUREN], "slam")
+                call DoFloatingTextUnit( "War Stomp" , Boss[BOSS_TAUREN] , 1.75 , 70 , 0 , 11 , 120, 105, 50 , 0)
+                call TimerStart(NewTimer(), 1.0, true, function TaurenStomp)
+                call TimerStart(NewTimer(), 13., false, function TaurenStompCD)
+            endif
+        elseif target == Boss[BOSS_DWARF] and GetWidgetLife(Boss[BOSS_DWARF]) >= 0.406 then //Dwarf
+            set i = GetRandomInt(0,100)
+            if dwarfcd == false then
+                if i<3 then
+                    call IssueImmediateOrder(Boss[BOSS_DWARF], "avatar")
+                elseif i<10 then
+                    set dwarfcd = true
+                    call SetUnitAnimation(Boss[BOSS_DWARF], "slam")
+                    call DoFloatingTextUnit( "Thunder Clap" , Boss[BOSS_DWARF] , 1.75 , 70 , 0 , 11 , 0, 255, 255 , 0)
+                    call TimerStart(NewTimer(), 1.0, true, function DwarfStomp)
+                    call TimerStart(NewTimer(), 14., false, function DwarfStompCD)
+                endif
+            endif
+        elseif target == Boss[BOSS_DEATH_KNIGHT] and GetWidgetLife(Boss[BOSS_DEATH_KNIGHT]) >= 0.406 then //Death Knight
             set i = GetRandomInt(0, 99)
-            if i < 30 and ghostshroudcd == false then
-                //ghost shroud
-                set ghostshroudcd = true
-                call UnitAddAbility(PreChaosBoss[BOSS_KNOWLEDGE], 'A08M')
-                call DummyCastTarget(pboss, PreChaosBoss[BOSS_KNOWLEDGE], 'A08I', 1, GetUnitX(PreChaosBoss[BOSS_KNOWLEDGE]), GetUnitY(PreChaosBoss[BOSS_KNOWLEDGE]), "banish")
-                call TimerStart(NewTimer(), 1, true, function GhostShroud)
-                call TimerStart(NewTimer(), 20, false, function GhostShroudCD)
+            if i < 10 and BossSpellCD[10] == false and UnitDistance(source, target) > 250. then //shadow step
+                set BossSpellCD[10] = true
+                call ShadowStep(source, 1.5)
+                call TimerStart(NewTimerEx(10), 20.00, false, function BossCD)
+            elseif i < 8 and deathstrikecd == false then
+                call GroupEnumUnitsInRange(deathstriketargets, GetUnitX(Boss[BOSS_DEATH_KNIGHT]), GetUnitY(Boss[BOSS_DEATH_KNIGHT]), 1250., Condition(function isplayerunit))
+                call DoFloatingTextUnit( "Death Strikes" , Boss[BOSS_DEATH_KNIGHT] , 1.75 , 70 , 0 , 11 , 110, 0, 110 , 0)
+                set deathstrikecd = true
+                loop
+                    set u = FirstOfGroup(deathstriketargets)
+                    exitwhen u == null
+                    call GroupRemoveUnit(deathstriketargets, u)
+                    if BlzGroupGetSize(deathstriketargets) < 4 then
+                        set t = NewTimer()
+                        set bj_lastCreatedUnit = GetDummy(GetUnitX(u), GetUnitY(u), 0, 0, DUMMY_RECYCLE_TIME) 
+                        call SetUnitScale(bj_lastCreatedUnit, 4., 4., 4.)
+                        call BlzSetUnitSkin(bj_lastCreatedUnit, 'e01F')
+                        call SaveReal(MiscHash, GetHandleId(t), 0, GetUnitX(u))
+                        call SaveReal(MiscHash, GetHandleId(t), 1, GetUnitY(u))
+                        call SaveUnitHandle(MiscHash, GetHandleId(t), 2, bj_lastCreatedUnit)
+                        call TimerStart(t, 3, false, function DeathStrike)
+                    endif
+                endloop
+                call TimerStart(NewTimer(), 8.00, false, function DeathStrikeCD)
             endif
+        //Goddesses
+        elseif (target == Boss[BOSS_HATE] or target == Boss[BOSS_LOVE] or target == Boss[BOSS_KNOWLEDGE]) then
+            //Love Holy Ward
+            if GetWidgetLife(Boss[BOSS_LOVE]) >= 0.406 and (GetWidgetLife(Boss[BOSS_LOVE]) / BlzGetUnitMaxHP(Boss[BOSS_LOVE])) <= 0.8 then
+                if holywardcd == false then
+                    set holywardcd = true
+                    set holyward = CreateUnit(pboss, 'o009', GetRandomReal(GetRectMinX(gg_rct_Crystal_Spawn) - 600, GetRectMaxX(gg_rct_Crystal_Spawn) + 600), GetRandomReal(GetRectMinY(gg_rct_Crystal_Spawn) - 600, GetRectMaxY(gg_rct_Crystal_Spawn) + 600), 0)
+                
+                    call MakeGroupInRange(bossid, ug, GetUnitX(holyward), GetUnitY(holyward), 1250, Condition(function FilterEnemy))
+                    call BlzSetUnitMaxHP(holyward, 10 * BlzGroupGetSize(ug))
+                    
+                    call TimerStart(NewTimer(), 10, false, function HolyWard)
+                    call TimerStart(NewTimer(), 40, false, function HolyWardCD)
+
+                    call GroupClear(ug)
+                endif
+            endif
+
+            //Knowledge Ghost Shroud
+            if GetWidgetLife(Boss[BOSS_KNOWLEDGE]) >= 0.406 and (GetWidgetLife(Boss[BOSS_KNOWLEDGE]) / BlzGetUnitMaxHP(Boss[BOSS_KNOWLEDGE])) <= 0.8 then
+                call IssueTargetOrder(Boss[BOSS_KNOWLEDGE], "silence", source)
+                call IssueTargetOrder(Boss[BOSS_KNOWLEDGE], "hex", source)
+
+                set i = GetRandomInt(0, 99)
+                if i < 30 and ghostshroudcd == false then
+                    //ghost shroud
+                    set ghostshroudcd = true
+                    call UnitAddAbility(Boss[BOSS_KNOWLEDGE], 'A08M')
+                    call DummyCastTarget(pboss, Boss[BOSS_KNOWLEDGE], 'A08I', 1, GetUnitX(Boss[BOSS_KNOWLEDGE]), GetUnitY(Boss[BOSS_KNOWLEDGE]), "banish")
+                    call TimerStart(NewTimer(), 1, true, function GhostShroud)
+                    call TimerStart(NewTimer(), 20, false, function GhostShroudCD)
+                endif
+            endif
+
+        //Life
+        elseif (target == Boss[BOSS_LIFE]) and GetWidgetLife(target) >= 0.406 and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 and sunstrikecd == false then
+            set sunstrikecd = true
+            call TimerStart(NewTimer(), 20, false, function SunStrikeCD)
+
+            call GroupEnumUnitsInRange(ug, GetUnitX(target), GetUnitY(target), 1250., Condition(function isplayerAlly))
+
+            set i = 1
+
+            loop
+                set u = FirstOfGroup(ug)
+                exitwhen (i > 3 or u == null)
+                call GroupRemoveUnit(ug, u)
+
+                set bj_lastCreatedUnit = GetDummy(GetUnitX(u), GetUnitY(u), 0, 0, 3.)
+                call SetUnitScale(bj_lastCreatedUnit, 4., 4., 4.)
+                call BlzSetUnitFacingEx(bj_lastCreatedUnit, 270)
+                call BlzSetUnitSkin(bj_lastCreatedUnit, 'e01F')
+                call SetUnitVertexColor(bj_lastCreatedUnit, 200, 200, 0, 255)
+
+                set t = NewTimer()
+                call SaveReal(MiscHash, 0, GetHandleId(t), GetUnitX(u))
+                call SaveReal(MiscHash, 1, GetHandleId(t), GetUnitY(u))
+                call TimerStart(t, 3, false, function SunStrike)
+
+                set i = i + 1
+            endloop
         endif
-
-    //Life
-    elseif (target == PreChaosBoss[BOSS_LIFE]) and GetWidgetLife(target) >= 0.406 and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 and sunstrikecd == false then
-        set sunstrikecd = true
-        call TimerStart(NewTimer(), 20, false, function SunStrikeCD)
-
-        call GroupEnumUnitsInRange(ug, GetUnitX(target), GetUnitY(target), 1250., Condition(function isplayerAlly))
-
-        set i = 1
-
-        loop
-            set u = FirstOfGroup(ug)
-            exitwhen (i > 3 or u == null)
-            call GroupRemoveUnit(ug, u)
-
-            set bj_lastCreatedUnit = GetDummy(GetUnitX(u), GetUnitY(u), 0, 0, 3.)
-            call SetUnitScale(bj_lastCreatedUnit, 4., 4., 4.)
-            call BlzSetUnitFacingEx(bj_lastCreatedUnit, 270)
-            call BlzSetUnitSkin(bj_lastCreatedUnit, 'e01F')
-            call SetUnitVertexColor(bj_lastCreatedUnit, 200, 200, 0, 255)
-
-            set t = NewTimer()
-            call SaveReal(MiscHash, 0, GetHandleId(t), GetUnitX(u))
-            call SaveReal(MiscHash, 1, GetHandleId(t), GetUnitY(u))
-            call TimerStart(t, 3, false, function SunStrike)
-
-            set i = i + 1
-        endloop
+    //chaos bosses
     //Demon Prince
-    elseif target == ChaosBoss[BOSS_DEMON_PRINCE] and GetWidgetLife(ChaosBoss[BOSS_DEMON_PRINCE]) >= 0.406 and (GetWidgetLife(ChaosBoss[BOSS_DEMON_PRINCE]) / BlzGetUnitMaxHP(ChaosBoss[BOSS_DEMON_PRINCE])) <= 0.5 then
-        if GetUnitAbilityLevel(ChaosBoss[BOSS_DEMON_PRINCE], 'Bblo') == 0 then
-            call DummyCastTarget(pboss, ChaosBoss[BOSS_DEMON_PRINCE], 'A041', 1, GetUnitX(ChaosBoss[BOSS_DEMON_PRINCE]), GetUnitY(ChaosBoss[BOSS_DEMON_PRINCE]), "bloodlust")
+    elseif target == Boss[BOSS_DEMON_PRINCE] and GetWidgetLife(Boss[BOSS_DEMON_PRINCE]) >= 0.406 and (GetWidgetLife(Boss[BOSS_DEMON_PRINCE]) / BlzGetUnitMaxHP(Boss[BOSS_DEMON_PRINCE])) <= 0.5 then
+        if GetUnitAbilityLevel(Boss[BOSS_DEMON_PRINCE], 'Bblo') == 0 then
+            set DemonPrinceBloodlust.add(Boss[BOSS_DEMON_PRINCE], Boss[BOSS_DEMON_PRINCE]).duration = 60.
+            call DummyCastTarget(pboss, Boss[BOSS_DEMON_PRINCE], 'A041', 1, GetUnitX(Boss[BOSS_DEMON_PRINCE]), GetUnitY(Boss[BOSS_DEMON_PRINCE]), "bloodlust")
         endif
     //Absolute Horror
-    elseif target == ChaosBoss[BOSS_ABSOLUTE_HORROR] and GetWidgetLife(ChaosBoss[BOSS_ABSOLUTE_HORROR]) >= 0.406 and (GetWidgetLife(ChaosBoss[BOSS_ABSOLUTE_HORROR]) / BlzGetUnitMaxHP(ChaosBoss[BOSS_ABSOLUTE_HORROR])) <= 0.8 then
+    elseif target == Boss[BOSS_ABSOLUTE_HORROR] and GetWidgetLife(Boss[BOSS_ABSOLUTE_HORROR]) >= 0.406 and (GetWidgetLife(Boss[BOSS_ABSOLUTE_HORROR]) / BlzGetUnitMaxHP(Boss[BOSS_ABSOLUTE_HORROR])) <= 0.8 then
         set i = GetRandomInt(0, 99)
         if i < 10 and truestealthcd == false then
-            call GroupEnumUnitsInRange(ug, GetUnitX(ChaosBoss[BOSS_ABSOLUTE_HORROR]), GetUnitY(ChaosBoss[BOSS_ABSOLUTE_HORROR]), 1500., Condition(function isplayerunit))
-            call DoFloatingTextUnit( "True Stealth" , ChaosBoss[BOSS_ABSOLUTE_HORROR] , 1.75 , 100 , 0 , 12 , 90, 30, 150 , 0)
-            call UnitRemoveBuffs(ChaosBoss[BOSS_ABSOLUTE_HORROR], false, true)
-            call UnitAddAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'Avul')
-            call UnitAddAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'A043')
-            call IssueImmediateOrder(ChaosBoss[BOSS_ABSOLUTE_HORROR], "windwalk")
+            call GroupEnumUnitsInRange(ug, GetUnitX(Boss[BOSS_ABSOLUTE_HORROR]), GetUnitY(Boss[BOSS_ABSOLUTE_HORROR]), 1500., Condition(function isplayerunit))
+            call DoFloatingTextUnit( "True Stealth" , Boss[BOSS_ABSOLUTE_HORROR] , 1.75 , 100 , 0 , 12 , 90, 30, 150 , 0)
+            call UnitRemoveBuffs(Boss[BOSS_ABSOLUTE_HORROR], false, true)
+            call UnitAddAbility(Boss[BOSS_ABSOLUTE_HORROR], 'Avul')
+            call UnitAddAbility(Boss[BOSS_ABSOLUTE_HORROR], 'A043')
+            call IssueImmediateOrder(Boss[BOSS_ABSOLUTE_HORROR], "windwalk")
             set u = FirstOfGroup(ug)
             if u != null then
                 set truestealthcd = true
-                set unitangle = Atan2(GetUnitY(u) - GetUnitY(ChaosBoss[BOSS_ABSOLUTE_HORROR]), GetUnitX(u) - GetUnitX(ChaosBoss[BOSS_ABSOLUTE_HORROR]))
-                call UnitAddAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'Amrf')
-                call IssuePointOrder(ChaosBoss[BOSS_ABSOLUTE_HORROR], "move", GetUnitX(u) + 300 * Cos(unitangle), GetUnitY(u) + 300 * Sin(unitangle))
+                set unitangle = Atan2(GetUnitY(u) - GetUnitY(Boss[BOSS_ABSOLUTE_HORROR]), GetUnitX(u) - GetUnitX(Boss[BOSS_ABSOLUTE_HORROR]))
+                call UnitAddAbility(Boss[BOSS_ABSOLUTE_HORROR], 'Amrf')
+                call IssuePointOrder(Boss[BOSS_ABSOLUTE_HORROR], "move", GetUnitX(u) + 300 * Cos(unitangle), GetUnitY(u) + 300 * Sin(unitangle))
                 set t = NewTimer()
                 call SaveReal(MiscHash, 0, GetHandleId(t), GetUnitX(u) + 150 * Cos(unitangle))
                 call SaveReal(MiscHash, 1, GetHandleId(t), GetUnitY(u) + 150 * Sin(unitangle))
                 call TimerStart(t, 2., false, function TrueStealth)
                 call TimerStart(NewTimer(), 10., false, function TrueStealthCD)
             else
-                call UnitRemoveAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'Avul')
-                call UnitRemoveAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'A043')
-                call UnitRemoveAbility(ChaosBoss[BOSS_ABSOLUTE_HORROR], 'BOwk')
+                call UnitRemoveAbility(Boss[BOSS_ABSOLUTE_HORROR], 'Avul')
+                call UnitRemoveAbility(Boss[BOSS_ABSOLUTE_HORROR], 'A043')
+                call UnitRemoveAbility(Boss[BOSS_ABSOLUTE_HORROR], 'BOwk')
             endif
             call GroupClear(ug)
         endif
     //Satan
-    elseif target == ChaosBoss[BOSS_SATAN] and GetWidgetLife(ChaosBoss[BOSS_SATAN]) >= 0.406 then
+    elseif target == Boss[BOSS_SATAN] and GetWidgetLife(Boss[BOSS_SATAN]) >= 0.406 then
         if GetRandomInt(0,99) < 10 then
             call SatanFlameStrike(GetUnitX(source), GetUnitY(source))
         endif
@@ -718,9 +736,9 @@ function OnDamageBeforeArmor takes nothing returns nothing
             call UnitDamageTarget(source, target, BlzGetUnitMaxHP(target) / 200., true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
         endif
 
-    elseif target == ChaosBoss[BOSS_LEGION] and GetWidgetLife(ChaosBoss[BOSS_LEGION]) >= 0.406 and (GetWidgetLife(ChaosBoss[BOSS_LEGION]) / BlzGetUnitMaxHP(ChaosBoss[BOSS_LEGION])) <= 0.8 then
+    elseif target == Boss[BOSS_LEGION] and GetWidgetLife(Boss[BOSS_LEGION]) >= 0.406 and (GetWidgetLife(Boss[BOSS_LEGION]) / BlzGetUnitMaxHP(Boss[BOSS_LEGION])) <= 0.8 then
         set i = GetRandomInt(0, 99)
-        if i < 10 and BossSpellCD[10] == false then //shadow step
+        if i < 10 and BossSpellCD[10] == false and UnitDistance(source, target) > 250. then //shadow step
             set BossSpellCD[10] = true
             call ShadowStep(source, 1.5)
             call TimerStart(NewTimerEx(10), 20.00, false, function BossCD)
@@ -731,30 +749,41 @@ function OnDamageBeforeArmor takes nothing returns nothing
         endif
 
     //Forgotten Leader
-    elseif target == ChaosBoss[BOSS_FORGOTTEN_LEADER] and GetWidgetLife(ChaosBoss[BOSS_FORGOTTEN_LEADER]) >= 0.406 then
+    elseif target == Boss[BOSS_FORGOTTEN_LEADER] and GetWidgetLife(Boss[BOSS_FORGOTTEN_LEADER]) >= 0.406 then
         set i = GetRandomInt(0, 99)
-        if i < 6 and unstoppableforcecd == false then
-            call GroupEnumUnitsInRange(ug, GetUnitX(ChaosBoss[BOSS_FORGOTTEN_LEADER]), GetUnitY(ChaosBoss[BOSS_FORGOTTEN_LEADER]), 1500., Condition(function isplayerAlly))
+        if i < 6 and BossSpellCD[11] == false then
+            call GroupEnumUnitsInRange(ug, GetUnitX(Boss[BOSS_FORGOTTEN_LEADER]), GetUnitY(Boss[BOSS_FORGOTTEN_LEADER]), 1500., Condition(function isplayerAlly))
             set u = FirstOfGroup(ug)
             if u != null then
-                call DoFloatingTextUnit( "Unstoppable Force" , ChaosBoss[BOSS_FORGOTTEN_LEADER] , 1.75 , 100 , 0 , 12 , 255, 0, 0 , 0)
-                call TimerStart(NewTimer(), 11.00, false, function UnstoppableForceCD)
-                set unstoppableforcecd = true
-                set unitangle = Atan2(GetUnitY(u) - GetUnitY(ChaosBoss[BOSS_FORGOTTEN_LEADER]), GetUnitX(u) - GetUnitX(ChaosBoss[BOSS_FORGOTTEN_LEADER]))
-                call PauseUnit(ChaosBoss[BOSS_FORGOTTEN_LEADER], true)
-                call BlzSetUnitFacingEx(ChaosBoss[BOSS_FORGOTTEN_LEADER], bj_RADTODEG * unitangle)
+                call DoFloatingTextUnit( "Unstoppable Force" , Boss[BOSS_FORGOTTEN_LEADER] , 1.75 , 100 , 0 , 12 , 255, 0, 0 , 0)
+                call TimerStart(NewTimerEx(11), 11.00, false, function BossCD)
+                set BossSpellCD[11] = true
+                call PauseUnit(Boss[BOSS_FORGOTTEN_LEADER], true)
                 set bj_lastCreatedUnit = GetDummy(GetUnitX(u), GetUnitY(u), 0, 0, 3.)
                 call SetUnitScale(bj_lastCreatedUnit, 10., 10., 10.)
                 call BlzSetUnitFacingEx(bj_lastCreatedUnit, 270.)
                 call BlzSetUnitSkin(bj_lastCreatedUnit, 'e01F')
                 call SetUnitVertexColor(bj_lastCreatedUnit, 200, 200, 0, 255)
-                call GroupClear(unstoppableforcehit)
-                set t = NewTimer()
-                call SaveReal(MiscHash, 0, GetHandleId(t), GetUnitX(u))
-                call SaveReal(MiscHash, 1, GetHandleId(t), GetUnitY(u))
-                call TimerStart(t, 2.5, false, function UnstoppableForce)
+                set pt = TimerList[bossid].addTimer(bossid)
+                set pt.x = GetUnitX(u)
+                set pt.y = GetUnitY(u)
+                set pt.ug = CreateGroup()
+                set pt.angle = Atan2(GetUnitY(u) - GetUnitY(Boss[BOSS_FORGOTTEN_LEADER]), GetUnitX(u) - GetUnitX(Boss[BOSS_FORGOTTEN_LEADER])) 
+                call BlzSetUnitFacingEx(Boss[BOSS_FORGOTTEN_LEADER], bj_RADTODEG * pt.angle)
+                call TimerStart(pt.getTimer(), 2.5, false, function UnstoppableForce)
             endif
             call GroupClear(ug)
+        elseif BossSpellCD[12] == false and GetWidgetLife(Boss[BOSS_FORGOTTEN_LEADER]) <= BlzGetUnitMaxHP(Boss[BOSS_FORGOTTEN_LEADER]) * 0.5 then
+            call DoFloatingTextUnit( "Reinforcements" , Boss[BOSS_FORGOTTEN_LEADER] , 1.75 , 100 , 0 , 12 , 255, 0, 0 , 0)
+            call TimerStart(NewTimerEx(12), 120.00, false, function BossCD)
+            set BossSpellCD[12] = true
+            set pt = TimerList[bossid].addTimer(bossid)
+            set pt.angle = GetUnitFacing(Boss[BOSS_FORGOTTEN_LEADER]) 
+            set pt.x = GetUnitX(Boss[BOSS_FORGOTTEN_LEADER])
+            set pt.y = GetUnitY(Boss[BOSS_FORGOTTEN_LEADER])
+            call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", pt.x + 400 * Cos((pt.angle + 90) * bj_DEGTORAD), pt.y + 400 * Sin((pt.angle + 90) * bj_DEGTORAD) ))
+            call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", pt.x + 400 * Cos((pt.angle - 90) * bj_DEGTORAD), pt.y + 400 * Sin((pt.angle - 90) * bj_DEGTORAD) ))
+            call TimerStart(pt.getTimer(), 2., false, function XallaSummon)
         endif
     endif
     
@@ -769,76 +798,73 @@ function OnDamageBeforeArmor takes nothing returns nothing
         call SummonExpire(target)
     endif
 
-    //blood domain thing
-    if uid == DUMMY and target == Hero[tpid] then
-        set amount = 0.00
+    //searing arrow pr 
+    if uid == DUMMY and GetUnitAbilityLevel(source, 'A069') > 0 then
+        call UnitRemoveAbility(source, 'A069')
+        call DummyCastTarget(Player(pid - 1), target, 'A092', 1, GetUnitX(source), GetUnitY(source), "slow")
+        call UnitDamageTarget(Hero[pid], target, (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + GetHeroAgi(Hero[pid], true)) * boost, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
     endif
 
-    //searing arrow pr 
-    if uid == 'h02U' then
-        call UnitDamageTarget(Hero[pid], target, (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + GetHeroAgi(Hero[pid], true)) * boost, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
-        call IssueTargetOrder(source, "slow", target)
-        set amount = 0.00
+    //electrocute lightning
+    if uid == DUMMY and GetUnitAbilityLevel(source, 'A09W') > 0 then
+        call UnitRemoveAbility(source, 'A09W')
+        call UnitDamageTarget(Hero[pid], target, GetWidgetLife(target) * 0.005, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_DIVINE, WEAPON_TYPE_WHOKNOWS)
     endif
 
     //medean lightning trigger
-    set i = LoadInteger(MiscHash, GetHandleId(source), 'mede')
-    if uid == DUMMY and i > 0 then
-        set dmg = ((GetHeroInt(Hero[i], true) * (GetUnitAbilityLevel(Hero[i], 'AOcl') + 1)) + 100) * BOOST(i)
+    if uid == DUMMY and GetUnitAbilityLevel(source, 'A01Y') > 0 then
+        set dmg = (GetHeroInt(Hero[pid], true) * (1.5 + 0.5 * GetUnitAbilityLevel(Hero[pid], 'A019'))) * BOOST(pid)
 
-        call UnitDamageTarget(Hero[i], target, dmg, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
-        call RemoveSavedInteger(MiscHash, GetHandleId(source), 'mede')
-        set amount = 0.00
+        call UnitRemoveAbility(source, 'A01Y')
+        call UnitDamageTarget(Hero[pid], target, dmg, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
     endif
 
     //frozen orb icicle
-    set i = LoadInteger(MiscHash, GetHandleId(source), 'forb')
-    if uid == DUMMY and i > 0 then
-        call UnitShareVision(Hero[i], GetOwningPlayer(target), true)
-        call UnitDamageTarget(Hero[i], target, GetHeroInt(Hero[i], true) * (0.5 + 0.5 * GetUnitAbilityLevel(Hero[i], 'A011')) * BOOST(i), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS) 
-        set amount = 0.00
+    if uid == DUMMY and GetUnitAbilityLevel(source, 'A09F') > 0 then
+        call UnitDamageTarget(Hero[pid], target, GetHeroInt(Hero[pid], true) * (0.5 + 0.5 * GetUnitAbilityLevel(Hero[pid], 'A011')) * BOOST(pid), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS) 
     endif
 
     //satan flame strike
     set i = LoadInteger(MiscHash, GetHandleId(source), 'sflm')
     if uid == DUMMY and i > 0 and IsUnitEnemy(target, pboss) then
         call SaveInteger(MiscHash, GetHandleId(source), 'sflm', i - 1)
-        call UnitDamageTarget(ChaosBoss[BOSS_SATAN], target, HMscale(10000), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS) 
-        set amount = 0.00
+        call UnitDamageTarget(Boss[BOSS_SATAN], target, HMscale(10000), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS) 
     endif
 
     //instill fear trigger
     if uid == DUMMY and GetUnitAbilityLevel(source, 'A0AE') > 0 then
-        set amount = 0.00
         call UnitRemoveAbility(source, 'A0AE')
         set InstillFear[pid] = target
         call TimerStart(NewTimerEx(pid), 7., false, function InstillFearExpire)
     endif
 
+    //single shot trigger
+    if uid == DUMMY and GetUnitAbilityLevel(source, 'A05J') > 0 then
+        call UnitRemoveAbility(source, 'A05J')
+    endif
+
     //nerve gas trigger
     if tuid == DUMMY and GetUnitAbilityLevel(source, 'A01X') > 0 then
-        set amount = 0.00
-		set nervetargets[pid] = CreateGroup()
         call UnitRemoveAbility(source, 'A01X')
-		call MakeGroupInRange(pid, nervetargets[pid], GetUnitX(target), GetUnitY(target), (195 + 10 * GetUnitAbilityLevel(Hero[pid], 'A0F7')) * LBOOST(pid), Condition(function FilterEnemy))
-        set i = BlzGroupGetSize(nervetargets[pid])
+		call MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), (195 + 10 * GetUnitAbilityLevel(Hero[pid], 'A0F7')) * LBOOST(pid), Condition(function FilterEnemy))
+        set i = BlzGroupGetSize(ug)
         call RemoveUnitTimed(source, 5.)
         call RemoveUnitTimed(target, 5.)
         if i > 0 then
             set pt = TimerList[pid].addTimer(pid)
             set pt.dur = 20 * LBOOST(pid)
             set pt.agi = 0
+            set pt.ug = CreateGroup()
+            call BlzGroupAddGroupFast(ug, pt.ug)
             loop
-                set u = BlzGroupUnitAt(nervetargets[pid], pt.agi)
-                call UnitAddAbility(u, 'A0T5')
-                call UnitAddAbility(u, 'A0T1')
+                set u = BlzGroupUnitAt(pt.ug, pt.agi)
+                set NerveGasDebuff.add(Hero[pid], u).duration = 10.
                 set pt.agi = pt.agi + 1
                 exitwhen pt.agi >= i 
             endloop
             call TimerStart(pt.getTimer(), 0.5, true, function NerveGas)
-            call TimerStart(NewTimerEx(pid), pt.dur * 0.5, false, function ClearNerveTargets)
         else
-            call DestroyGroup(nervetargets[pid])
+            call DestroyGroup(pt.ug)
         endif
     endif
         
@@ -862,21 +888,11 @@ function OnDamageBeforeArmor takes nothing returns nothing
             exitwhen u == null
             call GroupRemoveUnit(ug, u)
             if u == target then
-                if GetUnitAbilityLevel(u, 'B01G') > 0 then
-                    call DummyCastTarget(Player(pid - 1), u, 'A0DS', R2I(4 * LBOOST(pid)), GetUnitX(u), GetUnitY(u), "thunderbolt")
-                    call UnitDamageTarget(Hero[pid], u, dmg * 2, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
-                else
-                    call DummyCastTarget(Player(pid - 1), u, 'A0DS', R2I(4 * LBOOST(pid)), GetUnitX(u), GetUnitY(u), "thunderbolt")
-                    call UnitDamageTarget(Hero[pid], u, dmg, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
-                endif
+                call StunUnit(pid, target, 4. * LBOOST(pid))
+                call UnitDamageTarget(Hero[pid], u, dmg * (GetUnitAbilityLevel(u, 'B01G') + 1.), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
             else
-                if GetUnitAbilityLevel(u, 'B01G') > 0 then
-                    call DummyCastTarget(Player(pid - 1), u, 'A0DS', R2I(2 * LBOOST(pid)), GetUnitX(u), GetUnitY(u), "thunderbolt")
-                    call UnitDamageTarget(Hero[pid], u, dmg, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
-                else
-                    call DummyCastTarget(Player(pid - 1), u, 'A0DS', R2I(2 * LBOOST(pid)), GetUnitX(u), GetUnitY(u), "thunderbolt")
-                    call UnitDamageTarget(Hero[pid], u, dmg * 0.5, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
-                endif
+                call StunUnit(pid, target, 2. * LBOOST(pid))
+                call UnitDamageTarget(Hero[pid], u, dmg / (2. - GetUnitAbilityLevel(u, 'B01G')), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
             endif
         endloop
     endif
@@ -897,9 +913,7 @@ function OnDamageBeforeArmor takes nothing returns nothing
     endif
     
     //devour stack animation
-    if uid == 'h00X' then
-        call RemoveUnit(source)
-        set amount = 0.00
+    if uid == DUMMY and GetUnitAbilityLevel(source, 'A00W') > 0 then
         if tuid == SUMMON_GOLEM then //meat golem
             set BorrowedLife[pid * 10] = 0
             call UnitAddBonus(meatgolem[pid], BONUS_HERO_STR, - R2I(GetHeroStr(meatgolem[pid], false) * 0.1 * golemDevourStacks[pid]))
@@ -917,26 +931,33 @@ function OnDamageBeforeArmor takes nothing returns nothing
             elseif golemDevourStacks[pid] == 3 then
                 call UnitAddAbility(meatgolem[pid], 'A0B0')
             elseif golemDevourStacks[pid] == 5 then
-                call UnitAddBonus(meatgolem[pid], BONUS_ARMOR, R2I(BlzGetUnitArmor(meatgolem[pid]) * 0.25))
+                call UnitAddBonus(meatgolem[pid], BONUS_ARMOR, R2I(BlzGetUnitArmor(meatgolem[pid]) * 0.25 + 0.5))
+            endif
+            if golemDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], 'A063') + 1 then
                 call UnitDisableAbility(meatgolem[pid], 'A06C', true)
             endif
             call SetUnitAbilityLevel(meatgolem[pid], 'A071', golemDevourStacks[pid])
         elseif tuid == SUMMON_DESTROYER then //destroyer
             set BorrowedLife[pid * 10 + 1] = 0
+            call UnitAddBonus(destroyer[pid], BONUS_HERO_INT, - R2I(GetHeroInt(destroyer[pid], false) * 0.15 * destroyerDevourStacks[pid]))
             set destroyerDevourStacks[pid] = destroyerDevourStacks[pid] + 1
+            call UnitAddBonus(destroyer[pid], BONUS_HERO_INT, R2I(GetHeroInt(destroyer[pid], false) * 0.15 * destroyerDevourStacks[pid]))
             call BlzSetHeroProperName(destroyer[pid], "Destroyer (" + I2S(destroyerDevourStacks[pid]) + ")")
             call DoFloatingTextUnit(I2S(destroyerDevourStacks[pid]) , destroyer[pid] , 1 , 60 , 50 , 13.5 , 255, 255, 255 , 0)
             if destroyerDevourStacks[pid] == 1 then
                 call UnitAddAbility(destroyer[pid], 'A071')
-                call UnitAddBonus(destroyer[pid], BONUS_HERO_INT, R2I(GetHeroInt(destroyer[pid], false) * 0.4))
-            elseif destroyerDevourStacks[pid] == 2 then
                 call UnitAddAbility(destroyer[pid], 'A061') //blink
+            elseif destroyerDevourStacks[pid] == 2 then
+                call UnitAddAbility(destroyer[pid], 'A03B') //crit
             elseif destroyerDevourStacks[pid] == 3 then
-                call SetUnitAbilityLevel(destroyer[pid], 'A06J', 2)
+                call SetHeroAgi(destroyer[pid], 200, true)
             elseif destroyerDevourStacks[pid] == 4 then
                 call SetUnitAbilityLevel(destroyer[pid], 'A02D', 2)
             elseif destroyerDevourStacks[pid] == 5 then
-                call UnitAddBonus(destroyer[pid], BONUS_HERO_INT, R2I(GetHeroInt(destroyer[pid], false) * 0.6))
+                call SetHeroAgi(destroyer[pid], 400, true)
+                call UnitAddBonus(destroyer[pid], BONUS_HERO_INT, R2I(GetHeroInt(destroyer[pid], false) * 0.25))
+            endif
+            if destroyerDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], 'A063') + 1 then
                 call UnitDisableAbility(destroyer[pid], 'A04Z', true)
             endif
             call SetUnitAbilityLevel(destroyer[pid], 'A071', destroyerDevourStacks[pid])
@@ -999,7 +1020,7 @@ function OnDamageBeforeArmor takes nothing returns nothing
     elseif uid == 'n005' then //naga elite source
         
     elseif uid == 'u002' then //beetle source
-        call DummyCastTarget(pfoe, target, 'A0DS', 16, GetUnitX(target), GetUnitY(target), "thunderbolt")
+        set Stun.add(source, target).duration = 8.
         call KillUnit(source)
     elseif uid == 'h003' then //naga water strike
         if GetWidgetLife(nagaboss) >= 0.406 then
@@ -1014,12 +1035,17 @@ function OnDamageBeforeArmor takes nothing returns nothing
             
     */*/*/
 
+    //dark savior metamorphosis
+    if metamorphosis[pid] > 0 then
+        set amount = amount * (1 + metamorphosis[pid])
+    endif
+
     //intense focus azazoth bow
     if IntenseFocus[pid] > 0 then
         set amount = amount * (1 + IntenseFocus[pid] * 0.01)
     endif
 
-    //magnetic shockwave stance
+    //magnetic stance
     if GetUnitAbilityLevel(source, 'A05T') > 0 then
         set amount = amount * (0.45 + 0.05 * GetUnitAbilityLevel(source, 'A05R'))
     endif
@@ -1034,14 +1060,14 @@ function OnDamageBeforeArmor takes nothing returns nothing
         set amount = amount * 1.1
     endif
     
-    //earth elemental storm 20%
-    if GetUnitAbilityLevel(target, 'B02C') > 0 then
-        set amount = amount * 1.2
+    //earth elemental storm damage amp
+    if GetUnitAbilityLevel(target, 'B04P') > 0 then
+        set amount = amount * (1 + 0.04 * GetUnitAbilityLevel(target, 'A04P'))
     endif
     
     //provoke 30%
-    if GetUnitAbilityLevel(source, 'B02B') > 0 and not IsUnitInGroup(source, ProvokeTargets[GetPlayerId(GetOwningPlayer(target)) + 1]) and IsUnitType(target, UNIT_TYPE_HERO) == true then
-        set amount = amount * 0.7
+    if GetUnitAbilityLevel(source, 'B02B') > 0 and IsUnitType(target, UNIT_TYPE_HERO) == true then
+        set amount = amount * 0.75
     endif
     
     //paladin
@@ -1081,89 +1107,113 @@ function OnDamageBeforeArmor takes nothing returns nothing
     endif
 
     //Hate Spell Reflect
-    if target == PreChaosBoss[BOSS_HATE] and GetWidgetLife(target) >= 0.406 and source == Hero[pid] and spellreflectcd == false and damageType == SPELL and amount > 10000 then
+    if tuid == 'E00B' and GetWidgetLife(target) >= 0.406 and source == Hero[pid] and spellreflectcd == false and damageType == SPELL and amount > 10000 then
         set spellreflectcd = true
 
         call TimerStart(NewTimer(), 5, false, function SpellReflectCD)
         call DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Human\\ManaShield\\ManaShieldCaster.mdl", target, "origin"))
-        call UnitDamageTarget(PreChaosBoss[BOSS_HATE], Hero[pid], RMinBJ(amount, 2500), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
+        call UnitDamageTarget(Boss[BOSS_HATE], Hero[pid], RMinBJ(amount, 2500), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS)
 
         set amount = RMaxBJ(0, amount - 20000)
     endif
 
-    //adjust amount with armor formulas below
-
     //shield blocks
     if damageType == PHYSICAL then
-        if HasItemType(target, 'I04W') and GetRandomInt(0, 99) < 20 then
-            set amount = IMaxBJ(0, R2I(amount - AdjustArmorCalc(50000, source, target, damageType))) //multiply
+        
+        //polar shield
+        if HasItemType(target, 'I0MC') and GetRandomInt(0, 99) < 20 then
+            set amount = amount * 0.7
         endif
         
-        if HasItemType(target, 'I0MC') and GetRandomInt(0, 99) < 15 then
-            set amount = IMaxBJ(0, R2I(amount - AdjustArmorCalc(500, source, target, damageType)))
+        //unbroken shield
+        if HasItemType(target, 'I0MB') and GetRandomInt(0, 99) < 25 then
+            set amount = amount * 0.7
         endif
         
-        if HasItemType(target, 'I0MB') and GetRandomInt(0, 99) < 15 then
-            set amount = IMaxBJ(0, R2I(amount - AdjustArmorCalc(1000, source, target, damageType)))
+        //horor shield
+        if HasItemType(target, 'I05D') and GetRandomInt(0, 99) < 30 then
+            set amount = amount * 0.7
+        endif
+
+        //horor set
+        if HasItemType(target, 'I04W') and GetRandomInt(0, 99) < 40 then
+            set amount = amount * 0.7
         endif
         
-        if HasItemType(target, 'I05D') and GetRandomInt(0, 99) < 15 then
-            set amount = IMaxBJ(0, R2I(amount - AdjustArmorCalc(10000, source, target, damageType)))
+        //void shield
+        if HasItemType(target, 'I0C2') and GetRandomInt(0, 99) < 40 then
+            set amount = amount * 0.7
         endif
         
-        if HasItemType(target, 'I0C2') and GetRandomInt(0, 99) < 14 then
-            set amount = IMaxBJ(0, R2I(amount - AdjustArmorCalc(25000, source, target, damageType)))
-        endif
-        
-        if HasItemType(target, 'I0C4') and GetRandomInt(0, 99) < 22 then
-            set amount = IMaxBJ(0, R2I(amount - AdjustArmorCalc(75000, source, target, damageType)))
+        //void set
+        if HasItemType(target, 'I0C4') and GetRandomInt(0, 99) < 50 then
+            set amount = amount * 0.7
         endif
     endif
 
-    //call for help / threat system
-    if IsEnemy(tpid) then
+    //threat system / boss stuff
+    if IsEnemy(tpid) and uid != DUMMY then
+        //call for help
         call MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), CALL_FOR_HELP_RANGE, Condition(function FilterEnemy))
         loop
             set u = FirstOfGroup(ug)
             exitwhen u == null
             call GroupRemoveUnit(ug, u)
-            if GetUnitCurrentOrder(u) == 0 then //current idle
+            if GetUnitCurrentOrder(u) == 0 and u != target then //current idle
                 call UnitWakeUp(u)
-                call IssueTargetOrder(u, "smart", source)
-                call SaveInteger(ThreatHash, GetUnitId(u), THREAT_TARGET_INDEX, GetUnitId(source))
+                call IssueTargetOrder(u, "smart", AcquireProximity(u, source, 800.))
             endif
         endloop
 
-        //invulnerable units dont gain threat
-        if GetUnitAbilityLevel(source, 'Avul') == 0 then
-            set i = LoadInteger(ThreatHash, GetUnitId(target), GetUnitId(source))
+        //if you attack stop the reset timer
+        call TimerList[pid].stopAllTimersWithTag('aggr')
 
-            if i < THREAT_CAP then //prevent multiple occurences
-                if damageType == DAMAGE_TYPE_MAGIC then //not sure about this tbh
-                    set i = i + 10
-                endif
+        if IsBoss(tuid) then
+            //invulnerable units dont gain threat
+            if damageType == PHYSICAL and GetUnitAbilityLevel(source, 'Avul') == 0 then //only physical because magic procs are too inconsistent 
+                set i = LoadInteger(ThreatHash, GetUnitId(target), GetUnitId(source))
 
-                set i = i + IMaxBJ(1, 100 - R2I(UnitDistance(target, source) * 0.12)) //~20 as melee, ~125 at 700 range
-                call SaveInteger(ThreatHash, GetUnitId(target), GetUnitId(source), i)
+                if i < THREAT_CAP then //prevent multiple occurences
+                    set i = i + IMaxBJ(1, 100 - R2I(UnitDistance(target, source) * 0.12)) //~40 as melee, ~250 at 700 range
+                    call SaveInteger(ThreatHash, GetUnitId(target), GetUnitId(source), i)
 
-                if i >= THREAT_CAP then
-                    if GetUnitById(LoadInteger(ThreatHash, GetUnitId(target), THREAT_TARGET_INDEX)) == source then
-                        call FlushChildHashtable(ThreatHash, GetUnitId(target))
-                    else //switch target
-                        set bj_lastCreatedUnit = GetDummy(GetUnitX(target), GetUnitY(target), 0, 0, 1.5)
-                        call BlzSetUnitSkin(bj_lastCreatedUnit, 'h00N')
-                        call SetUnitScale(bj_lastCreatedUnit, 2., 2., 2.)
-                        call SetUnitFlyHeight(bj_lastCreatedUnit, 200.00, 0.)
-                        call SetUnitAnimation(bj_lastCreatedUnit, "birth")
-                        call TimerStart(NewTimerEx(GetUnitId(target)), 1.5, false, function SwitchAggro)
+                    if i >= THREAT_CAP then
+                        if GetUnitById(LoadInteger(ThreatHash, GetUnitId(target), THREAT_TARGET_INDEX)) == source then
+                            call FlushChildHashtable(ThreatHash, GetUnitId(target))
+                        else //switch target
+                            set bj_lastCreatedUnit = GetDummy(GetUnitX(target), GetUnitY(target), 0, 0, 1.5)
+                            call BlzSetUnitSkin(bj_lastCreatedUnit, 'h00N')
+                            if GetLocalPlayer() == Player(pid - 1) then
+                                call BlzSetUnitSkin(bj_lastCreatedUnit, 'h01O')
+                            endif
+                            call SetUnitScale(bj_lastCreatedUnit, 2.5, 2.5, 2.5)
+                            call SetUnitFlyHeight(bj_lastCreatedUnit, 250.00, 0.)
+                            call SetUnitAnimation(bj_lastCreatedUnit, "birth")
+                            call TimerStart(NewTimerEx(GetUnitId(target)), 1.5, false, function SwitchAggro)
+                        endif
+                        call SaveInteger(ThreatHash, GetUnitId(target), THREAT_TARGET_INDEX, GetUnitId(source))
                     endif
-                    call SaveInteger(ThreatHash, GetUnitId(target), THREAT_TARGET_INDEX, GetUnitId(source))
                 endif
             endif
+
+            set i = 0
+
+            loop
+                exitwhen BossID[i] == tuid or i > BOSS_TOTAL
+                set i = i + 1
+            endloop
+
+            //keep track of player percentage damage
+            set BossDamage[pid * BOSS_TOTAL + i] = BossDamage[pid * BOSS_TOTAL + i] + R2I(ApplyArmorCalc(amount, source, target, damageType) * 0.001)
         endif
     endif
 
-    call BlzSetEventDamage(amount)
+    //pure damage multiplier against chaos armor
+    if damageType == PURE and (BlzGetUnitIntegerField(target, UNIT_IF_DEFENSE_TYPE) == 6 or BlzGetUnitIntegerField(target, UNIT_IF_DEFENSE_TYPE) == 7) then
+        call BlzSetEventDamage(amount * 33.33)
+    else
+        call BlzSetEventDamage(amount)
+    endif
 
     //body of fire
     if target == Hero[tpid] and damageType == PHYSICAL and IsUnitEnemy(target, GetOwningPlayer(source)) and GetUnitAbilityLevel(target, 'A07R') > 0 then
@@ -1171,8 +1221,14 @@ function OnDamageBeforeArmor takes nothing returns nothing
         call UnitDamageTarget(target, source, dmg * BOOST(tpid), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_MAGIC, WEAPON_TYPE_WHOKNOWS )
     endif
 
+    //ignore dummy damage
+    if uid == DUMMY then
+        set amount = 0.00
+        call BlzSetUnitWeaponBooleanField(source, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
+    endif
+
     //ignore zero damage
-    if R2I(ApplyArmorCalc(amount, source, target, damageType)) <= 0 then
+    if ApplyArmorCalc(amount, source, target, damageType) <= 0 then
         set t = null
         set u = null
         set source = null
@@ -1197,20 +1253,27 @@ function OnDamageBeforeArmor takes nothing returns nothing
         if GetLocalPlayer() == Player(pid - 1) then
             call BlzFrameSetVisible(dummyFrame, true)
         endif
-        set pt = TimerList[pid].getTimerWithTargetTag(null, 'pbag')
-        if pt == 0 then
-            set pt = TimerList[pid].addTimer(pid)
-            set pt.dur = 10.
-            set pt.tag = 'pbag'
-            call TimerStart(pt.getTimer(), 1., true, function SUPER_DUMMY_HIDE_TEXT)
-        else
-            set pt.dur = 10.
-        endif
-        set SUPER_DUMMY_LAST = ApplyArmorCalc(amount, source, target, damageType)
+        call TimerList[pid].stopAllTimersWithTag('pbag')
+        set pt = TimerList[pid].addTimer(pid)
+        set pt.dur = 10.
+        set pt.tag = 'pbag'
+        call TimerStart(pt.getTimer(), 1., true, function SUPER_DUMMY_HIDE_TEXT)
         if SUPER_DUMMY_TOTAL <= 0 then
             call TimerStart(NewTimerEx(1), 1., true, function SUPER_DUMMY_DPS_UPDATE)
+            if SUPER_DUMMY_TOTAL > 2000000000 then
+                call SUPER_DUMMY_RESET()
+            endif
         endif
-        set SUPER_DUMMY_TOTAL = SUPER_DUMMY_TOTAL + SUPER_DUMMY_LAST
+
+        set SUPER_DUMMY_LAST = ApplyArmorCalc(amount, source, target, damageType)
+
+        if damageType == PHYSICAL then
+            set SUPER_DUMMY_TOTAL_PHYSICAL = SUPER_DUMMY_TOTAL_PHYSICAL + ApplyArmorCalc(amount, source, target, damageType)
+        elseif damageType == SPELL then
+            set SUPER_DUMMY_TOTAL_MAGIC = SUPER_DUMMY_TOTAL_MAGIC + ApplyArmorCalc(amount, source, target, damageType)
+        endif
+        set SUPER_DUMMY_TOTAL = SUPER_DUMMY_TOTAL + ApplyArmorCalc(amount, source, target, damageType)
+
         call PauseTimer(SUPER_DUMMY_TIMER)
         call TimerStart(SUPER_DUMMY_TIMER, 5., false, function SUPER_DUMMY_RESET)
         call SetWidgetLife(target, BlzGetUnitMaxHP(target))
@@ -1223,13 +1286,8 @@ function OnDamageBeforeArmor takes nothing returns nothing
             call BlzSetEventDamage(0.00)
         endif
     endif
-    
-    //shield index
-    set i = 0
-    loop
-        exitwhen target == shieldtarget[i] or i > 100
-        set i = i + 1
-    endloop
+
+    set i = GetUnitId(target)
 
     //dps text
     if not dmgnumber[pid] and not dmgnumber[tpid] and tuid != GRAVE then
@@ -1239,6 +1297,8 @@ function OnDamageBeforeArmor takes nothing returns nothing
             call DoFloatingTextUnit( RealToString(ApplyArmorCalc(amount, source, target, damageType)), target, 1, 90, 0, 9, 200, 50, 50, 0)
         elseif damageType == SPELL then
             call DoFloatingTextUnit( RealToString(ApplyArmorCalc(amount, source, target, damageType)), target, 1, 90, 90, 10, 100, 100, 255, 0 )
+        elseif damageType == PURE then
+            call DoFloatingTextUnit( RealToString(ApplyArmorCalc(amount, source, target, damageType)), target, 1, 90, 180, 11, 255, 255, 100, 0 )
         else
             if crit > 1 then
                 call DoFloatingTextUnit( RealToString(ApplyArmorCalc(amount, source, target, damageType)), target, 1, 90, 0, 10, 255, 120, 20, 0 )
@@ -1258,26 +1318,41 @@ function OnDamageBeforeArmor takes nothing returns nothing
             set dmg = amount - ReduceArmorCalc(shieldhp[i], source, target)
             call BlzSetEventDamage(dmg)
             set amount = dmg
-            //call SetWidgetLife(target, GetWidgetLife(target) + (ApplyArmorCalc(amount, source, target, damageType) - shieldhp[i]))
-            call IndexShields(i)
+            call IndexShield(i)
         else
             set shieldhp[i] = shieldhp[i] - ApplyArmorCalc(amount, source, target, damageType)
             set amount = 0.00
             call BlzSetEventDamage(0.00)
-            //call SetWidgetLife(target, GetWidgetLife(target) + ApplyArmorCalc(amount, source, target, damageType))
         endif
     endif
     
-    //fatal hit
+    //fatal damage
     if ApplyArmorCalc(amount, source, target, damageType) > ReduceArmorCalc(GetWidgetLife(target), source, target) then
-        if GetUnitAbilityLevel(target, 'B005') > 0 and aoteCD[tpid] then //Armor of the Elements
-            call BlzSetEventDamage(0.00)
-            call SetWidgetLife(target, BlzGetUnitMaxHP(target) * 0.5)
-            call UnitAddAbility(target, 'Avul')
+        if GetUnitAbilityLevel(target, 'B005') > 0 and aoteCD[tpid] then //Gaia Armor
             set aoteCD[tpid] = false
+            call BlzSetEventDamage(0.00)
+            call HP(target, BlzGetUnitMaxHP(target) * 0.2 + 0.05 * GetUnitAbilityLevel(target, 'A032'))
+            call MP(target, BlzGetUnitMaxMana(target) * 0.2 + 0.05 * GetUnitAbilityLevel(target, 'A032'))
             call UnitRemoveAbility(target, 'A033')
             call UnitRemoveAbility(target, 'B005')
-            call ArmorOfTheElements(target)
+            call DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl", target, "origin"))
+                
+            call MakeGroupInRange(pid, ug, GetUnitX(u), GetUnitY(u), 800., Condition(function FilterEnemy))
+                
+            set pt = TimerList[pid].addTimer(pt)
+            set pt.dur = 35.
+            set pt.speed = 20.
+
+            loop
+                set target = FirstOfGroup(ug)
+                exitwhen target == null
+                call GroupRemoveUnit(ug, target)
+                call GroupAddUnit(pt.ug, target)
+                set Stun.add(Hero[pid], target).duration = 2.5 * LBOOST(pid)
+            endloop
+
+            call TimerStart(NewTimerEx(tpid), 120., false, function GaiaArmorCD)
+            call TimerStart(pt.getTimer(), 0.03, true, function GaiaArmorPush)
         endif
     endif
 
@@ -1300,6 +1375,8 @@ endfunction
 function DamageInit takes nothing returns nothing
     local User u = User.first
 
+    call TriggerAddCondition(ACQUIRE_TRIGGER, Filter(function AcquireTarget))
+
     loop
         exitwhen u == User.NULL
         call TriggerRegisterPlayerUnitEvent(BeforeArmor, u.toPlayer(), EVENT_PLAYER_UNIT_DAMAGING, function boolexp)
@@ -1313,8 +1390,6 @@ function DamageInit takes nothing returns nothing
     call TriggerRegisterPlayerUnitEvent(BeforeArmor, pfoe, EVENT_PLAYER_UNIT_DAMAGING, function boolexp)
 
     call TriggerAddAction(BeforeArmor, function OnDamageBeforeArmor)
-
-    //hook UnitDamageTarget EnemyVisionAggro
 endfunction
 	
 endlibrary
