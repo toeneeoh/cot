@@ -82,7 +82,7 @@ library CustomUI requires Functions, Commands, heroselection
         set dummyFrame = BlzCreateFrameByType("BACKDROP", "dummyFrame", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
         call BlzFrameSetPoint(dummyFrame, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0.30, -0.37)
         call BlzFrameSetTexture(dummyFrame, "war3mapImported\\afkUI_3.dds", 0, true)
-        call BlzFrameSetSize(dummyFrame, 0.20, 0.07)
+        call BlzFrameSetSize(dummyFrame, 0.20, 0.113)
         call BlzFrameSetVisible(dummyFrame, false)
             
         set dummyText = BlzCreateFrameByType("TEXT", "dummyText", dummyFrame, "CText_18", 0)
