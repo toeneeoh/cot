@@ -146,7 +146,7 @@ function Selection takes integer pid, integer id returns nothing
     call UnitRemoveAbility(hsdummy[pid], hspassiveid[hslook[pid]])
     call ShowUnit(hsdummy[pid], false)
     
-    set Hero[pid] = CreateUnit(p, id, -1065, -211, 0)
+    set Hero[pid] = CreateUnit(p, id, -690., -238., 0.)
     set HeroID[pid] = id
     set urhome[pid] = 0
     set udg_TimePlayed[pid] = 0
