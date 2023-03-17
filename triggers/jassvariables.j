@@ -1,4 +1,4 @@
-library JassVariables initializer JassVariablesInit requires Functions
+library JassVariables initializer JassVariablesInit requires Functions, Donator
 
 globals
 	HashTable KillQuest
@@ -11,8 +11,6 @@ globals
     integer array HeroID
 	integer array priceindex
 	string array infostring
-	location array BagLoc
-    location temploc
     group tempgroup = CreateGroup()
 	dialog array dChooseReward
 	dialog array dUpgradeSpell
@@ -41,9 +39,6 @@ globals
 	integer array Gld_mod
 	integer array Reg_mod
     string abc= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    integer array BossUnit
-	integer array BossXplvl
-	integer array BossGold
     rect array shopreg
 	string array restricted_string
     location array colospot
@@ -62,6 +57,9 @@ globals
     integer array Ptime
     integer array Ptimeh
     integer array TotalEvasion
+    integer array BonusEvasion
+    integer array ItemRegen
+    real array TotalRegen
     real array BoostValue
     real array DealtDmgBase
     real array DmgBase
@@ -70,17 +68,13 @@ globals
     real array SpellTaken
     integer array HasShield
     unit DamageSource
-    rect TempRect = Rect(-400, 13000, 400, 13800) //used for tree kill trigger
     hashtable MiscHash = InitHashtable()
     hashtable PlayerProf = InitHashtable()
     integer HardMode = 0
     boolean array BossSpellCD
-    location array ChaosBossLoc
     boolean ForcedRevive = false
     leaderboard RollBoard
     integer array RollChecks
-    boolean array nocd
-	boolean array nocost
     boolean CWLoading = false
     integer array statpoints
     boolean array CameraLock
@@ -95,21 +89,11 @@ globals
     group SummonGroup = CreateGroup()
     integer array Movespeed
     integer array HealthBonus
+	string array ShopkeeperDirection
 
 	integer RESTRICTED_ITEMS_MAX
 	integer RESTRICTED_ERROR
 endglobals
-
-function ExperienceTableInit takes nothing returns nothing
-	local integer level = 1
-	
-	loop
-		exitwhen level > 1250
-		set udg_Experience_Table[level] = R2I(13 * level * Pow(1.4, level / 20.) + 10)
-		set udg_RewardGold[level] = Pow(udg_Experience_Table[level], .94) / 8.
-		set level = level + 1
-	endloop
-endfunction
 
 function StruggleSetup takes nothing returns nothing
     set udg_Struggle_WaveN = 0
@@ -230,7 +214,8 @@ function StruggleSetup takes nothing returns nothing
 	set udg_Struggle_WaveUN[26] = 160
 	set udg_Struggle_Wave_SR[26] = 8
 	set udg_StruggleGoldPer[26] = 4000
-    //skipped enemy type makes struggle end
+	set udg_Struggle_WaveU[27] = 0 //skipped enemy type makes struggle end 
+	set udg_Struggle_WaveUN[27] = 0
 	set udg_Struggle_WaveU[28] = 'n04O' //soul of death
 	set udg_Struggle_WaveUN[28] = 100
 	set udg_Struggle_Wave_SR[28] = 12
@@ -287,6 +272,8 @@ function StruggleSetup takes nothing returns nothing
 	set udg_Struggle_WaveUN[41] = 10
 	set udg_Struggle_Wave_SR[41] = 1
 	set udg_StruggleGoldPer[41] = 300000 //omniscient
+	set udg_Struggle_WaveU[42] = 0
+	set udg_Struggle_WaveUN[42] = 0
 endfunction
 
 function ColosseumSetup takes nothing returns nothing
@@ -948,120 +935,129 @@ function ShieldTypes takes nothing returns nothing
 endfunction
 
 function ItemRestrictions takes nothing returns nothing
-	call IndexIdsToArray(RestrictedItems[0], "I05A I05Z I0D4 I06K I0EH I0EI I06L I0EJ I0EK ")
-	set restricted_string[0] = "You can only hold one Dark Soul"
+	call IndexIdsToArray(RestrictedItems[0], "I0N4 I0N5 I0N6 I0OF")
+	set restricted_string[0] = "You can only wear one Bloody armor"
 
-	call IndexIdsToArray(RestrictedItems[1], "I0AP I021 I03K")
-	set restricted_string[1] = "You can only hold one Dark Bulwark"
+	call IndexIdsToArray(RestrictedItems[1], "I03F I04S I020 I016 I0AK")
+	set restricted_string[1] = "You can only wear one Bloody weapon"
 
-	call IndexIdsToArray(RestrictedItems[2], "I05J I04O I07H I00R I00N I00O I00S I07J I07N")
-    set restricted_string[2] = "You can only hold one Satan's Ace"
+	call IndexIdsToArray(RestrictedItems[2], "I05A I05Z I0D4 I06K I0EH I0EI I06L I0EJ I0EK ")
+	set restricted_string[2] = "You can only hold one Dark Soul"
 
-	call IndexIdsToArray(RestrictedItems[3], "I0BX I0OC I0OD")
-    set restricted_string[3] = "You can only hold one Satan's Heart"
+	call IndexIdsToArray(RestrictedItems[3], "I0AP I021 I03K")
+	set restricted_string[3] = "You can only hold one Dark Bulwark"
 
-	call IndexIdsToArray(RestrictedItems[4], "I04E I062 I0EL I00P I0EM I0EN I00Q I06E I06F I06G I06H")
-	set restricted_string[4] = "A second set of wings won't help you fly better"
+	call IndexIdsToArray(RestrictedItems[4], "I05J I04O I07H I00R I00N I00O I00S I07J I07N")
+    set restricted_string[4] = "You can only hold one Satan's Ace"
+
+	call IndexIdsToArray(RestrictedItems[5], "I0BX I0OC I0OD")
+    set restricted_string[5] = "You can only hold one Satan's Heart"
+
+	call IndexIdsToArray(RestrictedItems[6], "I04E I062 I0EL I00P I0EM I0EN I00Q I06E I06F I06G I06H")
+	set restricted_string[6] = "A second set of wings won't help you fly better"
 	
-	call IndexIdsToArray(RestrictedItems[5], "I018 I0F0 I0EZ I06I I0F1 I0F2 I06J I0G1 I0G2")
-	set restricted_string[5] = "You can only wear one Ring of Existence"
+	call IndexIdsToArray(RestrictedItems[7], "I018 I0F0 I0EZ I06I I0F1 I0F2 I06J I0G1 I0G2")
+	set restricted_string[7] = "You can only wear one Ring of Existence"
 
-	call IndexIdsToArray(RestrictedItems[6], "I0NG I0NA I0NH I0NI")
-	set restricted_string[6] = "You can only wear one Absolute Horror armor"
+	call IndexIdsToArray(RestrictedItems[8], "I0NG I0NA I0NH I0NI")
+	set restricted_string[8] = "You can only wear one Absolute Horror armor"
 
-	call IndexIdsToArray(RestrictedItems[7], "I0NB I0NF I0ND I0NC I0NE")
-	set restricted_string[7] = "You can only wear one Absolute Horror weapon"
+	call IndexIdsToArray(RestrictedItems[9], "I0NB I0NF I0ND I0NC I0NE")
+	set restricted_string[9] = "You can only wear one Absolute Horror weapon"
 
-	call IndexIdsToArray(RestrictedItems[8], "I0B5 I0JF I0JG I0JH I0JI I0JJ I0JK I0JL I0JM I0B7 I0HV I0HW I0HX I0HY I0HZ I0I0 
-	I0I1 I0I2 I0B1 I0IZ I0J0 I0J1 I0J2 I0J3 I0J4 I0J5 I0J6 I0AZ I0I3 I0I4 I0I5 I0I6 I0I7 I0I8 I0I9 I0IA")
-	set restricted_string[8] = "You can only wear one Legion armor"
+	call IndexIdsToArray(RestrictedItems[10], "I0B5 I0JF I0JG I0JH I0JI I0JJ I0JK I0JL I0JM I0B7 I0HV I0HW I0HX I0HY I0HZ I0I0 
+I0I1 I0I2 I0B1 I0IZ I0J0 I0J1 I0J2 I0J3 I0J4 I0J5 I0J6 I0AZ I0I3 I0I4 I0I5 I0I6 I0I7 I0I8 I0I9 I0IA")
+	set restricted_string[10] = "You can only wear one Legion armor"
 
-	call IndexIdsToArray(RestrictedItems[9], "I0AS I0D9 I0DA I0HP I0HQ I0HR I0HS I0HT I0HU I04L I0J7 I0J8 I0J9 I0JA I0JB I0JC I0JD 
-	I0JE I0AJ I0IJ I0IK I0IL I0IM I0IN I0IO I0IP I0IQ I0AV I0IB I0IC I0ID I0IE I0IF I0IG I0IH I0II I0AX I0IR I0IS I0IT I0IU I0IV I0IW I0IX I0IY")
-	set restricted_string[9] = "You can only wield one Legion weapon"
+	call IndexIdsToArray(RestrictedItems[11], "I0AS I0D9 I0DA I0HP I0HQ I0HR I0HS I0HT I0HU I04L I0J7 I0J8 I0J9 I0JA I0JB I0JC I0JD 
+I0JE I0AJ I0IJ I0IK I0IL I0IM I0IN I0IO I0IP I0IQ I0AV I0IB I0IC I0ID I0IE I0IF I0IG I0IH I0II I0AX I0IR I0IS I0IT I0IU I0IV I0IW I0IX I0IY")
+	set restricted_string[11] = "You can only wield one Legion weapon"
 
-	call IndexIdsToArray(RestrictedItems[10], "I0BS I0BV I0BK I0BI I0JW I0JX I0JY I0JZ I0K0 I0K1 I0K2 I0K3 I0K4 I0K5 I0K6 I0K7 I0K8 
-	I0K9 I0KA I0KB I0KC I0KD I0KE I0KF I0KG I0KH I0KI I0KJ I0KK I0KL I0KM I0KN I0KO I0KP I0KQ I0KR")
-	set restricted_string[10] = "You can only wear one Azazoth armor"
+	call IndexIdsToArray(RestrictedItems[12], "I0BS I0BV I0BK I0BI I0JW I0JX I0JY I0JZ I0K0 I0K1 I0K2 I0K3 I0K4 I0K5 I0K6 I0K7 I0K8 
+I0K9 I0KA I0KB I0KC I0KD I0KE I0KF I0KG I0KH I0KI I0KJ I0KK I0KL I0KM I0KN I0KO I0KP I0KQ I0KR")
+	set restricted_string[12] = "You can only wear one Azazoth armor"
 
-	call IndexIdsToArray(RestrictedItems[11], "I0BC I0BE I0BB I0B9 I0BG I0KS I0KT I0KU I0KV I0KW I0KX I0KY I0KZ I0L0 I0L1 I0L2 I0L3 I0L4 I0L5 
-	I0L6 I0L7 I0L8 I0L9 I0LA I0LB I0LC I0LD I0LE I0LF I0LG I0LH I0LI I0LJ I0LK I0LL I0LM I0LN I0LO I0LP I0LQ I0LR I0LS I0LT I0LU I0LV")
-	set restricted_string[11] = "You can only wield one Azazoth weapon"
+	call IndexIdsToArray(RestrictedItems[13], "I0BC I0BE I0BB I0B9 I0BG I0KS I0KT I0KU I0KV I0KW I0KX I0KY I0KZ I0L0 I0L1 I0L2 I0L3 I0L4 I0L5 
+I0L6 I0L7 I0L8 I0L9 I0LA I0LB I0LC I0LD I0LE I0LF I0LG I0LH I0LI I0LJ I0LK I0LL I0LM I0LN I0LO I0LP I0LQ I0LR I0LS I0LT I0LU I0LV")
+	set restricted_string[13] = "You can only wield one Azazoth weapon"
 
-	call IndexIdsToArray(RestrictedItems[12], "I06M I0LW I0LX")
-    set restricted_string[12] = "You can only equip one Azazoth sphere"
+	call IndexIdsToArray(RestrictedItems[14], "I06M I0LW I0LX")
+    set restricted_string[14] = "You can only equip one Azazoth sphere"
 
-	call IndexIdsToArray(RestrictedItems[13], "I0AE I04F I0AF I0AD I04X I056 I0AG I04X I056 I08X I08Y I090 I092 I094 I096 I099 I09A I02T I0OL I01R I0ON I0OO I0OM 
-	I0AM I0BH I0BF I0OP I0OQ I0BD I0OT I0OS I0OR")
-	set restricted_string[13] = "You can only wield one Slaughterer weapon"
+	call IndexIdsToArray(RestrictedItems[15], "I0AE I04F I0AF I0AD I04X I056 I0AG I04X I056 I08X I08Y I090 I092 I094 I096 I099 I09A I02T I0OL I01R I0ON I0OO I0OM 
+I0AM I0BH I0BF I0OP I0OQ I0BD I0OT I0OS I0OR")
+	set restricted_string[15] = "You can only wield one Slaughterer weapon"
 
-	call IndexIdsToArray(RestrictedItems[14], "I0CH I01L I01N I0NT I0NP I0NQ I0NR I0NS I019 I0O1 I0O0 I0NZ I0NY I0O2 I0NX I0NV I0NU I0NW I0OB I0O9 I0O8 I0OA I0O4 I0O5 I0O7 I0O6 I0O3") 
-	set restricted_string[14] = "You can only hold one Forgotten item"
+	call IndexIdsToArray(RestrictedItems[16], "I0CH I01L I01N I0NT I0NP I0NQ I0NR I0NS I019 I0O1 I0O0 I0NZ I0NY I0O2 I0NX I0NV I0NU I0NW I0OB I0O9 I0O8 I0OA I0O4 I0O5 I0O7 I0O6 I0O3") 
+	set restricted_string[16] = "You can only hold one Forgotten item"
 
-	call IndexIdsToArray(RestrictedItems[15], "I033 I0BZ I02S I032 I065")
-	set restricted_string[15] = "You can only wield one Draconic weapon"
+	call IndexIdsToArray(RestrictedItems[17], "I033 I0BZ I02S I032 I065")
+	set restricted_string[17] = "You can only wield one Draconic weapon"
 
-	call IndexIdsToArray(RestrictedItems[16], "I02U I048 I064 I02P")
-	set restricted_string[16] = "You can only wear one Draconic armor"
+	call IndexIdsToArray(RestrictedItems[18], "I02U I048 I064 I02P")
+	set restricted_string[18] = "You can only wear one Draconic armor"
 
-	call IndexIdsToArray(RestrictedItems[17], "I02N I072 I06Y I070 I071")
-	set restricted_string[17] = "You can only wield one Hydra weapon"
+	call IndexIdsToArray(RestrictedItems[19], "I02N I072 I06Y I070 I071")
+	set restricted_string[19] = "You can only wield one Hydra weapon"
 
-	call IndexIdsToArray(RestrictedItems[18], "I0BN I0CT I0CK I0BO I0CU")
-	set restricted_string[18] = "You can only wear one Demonic Set"
+	call IndexIdsToArray(RestrictedItems[20], "I0BN I0CT I0CK I0BO I0CU")
+	set restricted_string[20] = "You can only wear one Demon Set"
 
-	call IndexIdsToArray(RestrictedItems[19], "I0CW I0C1 I0C2 I0CX I0CV")
-	set restricted_string[19] = "You can only wear one Horror Set"
+	call IndexIdsToArray(RestrictedItems[21], "I0CW I0C1 I0C2 I0CX I0CV")
+	set restricted_string[21] = "You can only wear one Horror Set"
 
-	call IndexIdsToArray(RestrictedItems[20], "I0CZ I0BP I0BQ I0D3 I0CY")
-	set restricted_string[20] = "You can only wear one Despair Set"
+	call IndexIdsToArray(RestrictedItems[22], "I0CZ I0BP I0BQ I0D3 I0CY")
+	set restricted_string[22] = "You can only wear one Despair Set"
 
-	call IndexIdsToArray(RestrictedItems[21], "I0C9 I0C8 I0C7 I0C6 I0C5")
-	set restricted_string[21] = "You can only wear one Abyssal Set"
+	call IndexIdsToArray(RestrictedItems[23], "I0C9 I0C8 I0C7 I0C6 I0C5")
+	set restricted_string[23] = "You can only wear one Abyssal Set"
 
-	call IndexIdsToArray(RestrictedItems[22], "I0D7 I0C4 I0C3 I0D5 I0D6")
-	set restricted_string[22] = "You can only wear one Void Set"
+	call IndexIdsToArray(RestrictedItems[24], "I0D7 I0C4 I0C3 I0D5 I0D6")
+	set restricted_string[24] = "You can only wear one Void Set"
 
-	call IndexIdsToArray(RestrictedItems[23], "I0CB I0CA I0CD I0CE I0CF")
-	set restricted_string[23] = "You can only wear one Nightmare Set"
+	call IndexIdsToArray(RestrictedItems[25], "I0CB I0CA I0CD I0CE I0CF")
+	set restricted_string[25] = "You can only wear one Nightmare Set"
 
-	call IndexIdsToArray(RestrictedItems[24], "I0D8 I0BW I0BU I0DK I0DJ")
-	set restricted_string[24] = "You can only wear one Hell Set"
+	call IndexIdsToArray(RestrictedItems[26], "I0D8 I0BW I0BU I0DK I0DJ")
+	set restricted_string[26] = "You can only wear one Hell Set"
 
-	call IndexIdsToArray(RestrictedItems[25], "I0DX I0BT I0BR I0DL I0DY")
-	set restricted_string[25] = "You can only wear one Existence Set"
+	call IndexIdsToArray(RestrictedItems[27], "I0DX I0BT I0BR I0DL I0DY")
+	set restricted_string[27] = "You can only wear one Existence Set"
 
-	call IndexIdsToArray(RestrictedItems[26], "I0E0 I0BM I0DZ I059 I0E1")
-	set restricted_string[26] = "You can only wear one Astral Set"
+	call IndexIdsToArray(RestrictedItems[28], "I0E0 I0BM I0DZ I059 I0E1")
+	set restricted_string[28] = "You can only wear one Astral Set"
 
-	call IndexIdsToArray(RestrictedItems[27], "I0CG I0FH I0CI I0FI I0FZ")
-	set restricted_string[27] = "You can only wear one Dimensional Set"
+	call IndexIdsToArray(RestrictedItems[29], "I0CG I0FH I0CI I0FI I0FZ")
+	set restricted_string[29] = "You can only wear one Dimensional Set"
 
-	call IndexIdsToArray(RestrictedItems[28], "I0H5 I0H6 I0H7 I0H8 I0H9")
-	set restricted_string[28] = "You can only wear one Ursine Set"
+	call IndexIdsToArray(RestrictedItems[30], "I0H5 I0H6 I0H7 I0H8 I0H9")
+	set restricted_string[30] = "You can only wear one Ursine Set"
 
-	call IndexIdsToArray(RestrictedItems[29], "I0HA I0HB I0HC I0HD I0HE")
-	set restricted_string[29] = "You can only wear one Ogre Set"
+	call IndexIdsToArray(RestrictedItems[31], "I0HA I0HB I0HC I0HD I0HE")
+	set restricted_string[31] = "You can only wear one Ogre Set"
 
-	call IndexIdsToArray(RestrictedItems[30], "I0HF I0HG I0HH I0HI I0HJ")
-	set restricted_string[30] = "You can only wear one Unbroken Set"
+	call IndexIdsToArray(RestrictedItems[32], "I0HF I0HG I0HH I0HI I0HJ")
+	set restricted_string[32] = "You can only wear one Unbroken Set"
 
-	call IndexIdsToArray(RestrictedItems[31], "I0HK I0HL I0HM I0HN I0HO")
-	set restricted_string[31] = "You can only wear one Magnataur Set"
+	call IndexIdsToArray(RestrictedItems[33], "I0HK I0HL I0HM I0HN I0HO")
+	set restricted_string[33] = "You can only wear one Magnataur Set"
 
-	call IndexIdsToArray(RestrictedItems[32], "I0MR I0JT I023")
-	set restricted_string[32] = "You only have two feet"
+	call IndexIdsToArray(RestrictedItems[34], "I0MR I0JT I023")
+	set restricted_string[34] = "You only have two feet"
 
-	call IndexIdsToArray(RestrictedItems[33], "I01J I02R I01C")
-	set restricted_string[33] = "You can only wear one Chaos Shield"
+	call IndexIdsToArray(RestrictedItems[35], "I01J I02R I01C")
+	set restricted_string[35] = "You can only wear one Chaos Shield"
 
-	call IndexIdsToArray(RestrictedItems[34], "rnsp I0FB I03E I02I I036 I02C I02B I02O I0JR I02J I04B I029 I03P I0F9 I0C0 I0FX I03O I00B I01M I04C oli2 I043 
-    I03X I03T I03Z I03Y I0FA I0FU I09D I046 I01T I0F8 I09F I074 I0EY I04N I0EX I0F4 I03U I0F3 I07F I0F5 I07B I0FC I079 I08K I00A I038 I02Z I031 I04I I030 
-    I04J I00T I0D0 I03F I04S I020 I016 I0AK I050 I0AU I05X I061 I05Y I060 rde2 rde3 I0B8 I0B6 I0B4 I0BA pgin frgd I04Q I0NJ I01D I09L I03N
-    I01S I0FB I0BY I0OF I01X I03Q I0AI I0AH")
-	set restricted_string[34] = "You can only wear one of this item."
+	call IndexIdsToArray(RestrictedItems[36], "I0AU I0NK I0NL")
+	set restricted_string[36] = "You can only wear one Legion Ring"
 
-    set RESTRICTED_ITEMS_MAX = 34
+	call IndexIdsToArray(RestrictedItems[37], "rnsp I0FB I03E I02I I036 I02C I02B I02O I0JR I02J I04B I029 I03P I0F9 I0C0 I0FX I03O I00B I01M I04C oli2 I043 
+I03X I03T I03Z I03Y I0FA I0FU I09D I046 I01T I0F8 I09F I074 I0EY I04N I0EX I0F4 I03U I0F3 I07F I0F5 I07B I0FC I079 I08K I00A I038 I02Z I031 I04I I030 
+I04J I00T I0D0 I03F I04S I020 I016 I0AK I050 I05X I061 I05Y I060 rde2 rde3 I0B8 I0B6 I0B4 I0BA pgin frgd I04Q I0NJ I01D I09L I03N 
+I01S I0FB I0BY I0OF I01X I03Q I0AI I0AH")
+	set restricted_string[37] = "You can only wear one of this item."
+
+    set RESTRICTED_ITEMS_MAX = 37
 endfunction
 
 function SetItemStats takes nothing returns nothing
@@ -1071,40 +1067,40 @@ function SetItemStats takes nothing returns nothing
 	call SetTableData(ItemData, 'I04Q', "level 190")
 
 	//slaughter queen
-	call SetTableData(ItemData, 'I0AE', "level 270 damage 55000 str 11000 prof 6")
-	call SetTableData(ItemData, 'I090', "level 280 damage 68000 str 14000 prof 6")
-	call SetTableData(ItemData, 'I092', "level 290 damage 82000 str 16000 prof 6")
-	call SetTableData(ItemData, 'I0BF', "level 300 damage 82000 str 16000 prof 6")
-	call SetTableData(ItemData, 'I0AM', "level 310 damage 82000 str 16000 prof 6")
-	call SetTableData(ItemData, 'I0BH', "level 320 damage 82000 str 16000 prof 6")
+	call SetTableData(ItemData, 'I0AE', "level 270 damage 40000 str 10000 prof 6")
+	call SetTableData(ItemData, 'I090', "level 280 damage 48000 str 11875 prof 6")
+	call SetTableData(ItemData, 'I092', "level 290 damage 56000 str 13750 prof 6")
+	call SetTableData(ItemData, 'I0BF', "level 300 damage 72000 str 17500 prof 6")
+	call SetTableData(ItemData, 'I0AM', "level 310 damage 88000 str 21250 prof 6")
+	call SetTableData(ItemData, 'I0BH', "level 320 damage 104000 str 25000 prof 6")
 
-	call SetTableData(ItemData, 'I04F', "level 270 damage 100000 prof 7")
-	call SetTableData(ItemData, 'I099', "level 280 damage 125000 prof 7")
-	call SetTableData(ItemData, 'I09A', "level 290 damage 150000 prof 7")
-	call SetTableData(ItemData, 'I0OR', "level 300 damage 150000 prof 7")
-	call SetTableData(ItemData, 'I0OS', "level 310 damage 150000 prof 7")
-	call SetTableData(ItemData, 'I0OT', "level 320 damage 150000 prof 7")
+	call SetTableData(ItemData, 'I04F', "level 270 damage 75000 str 5000 prof 7")
+	call SetTableData(ItemData, 'I099', "level 280 damage 90000 str 6000 prof 7")
+	call SetTableData(ItemData, 'I09A', "level 290 damage 105000 str 7000 prof 7")
+	call SetTableData(ItemData, 'I0OR', "level 300 damage 135000 str 9000 prof 7")
+	call SetTableData(ItemData, 'I0OS', "level 310 damage 165000 str 11000 prof 7")
+	call SetTableData(ItemData, 'I0OT', "level 320 damage 195000 str 13000 prof 7")
 
-	call SetTableData(ItemData, 'I0AF', "level 270 damage 46000 agi 18000 prof 8")
-	call SetTableData(ItemData, 'I08X', "level 280 damage 57000 agi 23000 prof 8")
-	call SetTableData(ItemData, 'I08Y', "level 290 damage 68000 agi 27000 prof 8")
-	call SetTableData(ItemData, 'I0OM', "level 300 damage 68000 agi 27000 prof 8")
-	call SetTableData(ItemData, 'I0ON', "level 310 damage 68000 agi 27000 prof 8")
-	call SetTableData(ItemData, 'I0OO', "level 320 damage 68000 agi 27000 prof 8")
+	call SetTableData(ItemData, 'I0AF', "level 270 damage 35000 agi 14000 prof 8")
+	call SetTableData(ItemData, 'I08X', "level 280 damage 42000 agi 16625 prof 8")
+	call SetTableData(ItemData, 'I08Y', "level 290 damage 49000 agi 19250 prof 8")
+	call SetTableData(ItemData, 'I0OM', "level 300 damage 63000 agi 24500 prof 8")
+	call SetTableData(ItemData, 'I0ON', "level 310 damage 77000 agi 29750 prof 8")
+	call SetTableData(ItemData, 'I0OO', "level 320 damage 91000 agi 35000 prof 8")
 
-	call SetTableData(ItemData, 'I0AD', "level 270 damage 95000 agi 5000 prof 9")
-	call SetTableData(ItemData, 'I04X', "level 280 damage 119000 agi 7000 prof 9")
-	call SetTableData(ItemData, 'I056', "level 290 damage 142000 agi 8000 prof 9")
-	call SetTableData(ItemData, 'I01R', "level 300 damage 142000 agi 8000 prof 9")
-	call SetTableData(ItemData, 'I02T', "level 310 damage 142000 agi 8000 prof 9")
-	call SetTableData(ItemData, 'I0OL', "level 320 damage 142000 agi 8000 prof 9")
+	call SetTableData(ItemData, 'I0AD', "level 270 damage 70000 agi 8000 prof 9")
+	call SetTableData(ItemData, 'I04X', "level 280 damage 84000 agi 9500 prof 9")
+	call SetTableData(ItemData, 'I056', "level 290 damage 98000 agi 11000 prof 9")
+	call SetTableData(ItemData, 'I01R', "level 300 damage 126000 agi 14000 prof 9")
+	call SetTableData(ItemData, 'I02T', "level 310 damage 154000 agi 17000 prof 9")
+	call SetTableData(ItemData, 'I0OL', "level 320 damage 182000 agi 20000 prof 9")
 
-	call SetTableData(ItemData, 'I0AG', "level 270 damage 23000 int 20000 prof 10")
-	call SetTableData(ItemData, 'I094', "level 280 damage 29000 int 25000 prof 10")
-	call SetTableData(ItemData, 'I096', "level 290 damage 34000 int 30000 prof 10")
-	call SetTableData(ItemData, 'I0BD', "level 300 damage 34000 int 30000 prof 10")
-	call SetTableData(ItemData, 'I0OS', "level 310 damage 34000 int 30000 prof 10")
-	call SetTableData(ItemData, 'I0OT', "level 320 damage 34000 int 30000 prof 10")
+	call SetTableData(ItemData, 'I0AG', "level 270 damage 20000 int 16000 prof 10")
+	call SetTableData(ItemData, 'I094', "level 280 damage 24000 int 19000 prof 10")
+	call SetTableData(ItemData, 'I096', "level 290 damage 28000 int 22000 prof 10")
+	call SetTableData(ItemData, 'I0BD', "level 300 damage 36000 int 28000 prof 10")
+	call SetTableData(ItemData, 'I0OP', "level 310 damage 44000 int 34000 prof 10")
+	call SetTableData(ItemData, 'I0OQ', "level 320 damage 52000 int 40000 prof 10")
 
 	//soul
 	call SetTableData(ItemData, 'I05A', "level 300 stats 9000 spellboost 3")
@@ -1257,27 +1253,29 @@ function SetItemStats takes nothing returns nothing
 	call SetTableData(ItemData, 'I0IY', "level 396 damage 131000 int 143000 spellboost 11 prof 10")
 
 	//ring
-	call SetTableData(ItemData, 'I0AU', "level 340 stats 7100")
+	call SetTableData(ItemData, 'I0AU', "level 340 stats 7500")
+	call SetTableData(ItemData, 'I0NK', "level 340 stats 15000 spellboost 10 gold 25")
+	call SetTableData(ItemData, 'I0NL', "level 356 stats 30000 spellboost 15 gold 30")
 
 	//existence
 	//ring
 	call SetTableData(ItemData, 'I018', "level 340 stats 17000")
 	call SetTableData(ItemData, 'I0F0', "level 348 stats 21300")
 	call SetTableData(ItemData, 'I0EZ', "level 356 stats 25500")
-	call SetTableData(ItemData, 'I06I', "level 356 stats 29400")
-	call SetTableData(ItemData, 'I0F1', "level 364 stats 36600")
-	call SetTableData(ItemData, 'I0F2', "level 372 stats 44200 spellboost 10")
-	call SetTableData(ItemData, 'I06J', "level 380 stats 51000 spellboost 11")
-	call SetTableData(ItemData, 'I0G1', "level 388 stats 63800 spellboost 12")
-	call SetTableData(ItemData, 'I0G2', "level 396 stats 76500 spellboost 14")
+	call SetTableData(ItemData, 'I06I', "level 356 stats 29400 spellboost 10")
+	call SetTableData(ItemData, 'I0F1', "level 364 stats 36600 spellboost 11")
+	call SetTableData(ItemData, 'I0F2', "level 372 stats 44200 spellboost 12")
+	call SetTableData(ItemData, 'I06J', "level 380 stats 51000 spellboost 13")
+	call SetTableData(ItemData, 'I0G1', "level 388 stats 63800 spellboost 14")
+	call SetTableData(ItemData, 'I0G2', "level 396 stats 76500 spellboost 15")
 
 	//soul
 	call SetTableData(ItemData, 'I0BY', "level 340 health 2000000 armor 2500 regen 5000")
 
 	//chaos shield
-	call SetTableData(ItemData, 'I01J', "level 340 health 1000000 regen 30000")
-	call SetTableData(ItemData, 'I02R', "level 350 health 1500000 regen 45000")
-	call SetTableData(ItemData, 'I01C', "level 360 health 2000000 regen 60000")
+	call SetTableData(ItemData, 'I01J', "level 340 health 1000000 regen 35000")
+	call SetTableData(ItemData, 'I02R', "level 350 health 1500000 regen 40000")
+	call SetTableData(ItemData, 'I01C', "level 360 health 2000000 regen 45000")
 
 	//azazoth
 	//plate
@@ -1404,7 +1402,7 @@ function SetItemStats takes nothing returns nothing
     call SetTableData(ItemData, 'I0NX', "level 385 str 70000 dr 15 regen 30000 gold 85")
     call SetTableData(ItemData, 'I0NV', "level 390 str 80000 dr 16 regen 35000 gold 90")
     call SetTableData(ItemData, 'I0NU', "level 395 str 90000 dr 17 regen 40000 gold 95")
-    call SetTableData(ItemData, 'I0NW', "level 400 str 100000 dr 20 regen 50000 gold 100")
+    call SetTableData(ItemData, 'I0NW', "level 400 str 100000 dr 15 regen 50000 gold 100")
 	
     //Torture Jewel
     call SetTableData(ItemData, 'I0OB', "level 360 agi 20000 mr 10 bat 10 spellboost 2 gold 60")
@@ -1644,7 +1642,7 @@ function SetItemStats takes nothing returns nothing
 
 	//prechaos
 	call SetTableData(ItemData, 'I01D', "movespeed 150") //good shoes
-	call SetTableData(ItemData, 'I03O', "level 60 evasion 8 crit 8 chance 8") //sassy brawler
+	call SetTableData(ItemData, 'I03O', "level 60 evasion 8 crit 12 chance 12") //sassy brawler
 	call SetTableData(ItemData, 'I03E', "level 50 movespeed 250 spellboost 10") //shopkeeper necklace
 	call SetTableData(ItemData, 'I01Z', "damage 10") //claws of lightning
 	call SetTableData(ItemData, 'I00T', "level 130 damage 2500 stats 500 regen 190 spellboost 10") //lesser ring of struggle
@@ -1680,7 +1678,7 @@ function SetItemStats takes nothing returns nothing
 
 	call SetTableData(ItemData, 'I01B', "level 100 armor 180 regen 190 evasion 10") //ancient bark
 	call SetTableData(ItemData, 'I03Z', "level 100 damage 1160") //da's dingo
-	call SetTableData(ItemData, 'I038', "regen 800") //cheese shield
+	call SetTableData(ItemData, 'I038', "regen 300") //cheese shield
 	call SetTableData(ItemData, 'I03X', "level 100 damage 1160 regen 190") //corrupted essence
 	call SetTableData(ItemData, 'I09F', "level 75") //sea wards
 
@@ -1892,132 +1890,8 @@ function SetItemStats takes nothing returns nothing
 	call SetTableData(ItemData, 'I0HO', "level 70 damage 310 armor 165 int 715 stats 95 prof 10")
 endfunction
 
-function GoldReward takes nothing returns nothing
-	set udg_RewardUnits[0] = 'nitt' // Ice Troll Trapper
-	set udg_RewardUnits[1] = 'nits' // Ice Troll Berserker, 4
-	set udg_RewardUnits[2] = 'ntkw' // Tuskar Warrior
-	set udg_RewardUnits[3] = 'ntks' // Tuskar sorc
-	set udg_RewardUnits[4] = 'ntkc' // Tuskar Chieftain
-	set udg_RewardUnits[5] = 'nnwr' // Nerub Seer
-	set udg_RewardUnits[6] = 'nnws' // Nerub spider lord
-	set udg_RewardUnits[7] = 'nfpu' // Polar Furbolg Warrior
-	set udg_RewardUnits[8] = 'nfpe' // Polar Furbolg shaman
-	set udg_RewardUnits[9] = 'nmdr' // Dire Mammoth
-	set udg_RewardUnits[10] = 'nplg' // Giant Polar Bear
-	set udg_RewardUnits[11] = 'nfor' // Unbroken Trickster
-	set udg_RewardUnits[12] = 'nubw' // Unbroken Darkweaver
-	set udg_RewardUnits[13] = 'nfod' // Unbroken Deathbringer
-	set udg_RewardUnits[14] = 'n01G' // Ogre Overlord
-	set udg_RewardUnits[15] = 'o01G' // Tauren
-	set udg_RewardUnits[16] = 'nvdl' // Hellfire Spawn
-	set udg_RewardUnits[17] = 'nvdw' // Hellhound
-	set udg_RewardUnits[18] = 'n024' // Centaur Ranger
-	set udg_RewardUnits[19] = 'n027' // Centaur Lancer
-	set udg_RewardUnits[20] = 'n028' // Centaur Mage
-	set udg_RewardUnits[21] = 'n01H' // hydra
-	set udg_RewardUnits[22] = 'n01M' // Magnataur destroyer
-	set udg_RewardUnits[23] = 'n08M' // Forgotten One
-	set udg_RewardUnits[24] = 'n01R' // Frost Drake
-	set udg_RewardUnits[25] = 'n02P' // Frost Dragon
-	set udg_RewardUnits[26] = 'n02L' // Medean Devourer
-	set udg_RewardUnits[27] = 'n02M' // Devourling
-	set udg_RewardUnits[28] = 'n033' // Demon
-	set udg_RewardUnits[29] = 'n034' // Demon Wizard
-	set udg_RewardUnits[30] = 'n03C' // Horror Young
-	set udg_RewardUnits[31] = 'n03A' // Horror Mindless
-	set udg_RewardUnits[32] = 'n03B' // Horror Leader
-	set udg_RewardUnits[33] = 'n03F' // Despair
-	set udg_RewardUnits[34] = 'n01W' // Despair Wizard
-	set udg_RewardUnits[35] = 'n00X' // Abyssal Beast
-	set udg_RewardUnits[36] = 'n08N' // Abyssal Guardian
-	set udg_RewardUnits[37] = 'n00W' // Abyssal Siren
-	set udg_RewardUnits[38] = 'n031' // void keeper
-	set udg_RewardUnits[39] = 'n02Z' // void mother
-	set udg_RewardUnits[40] = 'n030' // Void seeker
-	set udg_RewardUnits[41] = 'n020' // Nightmare Creature
-	set udg_RewardUnits[42] = 'n02J' // Nightmare Spirit
-	set udg_RewardUnits[43] = 'n03E' // Spawn of Hell
-	set udg_RewardUnits[44] = 'n03D' // spawn of death
-	set udg_RewardUnits[45] = 'n03G' // Lord of Plague
-	set udg_RewardUnits[46] = 'n03J' // Denied Existence
-	set udg_RewardUnits[47] = 'n01X' // Deprived Existence
-	set udg_RewardUnits[48] = 'n03M' // Astral Being
-	set udg_RewardUnits[49] = 'n01V' // Astral Entity
-    set udg_RewardUnits[50] = 'n026' // Planeswalker
-	set udg_RewardUnits[51] = 'n03T' // Planeshifter
-	set udg_RewardUnits[52] = 'n03I' // Sin
-	set udg_PermanentInteger[6] = 52
-
-	set BossUnit[0] = 'H02H' //paladin
-	set BossGold[0] = 9000
-	set BossXplvl[0] = 220
-	set BossUnit[1] = 'O002' //tauren
-	set BossGold[1] = 6100
-	set BossXplvl[1] = 165
-	set BossUnit[2] = 'U00G' //trifire
-	set BossGold[2] = 10100
-	set BossXplvl[2] = 220
-	set BossUnit[3] = 'H045' //mistic
-	set BossGold[3] = 6100
-	set BossXplvl[3] = 180
-	set BossUnit[4] = 'O01B' //dragoon
-	set BossGold[4] = 7100
-	set BossXplvl[4] = 200
-	set BossUnit[5] = 'n098' //med queen
-	set BossGold[5] = 2100
-	set BossXplvl[5] = 150
-	set BossUnit[6] = 'H020' //naga
-	set BossGold[6] = 3100
-	set BossXplvl[6] = 165
-	set BossUnit[7] = 'H01V' //mountain king
-	set BossGold[7] = 7100
-	set BossXplvl[7] = 220
-	set BossUnit[8] = 'H040' //death knight
-	set BossGold[8] = 9100
-	set BossXplvl[8] = 220
-    set BossUnit[9] = 'N038' //demon prince
-	set BossGold[9] = 40100
-	set BossXplvl[9] = 250
-    set BossUnit[10] = 'N017' //absolute horror
-	set BossGold[10] = 90100
-	set BossXplvl[10] = 300
-	set BossUnit[11] = 'O02B' //slaughter queen
-	set BossGold[11] = 150100
-	set BossXplvl[11] = 390
-	set BossUnit[12] = 'O02H' //essence of darkness
-	set BossGold[12] = 250100
-	set BossXplvl[12] = 405
-	set BossUnit[13] = 'O02I' //Satan
-	set BossGold[13] = 500100
-	set BossXplvl[13] = 425
-	set BossUnit[14] = 'O02K' // Thanatos
-	set BossGold[14] = 600100
-	set BossXplvl[14] = 440
-	set BossUnit[15] = 'H04R' // Legion
-	set BossGold[15] = 600100
-	set BossXplvl[15] = 455
-	set BossUnit[16] = 'O02M' // Existence
-	set BossGold[16] = 800100
-	set BossXplvl[16] = 480
-    set BossUnit[17] = 'O03G' // Forgotten Leader
-    set BossGold[17] = 1000100
-	set BossXplvl[17] = 500
-    set BossUnit[18] = 'O02T' // Azazoth
-    set BossGold[18] = 1200100
-	set BossXplvl[18] = 510
-	
-	set udg_PermanentInteger[12] = 18
-
-	set udg_Gold_Mod[1] = 1
-	set udg_Gold_Mod[2] = Pow(0.55, 0.5)
-	set udg_Gold_Mod[3] = Pow(0.50, 0.5)
-	set udg_Gold_Mod[4] = Pow(0.45, 0.5)
-	set udg_Gold_Mod[5] = Pow(0.40, 0.5)
-	set udg_Gold_Mod[6] = Pow(0.35, 0.5)
-endfunction
-
 function StringSetup takes nothing returns nothing
-	set infostring[0]="Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Hardmode\n -info 6, Prestige\n -info 7, Proficiency\n -info 8, Boss Item Discounts"
+	set infostring[0]="Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Hardmode\n -info 6, Prestige\n -info 7, Proficiency\n -info 8, Boss Item Discounts\n -info 9, Aggro System"
 	set infostring[1]="Most units in this game (besides Bosses, Colosseum, Struggle) will attempt to revive where they died 30 seconds after death. If a player hero/unit is within 800 range they will spawn frozen and invulnerable until no players are around."
 	set infostring[2]="Bosses respawn after 10 minutes and non-hero bosses respawn after 5 minutes, -hardmode speeds up respawns by 25%" 
 	set infostring[3]="The town is protected from enemy invasion and any entering enemy will be teleported back to their original spawn."
@@ -2034,7 +1908,8 @@ function StringSetup takes nothing returns nothing
     Check your hero's proficiency with -pf."
 	set infostring[8]="Many Boss items can now be upgraded at a discount if you have the correct item in your hero/backpack while upgrading.
     The item is sacrificed to obtain this discount and you can tell if an item qualifies for a discount under Item Info."
-	set infostring[9]=""
+	set infostring[9]= "Bosses use a threat meter system for each player that increases when attacked or by casting spells. Distance from the boss reduces the threat you 
+	generate significantly when attacking, so melee characters will draw aggro much more quickly especially with taunt abilities."
 	set infostring[10]="You lack the proficiency (-pf) to use this item, it will only give half of the stats.\n|cffFF0000You will stop getting this warning at level 15.|r"
 	set infostring[69]="Nice"
 endfunction
@@ -2135,12 +2010,12 @@ function ItemUpgrades takes nothing returns nothing
 	set UpDiscountItem[i] = 'I0AF'
 	set i = i + 1
 	set UpItem[i] = 'I0OM'
-	set UpItemBecomes[i] = 'I0OS'
+	set UpItemBecomes[i] = 'I0ON'
 	call SetupCosts(i,3)
 	set UpDiscountItem[i] = 'I0AF'
 	set i = i + 1
-	set UpItem[i] = 'I0OS'
-	set UpItemBecomes[i] = 'I0OT'
+	set UpItem[i] = 'I0ON'
+	set UpItemBecomes[i] = 'I0OO'
 	call SetupCosts(i,4)
 	set UpDiscountItem[i] = 'I0AF'
 	set i = i + 1
@@ -2185,12 +2060,12 @@ function ItemUpgrades takes nothing returns nothing
 	set UpDiscountItem[i] = 'I0AG'
 	set i = i + 1
 	set UpItem[i] = 'I0BD'
-	set UpItemBecomes[i] = 'I0OS'
+	set UpItemBecomes[i] = 'I0OP'
 	call SetupCosts(i,3)
 	set UpDiscountItem[i] = 'I0AG'
 	set i = i + 1
-	set UpItem[i] = 'I0OS'
-	set UpItemBecomes[i] = 'I0OT'
+	set UpItem[i] = 'I0OP'
+	set UpItemBecomes[i] = 'I0OQ'
 	call SetupCosts(i,4)
 	set UpDiscountItem[i] = 'I0AG'
 	set i = i + 1
@@ -3472,159 +3347,120 @@ endfunction
 
 function killquestsetup takes nothing returns nothing
 	//trolls
-	set KillQuest['I07D'][StringHash("Index")] = 1
-	set KillQuest[1][StringHash("Goal")] = 15
-	set KillQuest[1][StringHash("Min")] = 1
-	set KillQuest[1][StringHash("Max")] = 8
+	call SetTableData(KillQuest, 'I07D', "Index 1")
+	call SetTableData(KillQuest, 1, "Goal 15 Min 1 Max 8")
+	set KillQuest[1][StringHash("Spawn")] = 'nitt'
 	set KillQuest[1].string[StringHash("Name")] = "Trolls"
-	set KillQuest[1].rect[StringHash("Region")] = gg_rct_Demon_Wiz_and_Norm_2
+	set KillQuest[1].rect[StringHash("Region")] = gg_rct_Troll_Demon_1
 	//tuskar
-	set KillQuest['I058'][StringHash("Index")] = 2
-	set KillQuest[2][StringHash("Goal")] = 20
-	set KillQuest[2][StringHash("Min")] = 3
-	set KillQuest[2][StringHash("Max")] = 14
+	call SetTableData(KillQuest, 'I058', "Index 2")
+	call SetTableData(KillQuest, 2, "Goal 20 Min 3 Max 14")
 	set KillQuest[2].string[StringHash("Name")] = "Tuskar"
-	set KillQuest[2].rect[StringHash("Region")] = gg_rct_Mindless_Beasts_Spawn_2
+	set KillQuest[2].rect[StringHash("Region")] = gg_rct_Tuskar_Horror_1
 	//spider
+	call SetTableData(KillQuest, 'I05F', "Index 3")
+	call SetTableData(KillQuest, 3, "Goal 20 Min 5 Max 24")
 	set KillQuest['I05F'][StringHash("Index")] = 3
 	set KillQuest[3][StringHash("Goal")] = 20
 	set KillQuest[3][StringHash("Min")] = 5
 	set KillQuest[3][StringHash("Max")] = 24
 	set KillQuest[3].string[StringHash("Name")] = "Spider"
-	set KillQuest[3].rect[StringHash("Region")] = gg_rct_Spider_1
+	set KillQuest[3].rect[StringHash("Region")] = gg_rct_Spider_Horror_3
 	//ursa
-	set KillQuest['I04U'][StringHash("Index")] = 4
-	set KillQuest[4][StringHash("Goal")] = 25
-	set KillQuest[4][StringHash("Min")] = 8
-	set KillQuest[4][StringHash("Max")] = 34
+	call SetTableData(KillQuest, 'I04U', "Index 4")
+	call SetTableData(KillQuest, 4, "Goal 25 Min 8 Max 24")
 	set KillQuest[4].string[StringHash("Name")] = "Ursa"
-	set KillQuest[4].rect[StringHash("Region")] = gg_rct_Despair_Spawn_9
+	set KillQuest[4].rect[StringHash("Region")] = gg_rct_Ursa_Abyssal_2
 	//polar bears
-	set KillQuest['I04V'][StringHash("Index")] = 5
-	set KillQuest[5][StringHash("Goal")] = 20
-	set KillQuest[5][StringHash("Min")] = 12
-	set KillQuest[5][StringHash("Max")] = 46
+	call SetTableData(KillQuest, 'I04V', "Index 5")
+	call SetTableData(KillQuest, 5, "Goal 20 Min 12 Max 46")
 	set KillQuest[5].string[StringHash("Name")] = "Polar Bears"
 	set KillQuest[5].rect[StringHash("Region")] = gg_rct_Bear_2
 	//tauren/ogre
-	set KillQuest['I05B'][StringHash("Index")] = 6
-	set KillQuest[6][StringHash("Goal")] = 25
-	set KillQuest[6][StringHash("Min")] = 20
-	set KillQuest[6][StringHash("Max")] = 62
+	call SetTableData(KillQuest, 'I05B', "Index 6")
+	call SetTableData(KillQuest, 6, "Goal 25 Min 20 Max 62")
 	set KillQuest[6].string[StringHash("Name")] = "Tauren/Ogre"
-	set KillQuest[6].rect[StringHash("Region")] = gg_rct_Unknown_Evil_Spawn_1
+	set KillQuest[6].rect[StringHash("Region")] = gg_rct_OgreTauren_Void_5
 	//unbroken
-	set KillQuest['I05L'][StringHash("Index")] = 7
-	set KillQuest[7][StringHash("Goal")] = 25
-	set KillQuest[7][StringHash("Min")] = 29
-	set KillQuest[7][StringHash("Max")] = 84
+	call SetTableData(KillQuest, 'I05L', "Index 7")
+	call SetTableData(KillQuest, 7, "Goal 25 Min 29 Max 84")
 	set KillQuest[7].string[StringHash("Name")] = "Unbroken"
-	set KillQuest[7].rect[StringHash("Region")] = gg_rct_Unbroken_Spawn_2
+	set KillQuest[7].rect[StringHash("Region")] = gg_rct_Unbroken_Dimensional_2
 	//hellhounds
-	set KillQuest['I05E'][StringHash("Index")] = 8
-	set KillQuest[8][StringHash("Goal")] = 20
-	set KillQuest[8][StringHash("Min")] = 44
-	set KillQuest[8][StringHash("Max")] = 110
+	call SetTableData(KillQuest, 'I05E', "Index 8")
+	call SetTableData(KillQuest, 8, "Goal 20 Min 44 Max 110")
 	set KillQuest[8].string[StringHash("Name")] = "Hellhounds"
 	set KillQuest[8].rect[StringHash("Region")] = gg_rct_Hell_4
 	//centaur
-	set KillQuest['I0GD'][StringHash("Index")] = 9
-	set KillQuest[9][StringHash("Goal")] = 20
-	set KillQuest[9][StringHash("Min")] = 56
-	set KillQuest[9][StringHash("Max")] = 134
+	call SetTableData(KillQuest, 'I0GD', "Index 9")
+	call SetTableData(KillQuest, 9, "Goal 20 Min 56 Max 134")
 	set KillQuest[9].string[StringHash("Name")] = "Centaur"
-	set KillQuest[9].rect[StringHash("Region")] = gg_rct_Unknown_Evil_Spawn_5
+	set KillQuest[9].rect[StringHash("Region")] = gg_rct_Centaur_Nightmare_5
 	//magnataur
-	set KillQuest['I05K'][StringHash("Index")] = 10
-	set KillQuest[10][StringHash("Goal")] = 20
-	set KillQuest[10][StringHash("Min")] = 70
-	set KillQuest[10][StringHash("Max")] = 162
+	call SetTableData(KillQuest, 'I05K', "Index 10")
+	call SetTableData(KillQuest, 10, "Goal 20 Min 70 Max 162")
 	set KillQuest[10].string[StringHash("Name")] = "Magnataur"
-	set KillQuest[10].rect[StringHash("Region")] = gg_rct_Magnataur
+	set KillQuest[10].rect[StringHash("Region")] = gg_rct_Magnataur_Despair_1
 	//dragon
-	set KillQuest['I05M'][StringHash("Index")] = 11
-	set KillQuest[11][StringHash("Goal")] = 20
-	set KillQuest[11][StringHash("Min")] = 92
-	set KillQuest[11][StringHash("Max")] = 182
+	call SetTableData(KillQuest, 'I05M', "Index 11")
+	call SetTableData(KillQuest, 11, "Goal 20 Min 92 Max 182")
 	set KillQuest[11].string[StringHash("Name")] = "Dragons"
-	set KillQuest[11].rect[StringHash("Region")] = gg_rct_Astral_Spawn_3
+	set KillQuest[11].rect[StringHash("Region")] = gg_rct_Dragon_Astral_8
 	//devourers
-	set KillQuest['I022'][StringHash("Index")] = 12
-	set KillQuest[12][StringHash("Goal")] = 20
-	set KillQuest[12][StringHash("Min")] = 108
-	set KillQuest[12][StringHash("Max")] = 198
+	call SetTableData(KillQuest, 'I022', "Index 12")
+	call SetTableData(KillQuest, 12, "Goal 20 Min 108 Max 198")
 	set KillQuest[12].string[StringHash("Name")] = "Devourers"
 	set KillQuest[12].rect[StringHash("Region")] = gg_rct_Devourer_entry
 	//demons
-	set KillQuest['I03H'][StringHash("Index")] = 13
-	set KillQuest[13][StringHash("Goal")] = 20
-	set KillQuest[13][StringHash("Min")] = 166
-	set KillQuest[13][StringHash("Max")] = 256
+	call SetTableData(KillQuest, 'I03H', "Index 13")
+	call SetTableData(KillQuest, 13, "Goal 20 Min 166 Max 256")
 	set KillQuest[13].string[StringHash("Name")] = "Demons"
-	set KillQuest[13].rect[StringHash("Region")] = gg_rct_Demon_Wiz_and_Norm_1
+	set KillQuest[13].rect[StringHash("Region")] = gg_rct_Troll_Demon_1
 	//horror beast
-	set KillQuest['I09J'][StringHash("Index")] = 14
-	set KillQuest[14][StringHash("Goal")] = 20
-	set KillQuest[14][StringHash("Min")] = 190
-	set KillQuest[14][StringHash("Max")] = 260
+	call SetTableData(KillQuest, 'I09J', "Index 14")
+	call SetTableData(KillQuest, 14, "Goal 20 Min 190 Max 260")
 	set KillQuest[14].string[StringHash("Name")] = "Horror Beasts"
-	set KillQuest[14].rect[StringHash("Region")] = gg_rct_Mindless_Beasts_Spawn_1
+	set KillQuest[14].rect[StringHash("Region")] = gg_rct_Tuskar_Horror_1
 	//despair
-	set KillQuest['I03C'][StringHash("Index")] = 15
-	set KillQuest[15][StringHash("Goal")] = 20
-	set KillQuest[15][StringHash("Min")] = 210
-	set KillQuest[15][StringHash("Max")] = 280
+	call SetTableData(KillQuest, 'I03C', "Index 15")
+	call SetTableData(KillQuest, 15, "Goal 20 Min 210 Max 280")
 	set KillQuest[15].string[StringHash("Name")] = "Despair"
-	set KillQuest[15].rect[StringHash("Region")] = gg_rct_Magnataur
+	set KillQuest[15].rect[StringHash("Region")] = gg_rct_Magnataur_Despair_1
 	//abyssal
-	set KillQuest['I02A'][StringHash("Index")] = 16
-	set KillQuest[16][StringHash("Goal")] = 20
-	set KillQuest[16][StringHash("Min")] = 229
-	set KillQuest[16][StringHash("Max")] = 299
+	call SetTableData(KillQuest, 'I02A', "Index 16")
+	call SetTableData(KillQuest, 16, "Goal 20 Min 229 Max 299")
 	set KillQuest[16].string[StringHash("Name")] = "Abyssal"
-	set KillQuest[16].rect[StringHash("Region")] = gg_rct_Despair_Spawn_9
+	set KillQuest[16].rect[StringHash("Region")] = gg_rct_Ursa_Abyssal_2
 	//void
-	set KillQuest['I03I'][StringHash("Index")] = 17
-	set KillQuest[17][StringHash("Goal")] = 20
-	set KillQuest[17][StringHash("Min")] = 250
-	set KillQuest[17][StringHash("Max")] = 320
+	call SetTableData(KillQuest, 'I03I', "Index 17")
+	call SetTableData(KillQuest, 17, "Goal 20 Min 250 Max 320")
 	set KillQuest[17].string[StringHash("Name")] = "Void"
-	set KillQuest[17].rect[StringHash("Region")] = gg_rct_Unknown_Evil_Spawn_1
+	set KillQuest[17].rect[StringHash("Region")] = gg_rct_OgreTauren_Void_5
 	//nightmares
-	set KillQuest['I0GE'][StringHash("Index")] = 18
-	set KillQuest[18][StringHash("Goal")] = 20
-	set KillQuest[18][StringHash("Min")] = 270
-	set KillQuest[18][StringHash("Max")] = 340
+	call SetTableData(KillQuest, 'I0GE', "Index 18")
+	call SetTableData(KillQuest, 18, "Goal 20 Min 270 Max 340")
 	set KillQuest[18].string[StringHash("Name")] = "Nightmares"
-	set KillQuest[18].rect[StringHash("Region")] = gg_rct_Unknown_Evil_Spawn_5
+	set KillQuest[18].rect[StringHash("Region")] = gg_rct_Centaur_Nightmare_5
 	//hellspawn
-	set KillQuest['I03J'][StringHash("Index")] = 19
-	set KillQuest[19][StringHash("Goal")] = 20
-	set KillQuest[19][StringHash("Min")] = 290
-	set KillQuest[19][StringHash("Max")] = 360
+	call SetTableData(KillQuest, 'I03J', "Index 19")
+	call SetTableData(KillQuest, 19, "Goal 20 Min 290 Max 360")
 	set KillQuest[19].string[StringHash("Name")] = "Hellspawn"
 	set KillQuest[19].rect[StringHash("Region")] = gg_rct_Hell_4
 	//denied existence
-	set KillQuest['I02G'][StringHash("Index")] = 20
-	set KillQuest[20][StringHash("Goal")] = 30
-	set KillQuest[20][StringHash("Min")] = 310
-	set KillQuest[20][StringHash("Max")] = 380
+	call SetTableData(KillQuest, 'I02G', "Index 20")
+	call SetTableData(KillQuest, 20, "Goal 30 Min 310 Max 380")
 	set KillQuest[20].string[StringHash("Name")] = "Denied Existence"
 	set KillQuest[20].rect[StringHash("Region")] = gg_rct_Devourer_entry
 	//astral
-	set KillQuest['I039'][StringHash("Index")] = 21
-	set KillQuest[21][StringHash("Goal")] = 20
-	set KillQuest[21][StringHash("Min")] = 330
-	set KillQuest[21][StringHash("Max")] = 400
+	call SetTableData(KillQuest, 'I039', "Index 21")
+	call SetTableData(KillQuest, 21, "Goal 20 Min 330 Max 400")
 	set KillQuest[21].string[StringHash("Name")] = "Astral"
-	set KillQuest[21].rect[StringHash("Region")] = gg_rct_Astral_Spawn_3
+	set KillQuest[21].rect[StringHash("Region")] = gg_rct_Dragon_Astral_8
 	//planeswalker
-	set KillQuest['I0Q1'][StringHash("Index")] = 22
-	set KillQuest[22][StringHash("Goal")] = 20
-	set KillQuest[22][StringHash("Min")] = 350
-	set KillQuest[22][StringHash("Max")] = 420
+	call SetTableData(KillQuest, 'I0Q1', "Index 22")
+	call SetTableData(KillQuest, 22, "Goal 20 Min 350 Max 420")
 	set KillQuest[22].string[StringHash("Name")] = "Planeswalker"
-	set KillQuest[22].rect[StringHash("Region")] = gg_rct_Spider_1
+	set KillQuest[22].rect[StringHash("Region")] = gg_rct_Unbroken_Dimensional_2
 endfunction
 
 function Reward_Tables_Setup takes nothing returns nothing
@@ -3683,10 +3519,36 @@ function Reward_Tables_Setup takes nothing returns nothing
 endfunction
 
 function JassVariablesInit takes nothing returns nothing
-    //startup
     local integer i = 0
+	
+	loop
+		exitwhen i > 500
+		set udg_Experience_Table[i] = R2I(13 * i * Pow(1.4, i / 20.) + 10)
+		set udg_RewardGold[i] = Pow(udg_Experience_Table[i], .94) / 8.
+		set i = i + 1
+	endloop
 
-	call GoldReward()
+	set i = 0
+
+	//base experience rates per 5 levels
+	loop
+		exitwhen i > 400
+		if i <= 10 then
+			set BaseExperience[i] = 425
+		else
+			set BaseExperience[i] = (BaseExperience[i - 5] - 17. / (i - 5)) * 0.919
+		endif
+
+		set i = i + 5
+	endloop
+
+	set udg_Gold_Mod[1] = 1
+	set udg_Gold_Mod[2] = Pow(0.55, 0.5)
+	set udg_Gold_Mod[3] = Pow(0.50, 0.5)
+	set udg_Gold_Mod[4] = Pow(0.45, 0.5)
+	set udg_Gold_Mod[5] = Pow(0.40, 0.5)
+	set udg_Gold_Mod[6] = Pow(0.35, 0.5)
+
     call ItemUpgrades()
 
 	set prMulti[1] = 'A0A3'
@@ -3695,7 +3557,6 @@ function JassVariablesInit takes nothing returns nothing
 	set prMulti[4] = 'A0IY'
 	set prMulti[5] = 'A0IZ'
  
-    call ExperienceTableInit()
     call SetItemStats()
     call killquestsetup()
     call HeadhunterQuestSetup()
