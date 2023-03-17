@@ -15,29 +15,29 @@
 
     //! dovjassinit
 
-    call Preload("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl")
-    call Preload("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdl")
-    call Preload("Abilities\\Weapons\\Bolt\\BoltImpact.mdl")
+    call Preload("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdx")
+    call Preload("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdx")
+    call Preload("Abilities\\Weapons\\Bolt\\BoltImpact.mdx")
     call Preload("war3mapImported\\FrozenOrb.MDX")
     call Preload("war3mapImported\\Death Nova.mdx")
     call Preload("war3mapImported\\Lightnings Long.mdx")
-    call Preload("Objects\\Spawnmodels\\Other\\NeutralBuildingExplosion\\NeutralBuildingExplosion.mdl")
+    call Preload("war3mapImported\\NeutralExplosion.mdx")
     call Preload("war3mapImported\\NewMassiveEX.mdx")
-    call Preload("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl")
+    call Preload("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdx")
     call Preload("war3mapImported\\Call of Dread Red.mdx")
     call Preload("war3mapImported\\Lava_Slam.mdx")
     call Preload("war3mapImported\\AnnihilationTarget.mdx")
-    call Preload("Units\\Demon\\Infernal\\InfernalBirth.mdl")
-    call Preload("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl")
-    call Preload("Abilities\\Spells\\Human\\Thunderclap\\ThunderclapTarget.mdl")
-    call Preload("Abilities\\Spells\\Human\\Blizzard\\BlizzardTarget.mdl")
-    call Preload("Abilities\\Spells\\Other\\FrostBolt\\FrostBoltMissile.mdl")
-    call Preload("Abilities\\Spells\\Human\\StormBolt\\StormBoltMissile.mdl")
+    call Preload("Units\\Demon\\Infernal\\InfernalBirth.mdx")
+    call Preload("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdx")
+    call Preload("Abilities\\Spells\\Human\\Thunderclap\\ThunderclapTarget.mdx")
+    call Preload("Abilities\\Spells\\Human\\Blizzard\\BlizzardTarget.mdx")
+    call Preload("Abilities\\Spells\\Other\\FrostBolt\\FrostBoltMissile.mdx")
+    call Preload("Abilities\\Spells\\Human\\StormBolt\\StormBoltMissile.mdx")
     call Preload("war3mapImported\\Coup de Grace.mdx")
-    call Preload("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl")
-    call Preload("units\\other\\FleshGolem\\FleshGolem.mdl")
-    call Preload("units\\demon\\felhound\\felhound_V1.mdl")
-    call Preload("units\\creeps\\satyrhellcaller\\satyrhellcaller.mdl")
+    call Preload("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdx")
+    call Preload("units\\other\\FleshGolem\\FleshGolem.mdx")
+    call Preload("units\\demon\\felhound\\felhound_V1.mdx")
+    call Preload("war3mapImported\\MasterWarlock.mdx")
     
     call SetMapFlag(MAP_FOG_HIDE_TERRAIN, false)
     call SetMapFlag(MAP_FOG_MAP_EXPLORED, true)
@@ -48,7 +48,7 @@
 
 function Initialize takes nothing returns nothing
     call ReleaseTimer(GetExpiredTimer())
-    call BlzChangeMinimapTerrainTex("MiniMap.tga")
+    call BlzChangeMinimapTerrainTex("MiniMap.dds")
     call SetCameraBoundsToRect(gg_rct_Tavern_Vision)
     call PanCameraToTimed(21645, 3430, 0)
     call FogMaskEnable(true)
@@ -66,6 +66,7 @@ function Initialize takes nothing returns nothing
     call PlayerDataSetup() 
     call UnitSetup()
     call CreateMB()
+    call AshenVatInit()
     call ItemInit()
     call SpellsInit()
     call DeathInit()
@@ -75,10 +76,10 @@ function Initialize takes nothing returns nothing
     call ConverterInit()
     call AttackedInit()
     call WeatherInit()
-    call AshenVatInit()
+    call CheckDonators()
     call DamageInit()
     call VisibilityInit()
-    call MainSpawn()
+    call SpawnCreeps(0)
     call MouseInit()
     call RegionsInit()
     call TimerInit()
@@ -92,9 +93,11 @@ endfunction
 
 globals
     constant integer PLAYER_CAP                 = 6
-    constant integer SAVE_LOAD_VERSION          = 1000 //change for code wipe (1000 = beta)
+    constant integer MAX_LEVEL                  = 400
+    integer SAVE_LOAD_VERSION                   = 1
     constant integer LEECH_CONSTANT             = 50
     constant real CALL_FOR_HELP_RANGE           = 800.
+    constant real NEARBY_BOSS_RANGE             = 2500.
     constant integer DUMMY                      = 'e011'
     constant integer GRAVE                      = 'H01G'
     constant integer BACKPACK                   = 'H05D'
@@ -150,8 +153,7 @@ globals
     constant integer BOSS_HATE                  = 13
     constant integer BOSS_LOVE                  = 14
     constant integer BOSS_KNOWLEDGE             = 15
-    constant integer CHAOS_BOSS_TOTAL           = 9
-    constant integer BOSS_TOTAL                 = 15
+    integer BOSS_TOTAL                          = 15
     constant string CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     constant integer BASE = StringLength(CHARS)
     integer TIME = 0
