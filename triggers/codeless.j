@@ -1,4 +1,16 @@
-library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
+library CodelessSaveLoad uses FileIO, Functions
+
+	globals
+        hashtable SAVE_TABLE = InitHashtable()
+        integer KEY_ITEMS = 1
+        integer KEY_UNITS = 2
+        integer KEY_SPELLS = 3
+		integer CUSTOM_ITEM_OFFSET = 'I000'
+        integer array SAVE_UNIT_TYPE
+
+		constant integer MAX_SAVED_ITEMS = 8191
+		constant integer MAX_SAVED_HEROES = 63 //6 bits
+	endglobals
 
     private function uppercolor takes nothing returns string
         return "|cffff0000"
@@ -32,7 +44,7 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
         local string c
         loop
             exitwhen i >= len
-            set c = SubString(s,i,i+1)
+            set c = SubString(s,i,i + 1)
             set ctype = chartype(c)
             if ctype == 0 then
                 set out = out + uppercolor()+c+"|r"
@@ -70,69 +82,28 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
         set t = null
     endfunction
 
-    private function ActionLoad takes nothing returns boolean
-        local player p = GetTriggerPlayer()
-        local integer pid = GetPlayerId(p) + 1
-        local string s = ""
-        local integer i = 0
-
-        if Profiles[pid].profileHash > 0 then
-			call DisplayTimedTextToPlayer(p, 0, 0, 20, "You cannot load anymore.")
-			return false
-        endif
-
-        static if LIBRARY_dev then
-            set GAME_STATE = 2
-        endif
-        
-        if GAME_STATE == 0 then
-            call DisplayTimedTextToPlayer(p, 0, 0, 20, "You cannot load a multiplayer character in singleplayer.")
-
-            return false
-        endif
-
-        if LOAD_SAFE then
-            set LOAD_SAFE = false
-        else
-            call DisplayTimedTextToPlayer(p, 0, 0, 20, "Please wait until a player is done loading!")
-            set p = null
-            return false
-        endif
-
-        if GetLocalPlayer() == p then
-            set s = FileIO_Read(udg_MapName + "\\" + User[p].name + "\\profile.pld")
-
-            if StringLength(s) > 1 then
-                call BlzSendSyncData(PROFILE_PREFIX, getLine(1, s))
-            else
-                call DisplayTimedTextToPlayer(p, 0, 0, 30., "No profile data found!")
-            endif
-        endif 
-
-        set LOAD_SAFE = true
-
-        set p = null
-        return true
-    endfunction
-    
     function ActionLoadHero takes nothing returns nothing
         local player p = GetTriggerPlayer()
         local integer pid = GetPlayerId(p) + 1
 
         if LEFT_CHURCH[pid] then
-            call DisplayTimedTextToPlayer(p, 0, 0, 20, "You cannot -loadh anymore!")
+            call DisplayTimedTextToPlayer(p, 0, 0, 20, "You cannot -load anymore!")
             set p = null
-			return
+
+            static if LIBRARY_dev then
+            else
+                return
+            endif
         endif
 
-        if Profiles[pid].profileHash == 0 then
-            call DisplayTimedTextToPlayer(p, 0, 0, 20, "You must load your profile first.")
+        if Profile[pid] == 0 or Profile[pid].getSlotsUsed() == 0 then
+            call DisplayTimedTextToPlayer(p, 0, 0, 20, "You do not have any character data!")
             set p = null
 			return
         endif
         
         if HeroID[pid] > 0 then
-            call DisplayTimedTextToPlayer(p, 0, 0, 20, "You already loaded!")
+            call DisplayTimedTextToPlayer(p, 0, 0, 20, "You need to repick before using -load again!")
             set p = null
 			return
         endif
@@ -148,7 +119,7 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
         local integer i = 0
         local item itm
         
-        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or GetWidgetLife(Hero[pid]) < 0.406 then
+        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or UnitAlive(Hero[pid]) == false then
             call DisplayTextToPlayer(whichPlayer, 0, 0, "An error occured while attempting to save.")
             return
         endif
@@ -169,17 +140,9 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
             call SetSaveSlot(pid)
         endif
 
-        call Profiles[pid].saveCharacter()
+        call Profile[pid].saveCharacter()
 
-        loop //not sure what this is for
-			exitwhen i > 5
-            set itm = UnitItemInSlot(Hero[pid], i)
-			call UnitRemoveItem(Hero[pid], itm)
-			call RemoveItem(itm)
-			set i = i + 1
-		endloop
-
-        call SharedRepick(whichPlayer)
+        call PlayerCleanup(whichPlayer)
         
         set itm = null
     endfunction
@@ -192,7 +155,7 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
             return false
         endif
         
-        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or GetWidgetLife(Hero[pid]) < 0.406 then
+        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or UnitAlive(Hero[pid]) == false then
             call DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
             return false
         endif
@@ -218,7 +181,7 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
             call SetSaveSlot(pid)
         endif
 
-        call Profiles[pid].saveCharacter()
+        call Profile[pid].saveCharacter()
 
         return true
     endfunction
@@ -231,7 +194,7 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
             return
         endif
         
-        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or GetWidgetLife(Hero[pid]) < 0.406 then
+        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or UnitAlive(Hero[pid]) == false then
             call DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
             return
         endif
@@ -257,21 +220,91 @@ library CodelessSaveLoad uses FileIO, SaveHelperLib, Functions
     endfunction
 
     function CodelessSaveLoadInit takes nothing returns nothing
-        local trigger loadTrigger = CreateTrigger()
         local trigger loadHeroTrigger = CreateTrigger()
         local User u = User.first
-            
+        local integer i = 0
+        local string s = ""
+        local boolean load = true
+
+		set SAVE_UNIT_TYPE[0] = 0
+		set SAVE_UNIT_TYPE[1] = HERO_ARCANIST
+		set SAVE_UNIT_TYPE[2] = HERO_ASSASSIN
+		set SAVE_UNIT_TYPE[3] = HERO_MARKSMAN
+		set SAVE_UNIT_TYPE[4] = HERO_HYDROMANCER
+		set SAVE_UNIT_TYPE[5] = HERO_PHOENIX_RANGER
+		set SAVE_UNIT_TYPE[6] = HERO_ELEMENTALIST
+		set SAVE_UNIT_TYPE[7] = HERO_HIGH_PRIEST
+		set SAVE_UNIT_TYPE[8] = HERO_MASTER_ROGUE
+		set SAVE_UNIT_TYPE[9] = HERO_SAVIOR
+		set SAVE_UNIT_TYPE[10] = HERO_BARD
+		set SAVE_UNIT_TYPE[11] = HERO_ARCANE_WARRIOR
+		set SAVE_UNIT_TYPE[12] = HERO_BLOODZERKER
+		set SAVE_UNIT_TYPE[13] = HERO_DARK_SAVIOR
+		set SAVE_UNIT_TYPE[14] = HERO_DARK_SUMMONER
+		set SAVE_UNIT_TYPE[15] = HERO_OBLIVION_GUARD
+		set SAVE_UNIT_TYPE[16] = HERO_ROYAL_GUARDIAN
+		set SAVE_UNIT_TYPE[17] = HERO_THUNDERBLADE
+		set SAVE_UNIT_TYPE[18] = HERO_WARRIOR
+		set SAVE_UNIT_TYPE[19] = 'H00H'
+		set SAVE_UNIT_TYPE[20] = HERO_DRUID
+		set SAVE_UNIT_TYPE[21] = HERO_VAMPIRE
+
+        call TriggerAddCondition(Profile.sync_event, function Profile.LoadSync)
+        call TriggerAddCondition(loadHeroTrigger, Filter(function ActionLoadHero))
+
         loop
-			exitwhen u == User.NULL
-			call TriggerRegisterPlayerChatEvent(loadTrigger, u.toPlayer(), "-load", true)
-            call TriggerRegisterPlayerChatEvent(loadHeroTrigger, u.toPlayer(), "-loadh", true)
-			set u = u.next
+            exitwhen i > 21
+
+            call SaveInteger(SAVE_TABLE, KEY_UNITS, SAVE_UNIT_TYPE[i], i)
+
+            set i = i + 1
         endloop
-        
-        call TriggerAddCondition(loadTrigger, Filter(function ActionLoad))
-        call TriggerAddAction(loadHeroTrigger, function ActionLoadHero)
-        
-        set loadTrigger = null
+            
+        //dev game state bypass
+        static if LIBRARY_dev then
+            set GAME_STATE = 2
+        endif
+
+        //singleplayer
+        if GAME_STATE == 0 then
+            call DisplayTimedTextToForce(FORCE_PLAYING, 600., "|cffff0000Save / Load is disabled in single player.|r")
+        else
+            //load all players
+            loop
+                exitwhen u == User.NULL
+
+                set i = 0
+                set load = true
+
+                loop
+                    exitwhen i > funnyListTotal
+                    if StringHash(u.name) == funnyList[i] then
+                        call DisplayTimedTextToForce(FORCE_PLAYING, 120., BlzGetItemDescription(PathItem) + u.nameColored + BlzGetItemExtendedTooltip(PathItem))
+                        set load = false
+                        exitwhen true
+                    endif
+                    set i = i + 1
+                endloop
+
+                if load then
+                    set s = ""
+
+                    call TriggerRegisterPlayerChatEvent(loadHeroTrigger, u.toPlayer(), "-load", true)
+                    call BlzTriggerRegisterPlayerSyncEvent(Profile.sync_event, u.toPlayer(), SYNC_PREFIX, false)
+
+                    if GetLocalPlayer() == u.toPlayer() then
+                        set s = FileIO_Read(MAP_NAME + "\\" + u.name + "\\profile.pld")
+
+                        if StringLength(s) > 1 then
+                            call BlzSendSyncData(SYNC_PREFIX, getLine(1, s))
+                        endif
+                    endif 
+                endif
+
+                set u = u.next
+            endloop
+        endif
+
         set loadHeroTrigger = null
     endfunction
 
