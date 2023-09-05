@@ -84,21 +84,21 @@ library Dungeons requires Functions
         local User U = User.first
         local integer plat = GetRandomInt(12, 15) + NAGA_PLAYERS * 3
         local integer arc = GetRandomInt(12, 15) + NAGA_PLAYERS * 3
-        local integer crys = GetRandomInt(12, 15) + NAGA_PLAYERS * 3
+        local integer crystal = GetRandomInt(12, 15) + NAGA_PLAYERS * 3
         local integer pid
 
         call DisplayTimedTextToForce(NAGA_GROUP, 7.5, "|cffffcc00You have been rewarded:|r")
         call DisplayTimedTextToForce(NAGA_GROUP, 7.5, "|cffe3e2e2" + I2S(plat) + " Platinum|r")
         call DisplayTimedTextToForce(NAGA_GROUP, 7.5, "|cff66FF66" + I2S(arc) + " Arcadite|r")
-        call DisplayTimedTextToForce(NAGA_GROUP, 7.5, "|cff6969FF" + I2S(crys) + " Crystals|r")
+        call DisplayTimedTextToForce(NAGA_GROUP, 7.5, "|cff6969FF" + I2S(crystal) + " Crystals|r")
 
         loop
             exitwhen U == User.NULL
             set pid = GetPlayerId(U.toPlayer()) + 1
             if IsPlayerInForce(U.toPlayer(), NAGA_GROUP) then
-                call AddPlatinumCoin(pid, plat)
-                call AddArcaditeLumber(pid, arc)
-                call AddCrystals(pid, crys)
+                call AddCurrency(pid, PLATINUM, plat)
+                call AddCurrency(pid, ARCADITE, arc)
+                call AddCurrency(pid, CRYSTAL, crystal)
                 call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", GetUnitX(Hero[pid]), GetUnitY(Hero[pid])))
             endif
         
@@ -171,14 +171,14 @@ library Dungeons requires Functions
             set QUEUE_READY[GetPlayerId(u.toPlayer()) + 1] = false
             
             if IsPlayerInForce(u.toPlayer(), QUEUE_GROUP) then
-                call MultiboardSetItemStyleBJ( QUEUE_BOARD, 1, i, true, false )
-                call MultiboardSetItemStyleBJ( QUEUE_BOARD, 2, i, false, true )
+                call MultiboardSetItemStyleBJ(QUEUE_BOARD, 1, i, true, false)
+                call MultiboardSetItemStyleBJ(QUEUE_BOARD, 2, i, false, true)
 
-                call MultiboardSetItemValueBJ( QUEUE_BOARD, 1, i, u.nameColored )
-                call MultiboardSetItemIconBJ( QUEUE_BOARD, 2, i, "ReplaceableTextures\\CommandButtons\\BTNCancel.blp")
+                call MultiboardSetItemValueBJ(QUEUE_BOARD, 1, i, u.nameColored)
+                call MultiboardSetItemIconBJ(QUEUE_BOARD, 2, i, "ReplaceableTextures\\CommandButtons\\BTNCancel.blp")
                 
-                call MultiboardSetItemWidthBJ( QUEUE_BOARD, 1, i, 10.00 )
-                call MultiboardSetItemWidthBJ( QUEUE_BOARD, 2, i, 1.00 )
+                call MultiboardSetItemWidthBJ(QUEUE_BOARD, 1, i, 10.00)
+                call MultiboardSetItemWidthBJ(QUEUE_BOARD, 2, i, 1.00)
                 set i = i + 1
             endif
 
