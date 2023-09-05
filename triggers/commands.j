@@ -1,15 +1,10 @@
 library Commands requires Functions, CodelessSaveLoad
 
 globals
-	boolean array givecd
 	boolean FightingAzazoth = false
     player tempplayer
 	group AzazothPlayers = CreateGroup()
     boolean townhidden = false
-    dialog array GiveDialog
-    button array GiveButton
-    integer array Receiver
-    integer array ResourceGiven
     boolean array autosave
 	integer VOTING_TYPE = 0
 	integer VoteYay = 0
@@ -22,38 +17,31 @@ globals
 	integer votekickingPlayer = 0
 	string ArcTag = "|cff66FF66Arcadite Lumber|r: "
 	string PlatTag = "|cffccccccPlatinum Coins|r: "
+	string CrystalTag = "|cff6969FFCrystals: |r"
 endglobals
 
-function OnNewProfile takes player p returns nothing
+function NewProfile takes integer pid returns nothing
     local dialog alertDialog = DialogCreate()
     local trigger yesButtonTrigger = CreateTrigger()
     local trigger noButtonTrigger = CreateTrigger()
-	local integer pid = GetPlayerId(p) + 1
-    
-    if Profiles[pid].profileHash > 0 then
-        call DisplayTimedTextToPlayer(p, 0, 0, 20.0, "\nYou cannot start a new profile anymore")
-        return
-    endif
-    
-    call DialogSetMessage(alertDialog, "Start a new profile?\n|cFFFF0000Any old profile will be\noverwritten once you save.|r")
-    
-    call TriggerRegisterDialogButtonEvent(yesButtonTrigger, DialogAddButton(alertDialog, "Yes", 0))
-    call TriggerRegisterDialogButtonEvent(noButtonTrigger, DialogAddButton(alertDialog, "No", 0))
-    
-    call TriggerAddCondition(yesButtonTrigger, Filter(function OnDialogButtonClickedYes))
-    call TriggerAddCondition(noButtonTrigger, Filter(function OnDialogButtonClickedNo))
-    
-    call DialogDisplay(p, alertDialog, true)
+
+	if Profile[pid].NEW then
+		call DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 30, "You already started a new profile!")
+	else
+		call DialogSetMessage(alertDialog, "Start a new profile?\n|cFFFF0000Any existing profile will be\noverwritten.|r")
+		
+		call TriggerRegisterDialogButtonEvent(yesButtonTrigger, DialogAddButton(alertDialog, "Yes", 0))
+		call TriggerRegisterDialogButtonEvent(noButtonTrigger, DialogAddButton(alertDialog, "No", 0))
+		
+		call TriggerAddCondition(yesButtonTrigger, Filter(function NewProfileYes))
+		call TriggerAddCondition(noButtonTrigger, Filter(function NewProfileNo))
+		
+		call DialogDisplay(Player(pid - 1), alertDialog, true)
+	endif
     
     set alertDialog = null
     set yesButtonTrigger = null
     set noButtonTrigger = null
-endfunction
-
-function GiveCD takes nothing returns nothing
-    local integer pid = ReleaseTimer(GetExpiredTimer())
-    
-    set givecd[pid] = false
 endfunction
 
 function BeginAzazoth takes nothing returns nothing
@@ -62,7 +50,7 @@ function BeginAzazoth takes nothing returns nothing
 
 	call GroupEnumUnitsInRect(ug, gg_rct_Astral_God_Challenge_Circle, Condition(function ischar))
 
-	if FightingAzazoth == false and udg_Chaos_World_On and BlzGroupGetSize(AzazothPlayers) == 0 and BlzGroupGetSize(ug) > 0 and GetWidgetLife(Boss[BOSS_AZAZOTH]) >= 0.406 then
+	if FightingAzazoth == false and ChaosMode and BlzGroupGetSize(AzazothPlayers) == 0 and BlzGroupGetSize(ug) > 0 and UnitAlive(Boss[BOSS_AZAZOTH]) then
 		set FightingAzazoth = true
 		call PauseUnit(Boss[BOSS_AZAZOTH],true)
 		call UnitAddAbility(Boss[BOSS_AZAZOTH], 'Avul')
@@ -95,190 +83,81 @@ function BeginAzazoth takes nothing returns nothing
 	set ug = null
 endfunction
 
-function HeroAddStats takes unit u, real rawbonus, integer stattype, boolean isPlat returns nothing
-	local player p = GetOwningPlayer(u)
-	local integer pid = GetConvertedPlayerId(p)
-	local integer totalStats
-	local integer trueBonus 
+function StatTome takes integer pid, real rawbonus, integer stattype, boolean isPlat returns nothing
+	local player p = Player(pid - 1)
+	local integer totalStats = 0
+	local integer trueBonus = 0
 	local string displayMessage = "You gained |cffffcc00"
-	local integer hlev = GetHeroLevel(u)
-	local integer levelMax= TomeCap(hlev) //carved out to use same formula in save/load system
-	local integer i=1
+	local integer hlev = GetHeroLevel(Hero[pid])
+	local integer levelMax = TomeCap(hlev) //carved out to use same formula in save/load system
 
-	if hlev>25 then
-		set totalStats=IMaxBJ(250, GetHeroStr(u,false) +GetHeroAgi(u,false) +GetHeroInt(u,false) )
+	if hlev > 25 then
+		set totalStats = IMaxBJ(250, GetHeroStr(Hero[pid],false) +GetHeroAgi(Hero[pid],false) +GetHeroInt(Hero[pid],false))
 	else
-		set totalStats=IMaxBJ(50, GetHeroStr(u,false) +GetHeroAgi(u,false) +GetHeroInt(u,false) )
+		set totalStats = IMaxBJ(50, GetHeroStr(Hero[pid],false) +GetHeroAgi(Hero[pid],false) +GetHeroInt(Hero[pid],false))
 	endif
 
 	set trueBonus= R2I(rawbonus * 17.2 / Pow(totalStats, 0.35))
 
 	if totalStats > levelMax then
 		call DisplayTextToPlayer(p, 0, 0, "You cannot buy any more tomes until you level up further, no gold has been charged.")
-		set p=null
+		set p = null
 		return
 	elseif isPlat == false then
 		if stattype == 4 then
-			call ChargePlayerGold(pid, 20000, 0)
+			call AddCurrency(pid, GOLD, -20000)
 		else
-			call ChargePlayerGold(pid, 10000, 0)
+			call AddCurrency(pid, GOLD, -10000)
 		endif
 	elseif isPlat then
+		if hlev < 100 then
+			set p = null
+			return
+		endif
+
 		if stattype == 4 then
-			call ChargePlayerGold(pid, 0, 2)
+			call AddCurrency(pid, PLATINUM, -2)
 		else
-			call ChargePlayerGold(pid, 0, 1)
+			call AddCurrency(pid, PLATINUM, -1)
 		endif
 	endif
 	
 	if stattype == 1 then
-		call SetHeroStr(u, GetHeroStr(u,false) + trueBonus, true)
+		call SetHeroStr(Hero[pid], GetHeroStr(Hero[pid],false) + trueBonus, true)
 		call DisplayTextToPlayer(p, 0, 0, displayMessage + I2S(trueBonus) + "|r Strength.")
 	elseif stattype == 2 then
-		call SetHeroAgi(u, GetHeroAgi(u,false) + trueBonus, true)
+		call SetHeroAgi(Hero[pid], GetHeroAgi(Hero[pid],false) + trueBonus, true)
 		call DisplayTextToPlayer(p, 0, 0, displayMessage + I2S(trueBonus) + "|r Agility.")
 	elseif stattype == 3 then
-		call SetHeroInt(u, GetHeroInt(u,false) + trueBonus, true)
+		call SetHeroInt(Hero[pid], GetHeroInt(Hero[pid],false) + trueBonus, true)
 		call DisplayTextToPlayer(p, 0, 0, displayMessage + I2S(trueBonus) + "|r Intelligence.")
 	elseif stattype == 4 then
-		call SetHeroStr(u, GetHeroStr(u,false) + trueBonus, true)
-		call SetHeroAgi(u, GetHeroAgi(u,false) + trueBonus, true)
-		call SetHeroInt(u, GetHeroInt(u,false) + trueBonus, true)
+		call SetHeroStr(Hero[pid], GetHeroStr(Hero[pid],false) + trueBonus, true)
+		call SetHeroAgi(Hero[pid], GetHeroAgi(Hero[pid],false) + trueBonus, true)
+		call SetHeroInt(Hero[pid], GetHeroInt(Hero[pid],false) + trueBonus, true)
 		call DisplayTextToPlayer(p, 0, 0, displayMessage + I2S(trueBonus) + "|r All Stats.")
 	endif
 
-	call DestroyEffect(AddSpecialEffectTargetUnitBJ("chest", u, "Objects\\InventoryItems\\tomeRed\\tomeRed.mdl"))
-	call DestroyEffect(AddSpecialEffectTargetUnitBJ("chest", u, "Abilities\\Spells\\Items\\AIam\\AIamTarget.mdl"))
+	call DestroyEffect(AddSpecialEffectTargetUnitBJ("chest", Hero[pid], "Objects\\InventoryItems\\tomeRed\\tomeRed.mdl"))
+	call DestroyEffect(AddSpecialEffectTargetUnitBJ("chest", Hero[pid], "Abilities\\Spells\\Items\\AIam\\AIamTarget.mdl"))
 	set p = null
-endfunction
-
-function GiveClick takes nothing returns nothing
-    local player p = GetTriggerPlayer()
-    local button b = GetClickedButton()
-    local integer pid = GetPlayerId(p) + 1
-    local integer i = 0
-    local integer amount = 0
-    
-    loop
-        exitwhen b == GiveButton[pid * 8 + i]
-        set i = i + 1
-    endloop
-    
-    call DialogClear(GiveDialog[pid])
-    
-    if i < 10 then
-        set Receiver[pid] = i
-        set GiveButton[pid * 8 + 100 + i] = DialogAddButton(GiveDialog[pid], "Gold", 0)
-        set GiveButton[pid * 8 + 200 + i] = DialogAddButton(GiveDialog[pid], "Lumber", 0)
-        set GiveButton[pid * 8 + 300 + i] = DialogAddButton(GiveDialog[pid], "Both", 0)
-        call DialogAddButton(GiveDialog[pid], "Cancel", 0)
-        call DialogDisplay(p, GiveDialog[pid], true)
-    elseif i < 400 then
-        set ResourceGiven[pid] = R2I(i / 100.)
-        set GiveButton[pid * 8 + 1000 + i] = DialogAddButton(GiveDialog[pid], "250", 0)
-        set GiveButton[pid * 8 + 2000 + i] = DialogAddButton(GiveDialog[pid], "500", 0)
-        set GiveButton[pid * 8 + 3000 + i] = DialogAddButton(GiveDialog[pid], "1000", 0)
-        set GiveButton[pid * 8 + 4000 + i] = DialogAddButton(GiveDialog[pid], "2500", 0)
-        call DialogAddButton(GiveDialog[pid], "Cancel", 0)
-        call DialogDisplay(p, GiveDialog[pid], true)
-    else
-        if i > 4000 then
-            set amount = 2500
-        elseif i > 3000 then
-            set amount = 1000
-        elseif i > 2000 then
-            set amount = 500
-        elseif i > 1000 then
-            set amount = 250
-        endif
-    endif
-    
-    if amount > 0 then
-        if ResourceGiven[pid] == 3 then // both
-            if GetPlayerState(p, ConvertPlayerState(1)) > amount and GetPlayerState(p, ConvertPlayerState(2)) > amount then
-                set givecd[pid] = true
-                call TimerStart(NewTimerEx(pid), 25., false, function GiveCD)
-            
-                call SetPlayerState(p, ConvertPlayerState(1), GetPlayerState(p, ConvertPlayerState(1)) - amount)
-                call SetPlayerState(p, ConvertPlayerState(2), GetPlayerState(p, ConvertPlayerState(2)) - amount)
-                
-                call DisplayTextToPlayer(p,0,0,"You have given " + I2S(amount) + " gold & lumber to " + User.fromIndex(Receiver[pid]).nameColored)
-                call DisplayTextToPlayer(Player(Receiver[pid]), 0, 0, User.fromIndex(pid - 1).nameColored + " has given " + I2S(amount) + " gold & lumber to you.")
-
-                call SetPlayerState(Player(Receiver[pid]), ConvertPlayerState(1), GetPlayerState(Player(Receiver[pid]), ConvertPlayerState(1)) + amount)
-                call SetPlayerState(Player(Receiver[pid]), ConvertPlayerState(2), GetPlayerState(Player(Receiver[pid]), ConvertPlayerState(2)) + amount)
-            else
-                call DisplayTextToPlayer(p, 0, 0, "You do not have enough to send!")
-            endif
-        elseif ResourceGiven[pid] == 2 then // lumber
-            if GetPlayerState(p, ConvertPlayerState(2)) > amount then
-                set givecd[pid] = true
-                call TimerStart(NewTimerEx(pid), 25., false, function GiveCD)
-                call SetPlayerState(p, ConvertPlayerState(2), GetPlayerState(p, ConvertPlayerState(2)) - amount)
-                
-                call DisplayTextToPlayer(p,0,0,"You have given " + I2S(amount)+" lumber to " + User.fromIndex(Receiver[pid]).nameColored)
-                call DisplayTextToPlayer(Player(Receiver[pid]), 0, 0, User.fromIndex(pid - 1).nameColored + " has given " + I2S(amount) + " lumber to you.")
-
-                call SetPlayerState(Player(Receiver[pid]), ConvertPlayerState(2), GetPlayerState(Player(Receiver[pid]), ConvertPlayerState(2)) + amount)
-            else
-                call DisplayTextToPlayer(p, 0, 0, "You do not have enough to send!")
-            endif
-        elseif ResourceGiven[pid] == 1 then // gold
-            if GetPlayerState(p, ConvertPlayerState(1)) > amount then
-                set givecd[pid] = true
-                call TimerStart(NewTimerEx(pid), 25., false, function GiveCD)
-                call SetPlayerState(p, ConvertPlayerState(1), GetPlayerState(p, ConvertPlayerState(1)) - amount)
-                
-                call DisplayTextToPlayer(p, 0, 0, "You have given " + I2S(amount) + " gold to " + User.fromIndex(Receiver[pid]).nameColored)
-                call DisplayTextToPlayer(Player(Receiver[pid]), 0, 0, User.fromIndex(pid - 1).nameColored + " has given " + I2S(amount) + " gold to you.")
-
-                call SetPlayerState(Player(Receiver[pid]), ConvertPlayerState(1), GetPlayerState(Player(Receiver[pid]), ConvertPlayerState(1)) + amount)
-            else
-                call DisplayTextToPlayer(p, 0, 0, "You do not have enough to send!")
-            endif
-        endif
-    endif
-    
-    set p = null
-    set b = null
-endfunction
-
-function GiveSystem takes player p returns nothing
-    local integer pid = GetPlayerId(p) + 1
-    local User u = User.first
-    
-    call DialogClear(GiveDialog[pid])
-    
-    loop
-        exitwhen u == User.NULL
-            
-        if pid != GetPlayerId(u.toPlayer()) + 1 and IsPlayerInForce(u.toPlayer(), FORCE_PLAYING) then
-            set GiveButton[pid * 8 + GetPlayerId(u.toPlayer())] = DialogAddButton(GiveDialog[pid], GetPlayerName(Player(GetPlayerId(u.toPlayer()))), 0)
-        endif
-
-        set u = u.next
-    endloop
-    
-    call DialogAddButton(GiveDialog[pid], "Cancel", 0)
-	
-    call DialogDisplay(p, GiveDialog[pid], true)
-    
 endfunction
 
 function ChargeNetworth takes player p, integer flat, real percent, integer minimum, string message returns nothing
 	local integer pid = GetPlayerId(p) + 1
-	local integer playerGold = GetPlayerState(p, PLAYER_STATE_RESOURCE_GOLD)
-	local integer playerLumber = GetPlayerState(p, PLAYER_STATE_RESOURCE_LUMBER)
+	local integer playerGold = GetCurrency(pid, GOLD)
+	local integer playerLumber = GetCurrency(pid, LUMBER)
 	local integer cost
-	local integer platCost = R2I(udg_Plat_Gold[pid] * percent)
-	local integer arcCost = R2I(udg_Arca_Wood[pid] * percent)
+	local integer platCost = R2I(GetCurrency(pid, PLATINUM) * percent)
+	local integer arcCost = R2I(GetCurrency(pid, ARCADITE) * percent)
 		
 	set cost = flat + R2I(playerGold * percent)
 	if cost < minimum then
 		set cost = minimum
 	endif
 
-	call ChargePlayerGold(pid, cost, platCost)
+	call AddCurrency(pid, GOLD, -cost)
+	call AddCurrency(pid, PLATINUM, -platCost)
 	
 	if message != "" then
 		if platCost > 0 then
@@ -293,7 +172,8 @@ function ChargeNetworth takes player p, integer flat, real percent, integer mini
 		set cost = minimum
 	endif
 
-	call ChargePlayerLumber(pid, cost, arcCost)
+	call AddCurrency(pid, LUMBER, -cost)
+	call AddCurrency(pid, ARCADITE, -arcCost)
 	
 	if message != "" then
 		if arcCost > 0 then
@@ -307,10 +187,10 @@ endfunction
 
 function ShowExpRate takes player user, integer pid returns nothing
 	if InColo[pid] then
-        call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Experience Rate: |r" + R2S(udg_XP_Rate[pid]) +"%" )
+        call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Experience Rate: |r" + R2S(udg_XP_Rate[pid]) +"%")
 	else
-        call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Experience Rate: |r" + R2S(udg_XP_Rate[pid]) +"%" )
-		call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Colosseum Experience Multiplier: |r" + R2S(udg_Colloseum_XP[pid]*100.) +"%" )
+        call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Experience Rate: |r" + R2S(udg_XP_Rate[pid]) +"%")
+		call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Colosseum Experience Multiplier: |r" + R2S(udg_Colloseum_XP[pid]*100.) +"%")
 	endif
 endfunction
 
@@ -319,20 +199,20 @@ function StatsInfo takes player user, integer id returns nothing
 	if i == null then
 		set i = GetPlayerId(user) + 1
 	endif
-	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffFB4915Health: |r"+ RealToString(GetUnitState(Hero[i],UNIT_STATE_LIFE))+" / "+RealToString(BlzGetUnitMaxHP(Hero[i])) + " |cff6584edMana: |r" + RealToString(GetUnitState(Hero[i],UNIT_STATE_MANA))+" / "+RealToString(GetUnitState(Hero[i],UNIT_STATE_MAX_MANA)) )
-	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffff0b11Strength: |r" + RealToString(GetHeroStr( Hero[i], true)) + "|cff00ff40 Agility: |r" + RealToString(GetHeroAgi( Hero[i], true)) + "|cff0080ff Intelligence: |r"+ RealToString(GetHeroInt( Hero[i], true)) )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffFB4915Health: |r"+ RealToString(GetUnitState(Hero[i],UNIT_STATE_LIFE))+ " / " + RealToString(BlzGetUnitMaxHP(Hero[i])) + " |cff6584edMana: |r" + RealToString(GetUnitState(Hero[i],UNIT_STATE_MANA))+" / "+RealToString(GetUnitState(Hero[i],UNIT_STATE_MAX_MANA)))
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffff0b11Strength: |r" + RealToString(GetHeroStr(Hero[i], true)) + "|cff00ff40 Agility: |r" + RealToString(GetHeroAgi(Hero[i], true)) + "|cff0080ff Intelligence: |r"+ RealToString(GetHeroInt(Hero[i], true)))
 	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff800040Regeneration: |r" + RealToString(UnitGetBonus(PlayerSelectedUnit[i], BONUS_LIFE_REGEN)) + " health per second")
-	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff008080Evasion: |r"+ I2S(TotalEvasion[i]) + "%" )
-	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffff8040Physical Damage Taken: |r" + I2S(R2I(DmgTaken[i] * 100 + 0.5)) +"%" )
-	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff8000ffSpell Damage Taken: |r" + I2S(R2I(SpellTaken[i] * 100 + 0.5)) +"%" )
-	if HasShield[i] > 0 and HeroID[i] == HERO_ROYAL_GUARDIAN then
-		call DisplayTimedTextToPlayer(user, 0, 0, 30, "Shield: " + I2S(HasShield[i]) )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff008080Evasion: |r" + I2S(TotalEvasion[i]) + "%")
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffff8040Physical Damage Taken: |r" + R2S(DmgTaken[i] * 100)+ "%")
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff8000ffSpell Damage Taken: |r" + R2S(SpellTaken[i] * 100) + "%")
+	if ShieldCount[i] > 0 and HeroID[i] == HERO_ROYAL_GUARDIAN then
+		call DisplayTimedTextToPlayer(user, 0, 0, 30, "Shield: " + I2S(ShieldCount[i]))
 	endif
-	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff00ffffSpellboost: |r" + I2S(R2I(BoostValue[i] *100 + 0.5)) +"%" )
-	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffffcc00Gold Rate:|r +" + I2S(ItemGoldRate[i] + Gld_mod[i]) +"%" )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff00ffffSpellboost: |r" + R2S(BoostValue[i] * 100) + "%")
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cffffcc00Gold Rate:|r +" + I2S(ItemGoldRate[i] + Gld_mod[i]) + "%")
 	call ShowExpRate(user, i)
-	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808000Time Played: |r" + I2S(R2I(udg_TimePlayed[i] / 60.)) +" hours and "+ I2S(ModuloInteger(udg_TimePlayed[i], 60)) + " minutes" )
-	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808000Prestige Level: |r"+I2S(LoadInteger(PrestigeRank,i,0)) )
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808000Time Played: |r" + I2S(R2I(udg_TimePlayed[i] / 60.)) + " hours and " + I2S(ModuloInteger(udg_TimePlayed[i], 60)) + " minutes")
+	call DisplayTimedTextToPlayer(user,0,0, 30, "|cff808000Prestige Level: |r" + I2S(PrestigeTable[i][0]))
 
 	set user = null
 endfunction
@@ -366,7 +246,7 @@ function ApplyHardmode takes nothing returns nothing
     
 	loop
 		exitwhen i > BOSS_TOTAL
-		if GetWidgetLife(Boss[i]) >= 0.406 and IsUnitType(Boss[i], UNIT_TYPE_DEAD) == false then
+		if UnitAlive(Boss[i]) then
 			call SetHeroStr(Boss[i], GetHeroStr(Boss[i], true) * 2, true)
 			call BlzSetUnitBaseDamage(Boss[i], BlzGetUnitBaseDamage(Boss[i], 0) * 2 + 1, 0)
 			call SetWidgetLife(Boss[i], GetWidgetLife(Boss[i]) + BlzGetUnitMaxHP(Boss[i]) * 0.5) //heal
@@ -489,13 +369,13 @@ function FleeCommand takes player currentPlayer returns nothing
     
 	if InStruggle[pid] or InColo[pid] then
 		set udg_Fleeing[pid]=true
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You will escape once the current wave is complete." )
-	elseif IsUnitInGroup(Hero[pid], AzazothPlayers) and GetWidgetLife(Boss[BOSS_AZAZOTH]) < 0.406 then
+		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You will escape once the current wave is complete.")
+	elseif IsUnitInGroup(Hero[pid], AzazothPlayers) and UnitAlive(Boss[BOSS_AZAZOTH]) == false then
 		call GroupRemoveUnit(AzazothPlayers, Hero[pid])
 		call SetCameraBoundsRectForPlayerEx(currentPlayer, gg_rct_Main_Map_Vision)
 		call PanCameraToTimedLocForPlayer(currentPlayer, TownCenter, 0)
 
-        if GetWidgetLife(Hero[pid]) >= 0.406 then
+        if UnitAlive(Hero[pid]) then
             call SetUnitPositionLoc(Hero[pid], TownCenter)
         elseif IsUnitHidden(HeroGrave[pid]) == false then
             call SetUnitPositionLoc(HeroGrave[pid], TownCenter)
@@ -529,41 +409,36 @@ function FleeCommand takes player currentPlayer returns nothing
             set U = U.next
         endloop
 	endif
-
-	call EnterWeather(Hero[pid])
-endfunction
-
-function ShowKillCount takes player p, integer q returns nothing
-	if KillQuest[q][StringHash("Count")] == KillQuest[q][StringHash("Goal")] then
-		call DisplayTimedTextToPlayer(p,0,0,10, KillQuest[q].string[StringHash("Name")] + ": |cff40ff40" + I2S(KillQuest[q][StringHash("Count")]) + "/" +I2S(KillQuest[q][StringHash("Goal")]) + "|r |cffffcc00LVL " + I2S(KillQuest[q][StringHash("Min")]) + "-" + I2S(KillQuest[q][StringHash("Max")]) )
-	else
-		call DisplayTimedTextToPlayer(p,0,0,10, KillQuest[q].string[StringHash("Name")] + ": " + I2S(KillQuest[q][StringHash("Count")]) + "/" + I2S(KillQuest[q][StringHash("Goal")]) + " |cffffcc00LVL " + I2S(KillQuest[q][StringHash("Min")]) + "-" + I2S(KillQuest[q][StringHash("Max")]) )
-	endif
 endfunction
 
 function DisplayQuestProgress takes player p returns nothing
-local integer i
-	if udg_Chaos_World_On then
-		set i=13
-		loop
-			exitwhen i>22
-			call ShowKillCount(p,i)
-			set i=i+1
-		endloop
-	else
-		set i=1
-		loop
-			exitwhen i>12
-			call ShowKillCount(p,i)
-			set i=i+1
-		endloop
+	local integer i = 0
+	local integer j = 0
+	local integer k = 0
+	local string s = ""
+
+	if ChaosMode then
+		set j = 1
 	endif
+
+	loop
+		set k = KillQuest[j][i]
+		exitwhen k == 0
+			set s = ""
+
+			if KillQuest[k][KILLQUEST_COUNT] == KillQuest[k][KILLQUEST_GOAL] then
+				set s = "|cff40ff40"
+			endif
+
+			call DisplayTimedTextToPlayer(p,0,0,10, KillQuest[k].string[KILLQUEST_NAME] + ": " + s + I2S(KillQuest[k][KILLQUEST_COUNT]) + "/" + I2S(KillQuest[k][KILLQUEST_GOAL]) + "|r |cffffcc00LVL " + I2S(KillQuest[k][KILLQUEST_MIN]) + "-" + I2S(KillQuest[k][KILLQUEST_MAX]))
+		set i = i + 1
+	endloop
 endfunction
 
 function MainRepick takes player p returns nothing
     local integer pid = GetPlayerId(p) + 1
 
-    if HeroID[pid] == 0 or IsUnitPaused(Hero[pid]) or GetUnitTypeId(Hero[pid]) == 0 or GetWidgetLife(Hero[pid]) < 0.406 or udg_DashDistance[pid] > 0 then
+    if HeroID[pid] == 0 or IsUnitPaused(Hero[pid]) or GetUnitTypeId(Hero[pid]) == 0 or UnitAlive(Hero[pid]) == false or udg_DashDistance[pid] > 0 then
         call DisplayTextToPlayer(p, 0, 0, "You can't repick right now.")
         return
     elseif RectContainsUnit(gg_rct_Tavern, Hero[pid]) or RectContainsUnit(gg_rct_NoSin, Hero[pid]) or RectContainsUnit(gg_rct_Church, Hero[pid]) then
@@ -574,20 +449,20 @@ function MainRepick takes player p returns nothing
     endif
     
     call TimerStart(SaveTimer[pid], 1, false, null)
-    call SharedRepick(p)
+    call PlayerCleanup(p)
 	call SpawnWispSelector(p)
 endfunction
 
 function PrestigeStats takes player p, integer pid returns nothing
-	call DisplayTimedTextToPlayer(p,0,0, 30.00, "\nPrestige Level: " + I2S(LoadInteger(PrestigeRank,pid,0)) )
-	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Physical Damage Bonus: " + I2S(Dmg_mod[pid])+"%" )
-	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Damage Taken Multipier: " + I2S(R2I(DR_mod[pid]*100.))+"%" )
-	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Strength Bonus: " + I2S(Str_mod[pid])+"%" )
-	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Agility Bonus: " + I2S(Agi_mod[pid])+"%" )
-	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Intelligence Bonus: " + I2S(Int_mod[pid])+"%" )
-	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Spellboost Bonus: " + I2S(Spl_mod[pid])+"%" )
-	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Health Regeneration Bonus: " + I2S(Reg_mod[pid])+"%" )
-	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Gold Rate Bonus: " + I2S(Gld_mod[pid])+"%" )
+	call DisplayTimedTextToPlayer(p,0,0, 30.00, "\nPrestige Level: " + I2S(PrestigeTable[pid][0]))
+	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Physical Damage Bonus: " + I2S(Dmg_mod[pid])+"%")
+	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Damage Taken Multipier: " + I2S(R2I(DR_mod[pid]*100.))+"%")
+	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Strength Bonus: " + I2S(Str_mod[pid])+"%")
+	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Agility Bonus: " + I2S(Agi_mod[pid])+"%")
+	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Intelligence Bonus: " + I2S(Int_mod[pid])+"%")
+	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Spellboost Bonus: " + I2S(Spl_mod[pid])+"%")
+	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Health Regeneration Bonus: " + I2S(Reg_mod[pid])+"%")
+	call DisplayTimedTextToPlayer(p,0,0, 30.00, "Gold Rate Bonus: " + I2S(Gld_mod[pid])+"%")
 endfunction
 
 function DestroyRB takes nothing returns nothing
@@ -648,7 +523,7 @@ function CustomCommands takes nothing returns nothing
 		call KillUnit(Hero[pid])
 
 	elseif (playerChatString == "-revive") or (playerChatString == "-rv") then
-		if IsUnitHidden(HeroGrave[pid]) == false or GetWidgetLife(Hero[pid]) >= 0.406 then
+		if IsUnitHidden(HeroGrave[pid]) == false or UnitAlive(Hero[pid]) then
 			call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 10, "Unable to revive because your hero isn't dead.")
 		else
 			call TimerList[pid].stopAllTimersWithTag('dead')
@@ -660,61 +535,19 @@ function CustomCommands takes nothing returns nothing
 			call ChargeNetworth(currentPlayer, 0, 0.01, 50 * GetHeroLevel(Hero[pid]), "Revived instantly for")
 		endif
 
-	elseif (SubString(playerChatString,0,5) == "-give") then
-		if givecd[pid] then
-			call DisplayTextToPlayer(currentPlayer, 0, 0, "You must wait 25 seconds before sending more!")
-		else
-			call GiveSystem(currentPlayer)
-		endif
-
 	elseif (playerChatString == "-proficiency") or (playerChatString == "-pf") then
-			call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "|cffffcc00ARMOR:|r")
-			if udg_HeroCanUsePlate[pid] then
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Plate - |c0000ff33Y|r")
+		set i = 1
+		loop
+			exitwhen i > 10
+
+			if BlzBitAnd(HERO_PROF[pid], PROF[i]) == 0 then
+				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, TYPE_NAME[i] + " - |cffFF0909X|r")
 			else
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Plate - |c00FF0909X|r")
+				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, TYPE_NAME[i] + " - |cff00ff33Y|r")
 			endif
-			if udg_HeroCanUseFullPlate[pid] then
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Fullplate - |c0000ff33Y|r")
-			else
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Fullplate - |c00FF0909X|r")
-			endif
-			if udg_HeroCanUseLeather[pid] then
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Leather - |c0000ff33Y|r")
-			else
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Leather - |c00FF0909X|r")
-			endif
-			if udg_HeroCanUseCloth[pid] then
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Cloth - |c0000ff33Y|r")
-			else
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Cloth - |c00FF0909X|r")
-			endif
-			call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "|cffffcc00WEAPON:|r")
-			if udg_HeroCanUseHeavy[pid] then
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Heavy - |c0000ff33Y|r")
-			else
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Heavy - |c00FF0909X|r")
-			endif
-			if udg_HeroCanUseShortSword[pid] then
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Short Sword - |c0000ff33Y|r")
-			else
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Short Sword - |c00FF0909X|r")
-			endif
-			if udg_HeroCanUseDagger[pid] then
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Dagger - |c0000ff33Y|r")
-			else
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Dagger - |c00FF0909X|r")
-			endif
-			if udg_HeroCanUseBow[pid] then
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Bow - |c0000ff33Y|r")
-			else
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Bow - |c00FF0909X|r")
-			endif
-			if udg_HeroCanUseStaff[pid] then
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Staff - |c0000ff33Y|r")
-			else
-				call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30, "Staff - |c00FF0909X|r")
-			endif
+
+			set i = i + 1
+		endloop
 
 	elseif (SubString(playerChatString,0,6) == "-stats") then
 		call StatsInfo(currentPlayer, S2I(SubString(playerChatString,7,8)))
@@ -748,56 +581,56 @@ function CustomCommands takes nothing returns nothing
 		endif
 
 		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, GetUnitName(PlayerSelectedUnit[pid])) 
-		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "Level: " + I2S(GetUnitLevel(PlayerSelectedUnit[pid])) )
-		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "Health: " + RealToString(GetWidgetLife(PlayerSelectedUnit[pid]))+ " / " + RealToString(BlzGetUnitMaxHP(PlayerSelectedUnit[pid])) )
-		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "|cffffcc00Attack Speed: |r" + R2S(atkspeed) + " attacks per second" )
-		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "|cff800040Regeneration: |r" + R2S(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) + " health per second" )
+		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "Level: " + I2S(GetUnitLevel(PlayerSelectedUnit[pid])))
+		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "Health: " + RealToString(GetWidgetLife(PlayerSelectedUnit[pid]))+ " / " + RealToString(BlzGetUnitMaxHP(PlayerSelectedUnit[pid])))
+		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "|cffffcc00Attack Speed: |r" + R2S(atkspeed) + " attacks per second")
+		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "|cff800040Regeneration: |r" + R2S(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) + " health per second")
 		call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 20, "Movespeed: "+ RealToString(GetUnitMoveSpeed(PlayerSelectedUnit[pid])))
 	
 	elseif (playerChatString == "-pcoins") then
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, PlatTag + I2S(udg_Plat_Gold[pid]))
+		call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, PlatTag + I2S(GetCurrency(pid, PLATINUM)))
 		
 	elseif (playerChatString == "-awood") then
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, ArcTag + I2S(udg_Arca_Wood[pid]))
+		call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, ArcTag + I2S(GetCurrency(pid, ARCADITE)))
 		
 	elseif (playerChatString == "-p") then
-		if udg_Plat_Gold[pid]>0 then
-			call AddPlatinumCoin(pid, -1)
-			call SetPlayerState(currentPlayer, PLAYER_STATE_RESOURCE_GOLD, GetPlayerState(currentPlayer,PLAYER_STATE_RESOURCE_GOLD)+1000000)
-			call DisplayTimedTextToPlayer( currentPlayer,0,0, 10, PlatTag + I2S(udg_Plat_Gold[pid]) )
+		if GetCurrency(pid, PLATINUM) > 0 then
+			call AddCurrency(pid, PLATINUM, -1)
+			call AddCurrency(pid, GOLD, 1000000)
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, PlatTag + I2S(GetCurrency(pid, PLATINUM)))
 		else
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You need 1 Platinum Coin to buy this" )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You need 1 Platinum Coin to buy this")
 		endif
 		
 	elseif (playerChatString == "-a") then
-		if udg_Arca_Wood[pid]>0 then
-			call AddArcaditeLumber(pid, -1)
-			call SetPlayerState(currentPlayer, PLAYER_STATE_RESOURCE_LUMBER, GetPlayerState(currentPlayer,PLAYER_STATE_RESOURCE_LUMBER)+1000000)
-			call DisplayTimedTextToPlayer( currentPlayer,0,0, 10, ArcTag + I2S(udg_Arca_Wood[pid]) )
+		if GetCurrency(pid, ARCADITE) > 0 then
+			call AddCurrency(pid, ARCADITE, -1)
+			call AddCurrency(pid, LUMBER, 1000000)
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, ArcTag + I2S(GetCurrency(pid, ARCADITE)))
 		else
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You need 1 Arcadite Lumber to buy this" )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You need 1 Arcadite Lumber to buy this")
 		endif
 		
 	elseif (playerChatString == "-bppc") then
 		if udg_PlatConverterBought[pid] then
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You already purchased this." )
-		elseif udg_Plat_Gold[pid]<2 then
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You need 2 Platinum Coins to buy this" )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You already purchased this.")
+		elseif GetCurrency(pid, PLATINUM) < 2 then
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You need 2 Platinum Coins to buy this")
 		else
-			call AddPlatinumCoin(pid, -2)
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "Bought Portable Platinum Coin Converter." )
+			call AddCurrency(pid, PLATINUM, -2)
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "Bought Portable Platinum Coin Converter.")
 			set udg_PlatConverter[pid]= true
 			set udg_PlatConverterBought[pid]= true
 		endif
 		
 	elseif (playerChatString == "-bpac") then
 		if udg_ArcaConverterBought[pid] then
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You already purchased this." )
-		elseif udg_Arca_Wood[pid]<2 then
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You need 2 Arcadite Lumber to buy this" )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You already purchased this.")
+		elseif GetCurrency(pid, ARCADITE)<2 then
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "You need 2 Arcadite Lumber to buy this")
 		else
-			call AddArcaditeLumber(pid, -2)
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "Bought Arcadite Lumber Converter." )
+			call AddCurrency(pid, ARCADITE, -2)
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, "Bought Arcadite Lumber Converter.")
 			set udg_ArcaConverter[pid]= true
 			set udg_ArcaConverterBought[pid]= true
 		endif
@@ -805,29 +638,29 @@ function CustomCommands takes nothing returns nothing
 	elseif SubString(playerChatString,0,3)=="-pa" or playerChatString=="-cash" then
 		set i = S2I(SubString(playerChatString, StringLength(playerChatString) - 1, StringLength(playerChatString)))
 		if i > 0 then
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, PlatTag + I2S(udg_Plat_Gold[i]) )
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, ArcTag + I2S(udg_Arca_Wood[i]) )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, PlatTag + I2S(GetCurrency(i, PLATINUM)))
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, ArcTag + I2S(GetCurrency(i, ARCADITE)))
 		else
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, PlatTag + I2S(udg_Plat_Gold[pid]) )
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, ArcTag + I2S(udg_Arca_Wood[pid]) )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, PlatTag + I2S(GetCurrency(pid, PLATINUM)))
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, ArcTag + I2S(GetCurrency(pid, ARCADITE)))
 		endif
 		
 	elseif (playerChatString == "-xp") then
 		call ShowExpRate(currentPlayer, pid)
 		
 	elseif (playerChatString == "-ms") then
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "Movespeed: "+ I2S(Movespeed[pid]) )
+		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "Movespeed: "+ I2S(Movespeed[pid]))
 
 	elseif (playerChatString == "-as") then
 		set atkspeed = 1 / BlzGetUnitAttackCooldown(Hero[pid], 0)
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "|cffffcc00Base Attack Speed: |r" + R2S(atkspeed) +" attacks per second" )
+		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "|cffffcc00Base Attack Speed: |r" + R2S(atkspeed) +" attacks per second")
 
 		set atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(Hero[pid], true), 400) * 0.01)
 		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "|cffffcc00Total Attack Speed: |r" + R2S(atkspeed) + " attacks per second.")
     elseif (playerChatString == "-speed") then
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "Movespeed: "+ I2S(Movespeed[pid]) )
+		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "Movespeed: "+ I2S(Movespeed[pid]))
 		set atkspeed = 1. / BlzGetUnitAttackCooldown(Hero[pid], 0)
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "|cffffcc00Base Attack Speed: |r" + R2S(atkspeed) +" attacks per second" )
+		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "|cffffcc00Base Attack Speed: |r" + R2S(atkspeed) +" attacks per second")
 
 		set atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(Hero[pid], true), 400) * 0.01)
 		call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "|cffffcc00Total Attack Speed: |r" + R2S(atkspeed) + " attacks per second.")
@@ -841,9 +674,9 @@ function CustomCommands takes nothing returns nothing
 	elseif (SubString(playerChatString,0,4) == "-cam") then
 		if SubString(playerChatString, StringLength(playerChatString) - 1, StringLength(playerChatString)) == "l" or SubString(playerChatString, StringLength(playerChatString) - 1, StringLength(playerChatString)) == "L" then
 			set CameraLock[pid] = true
-			set i=S2I(SubString(playerChatString,5, StringLength(playerChatString) - 1))
+			set i =S2I(SubString(playerChatString,5, StringLength(playerChatString) - 1))
 		else
-			set i=S2I(SubString(playerChatString,5, StringLength(playerChatString)))
+			set i =S2I(SubString(playerChatString,5, StringLength(playerChatString)))
 		endif
 		
 		if i > 3000 then
@@ -852,7 +685,7 @@ function CustomCommands takes nothing returns nothing
 			set i = 100
 		endif
 		
-		call SetCameraFieldForPlayer(currentPlayer, CAMERA_FIELD_TARGET_DISTANCE, i, 0 )
+		call SetCameraFieldForPlayer(currentPlayer, CAMERA_FIELD_TARGET_DISTANCE, i, 0)
 		set udg_Zoom[pid] = i
 
 	elseif (SubString(playerChatString,0,3) == "-aa") then
@@ -867,7 +700,7 @@ function CustomCommands takes nothing returns nothing
 		endif
 
 	elseif (SubString(playerChatString,0,3) == "-zm") then
-		call SetCameraFieldForPlayer(currentPlayer, CAMERA_FIELD_TARGET_DISTANCE, 2500, 0 )
+		call SetCameraFieldForPlayer(currentPlayer, CAMERA_FIELD_TARGET_DISTANCE, 2500, 0)
 		set udg_Zoom[pid] = 2500
 		if SubString(playerChatString, StringLength(playerChatString) - 1, StringLength(playerChatString)) == "l" or SubString(playerChatString, StringLength(playerChatString) - 1, StringLength(playerChatString)) == "L" then
 			set CameraLock[pid] = true
@@ -886,7 +719,7 @@ function CustomCommands takes nothing returns nothing
         call DisplayTimedTextToPlayer(currentPlayer,0,0,30, "Upgrade item prices have been moved to \"Item Info\" (hotkey Z + E on your hero).")
 
 	elseif (SubString(playerChatString,0,5) == "-info") then
-		call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, infostring[S2I(SubString(playerChatString,6,8))] )
+		call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, infoString[S2I(SubString(playerChatString,6,8))])
         
     elseif (playerChatString == "-unstuck") then
         call CinematicModeBJ(true, FORCE_PLAYING)
@@ -908,10 +741,10 @@ function CustomCommands takes nothing returns nothing
 		endif
         
     elseif (SubString(playerChatString, 0, 5) == "-save") then
-        if GetWidgetLife(Hero[pid]) < 0.406 then
+        if UnitAlive(Hero[pid]) == false then
             call DisplayTextToPlayer(currentPlayer, 0, 0, "You cannot do this while dead!")
         elseif TimerGetRemaining(SaveTimer[pid]) > 1 and udg_Hardcore[pid] then
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, RemainingTimeString(SaveTimer[pid]) + " until you can save again." )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 20, RemainingTimeString(SaveTimer[pid]) + " until you can save again.")
         elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) == false and udg_Hardcore[pid] then
             call DisplayTimedTextToPlayer(currentPlayer,0,0, 30, "|cffFF0000You're playing in hardcore mode, you may only save inside the church in town.|r")
 		else
@@ -929,7 +762,7 @@ function CustomCommands takes nothing returns nothing
         endif
 
 	elseif (playerChatString == "-forcesave") or (playerChatString == "-saveforce") then
-        if GetWidgetLife(Hero[pid]) < 0.406 then
+        if UnitAlive(Hero[pid]) == false then
             call DisplayTextToPlayer(currentPlayer, 0, 0, "You cannot do this while dead!")
         elseif InCombat(Hero[pid]) then
             call DisplayTextToPlayer(currentPlayer, 0, 0, "You cannot do this while in combat!")
@@ -955,7 +788,7 @@ function CustomCommands takes nothing returns nothing
     elseif (SubString(playerChatString, 1, StringLength(playerChatString)) == forceString[pid]) and forceSaving[pid] then
         call SaveForceRemove(currentPlayer)
 
-	elseif ( SubString(playerChatString, 0, 9) == "-HardMode" ) or ( SubString(playerChatString, 0, 9) == "-hardmode" ) then
+	elseif (SubString(playerChatString, 0, 9) == "-HardMode") or (SubString(playerChatString, 0, 9) == "-hardmode") then
 		if HardMode > 0 then
 			call DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 5, "|cffffcc00Hard mode is already active.|r")
 		else
@@ -964,7 +797,7 @@ function CustomCommands takes nothing returns nothing
 			endif
 		endif
 
-	elseif ( SubString(playerChatString, 0, 9) == "-votekick" ) then
+	elseif (SubString(playerChatString, 0, 9) == "-votekick") then
 		if VOTING_TYPE == 0 and User.AmountPlaying > 2 then
 			call DialogClear(votekickpanel[pid])
 			
@@ -983,7 +816,7 @@ function CustomCommands takes nothing returns nothing
 		endif
 
 	elseif (playerChatString == "-repick") then
-        if Profiles[pid].getSlotsUsed() >= 30 then
+        if Profile[pid].getSlotsUsed() >= 30 then
             call DisplayTimedTextToPlayer(currentPlayer, 0, 0, 30.0, "You cannot save more than 30 heroes!")
         else
 			call MainRepick(currentPlayer)
@@ -998,36 +831,36 @@ function CustomCommands takes nothing returns nothing
 	elseif (playerChatString == "-pcoff") or (playerChatString == "-platinum converter off") then
 		if udg_PlatConverterBought[pid] then
 			set udg_PlatConverter[pid]= false
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "Platinum converter off." )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "Platinum converter off.")
 		else
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You have not bought a Platinum Converter." )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You have not bought a Platinum Converter.")
 		endif
         
     elseif playerChatString == "-newprofile" or playerChatString == "-new profile" then
-        call OnNewProfile(currentPlayer)
+        call NewProfile(pid)
 
 	elseif (playerChatString == "-pcon") or (playerChatString == "-platinum converter on") then
 		if udg_PlatConverterBought[pid] then
 			set udg_PlatConverter[pid]= true
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "Platinum converter on." )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "Platinum converter on.")
 		else
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You have not bought a Platinum Converter." )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You have not bought a Platinum Converter.")
 		endif
 		
 	elseif (playerChatString == "-acoff") or (playerChatString == "-arcadite converter off") then
 		if udg_ArcaConverterBought[pid] then
 			set udg_ArcaConverter[pid]= false
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "arcadite converter off." )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "arcadite converter off.")
 		else
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You have not bought an Arcadite Converter." )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You have not bought an Arcadite Converter.")
 		endif
 		
 	elseif (playerChatString == "-acon") or (playerChatString == "-arcadite converter on") then
 		if udg_ArcaConverterBought[pid] then
 			set udg_ArcaConverter[pid]= true
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "arcadite converter on." )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "arcadite converter on.")
 		else
-			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You have not bought an Arcadite Converter." )
+			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "You have not bought an Arcadite Converter.")
 		endif
 
 	elseif (playerChatString == "-q") or (playerChatString == "-quests") then
@@ -1054,14 +887,6 @@ function CustomCommands takes nothing returns nothing
 			call ForceAddPlayer(hintplayers, currentPlayer)
 			call DisplayTimedTextToPlayer(currentPlayer,0,0, 10, "Hints turned on.")
 		endif
-
-	elseif (playerChatString == "-deleteallmymoney") then
-        call SetPlayerGold( currentPlayer, 0)
-        call SetPlayerLumber( currentPlayer, 0)
-		call AddPlatinumCoin(pid, -udg_Plat_Gold[pid])
-		call AddArcaditeLumber(pid, -udg_Arca_Wood[pid])
-		call AddCrystals(pid, -udg_Crystals[pid])
-		set udg_TimePlayed[pid] = 0
 	endif
 
 	call DestroyGroup(ug)
@@ -1073,22 +898,17 @@ endfunction
 //===========================================================================
 function CommandsInit takes nothing returns nothing
     local trigger commands = CreateTrigger()
-    local trigger give = CreateTrigger()
     local User u = User.first
 	
 	loop
 		exitwhen u == User.NULL
-        set GiveDialog[GetPlayerId(u.toPlayer()) + 1] = DialogCreate()
-        call TriggerRegisterDialogEvent(give, GiveDialog[GetPlayerId(u.toPlayer()) + 1])
 		call TriggerRegisterPlayerChatEvent(commands, u.toPlayer(), "-", false)
 		set u = u.next
 	endloop
 
 	call TriggerAddAction(commands, function CustomCommands)
-    call TriggerAddAction(give, function GiveClick)
     
     set commands = null
-    set give = null
 endfunction
 
 endlibrary
