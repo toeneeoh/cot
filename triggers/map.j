@@ -1,3 +1,5 @@
+native UnitAlive takes unit id returns boolean
+
 //! inject main
     call SetCameraBounds(- 30208.0 + GetCameraMargin(CAMERA_MARGIN_LEFT), - 30720.0 + GetCameraMargin(CAMERA_MARGIN_BOTTOM), 31232.0 - GetCameraMargin(CAMERA_MARGIN_RIGHT), 30720.0 - GetCameraMargin(CAMERA_MARGIN_TOP), - 30208.0 + GetCameraMargin(CAMERA_MARGIN_LEFT), 30720.0 - GetCameraMargin(CAMERA_MARGIN_TOP), 31232.0 - GetCameraMargin(CAMERA_MARGIN_RIGHT), - 30720.0 + GetCameraMargin(CAMERA_MARGIN_BOTTOM))
     call SetDayNightModels("Environment\\DNC\\DNCLordaeron\\DNCLordaeronTerrain\\DNCLordaeronTerrain.mdl", "Environment\\DNC\\DNCLordaeron\\DNCLordaeronUnit\\DNCLordaeronUnit.mdl")
@@ -47,7 +49,7 @@
 //! endinject
 
 function Initialize takes nothing returns nothing
-    call ReleaseTimer(GetExpiredTimer())
+    call DestroyTimer(GetExpiredTimer())
     call BlzChangeMinimapTerrainTex("MiniMap.dds")
     call SetCameraBoundsToRect(gg_rct_Tavern_Vision)
     call PanCameraToTimed(21645, 3430, 0)
@@ -64,11 +66,12 @@ function Initialize takes nothing returns nothing
     call TrainInit()
     call CustomUISetup()
     call PlayerDataSetup() 
+    call SpellsInit()
+    call HeroSelectInit()
+    call ItemInit()
     call UnitSetup()
     call CreateMB()
     call AshenVatInit()
-    call ItemInit()
-    call SpellsInit()
     call DeathInit()
     call BaseInit()
     call OrdersInit()
@@ -81,10 +84,9 @@ function Initialize takes nothing returns nothing
     call VisibilityInit()
     call SpawnCreeps(0)
     call MouseInit()
+    call KeyboardInit()
     call RegionsInit()
     call TimerInit()
-    call SaveHelperInit()
-    call HeroSelectInit()
     call CommandsInit()
     call CodelessSaveLoadInit()
 
@@ -92,12 +94,22 @@ function Initialize takes nothing returns nothing
 endfunction
 
 globals
+    string MAP_NAME                             = "CoT Nevermore"
+    integer SAVE_LOAD_VERSION                   = 1
+    integer TIME                                = 0
+
     constant integer PLAYER_CAP                 = 6
     constant integer MAX_LEVEL                  = 400
-    integer SAVE_LOAD_VERSION                   = 1
     constant integer LEECH_CONSTANT             = 50
     constant real CALL_FOR_HELP_RANGE           = 800.
     constant real NEARBY_BOSS_RANGE             = 2500.
+	constant integer PLAYER_TOWN                = 8
+	constant integer PLAYER_BOSS                = 11
+	constant integer FOE_ID                     = PLAYER_NEUTRAL_AGGRESSIVE + 1
+	constant integer BOSS_ID                    = PLAYER_BOSS + 1
+	constant integer TOWN_ID                    = PLAYER_TOWN + 1
+
+    //units
     constant integer DUMMY                      = 'e011'
     constant integer GRAVE                      = 'H01G'
     constant integer BACKPACK                   = 'H05D'
@@ -113,7 +125,7 @@ globals
     constant integer HERO_ASSASSIN              = 'E002'
     constant integer HERO_BARD                  = 'H00R'
     constant integer HERO_ARCANIST              = 'H029'
-    constant integer HERO_INFERNAL              = 'H02A'
+    constant integer HERO_OBLIVION_GUARD        = 'H02A'
     constant integer HERO_THUNDERBLADE          = 'O03J'
     constant integer HERO_BLOODZERKER           = 'H03N'
     constant integer HERO_MARKSMAN              = 'E008'
@@ -127,6 +139,28 @@ globals
     constant integer SUMMON_DESTROYER           = 'E014'
     constant integer SUMMON_HOUND               = 'H05F'
     constant integer SUMMON_GOLEM               = 'H05G'
+
+    //proficiencies
+    constant integer PROF_PLATE                 = 0x1
+    constant integer PROF_FULLPLATE             = 0x2
+    constant integer PROF_LEATHER               = 0x4
+    constant integer PROF_CLOTH                 = 0x8
+    constant integer PROF_SHIELD                = 0x10
+    constant integer PROF_HEAVY                 = 0x20
+    constant integer PROF_SWORD                 = 0x40
+    constant integer PROF_DAGGER                = 0x80
+    constant integer PROF_BOW                   = 0x100
+    constant integer PROF_STAFF                 = 0x200
+
+    //currency
+    constant integer GOLD                       = 0
+    constant integer LUMBER                     = 1
+    constant integer PLATINUM                   = 2
+    constant integer ARCADITE                   = 3
+    constant integer CRYSTAL                    = 4
+    constant integer CURRENCY_COUNT             = 5
+
+    //bosses
     constant integer BOSS_TAUREN                = 0
     constant integer BOSS_DEMON_PRINCE          = 0
     constant integer BOSS_MYSTIC                = 1
@@ -141,7 +175,7 @@ globals
     constant integer BOSS_LEGION                = 5
     constant integer BOSS_DEATH_KNIGHT          = 6
     constant integer BOSS_THANATOS              = 6
-    constant integer BOSS_SIREN                 = 7
+    constant integer BOSS_VASHJ                 = 7
     constant integer BOSS_EXISTENCE             = 7
     constant integer BOSS_YETI                  = 8
     constant integer BOSS_AZAZOTH               = 8
@@ -153,8 +187,55 @@ globals
     constant integer BOSS_HATE                  = 13
     constant integer BOSS_LOVE                  = 14
     constant integer BOSS_KNOWLEDGE             = 15
-    integer BOSS_TOTAL                          = 15
-    constant string CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    constant integer BASE = StringLength(CHARS)
-    integer TIME = 0
+    constant integer BOSS_GODSLAYER             = 16
+    integer BOSS_TOTAL                          = 16
+
+    //items
+    constant integer MAX_REINCARNATION_CHARGES  = 3
+    constant integer BOUNDS_OFFSET              = 50 //leaves room for 50 different values per stat? (overkill?)
+    constant integer ABILITY_OFFSET             = 100
+    constant integer QUALITY_SAVED              = 7
+    constant integer ITEM_TOOLTIP               = 0
+    constant integer ITEM_TIER                  = 1
+    constant integer ITEM_TYPE                  = 2
+    constant integer ITEM_UPGRADE_MAX           = 3
+    constant integer ITEM_LEVEL_REQUIREMENT     = 4
+    constant integer ITEM_HEALTH                = 5
+    constant integer ITEM_MANA                  = 6
+    constant integer ITEM_DAMAGE                = 7
+    constant integer ITEM_ARMOR                 = 8
+    constant integer ITEM_STRENGTH              = 9
+    constant integer ITEM_AGILITY               = 10
+    constant integer ITEM_INTELLIGENCE          = 11
+    constant integer ITEM_REGENERATION          = 12
+    constant integer ITEM_DAMAGE_RESIST         = 13
+    constant integer ITEM_MAGIC_RESIST          = 14
+    constant integer ITEM_MOVESPEED             = 15
+    constant integer ITEM_EVASION               = 16
+    constant integer ITEM_SPELLBOOST            = 17
+    constant integer ITEM_CRIT_CHANCE           = 18
+    constant integer ITEM_CRIT_DAMAGE           = 19
+    constant integer ITEM_BASE_ATTACK_SPEED     = 20
+    constant integer ITEM_GOLD_GAIN             = 21
+    constant integer ITEM_ABILITY               = 22
+    constant integer ITEM_ABILITY2              = 23
+    constant integer ITEM_STAT_TOTAL            = 23
+    //hidden
+    constant integer ITEM_LIMIT                 = 24
+    constant integer ITEM_COST                  = 25
+    constant integer ITEM_DISCOUNT              = 26
+
+    //quests
+    constant integer KILLQUEST_NAME             = 0
+    constant integer KILLQUEST_COUNT            = 1
+    constant integer KILLQUEST_GOAL             = 2
+    constant integer KILLQUEST_MIN              = 3
+    constant integer KILLQUEST_MAX              = 4
+    constant integer KILLQUEST_REGION           = 5
+    constant integer KILLQUEST_LAST             = 6
+    constant integer KILLQUEST_STATUS           = 7
+
+    //unit data
+    constant integer UNITDATA_COUNT             = 0
+    constant integer UNITDATA_SPAWN             = 1
 endglobals
