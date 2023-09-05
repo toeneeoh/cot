@@ -26,7 +26,7 @@ library Bonus initializer init
         elseif BonusIsReal(bonus) then
             return BlzGetAbilityRealLevelField(BlzGetUnitAbility(u, BONUS_ABIL[bonus]), BONUS_RFIELD[bonus], 0)
         else
-            return I2R(BlzGetAbilityIntegerLevelField(BlzGetUnitAbility(u, BONUS_ABIL[bonus]), BONUS_IFIELD[bonus], 0))
+            return BlzGetAbilityIntegerLevelField(BlzGetUnitAbility(u, BONUS_ABIL[bonus]), BONUS_IFIELD[bonus], 0) * 1.
         endif
     endfunction
 
