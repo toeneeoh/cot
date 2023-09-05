@@ -1,98 +1,87 @@
-library JassVariables initializer JassVariablesInit requires Functions, Donator
+library JassVariables requires Functions, Table
 
 globals
+    string abc = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    string array forceString
+	string array infoString
+	string array ShopkeeperDirection
+	string array IS_HD
+	string array CURRENCY_ICON
+
 	HashTable KillQuest
 	HashTable ItemData
 	HashTable UnitData
-	TableArray RestrictedItems
+	HashTable ItemRewards
+	HashTable ItemPrices
+	HashTable PrestigeTable
+
+    Table CrystalRewards
+
+    hashtable MiscHash = InitHashtable()
+    hashtable PlayerProf = InitHashtable()
+
+    timer strugglespawn = CreateTimer()
+
+    player pfoe = Player(PLAYER_NEUTRAL_AGGRESSIVE)
+	player pboss = Player(11)
+
+    effect array charLight
+
+    leaderboard RollBoard
+
+	dialog array dChooseReward
+
+	button array SpellButton
+
+    location array colospot
+
     unit array Hero
     unit array HeroGrave
 	unit array Backpack
-    integer array HeroID
-	integer array priceindex
-	string array infostring
-    group tempgroup = CreateGroup()
-	dialog array dChooseReward
-	dialog array dUpgradeSpell
-	button array SpellButton
-	hashtable RewardItems = InitHashtable()
-	integer array prMulti
-	boolean array MultiShot
-    integer array UpItem
-    integer array UpDiscountItem
-    integer array UpItemBecomes
-    integer array UpItemCostPlat
-    integer array UpItemCostArc
-    integer array UpItemCostCrys
-    real array UpgradeCostFactor
-    integer array upPcost
-    integer array upLcost
-    integer array upCcost
+
+    integer afkInt = 0
+    integer HardMode = 0
     integer cfactor = 2
-    hashtable PrestigeRank = InitHashtable()
+    integer array HeroID
+	integer array Currency
+	integer array prMulti
 	integer array Dmg_mod
-	real array DR_mod
 	integer array Str_mod
 	integer array Agi_mod
 	integer array Int_mod
 	integer array Spl_mod
 	integer array Gld_mod
 	integer array Reg_mod
-    string abc= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    rect array shopreg
-	string array restricted_string
-    location array colospot
-    integer foe = PLAYER_NEUTRAL_AGGRESSIVE
-	integer boss = 11
-	integer foeid = foe + 1
-	integer bossid = boss + 1
-    player pfoe = Player(PLAYER_NEUTRAL_AGGRESSIVE)
-	player pboss = Player(11)
-    group tg
-    integer array Plevel
-    integer array Plevelgap
-    integer array Pstr
-    integer array Pagi
-    integer array Pint
-    integer array Ptime
-    integer array Ptimeh
     integer array TotalEvasion
     integer array BonusEvasion
     integer array ItemRegen
+    integer array ShieldCount
+    integer array RollChecks
+    integer array HuntedLevel
+    integer array Movespeed
+    integer array charLightId	
+	integer array CustomLighting
+
+	real array DR_mod
     real array TotalRegen
+    real array SpellRegen
     real array BoostValue
     real array DealtDmgBase
     real array DmgBase
     real array DmgTaken
     real array SpellTakenBase
     real array SpellTaken
-    integer array HasShield
-    unit DamageSource
-    hashtable MiscHash = InitHashtable()
-    hashtable PlayerProf = InitHashtable()
-    integer HardMode = 0
-    boolean array BossSpellCD
-    boolean ForcedRevive = false
-    leaderboard RollBoard
-    integer array RollChecks
-    boolean CWLoading = false
-    integer array statpoints
-    boolean array CameraLock
-    integer afkInt = 1000
-    timer strugglespawn = CreateTimer()
-    effect array charLight
-    integer array charLightId	
-	integer array CustomLighting
-    string array forceString
-    boolean array forceSaving
-    integer array HuntedLevel
-    group SummonGroup = CreateGroup()
-    integer array Movespeed
-    integer array HealthBonus
-	string array ShopkeeperDirection
 
-	integer RESTRICTED_ITEMS_MAX
-	integer RESTRICTED_ERROR
+	boolean ChaosMode = false
+    boolean ForcedRevive = false
+    boolean CWLoading = false
+	boolean array MultiShot
+    boolean array BossSpellCD
+    boolean array CameraLock
+    boolean array forceSaving
+
+	real array BOOST
+	real array LBOOST
 endglobals
 
 function StruggleSetup takes nothing returns nothing
@@ -884,7 +873,7 @@ endfunction
 
 function HeadhunterQuestSetup takes nothing returns nothing
     set udg_HuntedRecipe[0] = 'I057'
-    set udg_HuntedHead[0] = 'gmfr'
+    set udg_HuntedHead[0] = 'I07J'
     set udg_HuntedItem[0] = 'I01B'
     set HuntedLevel[0] = 100
     set udg_HuntedExp[0] = 5000
@@ -894,7 +883,7 @@ function HeadhunterQuestSetup takes nothing returns nothing
     set HuntedLevel[1] = 50
     set udg_HuntedExp[1] = 4000
     set udg_HuntedRecipe[2] = 'I04A'
-    set udg_HuntedHead[2] = 'kybl'
+    set udg_HuntedHead[2] = 'I084'
     set udg_HuntedItem[2] = 'I03T'
     set HuntedLevel[2] = 75
     set udg_HuntedExp[2] = 5000
@@ -912,162 +901,11 @@ function HeadhunterQuestSetup takes nothing returns nothing
     set udg_PermanentInteger[10] = 4
 endfunction
 
-function ShieldTypes takes nothing returns nothing
-    set udg_ShieldType[0] = 'I038'
-    set udg_ShieldType[1] = 'frgd'
-    set udg_ShieldType[2] = 'I0FL'
-    set udg_ShieldType[3] = 'I03Y'
-    set udg_ShieldType[4] = 'I05D'
-    set udg_ShieldType[5] = 'I04W'
-    set udg_ShieldType[6] = 'I0C2'
-    set udg_ShieldType[7] = 'I0C4'
-    set udg_ShieldType[8] = 'I0MC'
-    set udg_ShieldType[9] = 'I0MB'
-    set udg_ShieldType[10] = 'I0BY'
-    set udg_ShieldType[11] = 'I0AP'
-    set udg_ShieldType[12] = 'I021'
-    set udg_ShieldType[13] = 'I03K'
-    set udg_ShieldType[14] = 'I01J'
-    set udg_ShieldType[15] = 'I02R'
-    set udg_ShieldType[16] = 'I01C'
-
-    set udg_PermanentInteger[11] = 16
-endfunction
-
-function ItemRestrictions takes nothing returns nothing
-	call IndexIdsToArray(RestrictedItems[0], "I0N4 I0N5 I0N6 I0OF")
-	set restricted_string[0] = "You can only wear one Bloody armor"
-
-	call IndexIdsToArray(RestrictedItems[1], "I03F I04S I020 I016 I0AK")
-	set restricted_string[1] = "You can only wear one Bloody weapon"
-
-	call IndexIdsToArray(RestrictedItems[2], "I05A I05Z I0D4 I06K I0EH I0EI I06L I0EJ I0EK ")
-	set restricted_string[2] = "You can only hold one Dark Soul"
-
-	call IndexIdsToArray(RestrictedItems[3], "I0AP I021 I03K")
-	set restricted_string[3] = "You can only hold one Dark Bulwark"
-
-	call IndexIdsToArray(RestrictedItems[4], "I05J I04O I07H I00R I00N I00O I00S I07J I07N")
-    set restricted_string[4] = "You can only hold one Satan's Ace"
-
-	call IndexIdsToArray(RestrictedItems[5], "I0BX I0OC I0OD")
-    set restricted_string[5] = "You can only hold one Satan's Heart"
-
-	call IndexIdsToArray(RestrictedItems[6], "I04E I062 I0EL I00P I0EM I0EN I00Q I06E I06F I06G I06H")
-	set restricted_string[6] = "A second set of wings won't help you fly better"
-	
-	call IndexIdsToArray(RestrictedItems[7], "I018 I0F0 I0EZ I06I I0F1 I0F2 I06J I0G1 I0G2")
-	set restricted_string[7] = "You can only wear one Ring of Existence"
-
-	call IndexIdsToArray(RestrictedItems[8], "I0NG I0NA I0NH I0NI")
-	set restricted_string[8] = "You can only wear one Absolute Horror armor"
-
-	call IndexIdsToArray(RestrictedItems[9], "I0NB I0NF I0ND I0NC I0NE")
-	set restricted_string[9] = "You can only wear one Absolute Horror weapon"
-
-	call IndexIdsToArray(RestrictedItems[10], "I0B5 I0JF I0JG I0JH I0JI I0JJ I0JK I0JL I0JM I0B7 I0HV I0HW I0HX I0HY I0HZ I0I0 
-I0I1 I0I2 I0B1 I0IZ I0J0 I0J1 I0J2 I0J3 I0J4 I0J5 I0J6 I0AZ I0I3 I0I4 I0I5 I0I6 I0I7 I0I8 I0I9 I0IA")
-	set restricted_string[10] = "You can only wear one Legion armor"
-
-	call IndexIdsToArray(RestrictedItems[11], "I0AS I0D9 I0DA I0HP I0HQ I0HR I0HS I0HT I0HU I04L I0J7 I0J8 I0J9 I0JA I0JB I0JC I0JD 
-I0JE I0AJ I0IJ I0IK I0IL I0IM I0IN I0IO I0IP I0IQ I0AV I0IB I0IC I0ID I0IE I0IF I0IG I0IH I0II I0AX I0IR I0IS I0IT I0IU I0IV I0IW I0IX I0IY")
-	set restricted_string[11] = "You can only wield one Legion weapon"
-
-	call IndexIdsToArray(RestrictedItems[12], "I0BS I0BV I0BK I0BI I0JW I0JX I0JY I0JZ I0K0 I0K1 I0K2 I0K3 I0K4 I0K5 I0K6 I0K7 I0K8 
-I0K9 I0KA I0KB I0KC I0KD I0KE I0KF I0KG I0KH I0KI I0KJ I0KK I0KL I0KM I0KN I0KO I0KP I0KQ I0KR")
-	set restricted_string[12] = "You can only wear one Azazoth armor"
-
-	call IndexIdsToArray(RestrictedItems[13], "I0BC I0BE I0BB I0B9 I0BG I0KS I0KT I0KU I0KV I0KW I0KX I0KY I0KZ I0L0 I0L1 I0L2 I0L3 I0L4 I0L5 
-I0L6 I0L7 I0L8 I0L9 I0LA I0LB I0LC I0LD I0LE I0LF I0LG I0LH I0LI I0LJ I0LK I0LL I0LM I0LN I0LO I0LP I0LQ I0LR I0LS I0LT I0LU I0LV")
-	set restricted_string[13] = "You can only wield one Azazoth weapon"
-
-	call IndexIdsToArray(RestrictedItems[14], "I06M I0LW I0LX")
-    set restricted_string[14] = "You can only equip one Azazoth sphere"
-
-	call IndexIdsToArray(RestrictedItems[15], "I0AE I04F I0AF I0AD I04X I056 I0AG I04X I056 I08X I08Y I090 I092 I094 I096 I099 I09A I02T I0OL I01R I0ON I0OO I0OM 
-I0AM I0BH I0BF I0OP I0OQ I0BD I0OT I0OS I0OR")
-	set restricted_string[15] = "You can only wield one Slaughterer weapon"
-
-	call IndexIdsToArray(RestrictedItems[16], "I0CH I01L I01N I0NT I0NP I0NQ I0NR I0NS I019 I0O1 I0O0 I0NZ I0NY I0O2 I0NX I0NV I0NU I0NW I0OB I0O9 I0O8 I0OA I0O4 I0O5 I0O7 I0O6 I0O3") 
-	set restricted_string[16] = "You can only hold one Forgotten item"
-
-	call IndexIdsToArray(RestrictedItems[17], "I033 I0BZ I02S I032 I065")
-	set restricted_string[17] = "You can only wield one Draconic weapon"
-
-	call IndexIdsToArray(RestrictedItems[18], "I02U I048 I064 I02P")
-	set restricted_string[18] = "You can only wear one Draconic armor"
-
-	call IndexIdsToArray(RestrictedItems[19], "I02N I072 I06Y I070 I071")
-	set restricted_string[19] = "You can only wield one Hydra weapon"
-
-	call IndexIdsToArray(RestrictedItems[20], "I0BN I0CT I0CK I0BO I0CU")
-	set restricted_string[20] = "You can only wear one Demon Set"
-
-	call IndexIdsToArray(RestrictedItems[21], "I0CW I0C1 I0C2 I0CX I0CV")
-	set restricted_string[21] = "You can only wear one Horror Set"
-
-	call IndexIdsToArray(RestrictedItems[22], "I0CZ I0BP I0BQ I0D3 I0CY")
-	set restricted_string[22] = "You can only wear one Despair Set"
-
-	call IndexIdsToArray(RestrictedItems[23], "I0C9 I0C8 I0C7 I0C6 I0C5")
-	set restricted_string[23] = "You can only wear one Abyssal Set"
-
-	call IndexIdsToArray(RestrictedItems[24], "I0D7 I0C4 I0C3 I0D5 I0D6")
-	set restricted_string[24] = "You can only wear one Void Set"
-
-	call IndexIdsToArray(RestrictedItems[25], "I0CB I0CA I0CD I0CE I0CF")
-	set restricted_string[25] = "You can only wear one Nightmare Set"
-
-	call IndexIdsToArray(RestrictedItems[26], "I0D8 I0BW I0BU I0DK I0DJ")
-	set restricted_string[26] = "You can only wear one Hell Set"
-
-	call IndexIdsToArray(RestrictedItems[27], "I0DX I0BT I0BR I0DL I0DY")
-	set restricted_string[27] = "You can only wear one Existence Set"
-
-	call IndexIdsToArray(RestrictedItems[28], "I0E0 I0BM I0DZ I059 I0E1")
-	set restricted_string[28] = "You can only wear one Astral Set"
-
-	call IndexIdsToArray(RestrictedItems[29], "I0CG I0FH I0CI I0FI I0FZ")
-	set restricted_string[29] = "You can only wear one Dimensional Set"
-
-	call IndexIdsToArray(RestrictedItems[30], "I0H5 I0H6 I0H7 I0H8 I0H9")
-	set restricted_string[30] = "You can only wear one Ursine Set"
-
-	call IndexIdsToArray(RestrictedItems[31], "I0HA I0HB I0HC I0HD I0HE")
-	set restricted_string[31] = "You can only wear one Ogre Set"
-
-	call IndexIdsToArray(RestrictedItems[32], "I0HF I0HG I0HH I0HI I0HJ")
-	set restricted_string[32] = "You can only wear one Unbroken Set"
-
-	call IndexIdsToArray(RestrictedItems[33], "I0HK I0HL I0HM I0HN I0HO")
-	set restricted_string[33] = "You can only wear one Magnataur Set"
-
-	call IndexIdsToArray(RestrictedItems[34], "I0MR I0JT I023")
-	set restricted_string[34] = "You only have two feet"
-
-	call IndexIdsToArray(RestrictedItems[35], "I01J I02R I01C")
-	set restricted_string[35] = "You can only wear one Chaos Shield"
-
-	call IndexIdsToArray(RestrictedItems[36], "I0AU I0NK I0NL")
-	set restricted_string[36] = "You can only wear one Legion Ring"
-
-	call IndexIdsToArray(RestrictedItems[37], "rnsp I0FB I03E I02I I036 I02C I02B I02O I0JR I02J I04B I029 I03P I0F9 I0C0 I0FX I03O I00B I01M I04C oli2 I043 
-I03X I03T I03Z I03Y I0FA I0FU I09D I046 I01T I0F8 I09F I074 I0EY I04N I0EX I0F4 I03U I0F3 I07F I0F5 I07B I0FC I079 I08K I00A I038 I02Z I031 I04I I030 
-I04J I00T I0D0 I03F I04S I020 I016 I0AK I050 I05X I061 I05Y I060 rde2 rde3 I0B8 I0B6 I0B4 I0BA pgin frgd I04Q I0NJ I01D I09L I03N 
-I01S I0FB I0BY I0OF I01X I03Q I0AI I0AH")
-	set restricted_string[37] = "You can only wear one of this item."
-
-    set RESTRICTED_ITEMS_MAX = 37
-endfunction
-
 function SetItemStats takes nothing returns nothing
 	//chaotic boss items
 
-    //prince heart
-	call SetTableData(ItemData, 'I04Q', "level 190")
-
 	//slaughter queen
-	call SetTableData(ItemData, 'I0AE', "level 270 damage 40000 str 10000 prof 6")
+	/*call SetTableData(ItemData, 'I0AE', "level 270 damage 40000 str 10000 prof 6")
 	call SetTableData(ItemData, 'I090', "level 280 damage 48000 str 11875 prof 6")
 	call SetTableData(ItemData, 'I092', "level 290 damage 56000 str 13750 prof 6")
 	call SetTableData(ItemData, 'I0BF', "level 300 damage 72000 str 17500 prof 6")
@@ -1146,7 +984,6 @@ function SetItemStats takes nothing returns nothing
 	call SetTableData(ItemData, 'I04O', "level 318 damage 63000 armor 1300 crit 10 chance 20")
 	call SetTableData(ItemData, 'I07H', "level 326 damage 75000 armor 1500 crit 10 chance 20")
 	call SetTableData(ItemData, 'I00R', "level 326 damage 87000 armor 1700 spellboost 5 crit 10 chance 30")
-	call SetTableData(ItemData, 'I00N', "level 334 damage 108000 armor 2200 spellboost 6 crit 10 chance 30")
 	call SetTableData(ItemData, 'I00O', "level 342 damage 130000 armor 2600 spellboost 7 crit 10 chance 30")
 	call SetTableData(ItemData, 'I00S', "level 350 damage 150000 armor 3000 spellboost 8 crit 10 chance 40")
 	call SetTableData(ItemData, 'I07J', "level 358 damage 188000 armor 3800 spellboost 9 crit 10 chance 40")
@@ -1289,7 +1126,7 @@ function SetItemStats takes nothing returns nothing
 	call SetTableData(ItemData, 'I0K2', "level 400 armor 25000 str 50000 regen 16500 mr 15 prof 1")
 	call SetTableData(ItemData, 'I0K3', "level 400 armor 30000 str 60000 regen 19000 mr 15 prof 1")
 
-	//full plate
+	//Fullplate
 	call SetTableData(ItemData, 'I0BV', "level 380 armor 8000 str 2000 regen 6000 mr 5 prof 2")
 	call SetTableData(ItemData, 'I0K4', "level 384 armor 10000 str 2500 regen 7500 mr 5 prof 2")
 	call SetTableData(ItemData, 'I0K5', "level 388 armor 12000 str 3000 regen 9000 mr 5 prof 2")
@@ -1415,25 +1252,6 @@ function SetItemStats takes nothing returns nothing
     call SetTableData(ItemData, 'I0O6', "level 395 agi 90000 mr 17 bat 17 spellboost 9 gold 95")
     call SetTableData(ItemData, 'I0O3', "level 400 agi 100000 mr 20 bat 20 spellboost 10 gold 100")
 
-	//misc
-	call SetTableData(ItemData, 'I0D0', "level 240 damage 40000 stats 5000 regen 1200 spellboost 10 gold 20") //struggle ring
-	call SetTableData(ItemData, 'I04Z', "level 270 damage 47000 armor 800 regen 800") //ore
-	call SetTableData(ItemData, 'I050', "level 275 damage 140000 armor 2000 stats 10000 regen 2000 spellboost 3") //necklace
-	call SetTableData(ItemData, 'I05U', "level 1337 armor 420000 regen 82000") //armor of sin
-	call SetTableData(ItemData, 'I014', "level 1337 damage 15000000") //weapon of sin
-	call SetTableData(ItemData, 'I0NN', "level 400") //prestige token
-
-	//demons
-	call SetTableData(ItemData, 'I073', "level 175 armor 350 str 600 regen 280 prof 1")
-	call SetTableData(ItemData, 'I075', "level 175 armor 560 str 40 regen 200 prof 2")
-	call SetTableData(ItemData, 'I06Z', "level 175 armor 350 agi 1000 prof 3")
-	call SetTableData(ItemData, 'I06W', "level 175 armor 280 int 1150 prof 4")
-	call SetTableData(ItemData, 'I04T', "level 175 damage 6000 str 1200 prof 6")
-	call SetTableData(ItemData, 'I06S', "level 175 damage 11000 prof 7")
-	call SetTableData(ItemData, 'I06U', "level 175 damage 5000 agi 2000 prof 8")
-	call SetTableData(ItemData, 'I06O', "level 175 damage 10400 agi 600 prof 9")
-	call SetTableData(ItemData, 'I06Q', "level 175 damage 2500 int 2200 prof 10")
-
     //demon prince
 	call SetTableData(ItemData, 'I03F', "level 190 damage 15800 str 4900 prof 6")
 	call SetTableData(ItemData, 'I04S', "level 190 damage 43000 prof 7")
@@ -1443,35 +1261,7 @@ function SetItemStats takes nothing returns nothing
 	call SetTableData(ItemData, 'I0N4', "level 190 armor 1000 str 2000 prof 5")
 	call SetTableData(ItemData, 'I0N5', "level 190 armor 800 str 750 agi 1500 prof 3")
 	call SetTableData(ItemData, 'I0N6', "level 190 armor 750 str 500 int 2500 prof 4")
-	call SetTableData(ItemData, 'I0OF', "level 190 damage 7000 armor 200 stats 1200 crit 4 chance 30" ) //demon golem fist
-
-	//horror
-	call SetTableData(ItemData, 'I07E', "level 200 armor 470 str 810 regen 380 prof 1")
-	call SetTableData(ItemData, 'I07I', "level 200 armor 760 str 50 regen 270 prof 2")
-	call SetTableData(ItemData, 'I07G', "level 200 armor 470 agi 1350 prof 3")
-	call SetTableData(ItemData, 'I07C', "level 200 armor 380 int 1550 prof 4")
-	call SetTableData(ItemData, 'I07A', "level 200 damage 8100 str 1620 prof 6")
-	call SetTableData(ItemData, 'I07M', "level 200 damage 14850 prof 7")
-	call SetTableData(ItemData, 'I07L', "level 200 damage 6750 agi 2700 prof 8")
-	call SetTableData(ItemData, 'I07P', "level 200 damage 14040 agi 810 prof 9")
-	call SetTableData(ItemData, 'I077', "level 200 damage 3380 int 2970 prof 10")
-
-	call SetTableData(ItemData, 'I07K', "level 200 regen 700")
-	call SetTableData(ItemData, 'I05D', "level 200 armor 470")
-
-	//despair
-	call SetTableData(ItemData, 'I087', "level 220 armor 640 str 1090 regen 510 prof 1")
-	call SetTableData(ItemData, 'I089', "level 220 armor 1020 str 70 regen 360 prof 2")
-	call SetTableData(ItemData, 'I083', "level 220 armor 640 agi 1820 prof 3")
-	call SetTableData(ItemData, 'I081', "level 220 armor 510 int 2100 prof 4")
-	call SetTableData(ItemData, 'I07X', "level 220 damage 10940 str 2190 prof 6")
-	call SetTableData(ItemData, 'I07V', "level 220 damage 20050 prof 7")
-	call SetTableData(ItemData, 'I07Z', "level 220 damage 9110 agi 3650 prof 8")
-	call SetTableData(ItemData, 'I07R', "level 220 damage 18950 agi 1090 prof 9")
-	call SetTableData(ItemData, 'I07T', "level 220 damage 4560 int 4010 prof 10")
-
-	call SetTableData(ItemData, 'I05O', "level 220 stats 2000")
-	call SetTableData(ItemData, 'I05P', "level 220 regen 1000")
+	call SetTableData(ItemData, 'I0OF', "level 190 damage 7000 armor 200 stats 1200 crit 4 chance 30") //demon golem fist
 
 	//absolute horror
 	call SetTableData(ItemData, 'I0NG', "level 230 armor 2200 str 5200 prof 1")
@@ -1482,2090 +1272,704 @@ function SetItemStats takes nothing returns nothing
 	call SetTableData(ItemData, 'I0NF', "level 230 damage 95000 str 5000 prof 7")
 	call SetTableData(ItemData, 'I0ND', "level 230 damage 36000 agi 24000 prof 8")
 	call SetTableData(ItemData, 'I0NC', "level 230 damage 78000 agi 11500 prof 9")
-	call SetTableData(ItemData, 'I0NE', "level 230 damage 26000 int 24000 prof 10")
-
-	//abyss
-	call SetTableData(ItemData, 'I09X', "level 240 armor 860 str 1480 regen 690 prof 1")
-	call SetTableData(ItemData, 'I0A0', "level 240 armor 1380 str 100 regen 490 prof 2")
-	call SetTableData(ItemData, 'I0A2', "level 240 armor 860 agi 2460 prof 3")
-	call SetTableData(ItemData, 'I0A5', "level 240 armor 690 int 2830 prof 4")
-	call SetTableData(ItemData, 'I06D', "level 240 damage 14760 str 2950 prof 6")
-	call SetTableData(ItemData, 'I06A', "level 240 damage 27060 prof 7")
-	call SetTableData(ItemData, 'I06B', "level 240 damage 12300 agi 4920 prof 8")
-	call SetTableData(ItemData, 'I06C', "level 240 damage 25590 agi 1480 prof 9")
-	call SetTableData(ItemData, 'I09N', "level 240 damage 6150 int 5410 prof 10")
-
-	//void
-	call SetTableData(ItemData, 'I08S', "level 260 armor 1160 str 1990 regen 930 prof 1")
-	call SetTableData(ItemData, 'I08U', "level 260 armor 1860 str 130 regen 660 prof 2")
-	call SetTableData(ItemData, 'I08O', "level 260 armor 1160 agi 3320 prof 3")
-	call SetTableData(ItemData, 'I08M', "level 260 armor 930 int 3820 prof 4")
-	call SetTableData(ItemData, 'I08D', "level 260 damage 19930 str 3990 prof 6")
-	call SetTableData(ItemData, 'I08C', "level 260 damage 36540 prof 7")
-	call SetTableData(ItemData, 'I08J', "level 260 damage 16610 agi 6640 prof 8")
-	call SetTableData(ItemData, 'I08H', "level 260 damage 34540 agi 1990 prof 9")
-	call SetTableData(ItemData, 'I08G', "level 260 damage 8300 int 7310 prof 10")
-
-	call SetTableData(ItemData, 'I04Y', "level 260 stats 3320")
-	call SetTableData(ItemData, 'I04W', "level 260 armor 1160")
-	call SetTableData(ItemData, 'I08N', "level 260 regen 2000")
-	call SetTableData(ItemData, 'I055', "level 260 damage 10000 stats 400 crit 4 chance 30")
-
-	//nightmare
-	call SetTableData(ItemData, 'I0A7', "level 280 armor 1570 str 2690 regen 1260 prof 1")
-	call SetTableData(ItemData, 'I0A9', "level 280 armor 2510 str 180 regen 900 prof 2")
-	call SetTableData(ItemData, 'I0AC', "level 280 armor 1570 agi 4480 prof 3")
-	call SetTableData(ItemData, 'I0AB', "level 280 armor 1260 int 5160 prof 4")
-	call SetTableData(ItemData, 'I09V', "level 280 damage 26900 str 5400 prof 6")
-	call SetTableData(ItemData, 'I09P', "level 280 damage 49300 prof 7")
-	call SetTableData(ItemData, 'I09R', "level 280 damage 22400 agi 9000 prof 8")
-	call SetTableData(ItemData, 'I09S', "level 280 damage 46600 agi 2700 prof 9")
-	call SetTableData(ItemData, 'I09T', "level 280 damage 11200 int 9900 prof 10")
-
-	//hell
-	call SetTableData(ItemData, 'I097', "level 300 armor 2100 str 3600 regen 1700 prof 1")
-	call SetTableData(ItemData, 'I05H', "level 300 armor 3400 str 240 regen 1200 prof 2")
-	call SetTableData(ItemData, 'I098', "level 300 armor 2100 agi 6100 prof 3")
-	call SetTableData(ItemData, 'I095', "level 300 armor 1700 int 7000 prof 4")
-	call SetTableData(ItemData, 'I08W', "level 300 damage 36300 str 7300 prof 6")
-	call SetTableData(ItemData, 'I05G', "level 300 damage 66600 prof 7")
-	call SetTableData(ItemData, 'I08Z', "level 300 damage 30300 agi 12100 prof 8")
-	call SetTableData(ItemData, 'I091', "level 300 damage 63000 agi 3600 prof 9")
-	call SetTableData(ItemData, 'I093', "level 300 damage 15100 int 13300 prof 10")
-
-	call SetTableData(ItemData, 'I05I', "level 300 stats 6300 crit 5 chance 30")
-
-	//existence
-	call SetTableData(ItemData, 'I09U', "level 320 armor 2900 str 4900 regen 2300 prof 1")
-	call SetTableData(ItemData, 'I09W', "level 320 armor 4600 str 320 regen 1600 prof 2")
-	call SetTableData(ItemData, 'I09Q', "level 320 armor 2900 agi 8200 prof 3")
-	call SetTableData(ItemData, 'I09O', "level 320 armor 2300 int 9400 prof 4")
-	call SetTableData(ItemData, 'I09M', "level 320 damage 49000 str 9800 prof 6")
-	call SetTableData(ItemData, 'I09K', "level 320 damage 89900 prof 7")
-	call SetTableData(ItemData, 'I09I', "level 320 damage 40900 agi 16300 prof 8")
-	call SetTableData(ItemData, 'I09G', "level 320 damage 85000 agi 4900 prof 9")
-	call SetTableData(ItemData, 'I09E', "level 320 damage 20400 int 18000 prof 10")
-
-	call SetTableData(ItemData, 'I09Y', "level 320 health 500000")
-
-	//astral
-	call SetTableData(ItemData, 'I0AL', "level 340 armor 3900 str 6600 regen 3100 prof 1")
-	call SetTableData(ItemData, 'I0AN', "level 340 armor 6200 str 440 regen 2200 prof 2")
-	call SetTableData(ItemData, 'I0AA', "level 340 armor 3900 agi 11000 prof 3")
-	call SetTableData(ItemData, 'I0A8', "level 340 armor 3100 int 12700 prof 4")
-	call SetTableData(ItemData, 'I0A6', "level 340 damage 66200 str 13200 prof 6")
-	call SetTableData(ItemData, 'I0A3', "level 340 damage 121400 prof 7")
-	call SetTableData(ItemData, 'I0A1', "level 340 damage 55200 agi 22100 prof 8")
-	call SetTableData(ItemData, 'I0A4', "level 340 damage 114700 agi 6600 prof 9")
-	call SetTableData(ItemData, 'I09Z', "level 340 damage 27600 int 24300 prof 10")
-
-	//dimensional
-	call SetTableData(ItemData, 'I0AY', "level 360 armor 5600 str 9500 regen 3200 prof 1")
-	call SetTableData(ItemData, 'I0B0', "level 360 armor 8900 str 640 regen 3200 prof 2")
-	call SetTableData(ItemData, 'I0B2', "level 360 armor 5600 agi 15900 prof 3")
-	call SetTableData(ItemData, 'I0B3', "level 360 armor 4400 int 18300 prof 4")
-	call SetTableData(ItemData, 'I0AQ', "level 360 damage 95300 str 19100 prof 6")
-	call SetTableData(ItemData, 'I0AO', "level 360 damage 174800 prof 7")
-	call SetTableData(ItemData, 'I0AT', "level 360 damage 79400 agi 31800 prof 8")
-	call SetTableData(ItemData, 'I0AR', "level 360 damage 165200 agi 9500 prof 9")
-	call SetTableData(ItemData, 'I0AW', "level 360 damage 39700 int 35000 prof 10")
-
-	//demon (set)
-	call SetTableData(ItemData, 'I0BN', "level 190 movespeed -25 damage 8700 armor 1100 str 1200 stats 600 regen 400 spellboost 2 prof 6")
-	call SetTableData(ItemData, 'I0CK', "level 190 damage 22000 armor 500 str 600 stats 600 regen 300 spellboost 2 prof 7")
-	call SetTableData(ItemData, 'I0BO', "level 190 damage 8500 armor 500 agi 4500 stats 600 regen 150 spellboost 2 prof 8")
-	call SetTableData(ItemData, 'I0CU', "level 190 damage 17600 armor 500 agi 2100 stats 600 regen 150 spellboost 2 prof 9")
-	call SetTableData(ItemData, 'I0CT', "level 190 damage 4200 armor 400 int 5000 stats 600 spellboost 2 prof 10")
-
-	//horror (set)
-	call SetTableData(ItemData, 'I0C2', "level 210 movespeed -25 damage 11700 armor 1500 str 1600 stats 800 regen 500 spellboost 2 prof 6")
-	call SetTableData(ItemData, 'I0CV', "level 210 damage 29700 armor 700 str 800 stats 800 regen 400 spellboost 2 prof 7")
-	call SetTableData(ItemData, 'I0C1', "level 210 damage 11400 armor 700 agi 6000 stats 800 regen 200 spellboost 2 prof 8")
-	call SetTableData(ItemData, 'I0CW', "level 210 damage 23800 armor 700 agi 2800 stats 800 regen 200 spellboost 2 prof 9")
-	call SetTableData(ItemData, 'I0CX', "level 210 damage 5700 armor 600 int 6800 stats 800 regen 160 spellboost 2 prof 10")
-
-	//despair (set)
-	call SetTableData(ItemData, 'I0BQ', "level 230 movespeed -25 damage 15800 armor 2000 str 2150 stats 1050 regen 700 spellboost 3 prof 6")
-	call SetTableData(ItemData, 'I0CY', "level 230 damage 40100 armor 900 str 1050 stats 1050 regen 600 spellboost 3 prof 7")
-	call SetTableData(ItemData, 'I0BP', "level 230 damage 15400 armor 1000 agi 8150 stats 1050 regen 300 spellboost 3 prof 8")
-	call SetTableData(ItemData, 'I0CZ', "level 230 damage 32200 armor 1000 agi 3850 stats 1050 regen 300 spellboost 3 prof 9")
-	call SetTableData(ItemData, 'I0D3', "level 230 damage 7700 armor 800 int 9250 stats 1050 regen 240 spellboost 3 prof 10")
-
-	//abyss
-	call SetTableData(ItemData, 'I0C8', "level 250 movespeed -25 damage 21000 armor 2700 str 2900 stats 1500 regen 1000 spellboost 3 prof 6")
-	call SetTableData(ItemData, 'I0C9', "level 250 damage 54000 armor 1200 str 1400 stats 1500 regen 800 spellboost 3 prof 7")
-	call SetTableData(ItemData, 'I0C7', "level 250 damage 20000 armor 1400 agi 11000 stats 1500 regen 400 spellboost 3 prof 8")
-	call SetTableData(ItemData, 'I0C6', "level 250 damage 43000 armor 1400 agi 5100 stats 1500 regen 400 spellboost 3 prof 9")
-	call SetTableData(ItemData, 'I0C5', "level 250 damage 10400 armor 1100 int 12500 stats 1500 regen 320 spellboost 3 prof 10")
-
-	//void
-	call SetTableData(ItemData, 'I0C4', "level 270 movespeed -25 damage 28000 armor 3700 str 3900 stats 2000 regen 1300 spellboost 4 prof 6")
-	call SetTableData(ItemData, 'I0D7', "level 270 damage 73000 armor 1700 str 1900 stats 2000 regen 1100 spellboost 4 crit 4 chance 20 prof 7")
-	call SetTableData(ItemData, 'I0C3', "level 270 damage 25000 armor 1700 agi 13000 stats 2000 regen 500 spellboost 4 crit 4 chance 20 prof 8")
-	call SetTableData(ItemData, 'I0D5', "level 270 damage 53000 armor 1700 agi 6000 stats 2000 regen 500 spellboost 4 crit 4 chance 20 prof 9")
-	call SetTableData(ItemData, 'I0D6', "level 270 damage 14100 armor 1500 int 16900 stats 2000 regen 440 spellboost 4 prof 10")
-
-	//nightmare
-	call SetTableData(ItemData, 'I0CA', "level 290 movespeed -25 damage 39000 armor 5000 str 5500 stats 2600 regen 1800 spellboost 4 prof 6")
-	call SetTableData(ItemData, 'I0CB', "level 290 damage 98000 armor 2300 str 2700 stats 2600 regen 1500 spellboost 4 crit 4 chance 20 prof 7")
-	call SetTableData(ItemData, 'I0CD', "level 290 damage 38000 armor 2600 agi 20300 stats 2600 regen 750 spellboost 4 crit 4 chance 20 prof 8")
-	call SetTableData(ItemData, 'I0CE', "level 290 damage 79000 armor 2600 agi 9600 stats 2600 regen 750 spellboost 4 crit 4 chance 20 prof 9")
-	call SetTableData(ItemData, 'I0CF', "level 290 damage 19000 armor 2100 int 23000 stats 2600 regen 600 spellboost 4 prof 10")
-
-	//hell
-	call SetTableData(ItemData, 'I0BW', "level 310 movespeed -25 damage 45000 armor 6200 str 6500 stats 3300 regen 2200 spellboost 5 prof 6")
-	call SetTableData(ItemData, 'I0D8', "level 310 damage 115000 armor 2600 str 3000 stats 3000 regen 1700 spellboost 5 crit 5 chance 20 prof 7")
-	call SetTableData(ItemData, 'I0BU', "level 310 damage 45000 armor 3000 agi 22700 stats 3300 regen 1000 spellboost 5 crit 5 chance 20 prof 8")
-	call SetTableData(ItemData, 'I0DK', "level 310 damage 90000 armor 3000 agi 11200 stats 3300 regen 1000 spellboost 5 crit 5 chance 20 prof 9")
-	call SetTableData(ItemData, 'I0DJ', "level 310 damage 22000 armor 2500 int 27700 stats 3300 regen 800 spellboost 5 prof 10")
-
-	//existence
-	call SetTableData(ItemData, 'I0BT', "level 330 movespeed -25 damage 71000 armor 9200 str 9800 stats 4900 regen 3400 spellboost 5 prof 6")
-	call SetTableData(ItemData, 'I0DX', "level 330 damage 179000 armor 4300 str 4900 stats 4900 regen 2700 spellboost 5 crit 6 chance 20 prof 7")
-	call SetTableData(ItemData, 'I0BR', "level 330 damage 69000 armor 4900 agi 36700 stats 4900 regen 1350 spellboost 5 crit 6 chance 20 prof 8")
-	call SetTableData(ItemData, 'I0DL', "level 330 damage 144000 armor 4900 agi 17300 stats 4900 regen 1350 spellboost 5 crit 6 chance 20 prof 9")
-	call SetTableData(ItemData, 'I0DY', "level 330 damage 34600 armor 3900 int 41600 stats 4900 regen 1080 spellboost 5 prof 10")
-
-	//astral
-	call SetTableData(ItemData, 'I0BM', "level 350 movespeed -25 damage 95000 armor 12400 str 13200 stats 6600 regen 4400 spellboost 6 prof 6")
-	call SetTableData(ItemData, 'I0E0', "level 350 damage 242000 armor 5800 str 6600 stats 6600 regen 3700 spellboost 6 crit 7 chance 20 prof 7")
-	call SetTableData(ItemData, 'I0DZ', "level 350 damage 93000 armor 6600 agi 49600 stats 6600 regen 1850 spellboost 6 crit 7 chance 20 prof 8")
-	call SetTableData(ItemData, 'I059', "level 350 damage 194000 armor 6600 agi 23300 stats 6600 regen 1850 spellboost 6 crit 7 chance 20 prof 9")
-	call SetTableData(ItemData, 'I0E1', "level 350 damage 46900 armor 5200 int 56300 stats 6600 regen 1480 spellboost 6 prof 10")
-
-	//dimensional
-	call SetTableData(ItemData, 'I0FH', "level 370 movespeed -25 damage 129000 armor 16600 str 17900 stats 8900 regen 6100 spellboost 6 prof 6")
-	call SetTableData(ItemData, 'I0CG', "level 370 damage 349000 armor 8400 str 9500 stats 9500 regen 5400 spellboost 6 crit 8 chance 20 prof 7")
-	call SetTableData(ItemData, 'I0CI', "level 370 damage 126000 armor 8800 agi 67100 stats 8900 regen 2550 spellboost 6 crit 8 chance 20 prof 8")
-	call SetTableData(ItemData, 'I0FI', "level 370 damage 263000 armor 8800 agi 31500 stats 8900 regen 2550 spellboost 6 crit 8 chance 20 prof 9")
-	call SetTableData(ItemData, 'I0FZ', "level 370 damage 63200 armor 7100 int 75900 stats 8900 regen 2040 spellboost 6 prof 10")
-
-	//prechaos
-	call SetTableData(ItemData, 'I01D', "movespeed 150") //good shoes
-	call SetTableData(ItemData, 'I03O', "level 60 evasion 8 crit 12 chance 12") //sassy brawler
-	call SetTableData(ItemData, 'I03E', "level 50 movespeed 250 spellboost 10") //shopkeeper necklace
-	call SetTableData(ItemData, 'I01Z', "damage 10") //claws of lightning
-	call SetTableData(ItemData, 'I00T', "level 130 damage 2500 stats 500 regen 190 spellboost 10") //lesser ring of struggle
-	call SetTableData(ItemData, 'oli2', "level 50 damage 1110") //nerubian orb
-	call SetTableData(ItemData, 'I043', "level 75 damage 850 crit 2 chance 25") //omega p's pick
-	call SetTableData(ItemData, 'I02X', "level 75 damage 100 crit 2 chance 20") //brian's pick
-	call SetTableData(ItemData, 'I02Y', "level 75 damage 100") //pinky's pick
-
-	call SetTableData(ItemData, 'I04N', "level 100 armor 150 agi 250 prof 3") //hooded hide hiding cloak
-	call SetTableData(ItemData, 'I074', "level 100 damage 1110 crit 3 chance 30 prof 8") //runic white blade
-	call SetTableData(ItemData, 'I0EY', "level 100 damage 1110 crit 3 chance 30 prof 9") //runic white bow
-	call SetTableData(ItemData, 'I0EX', "level 100 movespeed 120 agi 600 crit 4 chance 30") //dragoon wings
-	call SetTableData(ItemData, 'I0F4', "level 130 movespeed 150 damage 1000 armor 150 agi 1000 spellboost 10 prof 3") //dragoon set
-
-	call SetTableData(ItemData, 'I0FC', "level 100 damage 750 str 480 prof 6") //dwarven warhammer
-	call SetTableData(ItemData, 'I07B', "level 100 armor 230 regen 190 prof 5") //dwarven woven chainmail
-	call SetTableData(ItemData, 'I079', "level 100 damage 1350 str 240 prof 7") //dwarven axe
-	call SetTableData(ItemData, 'I08K', "level 130 damage 1100 str 860 armor 230 regen 280 spellboost 10 prof 5") //dwarven set
-
-	call SetTableData(ItemData, 'I07F', "level 100 armor 120 int 420 prof 4") //mysterious cloak
-	call SetTableData(ItemData, 'I0F3', "level 100 int 630 prof 10") //orb of mist
-	call SetTableData(ItemData, 'I03U', "level 100 int 420 spellboost 5") //pendant of the forgotten
-	call SetTableData(ItemData, 'I0F5', "level 130 int 1930 armor 120 mr 20 spellboost 10 prof 4") //forgotten mystic set
-
-	call SetTableData(ItemData, 'I0FA', "level 120 damage 520 int 900 prof 10") //hellfire staff
-	call SetTableData(ItemData, 'I0FU', "level 120 armor 120 int 760 prof 4") //hellfire robe
-	call SetTableData(ItemData, 'I03Y', "level 120 armor 220 mr 40") //hellfire shield
-
-	call SetTableData(ItemData, 'I0C0', "level 140 armor 200 agi 800") //paladin's greaves
-	call SetTableData(ItemData, 'I0F9', "level 140 int 1050") //paladin's holy book
-	call SetTableData(ItemData, 'I0FX', "level 140 armor 370 str 490") //paladin's holy plate
-	call SetTableData(ItemData, 'I03P', "level 130 damage 740 str 480") //paladin's hammer
-
-	call SetTableData(ItemData, 'I01B', "level 100 armor 180 regen 190 evasion 10") //ancient bark
-	call SetTableData(ItemData, 'I03Z', "level 100 damage 1160") //da's dingo
-	call SetTableData(ItemData, 'I038', "regen 300") //cheese shield
-	call SetTableData(ItemData, 'I03X', "level 100 damage 1160 regen 190") //corrupted essence
-	call SetTableData(ItemData, 'I09F', "level 75") //sea wards
-
-	call SetTableData(ItemData, 'I078', "level 75 armor 160 str 150 prof 1") //minotaur's armor
-	call SetTableData(ItemData, 'I07U', "level 75 armor 150 agi 250 prof 3") //minotaur's leather
-	call SetTableData(ItemData, 'I076', "level 75 armor 130 int 300 prof 4") //minotaur's cloth
-	call SetTableData(ItemData, 'I03T', "level 75 damage 1160") //minotaur's axe
-	call SetTableData(ItemData, 'I0FW', "level 75 str 420") //ring of the minotaur
-
-	call SetTableData(ItemData, 'I00A', "level 120 damage 370 stats 370") //old broken god's scepter
-
-	call SetTableData(ItemData, 'I02Z', "level 130 armor 430 str 510") //aura of hate
-	call SetTableData(ItemData, 'I031', "level 130 int 1000") //aura of knowledge
-	call SetTableData(ItemData, 'I030', "level 130 agi 740 damage 500") //aura of love
-	call SetTableData(ItemData, 'I04I', "level 130 stats 777 regen 220") //aura of life
-	call SetTableData(ItemData, 'I04J', "level 160 damage 700 armor 430 stats 1350 regen 220") //aura of gods
-	call SetTableData(ItemData, 'I0NJ', "level 160") //drum of war
-
-	call SetTableData(ItemData, 'I02O', "level 120 regen 190 res 100 recharge 1 cost 1000") //godslayer's cloak
-	call SetTableData(ItemData, 'I02B', "level 120 damage 1160 str 250 crit 1 chance 20 prof 7") //savior's sword
-	call SetTableData(ItemData, 'I02C', "level 120 armor 310 str 190") //savior's armor
-	call SetTableData(ItemData, 'I029', "level 120 damage 740 agi 550 crit 2 chance 25") //savior's dagger
-	call SetTableData(ItemData, 'I0JR', "level 130 damage 1150 armor 310 regen 190 str 440 res 100 recharge 1 cost 15000 crit 1 chance 25") //godslayer set
-
-	call SetTableData(ItemData, 'I04B', "level 100") //jewel of the horde
-	call SetTableData(ItemData, 'I09L', "level 75 movespeed 200 evasion 10") //serpent hide boots
-
-	//blacksmith quests
-
-	call SetTableData(ItemData, 'I0B8', "level 15 armor 39 str 47 prof 1") //chitin plate armor
-	call SetTableData(ItemData, 'I0BA', "level 15 armor 84 prof 2") //chitin heavy plate
-	call SetTableData(ItemData, 'I0B4', "level 15 armor 39 agi 74 prof 3") //stretchy spider silk suit
-	call SetTableData(ItemData, 'I0B6', "level 15 armor 31 int 84 prof 4") //spidersilk robe
-
-	call SetTableData(ItemData, 'I0F8', "level 50 armor 110 regen 100") //hydra scale armor
-	call SetTableData(ItemData, 'I02N', "level 50 damage 260 str 170 prof 6") //hydra spear
-	call SetTableData(ItemData, 'I072', "level 50 damage 770 prof 7") //hydra sword
-	call SetTableData(ItemData, 'I06Y', "level 50 damage 260 agi 260 prof 8") //hydra dagger
-	call SetTableData(ItemData, 'I070', "level 50 damage 570 agi 130 prof 9") //hydra bow
-	call SetTableData(ItemData, 'I071', "level 50 damage 180 int 290 prof 10") //hydra talisman
-
-	call SetTableData(ItemData, 'I048', "level 100 armor 250 str 300 prof 1") //dragonhide plate
-	call SetTableData(ItemData, 'I02U', "level 100 armor 400 prof 2") //dragonbone full plate
-	call SetTableData(ItemData, 'I064', "level 100 armor 200 agi 400 prof 3") //dragonhide swift armor
-	call SetTableData(ItemData, 'I02P', "level 100 armor 150 int 550 prof 4") //dragonhide cloak
-	call SetTableData(ItemData, 'I033', "level 100 damage 400 str 400 prof 6") //dragonbone greatsword
-
-	call SetTableData(ItemData, 'I0BZ', "level 100 damage 1110 str 180 prof 7") //dragonfire sword
-	call SetTableData(ItemData, 'I02S', "level 100 damage 400 agi 400 prof 8") //dragonfire dagger
-	call SetTableData(ItemData, 'I032', "level 100 damage 1100 agi 180 prof 9") //dragonfire bow
-	call SetTableData(ItemData, 'I065', "level 100 damage 260 int 700 prof 10") //dragonfire orb
-
-	//magnataur
-	call SetTableData(ItemData, 'sor9', "level 70 armor 120 str 110 prof 1") //magnataur hide plate
-	call SetTableData(ItemData, 'shcw', "level 70 armor 240 prof 2") //magnataur hide full plate
-	call SetTableData(ItemData, 'shrs', "level 70 armor 120 agi 190 prof 3") //forgotten one's leather jacket
-	call SetTableData(ItemData, 'sor4', "level 70 armor 90 int 220 prof 4") //forgotten one's cloth
-	call SetTableData(ItemData, 'sor7', "level 70 armor 130") //magnataur shield
-
-	//centaur
-	call SetTableData(ItemData, 'dthb', "level 60 damage 220 str 140 prof 6") //centaur axe
-	call SetTableData(ItemData, 'phlt', "level 60 damage 655 prof 7") //centaur blade
-	call SetTableData(ItemData, 'engs', "level 60 damage 220 agi 220 prof 8") //centaur dagegr
-	call SetTableData(ItemData, 'kygh', "level 60 damage 490 agi 110 prof 9") //centaur bow (shitty id)
-	call SetTableData(ItemData, 'bzbf', "level 60 damage 155 int 250 prof 10") //centaur wand
-
-	//hellhound
-	call SetTableData(ItemData, 'ram1', "level 50 damage 168 str 109 prof 6") //molten hammer
-	call SetTableData(ItemData, 'srbd', "level 50 damage 500 prof 7") //searing blade (shitty id)
-	call SetTableData(ItemData, 'horl', "level 50 damage 170 agi 170 prof 8") //flaming dagger
-	call SetTableData(ItemData, 'ram2', "level 50 damage 380 agi 84 prof 9") //fiery bow (shitty id)
-	call SetTableData(ItemData, 'ram4', "level 50 damage 118 int 193 prof 10") //fire orb
-	call SetTableData(ItemData, 'I0MA', "level 50 damage 160 crit 2 chance 25") //flame sigil
-
-	//unbroken
-	call SetTableData(ItemData, 'I0MB', "level 40 armor 60") //unbroken shield
-	call SetTableData(ItemData, 'I01W', "level 40 armor 60 str 55 prof 1") //unbroken plate
-	call SetTableData(ItemData, 'I0FS', "level 40 armor 115 prof 2") //unbroken full plate
-	call SetTableData(ItemData, 'I0FY', "level 40 armor 60 agi 95 prof 3") //unbroken leather
-	call SetTableData(ItemData, 'I0FR', "level 40 armor 45 int 105 prof 4") //unbroken cloth
-
-	//ogre
-	call SetTableData(ItemData, 'I0FD', "level 25 armor 39 str 37 prof 1") //ogre's armor
-	call SetTableData(ItemData, 'I08R', "level 25 armor 80 prof 2") //ogre's heavy armor
-	call SetTableData(ItemData, 'I07Y', "level 25 armor 39 agi 60 prof 3") //tauren's leather
-	call SetTableData(ItemData, 'I07W', "level 25 armor 31 int 70 prof 4") //ogre's cloth
-	call SetTableData(ItemData, 'I08I', "level 25 damage 95 str 60 prof 6") //ogre's club
-	call SetTableData(ItemData, 'I08B', "level 25 damage 280 prof 7") //ogre's blade
-	call SetTableData(ItemData, 'I08F', "level 25 damage 95 agi 95 prof 8") //tauren's dagger
-	call SetTableData(ItemData, 'I08E', "level 25 damage 210 agi 47 prof 9") //tauren's arrows
-	call SetTableData(ItemData, 'I0FE', "level 25 damage 65 int 105 prof 10") //ogre's staff
-
-	//mammoth
-	call SetTableData(ItemData, 'I035', "level 15 armor 21 str 22 prof 1") //bear hide armor
-	call SetTableData(ItemData, 'I0FQ', "level 15 armor 43 prof 2") //mammoth hide armor
-	call SetTableData(ItemData, 'I0FO', "level 15 armor 21 agi 33 prof 3") //bear skin coat
-	call SetTableData(ItemData, 'I07O', "level 15 armor 16 int 39 prof 4") //bear fur robe
-	call SetTableData(ItemData, 'I06V', "level 15 damage 52 str 34 prof 6") //mammoth bone club
-	call SetTableData(ItemData, 'I00X', "level 15 damage 156 prof 7") //mammoth bone sword
-	call SetTableData(ItemData, 'I013', "level 15 damage 52 agi 52 prof 8") //bear claws
-	call SetTableData(ItemData, 'I0FP', "level 15 damage 117 agi 26 prof 9") //mammoth tusk bow
-	call SetTableData(ItemData, 'I017', "level 15 damage 36 int 60 prof 10") //bear bone wand
-	
-	call SetTableData(ItemData, 'I0MC', "level 25 armor 40") //polar shield
-	call SetTableData(ItemData, 'I0MD', "level 20 damage 120 crit 2 chance 20") //polar fang
-
-	//ursa
-	call SetTableData(ItemData, 'I0FF', "level 7 armor 21") //ursa fur coat
-	call SetTableData(ItemData, 'I034', "level 7 damage 26 str 17 prof 6") //ursa bone club
-	call SetTableData(ItemData, 'I06T', "level 7 damage 78 prof 7") //ursa bone sword
-	call SetTableData(ItemData, 'I0FG', "level 7 damage 26 agi 26 prof 8") //ursa claws
-	call SetTableData(ItemData, 'I06R', "level 7 damage 58 agi 13 prof 9") //ursa razor arrows
-	call SetTableData(ItemData, 'I0FT', "level 7 damage 18 int 30 prof 10") //ursa shamanic rod
-
-	//stuff
-	call SetTableData(ItemData, 'I036', "level 100 stats 600") //chronos stone
-	call SetTableData(ItemData, 'I04C', "level 50 damage 1100") //king's club
-	call SetTableData(ItemData, 'I02Q', "level 50 damage 280 armor 18") //iron golem ore
-	call SetTableData(ItemData, 'I046', "level 75 damage 1000 armor 100 stats 350 crit 3 chance 30") //iron golem fist
-	call SetTableData(ItemData, 'I02J', "level 50") //white flames
-	call SetTableData(ItemData, 'I01T', "level 50 armor 120") //armor of the gods
-	call SetTableData(ItemData, 'rnsp', "level 20 armor 18 stats 40 regen 18") //waug's ring
-	call SetTableData(ItemData, 'I025', "level 15 armor 9") //greater mask of death
-	call SetTableData(ItemData, 'I02L', "level 15 stats 40") //great circlet
-	call SetTableData(ItemData, 'I01M', "level 20 damage 280") //axe of smiting
-	call SetTableData(ItemData, 'I00B', "level 25 damage 336 agi 50") //axe of speed
-	call SetTableData(ItemData, 'I0FL', "level 7 armor 18") //mythril shield
-	call SetTableData(ItemData, 'I00F', "level 6 damage 22 str 14 prof 6") //mythril spear
-	call SetTableData(ItemData, 'I0FK', "level 7 damage 65 prof 7") //mythril sword
-	call SetTableData(ItemData, 'I010', "level 7 damage 22 agi 22 prof 8") //mythril dagger
-	call SetTableData(ItemData, 'I03Q', "level 4 movespeed 100") //horse boost
-
-	call SetTableData(ItemData, 'I0FM', "level 7 damage 49 agi 11 prof 9") //blood elven bow
-	call SetTableData(ItemData, 'I00C', "level 10 armor 25 int 35") //armour of the battlemage
-	call SetTableData(ItemData, 'sora', "level 6 damage 30 stats 6") //noble blade
-	call SetTableData(ItemData, 'I03L', "level 40") //castle of the gods
-	call SetTableData(ItemData, 'I0FB', "level 20 movespeed 175 armor 20") //arctic treads
-	call SetTableData(ItemData, 'rlif', "level 3 regen 10") //ring of regeneration
-	call SetTableData(ItemData, 'rde2', "level 3 health 500 regen 3") //ring of health
-	call SetTableData(ItemData, 'ofro', "level 7 damage 15 int 25 prof 10") //orb of the omni
-	call SetTableData(ItemData, 'I00Y', "level 15") //ring of health
-
-	//homes
-	call SetTableData(ItemData, 'I03L', "level 40") //castle of the gods
-	call SetTableData(ItemData, 'I086', "level 150") //lounge
-
-	//level 0
-	call SetTableData(ItemData, 'sor1', "int 24") //sparky orb
-	call SetTableData(ItemData, 'frgd', "dr 15") //leech shield (shitty id)
-	call SetTableData(ItemData, 'mcou', "stats 10") //medallion of courage
-	call SetTableData(ItemData, 'rag1', "agi 8") //slipper of agility
-	call SetTableData(ItemData, 'rin1', "int 8") //mantle of intelligence
-	call SetTableData(ItemData, 'rst1', "str 5") //gaunlets of strength
-	call SetTableData(ItemData, 'I01U', "armor 6") //footman's helm
-	call SetTableData(ItemData, 'I0FJ', "armor 3") //wooden shield
-	call SetTableData(ItemData, 'I03N', "res 10") //extra lives
-	call SetTableData(ItemData, 'I01X', "stats 5 res 10 recharge 1 cost 75") //sword of revival
-
-	call SetTableData(ItemData, 'I01S', "movespeed 100 armor 5") //seven league boots
-	call SetTableData(ItemData, 'ratf', "damage 12 str 8 prof 6") //steel lance
-	call SetTableData(ItemData, 'brac', "damage 36 prof 7") //steel sword
-	call SetTableData(ItemData, 'odef', "damage 12 agi 12 prof 8") //steel dagger
-	call SetTableData(ItemData, 'rhth', "damage 27 agi 6 prof 9") //long bow
-
-	call SetTableData(ItemData, 'rat9', "armor 5 agi 8 prof 3") //leather jacket (shitty id)
-	call SetTableData(ItemData, 'prvt', "health 1000") //leather jacket (shitty id)
-	call SetTableData(ItemData, 'sor2', "armor 5 int 10 prof 4") //tattered cloth
-	call SetTableData(ItemData, 'I004', "armor 5 str 5 prof 5") //steel plate
-	call SetTableData(ItemData, 'ratc', "damage 8 str 5 prof 6") //iron broadsword
-	call SetTableData(ItemData, 'cnob', "damage 24 prof 7") //iron sword
-	call SetTableData(ItemData, 'gcel', "damage 8 agi 8 prof 8") //iron dagger
-	call SetTableData(ItemData, 'rat6', "damage 18 agi 4 prof 9") //short bow
-	call SetTableData(ItemData, 'hcun', "armor 10") //steel shield
-	call SetTableData(ItemData, 'rde1', "armor 6") //iron shield
-	call SetTableData(ItemData, 'kpin', "damage 8 int 14 prof 10") //arcane staff
-	call SetTableData(ItemData, 'hval', "damage 6 int 9 prof 10") //wooden staff
-	call SetTableData(ItemData, 'belv', "agi 12") //boots of the ranger
-	call SetTableData(ItemData, 'ciri', "int 12") //sigil of magic
-	call SetTableData(ItemData, 'bgst', "str 8") //belt of the giant
-	call SetTableData(ItemData, 'evtl', "evasion 10") //talisman of evasion
-
-	//sets
-	//ursine
-	call SetTableData(ItemData, 'I0H6', "level 20 movespeed -25 damage 40 armor 70 str 15 stats 15 prof 6")
-	call SetTableData(ItemData, 'I0H5', "level 20 damage 140 armor 40 str 30 stats 15 prof 7")
-	call SetTableData(ItemData, 'I0H7', "level 20 damage 40 armor 40 agi 95 stats 15 prof 8")
-	call SetTableData(ItemData, 'I0H8', "level 20 damage 100 armor 40 agi 65 stats 15 prof 9")
-	call SetTableData(ItemData, 'I0H9', "level 20 damage 40 armor 30 int 105 stats 15 prof 10")
-
-	//ogre
-	call SetTableData(ItemData, 'I0HA', "level 30 damage 480 armor 65 str 50 stats 30 prof 7")
-	call SetTableData(ItemData, 'I0HB', "level 30 movespeed -25 damage 160 armor 140 str 100 stats 30 prof 6")
-	call SetTableData(ItemData, 'I0HC', "level 30 damage 160 armor 65 agi 240 stats 30 prof 8")
-	call SetTableData(ItemData, 'I0HD', "level 30 damage 360 armor 65 agi 160 stats 30 prof 9")
-	call SetTableData(ItemData, 'I0HE', "level 30 damage 130 armor 55 int 270 stats 30 prof 10")
-
-	//unbroken
-	call SetTableData(ItemData, 'I0HF', "level 50 damage 870 armor 105 str 60 stats 60 prof 7")
-	call SetTableData(ItemData, 'I0HG', "level 50 movespeed -25 damage 290 armor 200 str 180 stats 60 prof 6")
-	call SetTableData(ItemData, 'I0HH', "level 50 damage 290 armor 105 agi 400 stats 60 prof 8")
-	call SetTableData(ItemData, 'I0HI', "level 50 damage 660 armor 105 agi 250 stats 60 prof 9")
-	call SetTableData(ItemData, 'I0HJ', "level 50 damage 240 armor 80 int 460 stats 60 prof 10")
-
-	//magnataur
-	call SetTableData(ItemData, 'I0HK', "level 70 damage 1130 armor 210 str 155 stats 95 prof 7")
-	call SetTableData(ItemData, 'I0HL', "level 70 movespeed -25 damage 380 armor 410 str 205 stats 95 prof 6")
-	call SetTableData(ItemData, 'I0HM', "level 70 damage 380 armor 210 agi 615 stats 95 prof 8")
-	call SetTableData(ItemData, 'I0HN', "level 70 damage 850 armor 210 agi 425 stats 95 prof 9")
-	call SetTableData(ItemData, 'I0HO', "level 70 damage 310 armor 165 int 715 stats 95 prof 10")
-endfunction
-
-function StringSetup takes nothing returns nothing
-	set infostring[0]="Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Hardmode\n -info 6, Prestige\n -info 7, Proficiency\n -info 8, Boss Item Discounts\n -info 9, Aggro System"
-	set infostring[1]="Most units in this game (besides Bosses, Colosseum, Struggle) will attempt to revive where they died 30 seconds after death. If a player hero/unit is within 800 range they will spawn frozen and invulnerable until no players are around."
-	set infostring[2]="Bosses respawn after 10 minutes and non-hero bosses respawn after 5 minutes, -hardmode speeds up respawns by 25%" 
-	set infostring[3]="The town is protected from enemy invasion and any entering enemy will be teleported back to their original spawn."
-	set infostring[4]="Hardcore players that die without an ankh of reincarnation will be removed from the game and cannot save/load or start a new character. 
-    A hardcore hero can only save every 30 minutes- the timer starts upon saving OR upon loading your hardcore hero. 
-    Hardcore heroes receive double the bonus from prestiging.
-    If you need to save before the timer expires you can use -forcesave to save immediately, but this deletes your hero, leaving you unable to load again in the current game (same as if your hero died)."
-	set infostring[5]="Hardmode doubles the health and damage of bosses, doubles their drop chance, increases their gold/xp/crystal rewards, and speeds up respawn time by 25%.
-    Does not apply to Dungeons.
-    Automatically turns off when entering Chaos, but can be re-activated."
-	set infostring[6]="You need a |cffffcc00Prestige Token|r to activate a class prestige bonus.\nPrestige bonuses apply to all your existing characters and any new ones.\n|cffffcc00BONUSES:|r\nAttack Damage(+8%): Bloodzerker, Phoenix Ranger, Elite Marksman\nStrength(+6%): Oblivion Guardian, Savior, Warrior\nAgility(+7%): Master Rogue, Assassin, Vampire Lord\nIntelligence(+7%): Dark Summoner, Bard, Dark Savior\nDamage Reduction(+5%): Royal Guardian, Arcane Warrior\nRegeneration(+8%): Priest\nSpellboost(+4%): Elementalist, Arcanist, Thunderblade, Hydromancer\n|cffffcc00ALL:|r Experience Rate(+4%), Gold Find(+2%)"
-	set infostring[7]="Most items in this game have a proficiency requirement in their description.
-    While any hero can equip them regardless of proficiency, those lacking proficiency only recieve half stats from the item.
-    Check your hero's proficiency with -pf."
-	set infostring[8]="Many Boss items can now be upgraded at a discount if you have the correct item in your hero/backpack while upgrading.
-    The item is sacrificed to obtain this discount and you can tell if an item qualifies for a discount under Item Info."
-	set infostring[9]= "Bosses use a threat meter system for each player that increases when attacked or by casting spells. Distance from the boss reduces the threat you 
-	generate significantly when attacking, so melee characters will draw aggro much more quickly especially with taunt abilities."
-	set infostring[10]="You lack the proficiency (-pf) to use this item, it will only give half of the stats.\n|cffFF0000You will stop getting this warning at level 15.|r"
-	set infostring[69]="Nice"
-endfunction
-
-function SetupCosts takes integer i,integer spot returns nothing
-	set UpItemCostPlat[i]    = upPcost[spot]
-	set UpItemCostArc[i]     = upLcost[spot]
-	set UpItemCostCrys[i]    = upCcost[spot]
-	set UpgradeCostFactor[i] = cfactor
-endfunction
-
-function ItemUpgrades takes nothing returns nothing
-	local integer i = 0
-
-	//boss item upgrades
-	//set cfactor to adjust discount (default 2)
-
-	//Slaughter Queen Weapons (go to rare?)
-	set upPcost[0] = 2 //+1
-	set upLcost[0] = 1
-	set upCcost[0] = 0
-	set upPcost[1] = 5 //+2
-	set upLcost[1] = 3
-	set upCcost[1] = 1
-	set upPcost[2] = 8 //rare
-	set upLcost[2] = 5
-	set upCcost[2] = 2
-	set upPcost[3] = 11 //+1
-	set upLcost[3] = 7
-	set upCcost[3] = 3
-	set upPcost[4] = 14 //+2
-	set upLcost[4] = 9
-	set upCcost[4] = 4
-
-	set UpItem[i] = 'I0AE'
-	set UpItemBecomes[i] = 'I090'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0AE'
-	set i = i + 1
-	set UpItem[i] = 'I090'
-	set UpItemBecomes[i] = 'I092'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0AE'
-	set i = i + 1
-	set UpItem[i] = 'I092'
-	set UpItemBecomes[i] = 'I0BF'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0AE'
-	set i = i + 1
-	set UpItem[i] = 'I0BF'
-	set UpItemBecomes[i] = 'I0AM'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0AE'
-	set i = i + 1
-	set UpItem[i] = 'I0AM'
-	set UpItemBecomes[i] = 'I0BH'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0AE'
-	set i = i + 1
-	set UpItem[i] = 'I04F'
-	set UpItemBecomes[i] = 'I099'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I04F'
-	set i = i + 1
-	set UpItem[i] = 'I099'
-	set UpItemBecomes[i] = 'I09A'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I04F'
-	set i = i + 1
-	set UpItem[i] = 'I09A'
-	set UpItemBecomes[i] = 'I0OR'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I04F'
-	set i = i + 1
-	set UpItem[i] = 'I0OR'
-	set UpItemBecomes[i] = 'I0OS'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I04F'
-	set i = i + 1
-	set UpItem[i] = 'I0OS'
-	set UpItemBecomes[i] = 'I0OT'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I04F'
-	set i = i + 1
-	set UpItem[i] = 'I0AF'
-	set UpItemBecomes[i] = 'I08X'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0AF'
-	set i = i + 1
-	set UpItem[i] = 'I08X'
-	set UpItemBecomes[i] = 'I08Y'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0AF'
-	set i = i + 1
-	set UpItem[i] = 'I08Y'
-	set UpItemBecomes[i] = 'I0OM'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0AF'
-	set i = i + 1
-	set UpItem[i] = 'I0OM'
-	set UpItemBecomes[i] = 'I0ON'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0AF'
-	set i = i + 1
-	set UpItem[i] = 'I0ON'
-	set UpItemBecomes[i] = 'I0OO'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0AF'
-	set i = i + 1
-	set UpItem[i] = 'I0AD'
-	set UpItemBecomes[i] = 'I04X'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0AD'
-	set i = i + 1
-	set UpItem[i] = 'I04X'
-	set UpItemBecomes[i] = 'I056'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0AD'
-	set i = i + 1
-	set UpItem[i] = 'I056'
-	set UpItemBecomes[i] = 'I01R'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0AD'
-	set i = i + 1
-	set UpItem[i] = 'I01R'
-	set UpItemBecomes[i] = 'I02T'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0AD'
-	set i = i + 1
-	set UpItem[i] = 'I02T'
-	set UpItemBecomes[i] = 'I0OL'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0AD'
-	set i = i + 1
-	set UpItem[i] = 'I0AG'
-	set UpItemBecomes[i] = 'I094'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0AG'
-	set i = i + 1
-	set UpItem[i] = 'I094'
-	set UpItemBecomes[i] = 'I096'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0AG'
-	set i = i + 1
-	set UpItem[i] = 'I096'
-	set UpItemBecomes[i] = 'I0BD'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0AG'
-	set i = i + 1
-	set UpItem[i] = 'I0BD'
-	set UpItemBecomes[i] = 'I0OP'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0AG'
-	set i = i + 1
-	set UpItem[i] = 'I0OP'
-	set UpItemBecomes[i] = 'I0OQ'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0AG'
-	set i = i + 1
-
-    //Dark Bulwark
-	set upPcost[0] = 16 //+1
-	set upLcost[0] = 18
-	set upCcost[0] = 4
-	set upPcost[1] = 32 //+2
-	set upLcost[1] = 16
-	set upCcost[1] = 8
-
-	set UpItem[i] = 'I0AP'
-	set UpItemBecomes[i] = 'I021'
-	call SetupCosts(i, 0)
-	set UpDiscountItem[i] = 'I0AP'
-	set i = i + 1
-    set UpItem[i] = 'I021'
-	set UpItemBecomes[i] = 'I03K'
-	call SetupCosts(i, 1)
-	set UpDiscountItem[i] = 'I0AP'
-	set i = i + 1
-
-	//Dark Soul
-	set upPcost[0] = 4 //+1
-	set upLcost[0] = 2
-	set upCcost[0] = 1
-	set upPcost[1] = 6 //+2
-	set upLcost[1] = 3
-	set upCcost[1] = 1
-	set upPcost[2] = 14 //rare
-	set upLcost[2] = 12
-	set upCcost[2] = 6
-	set upPcost[3] = 16 //+1
-	set upLcost[3] = 10
-	set upCcost[3] = 7
-	set upPcost[4] = 24 //+2
-	set upLcost[4] = 14
-	set upCcost[4] = 12
-	set upPcost[5] = 30 //legendary
-	set upLcost[5] = 14
-	set upCcost[5] = 14
-    set upPcost[6] = 50 //+1
-	set upLcost[6] = 20
-	set upCcost[6] = 30
-    set upPcost[7] = 60 //+2
-	set upLcost[7] = 30
-	set upCcost[7] = 50
-
-	set UpItem[i] = 'I05A'
-	set UpItemBecomes[i] = 'I05Z'
-	call SetupCosts(i, 0)
-	set UpDiscountItem[i] = 'I05A'
-	set i = i + 1
-	set UpItem[i] = 'I05Z'
-	set UpItemBecomes[i] = 'I0D4'
-	call SetupCosts(i, 1)
-	set UpDiscountItem[i] = 'I05A'
-	set i = i + 1
-	set UpItem[i] = 'I0D4'
-	set UpItemBecomes[i] = 'I06K'
-	call SetupCosts(i, 2)
-	set UpDiscountItem[i] = 'I05A'
-	set i = i + 1
-	set UpItem[i] = 'I06K'
-	set UpItemBecomes[i] = 'I0EH'
-	call SetupCosts(i, 3)
-	set UpDiscountItem[i] = 'I06K'
-	set i = i + 1
-	set UpItem[i] = 'I0EH'
-	set UpItemBecomes[i] = 'I0EI'
-	call SetupCosts(i, 4)
-	set UpDiscountItem[i] = 'I06K'
-	set i = i + 1
-	set UpItem[i] = 'I0EI'
-	set UpItemBecomes[i] = 'I06L'
-	call SetupCosts(i, 5)
-	set UpDiscountItem[i] = 'I06K'
-	set i = i + 1
-	set UpItem[i] = 'I06L'
-	set UpItemBecomes[i] = 'I0EJ'
-	call SetupCosts(i, 6)
-	set UpDiscountItem[i] = 'I06K'
-	set i = i + 1
-	set UpItem[i] = 'I0EJ'
-	set UpItemBecomes[i] = 'I0EK'
-	call SetupCosts(i, 7)
-	set UpDiscountItem[i] = 'I06K'
-	set i = i + 1
-
-	//Thanatos Wings
-	set upPcost[0] = 24 //+1
-	set upLcost[0] = 16
-	set upCcost[0] = 8
-	set upPcost[1] = 32 //+2
-	set upLcost[1] = 22
-	set upCcost[1] = 12
-	set upPcost[2] = 40 //rare
-	set upLcost[2] = 28
-	set upCcost[2] = 16
-	set upPcost[3] = 48 //+1
-	set upLcost[3] = 34
-	set upCcost[3] = 20
-	set upPcost[4] = 56 //+2
-	set upLcost[4] = 40
-	set upCcost[4] = 24
-	set upPcost[5] = 64 //legendary
-	set upLcost[5] = 46
-	set upCcost[5] = 28
-    set upPcost[6] = 72 //+1
-	set upLcost[6] = 52
-	set upCcost[6] = 32
-    set upPcost[7] = 80 //+2
-	set upLcost[7] = 58
-	set upCcost[7] = 36
-    set upPcost[8] = 88 //+3
-	set upLcost[8] = 64
-	set upCcost[8] = 40
-    set upPcost[9] = 104 //+4
-	set upLcost[9] = 76
-	set upCcost[9] = 48
-
-	set UpItem[i] = 'I04E'
-	set UpItemBecomes[i] = 'I062'
-	call SetupCosts(i, 0)
-	set UpDiscountItem[i] = 'I04E'
-	set i = i + 1
-	set UpItem[i] = 'I062'
-	set UpItemBecomes[i] = 'I0EL'
-	call SetupCosts(i, 1)
-	set UpDiscountItem[i] = 'I04E'
-	set i = i + 1
-	set UpItem[i] = 'I0EL'
-	set UpItemBecomes[i] = 'I00P'
-	call SetupCosts(i, 2)
-	set UpDiscountItem[i] = 'I04E'
-	set i = i + 1
-	set UpItem[i] = 'I00P'
-	set UpItemBecomes[i] = 'I0EM'
-	call SetupCosts(i, 3)
-	set UpDiscountItem[i] = 'I00P'
-	set i = i + 1
-	set UpItem[i] = 'I0EM'
-	set UpItemBecomes[i] = 'I0EN'
-	call SetupCosts(i, 4)
-	set UpDiscountItem[i] = 'I00P'
-	set i = i + 1
-	set UpItem[i] = 'I0EN'
-	set UpItemBecomes[i] = 'I00Q'
-	call SetupCosts(i, 5)
-	set UpDiscountItem[i] = 'I00P'
-	set i = i + 1
-	set UpItem[i] = 'I00Q'
-	set UpItemBecomes[i] = 'I06E'
-	call SetupCosts(i, 6)
-	set UpDiscountItem[i] = 'I00P'
-	set i = i + 1
-	set UpItem[i] = 'I06E'
-	set UpItemBecomes[i] = 'I06F'
-	call SetupCosts(i, 7)
-	set UpDiscountItem[i] = 'I00P'
-	set i = i + 1
-	set UpItem[i] = 'I06F'
-	set UpItemBecomes[i] = 'I06G'
-	call SetupCosts(i, 8)
-	set UpDiscountItem[i] = 'I00P'
-	set i = i + 1
-	set UpItem[i] = 'I06G'
-	set UpItemBecomes[i] = 'I06H'
-	call SetupCosts(i, 9)
-	set UpDiscountItem[i] = 'I00P'
-	set i = i + 1
-
-	//Satan's Heart
-	set upPcost[0] = 9 //+1
-	set upLcost[0] = 6
-	set upCcost[0] = 3
-	set upPcost[1] = 18 //+2
-	set upLcost[1] = 12
-	set upCcost[1] = 6
-
-	set UpItem[i] = 'I0BX'
-	set UpItemBecomes[i] = 'I0OC'
-	call SetupCosts(i, 0)
-	set UpDiscountItem[i] = 'I0BX'
-	set i = i + 1
-	set UpItem[i] = 'I0OC'
-	set UpItemBecomes[i] = 'I0OD'
-	call SetupCosts(i, 1)
-	set UpDiscountItem[i] = 'I0BX'
-	set i = i + 1
-
-	//Satan's Ace
-	set upPcost[0] = 4 //+1
-	set upLcost[0] = 2
-	set upCcost[0] = 1
-	set upPcost[1] = 6 //+2
-	set upLcost[1] = 3
-	set upCcost[1] = 2
-	set upPcost[2] = 12 //rare
-	set upLcost[2] = 3
-	set upCcost[2] = 12
-	set upPcost[3] = 20 //+1
-	set upLcost[3] = 12
-	set upCcost[3] = 8
-	set upPcost[4] = 27 //+2
-	set upLcost[4] = 14
-	set upCcost[4] = 14
-	set upPcost[5] = 96 //legendary
-	set upLcost[5] = 22
-	set upCcost[5] = 112
-    set upPcost[6] = 90 //+1
-	set upLcost[6] = 37
-	set upCcost[6] = 30
-    set upPcost[7] = 120 //+2
-	set upLcost[7] = 50
-	set upCcost[7] = 50
-
-	set UpItem[i] = 'I05J'
-	set UpItemBecomes[i] = 'I04O'
-	call SetupCosts(i, 0)
-	set UpDiscountItem[i] = 'I05J'
-	set i = i + 1
-	set UpItem[i] = 'I04O'
-	set UpItemBecomes[i] = 'I07H'
-	call SetupCosts(i, 1)
-	set UpDiscountItem[i] = 'I05J'
-	set i = i + 1
-	set UpItem[i] = 'I07H'
-	set UpItemBecomes[i] = 'I00R'
-	call SetupCosts(i, 2)
-	set UpDiscountItem[i] = 'I05J'
-	set i = i + 1
-	set UpItem[i] = 'I00R'
-	set UpItemBecomes[i] = 'I00N'
-	call SetupCosts(i, 3)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I00N'
-	set UpItemBecomes[i] = 'I00O'
-	call SetupCosts(i, 4)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I00O'
-	set UpItemBecomes[i] = 'I00S'
-	call SetupCosts(i, 5)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I00S'
-	set UpItemBecomes[i] = 'I07J'
-	call SetupCosts(i, 6)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I07J'
-	set UpItemBecomes[i] = 'I07N'
-	call SetupCosts(i, 7)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-
-	//Chaos Shield
-	set upPcost[0] = 60 //+1
-	set upLcost[0] = 40
-	set upCcost[0] = 20
-	set upPcost[1] = 90 //+2
-	set upLcost[1] = 60
-	set upCcost[1] = 30
-
-	set UpItem[i] = 'I01J'
-	set UpItemBecomes[i] = 'I02R'
-	call SetupCosts(i, 0)
-	set i = i + 1
-	set UpItem[i] = 'I02R'
-	set UpItemBecomes[i] = 'I01C'
-	call SetupCosts(i, 1)
-	set i = i + 1
-
-	//Legion
-	set upPcost[0] = 6 //+1
-	set upLcost[0] = 2
-	set upCcost[0] = 1
-	set upPcost[1] = 8 //+2
-	set upLcost[1] = 4
-	set upCcost[1] = 2
-	set upPcost[2] = 26 //rare
-	set upLcost[2] = 8
-	set upCcost[2] = 16
-	set upPcost[3] = 20 //+1
-	set upLcost[3] = 10
-	set upCcost[3] = 10
-	set upPcost[4] = 24 //+2
-	set upLcost[4] = 10
-	set upCcost[4] = 12
-	set upPcost[5] = 36 //legendary
-	set upLcost[5] = 16
-	set upCcost[5] = 16
-    set upPcost[6] = 48 //+1
-	set upLcost[6] = 25
-	set upCcost[6] = 25
-    set upPcost[7] = 60 //+2
-	set upLcost[7] = 35
-	set upCcost[7] = 35
-
-	set UpItem[i] = 'I0B5'
-	set UpItemBecomes[i] = 'I0JF'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0B5'
-	set i = i + 1
-	set UpItem[i] = 'I0JF'
-	set UpItemBecomes[i] = 'I0JG'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0B5'
-	set i = i + 1
-	set UpItem[i] = 'I0JG'
-	set UpItemBecomes[i] = 'I0JH'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0B5'
-	set i = i + 1
-	set UpItem[i] = 'I0JH'
-	set UpItemBecomes[i] = 'I0JI'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0B5'
-	set i = i + 1
-	set UpItem[i] = 'I0JI'
-	set UpItemBecomes[i] = 'I0JJ'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0B5'
-	set i = i + 1
-	set UpItem[i] = 'I0JJ'
-	set UpItemBecomes[i] = 'I0JK'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0B5'
-	set i = i + 1
-	set UpItem[i] = 'I0JK'
-	set UpItemBecomes[i] = 'I0JL'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0B5'
-	set i = i + 1
-	set UpItem[i] = 'I0JL'
-	set UpItemBecomes[i] = 'I0JM'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0B5'
-	set i = i + 1
-	set UpItem[i] = 'I0B7'
-	set UpItemBecomes[i] = 'I0HV'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0B7'
-	set i = i + 1
-	set UpItem[i] = 'I0HV'
-	set UpItemBecomes[i] = 'I0HW'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0B7'
-	set i = i + 1
-	set UpItem[i] = 'I0HW'
-	set UpItemBecomes[i] = 'I0HX'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0B7'
-	set i = i + 1
-	set UpItem[i] = 'I0HX'
-	set UpItemBecomes[i] = 'I0HY'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0B7'
-	set i = i + 1
-	set UpItem[i] = 'I0HY'
-	set UpItemBecomes[i] = 'I0HZ'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0B7'
-	set i = i + 1
-	set UpItem[i] = 'I0HZ'
-	set UpItemBecomes[i] = 'I0I0'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0B7'
-	set i = i + 1
-	set UpItem[i] = 'I0I0'
-	set UpItemBecomes[i] = 'I0I1'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0B7'
-	set i = i + 1
-	set UpItem[i] = 'I0I1'
-	set UpItemBecomes[i] = 'I0I2'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0B7'
-	set i = i + 1
-	set UpItem[i] = 'I0B1'
-	set UpItemBecomes[i] = 'I0IZ'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0B1'
-	set i = i + 1
-	set UpItem[i] = 'I0IZ'
-	set UpItemBecomes[i] = 'I0J0'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0B1'
-	set i = i + 1
-	set UpItem[i] = 'I0J0'
-	set UpItemBecomes[i] = 'I0J1'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0B1'
-	set i = i + 1
-	set UpItem[i] = 'I0J1'
-	set UpItemBecomes[i] = 'I0J2'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0B1'
-	set i = i + 1
-	set UpItem[i] = 'I0J2'
-	set UpItemBecomes[i] = 'I0J3'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0B1'
-	set i = i + 1
-	set UpItem[i] = 'I0J3'
-	set UpItemBecomes[i] = 'I0J4'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0B1'
-	set i = i + 1
-	set UpItem[i] = 'I0J4'
-	set UpItemBecomes[i] = 'I0J5'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0B1'
-	set i = i + 1
-	set UpItem[i] = 'I0J5'
-	set UpItemBecomes[i] = 'I0J6'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0B1'
-	set i = i + 1
-	set UpItem[i] = 'I0AZ'
-	set UpItemBecomes[i] = 'I0I3'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0AZ'
-	set i = i + 1
-	set UpItem[i] = 'I0I3'
-	set UpItemBecomes[i] = 'I0I4'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0AZ'
-	set i = i + 1
-	set UpItem[i] = 'I0I4'
-	set UpItemBecomes[i] = 'I0I5'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0AZ'
-	set i = i + 1
-	set UpItem[i] = 'I0I5'
-	set UpItemBecomes[i] = 'I0I6'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0AZ'
-	set i = i + 1
-	set UpItem[i] = 'I0I6'
-	set UpItemBecomes[i] = 'I0I7'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0AZ'
-	set i = i + 1
-	set UpItem[i] = 'I0I7'
-	set UpItemBecomes[i] = 'I0I8'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0AZ'
-	set i = i + 1
-	set UpItem[i] = 'I0I8'
-	set UpItemBecomes[i] = 'I0I9'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0AZ'
-	set i = i + 1
-	set UpItem[i] = 'I0I9'
-	set UpItemBecomes[i] = 'I0IA'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0AZ'
-	set i = i + 1
-	set UpItem[i] = 'I0AS' //claymore
-	set UpItemBecomes[i] = 'I0D9'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0AS'
-	set i = i + 1
-	set UpItem[i] = 'I0D9'
-	set UpItemBecomes[i] = 'I0DA'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0AS'
-	set i = i + 1
-	set UpItem[i] = 'I0DA'
-	set UpItemBecomes[i] = 'I0HP'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I0HP'
-	set UpItemBecomes[i] = 'I0HQ'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0AS'
-	set i = i + 1
-	set UpItem[i] = 'I0HQ'
-	set UpItemBecomes[i] = 'I0HR'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0AS'
-	set i = i + 1
-	set UpItem[i] = 'I0HR'
-	set UpItemBecomes[i] = 'I0HS'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I0HS'
-	set UpItemBecomes[i] = 'I0HT'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0AS'
-	set i = i + 1
-	set UpItem[i] = 'I0HT'
-	set UpItemBecomes[i] = 'I0HU'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0AS'
-	set i = i + 1
-	set UpItem[i] = 'I04L'
-	set UpItemBecomes[i] = 'I0J7'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I04L'
-	set i = i + 1
-	set UpItem[i] = 'I0J7'
-	set UpItemBecomes[i] = 'I0J8'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I04L'
-	set i = i + 1
-	set UpItem[i] = 'I0J8'
-	set UpItemBecomes[i] = 'I0J9'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I0J9'
-	set UpItemBecomes[i] = 'I0JA'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I04L'
-	set i = i + 1
-	set UpItem[i] = 'I0JA'
-	set UpItemBecomes[i] = 'I0JB'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I04L'
-	set i = i + 1
-	set UpItem[i] = 'I0JB'
-	set UpItemBecomes[i] = 'I0JC'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I0JC'
-	set UpItemBecomes[i] = 'I0JD'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I04L'
-	set i = i + 1
-	set UpItem[i] = 'I0JD'
-	set UpItemBecomes[i] = 'I0JE'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I04L'
-	set i = i + 1
-	set UpItem[i] = 'I0AJ'
-	set UpItemBecomes[i] = 'I0IJ'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0AJ'
-	set i = i + 1
-	set UpItem[i] = 'I0IJ'
-	set UpItemBecomes[i] = 'I0IK'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0AJ'
-	set i = i + 1
-	set UpItem[i] = 'I0IK'
-	set UpItemBecomes[i] = 'I0IL'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I0IL'
-	set UpItemBecomes[i] = 'I0IM'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0AJ'
-	set i = i + 1
-	set UpItem[i] = 'I0IM'
-	set UpItemBecomes[i] = 'I0IN'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0AJ'
-	set i = i + 1
-	set UpItem[i] = 'I0IN'
-	set UpItemBecomes[i] = 'I0IO'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I0IO'
-	set UpItemBecomes[i] = 'I0IP'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0AJ'
-	set i = i + 1
-	set UpItem[i] = 'I0IP'
-	set UpItemBecomes[i] = 'I0IQ'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0AJ'
-	set i = i + 1
-	set UpItem[i] = 'I0AV'
-	set UpItemBecomes[i] = 'I0IB'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0AV'
-	set i = i + 1
-	set UpItem[i] = 'I0IB'
-	set UpItemBecomes[i] = 'I0IC'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0AV'
-	set i = i + 1
-	set UpItem[i] = 'I0IC'
-	set UpItemBecomes[i] = 'I0ID'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I00R'
-	set i = i + 1
-	set UpItem[i] = 'I0ID'
-	set UpItemBecomes[i] = 'I0IE'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0AV'
-	set i = i + 1
-	set UpItem[i] = 'I0IE'
-	set UpItemBecomes[i] = 'I0IF'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0AV'
-	set i = i + 1
-	set UpItem[i] = 'I0IF'
-	set UpItemBecomes[i] = 'I0IG'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0AV'
-	set i = i + 1
-	set UpItem[i] = 'I0IG'
-	set UpItemBecomes[i] = 'I0IH'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0AV'
-	set i = i + 1
-	set UpItem[i] = 'I0IH'
-	set UpItemBecomes[i] = 'I0II'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0AV'
-	set i = i + 1
-	set UpItem[i] = 'I0AX'
-	set UpItemBecomes[i] = 'I0IR'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0AX'
-	set i = i + 1
-	set UpItem[i] = 'I0IR'
-	set UpItemBecomes[i] = 'I0IS'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0AX'
-	set i = i + 1
-	set UpItem[i] = 'I0IS'
-	set UpItemBecomes[i] = 'I0IT'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0AX'
-	set i = i + 1
-	set UpItem[i] = 'I0IT'
-	set UpItemBecomes[i] = 'I0IU'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0AX'
-	set i = i + 1
-	set UpItem[i] = 'I0IU'
-	set UpItemBecomes[i] = 'I0IV'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0AX'
-	set i = i + 1
-	set UpItem[i] = 'I0IV'
-	set UpItemBecomes[i] = 'I0IW'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0AX'
-	set i = i + 1
-	set UpItem[i] = 'I0IW'
-	set UpItemBecomes[i] = 'I0IX'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0AX'
-	set i = i + 1
-	set UpItem[i] = 'I0IX'
-	set UpItemBecomes[i] = 'I0IY'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0AX'
-	set i = i + 1
-    
-	//Azazoth
-	set upPcost[0] = 30 //+1
-	set upLcost[0] = 15
-	set upCcost[0] = 0
-	set upPcost[1] = 50 //+2
-	set upLcost[1] = 30
-	set upCcost[1] = 10
-	set upPcost[2] = 70 //rare
-	set upLcost[2] = 45
-	set upCcost[2] = 20
-	set upPcost[3] = 90 //+1
-	set upLcost[3] = 60
-	set upCcost[3] = 30
-	set upPcost[4] = 110 //+2
-	set upLcost[4] = 75
-	set upCcost[4] = 40
-	set upPcost[5] = 130 //legendary
-	set upLcost[5] = 90
-	set upCcost[5] = 50
-    set upPcost[6] = 150 //+1
-	set upLcost[6] = 105
-	set upCcost[6] = 60
-    set upPcost[7] = 190 //+2
-	set upLcost[7] = 135
-	set upCcost[7] = 80
-
-	set UpItem[i] = 'I0BS' //Plate
-	set UpItemBecomes[i] = 'I0JW'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0BS'
-	set i = i + 1
-	set UpItem[i] = 'I0JW'
-	set UpItemBecomes[i] = 'I0JX'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0BS'
-	set i = i + 1
-	set UpItem[i] = 'I0JX'
-	set UpItemBecomes[i] = 'I0JY'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0BS'
-	set i = i + 1
-	set UpItem[i] = 'I0JY'
-	set UpItemBecomes[i] = 'I0JZ'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0BS'
-	set i = i + 1
-	set UpItem[i] = 'I0JZ'
-	set UpItemBecomes[i] = 'I0K0'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0BS'
-	set i = i + 1
-	set UpItem[i] = 'I0K0'
-	set UpItemBecomes[i] = 'I0K1'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0BS'
-	set i = i + 1
-	set UpItem[i] = 'I0K1'
-	set UpItemBecomes[i] = 'I0K2'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0BS'
-	set i = i + 1
-	set UpItem[i] = 'I0K2'
-	set UpItemBecomes[i] = 'I0K3'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0BS'
-	set i = i + 1
-	set UpItem[i] = 'I0BV' //fullplate
-	set UpItemBecomes[i] = 'I0K4'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0BV'
-	set i = i + 1
-	set UpItem[i] = 'I0K4'
-	set UpItemBecomes[i] = 'I0K5'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0BV'
-	set i = i + 1
-	set UpItem[i] = 'I0K5'
-	set UpItemBecomes[i] = 'I0K6'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0BV'
-	set i = i + 1
-	set UpItem[i] = 'I0K6'
-	set UpItemBecomes[i] = 'I0K7'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0BV'
-	set i = i + 1
-	set UpItem[i] = 'I0K7'
-	set UpItemBecomes[i] = 'I0K8'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0BV'
-	set i = i + 1
-	set UpItem[i] = 'I0K8'
-	set UpItemBecomes[i] = 'I0K9'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0BV'
-	set i = i + 1
-	set UpItem[i] = 'I0K9'
-	set UpItemBecomes[i] = 'I0KA'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0BV'
-	set i = i + 1
-	set UpItem[i] = 'I0KA'
-	set UpItemBecomes[i] = 'I0KB'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0BV'
-	set i = i + 1
-	set UpItem[i] = 'I0BK' //leather
-	set UpItemBecomes[i] = 'I0KC'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0BK'
-	set i = i + 1
-	set UpItem[i] = 'I0KC'
-	set UpItemBecomes[i] = 'I0KD'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0BK'
-	set i = i + 1
-	set UpItem[i] = 'I0KD'
-	set UpItemBecomes[i] = 'I0KE'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0BK'
-	set i = i + 1
-	set UpItem[i] = 'I0KE'
-	set UpItemBecomes[i] = 'I0KF'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0BK'
-	set i = i + 1
-	set UpItem[i] = 'I0KF'
-	set UpItemBecomes[i] = 'I0KG'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0BK'
-	set i = i + 1
-	set UpItem[i] = 'I0KG'
-	set UpItemBecomes[i] = 'I0KH'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0BK'
-	set i = i + 1
-	set UpItem[i] = 'I0KH'
-	set UpItemBecomes[i] = 'I0KI'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0BK'
-	set i = i + 1
-	set UpItem[i] = 'I0KI'
-	set UpItemBecomes[i] = 'I0KJ'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0BK'
-	set i = i + 1
-	set UpItem[i] = 'I0BI' //Robe
-	set UpItemBecomes[i] = 'I0KK'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0BI'
-	set i = i + 1
-	set UpItem[i] = 'I0KK'
-	set UpItemBecomes[i] = 'I0KL'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0BI'
-	set i = i + 1
-	set UpItem[i] = 'I0KL'
-	set UpItemBecomes[i] = 'I0KM'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0BI'
-	set i = i + 1
-	set UpItem[i] = 'I0KM'
-	set UpItemBecomes[i] = 'I0KN'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0BI'
-	set i = i + 1
-	set UpItem[i] = 'I0KN'
-	set UpItemBecomes[i] = 'I0KO'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0BI'
-	set i = i + 1
-	set UpItem[i] = 'I0KO'
-	set UpItemBecomes[i] = 'I0KP'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0BI'
-	set i = i + 1
-	set UpItem[i] = 'I0KP'
-	set UpItemBecomes[i] = 'I0KQ'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0BI'
-	set i = i + 1
-	set UpItem[i] = 'I0KQ'
-	set UpItemBecomes[i] = 'I0KR'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0BI'
-	set i = i + 1
-	set UpItem[i] = 'I0BB' //hammer
-	set UpItemBecomes[i] = 'I0KS'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0BB'
-	set i = i + 1
-	set UpItem[i] = 'I0KS'
-	set UpItemBecomes[i] = 'I0KT'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0BB'
-	set i = i + 1
-	set UpItem[i] = 'I0KT'
-	set UpItemBecomes[i] = 'I0KU'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0BB'
-	set i = i + 1
-	set UpItem[i] = 'I0KU'
-	set UpItemBecomes[i] = 'I0KV'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0BB'
-	set i = i + 1
-	set UpItem[i] = 'I0KV'
-	set UpItemBecomes[i] = 'I0KW'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0BB'
-	set i = i + 1
-	set UpItem[i] = 'I0KW'
-	set UpItemBecomes[i] = 'I0KX'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0BB'
-	set i = i + 1
-	set UpItem[i] = 'I0KX'
-	set UpItemBecomes[i] = 'I0KY'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0BB'
-	set i = i + 1
-	set UpItem[i] = 'I0KY'
-	set UpItemBecomes[i] = 'I0KZ'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0BB'
-	set i = i + 1
-	set UpItem[i] = 'I0BC' //sword
-	set UpItemBecomes[i] = 'I0L0'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0BC'
-	set i = i + 1
-	set UpItem[i] = 'I0L0'
-	set UpItemBecomes[i] = 'I0L1'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0BC'
-	set i = i + 1
-	set UpItem[i] = 'I0L1'
-	set UpItemBecomes[i] = 'I0L2'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0BC'
-	set i = i + 1
-	set UpItem[i] = 'I0L2'
-	set UpItemBecomes[i] = 'I0L3'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0BC'
-	set i = i + 1
-	set UpItem[i] = 'I0L3'
-	set UpItemBecomes[i] = 'I0L4'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0BC'
-	set i = i + 1
-	set UpItem[i] = 'I0L4'
-	set UpItemBecomes[i] = 'I0L5'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0BC'
-	set i = i + 1
-	set UpItem[i] = 'I0L5'
-	set UpItemBecomes[i] = 'I0L6'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0BC'
-	set i = i + 1
-	set UpItem[i] = 'I0L6'
-	set UpItemBecomes[i] = 'I0L7'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0BC'
-	set i = i + 1
-	set UpItem[i] = 'I0BE' //dagger
-	set UpItemBecomes[i] = 'I0L8'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0BE'
-	set i = i + 1
-	set UpItem[i] = 'I0L8'
-	set UpItemBecomes[i] = 'I0L9'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0BE'
-	set i = i + 1
-	set UpItem[i] = 'I0L9'
-	set UpItemBecomes[i] = 'I0LA'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0BE'
-	set i = i + 1
-	set UpItem[i] = 'I0LA'
-	set UpItemBecomes[i] = 'I0LB'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0BE'
-	set i = i + 1
-	set UpItem[i] = 'I0LB'
-	set UpItemBecomes[i] = 'I0LC'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0BE'
-	set i = i + 1
-	set UpItem[i] = 'I0LC'
-	set UpItemBecomes[i] = 'I0LD'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0BE'
-	set i = i + 1
-	set UpItem[i] = 'I0LD'
-	set UpItemBecomes[i] = 'I0LE'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0BE'
-	set i = i + 1
-	set UpItem[i] = 'I0LE'
-	set UpItemBecomes[i] = 'I0LF'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0BE'
-	set i = i + 1
-	set UpItem[i] = 'I0B9' //bow
-	set UpItemBecomes[i] = 'I0LG'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0B9'
-	set i = i + 1
-	set UpItem[i] = 'I0LG'
-	set UpItemBecomes[i] = 'I0LH'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0B9'
-	set i = i + 1
-	set UpItem[i] = 'I0LH'
-	set UpItemBecomes[i] = 'I0LI'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0B9'
-	set i = i + 1
-	set UpItem[i] = 'I0LI'
-	set UpItemBecomes[i] = 'I0LJ'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0B9'
-	set i = i + 1
-	set UpItem[i] = 'I0LJ'
-	set UpItemBecomes[i] = 'I0LK'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0B9'
-	set i = i + 1
-	set UpItem[i] = 'I0LK'
-	set UpItemBecomes[i] = 'I0LL'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0B9'
-	set i = i + 1
-	set UpItem[i] = 'I0LL'
-	set UpItemBecomes[i] = 'I0LM'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0B9'
-	set i = i + 1
-	set UpItem[i] = 'I0LM'
-	set UpItemBecomes[i] = 'I0LN'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0B9'
-	set i = i + 1
-	set UpItem[i] = 'I0BG' //staff
-	set UpItemBecomes[i] = 'I0LO'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I0BG'
-	set i = i + 1
-	set UpItem[i] = 'I0LO'
-	set UpItemBecomes[i] = 'I0LP'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I0BG'
-	set i = i + 1
-	set UpItem[i] = 'I0LP'
-	set UpItemBecomes[i] = 'I0LQ'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I0BG'
-	set i = i + 1
-	set UpItem[i] = 'I0LQ'
-	set UpItemBecomes[i] = 'I0LR'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I0BG'
-	set i = i + 1
-	set UpItem[i] = 'I0LR'
-	set UpItemBecomes[i] = 'I0LS'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I0BG'
-	set i = i + 1
-	set UpItem[i] = 'I0LS'
-	set UpItemBecomes[i] = 'I0LT'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I0BG'
-	set i = i + 1
-	set UpItem[i] = 'I0LT'
-	set UpItemBecomes[i] = 'I0LU'
-	call SetupCosts(i,6)
-	set UpDiscountItem[i] = 'I0BG'
-	set i = i + 1
-	set UpItem[i] = 'I0LU'
-	set UpItemBecomes[i] = 'I0LV'
-	call SetupCosts(i,7)
-	set UpDiscountItem[i] = 'I0BG'
-	set i = i + 1
-    set UpItem[i] = 'I06M' //sphere
-    set UpItemBecomes[i] = 'I0LW'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I06M'
-	set i = i + 1
-    set UpItem[i] = 'I0LW'
-    set UpItemBecomes[i] = 'I0LX'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I06M'
-	set i = i + 1
-
-	//Ring of Existence
-	set upPcost[0] = 36 //+1
-	set upLcost[0] = 24
-	set upCcost[0] = 12
-	set upPcost[1] = 48 //+2
-	set upLcost[1] = 33
-	set upCcost[1] = 18
-	set upPcost[2] = 60 //rare
-	set upLcost[2] = 42
-	set upCcost[2] = 24
-	set upPcost[3] = 72 //+1
-	set upLcost[3] = 51
-	set upCcost[3] = 30
-	set upPcost[4] = 84 //+2
-	set upLcost[4] = 60
-	set upCcost[4] = 36
-	set upPcost[5] = 96 //legendary
-	set upLcost[5] = 69
-	set upCcost[5] = 42
-    set upPcost[6] = 108 //+1
-	set upLcost[6] = 78
-	set upCcost[6] = 48
-    set upPcost[7] = 132 //+2
-	set upLcost[7] = 96
-	set upCcost[7] = 60
-
-	set UpItem[i] = 'I018'
-	set UpItemBecomes[i] = 'I0F0'
-	call SetupCosts(i,0)
-	set UpDiscountItem[i] = 'I018'
-	set i = i + 1
-	set UpItem[i] = 'I0F0'
-	set UpItemBecomes[i] = 'I0EZ'
-	call SetupCosts(i,1)
-	set UpDiscountItem[i] = 'I018'
-	set i = i + 1
-	set UpItem[i] = 'I0EZ'
-	set UpItemBecomes[i] = 'I06I'
-	call SetupCosts(i,2)
-	set UpDiscountItem[i] = 'I018'
-	set i = i + 1
-	set UpItem[i] = 'I06I'
-	set UpItemBecomes[i] = 'I0F1'
-	call SetupCosts(i,3)
-	set UpDiscountItem[i] = 'I06I'
-	set i = i + 1
-	set UpItem[i] = 'I0F1'
-	set UpItemBecomes[i] = 'I0F2'
-	call SetupCosts(i,4)
-	set UpDiscountItem[i] = 'I06I'
-	set i = i + 1
-	set UpItem[i] = 'I0F2'
-	set UpItemBecomes[i] = 'I06J'
-	call SetupCosts(i,5)
-	set UpDiscountItem[i] = 'I06I'
-	set i = i + 1
-	set UpItem[i] = 'I06J'
-	set UpItemBecomes[i] = 'I0G1'
-	call SetupCosts(i,6)
-    set UpDiscountItem[i] = 'I06I'
-	set i = i + 1
-	set UpItem[i] = 'I0G1'
-	set UpItemBecomes[i] = 'I0G2'
-	call SetupCosts(i,7)
-    set UpDiscountItem[i] = 'I06I'
-	set i = i + 1
-
-	//Forgotten Jewels
-	set upPcost[0] = 60 //+1
-	set upLcost[0] = 40
-	set upCcost[0] = 20
-	set upPcost[1] = 80 //+2
-	set upLcost[1] = 55
-	set upCcost[1] = 30
-	set upPcost[2] = 100 //rare
-	set upLcost[2] = 70
-	set upCcost[2] = 40
-	set upPcost[3] = 120 //+1
-	set upLcost[3] = 85
-	set upCcost[3] = 50
-	set upPcost[4] = 140 //+2
-	set upLcost[4] = 100
-	set upCcost[4] = 60
-	set upPcost[5] = 160 //legendary
-	set upLcost[5] = 115
-	set upCcost[5] = 70
-    set upPcost[6] = 180 //+1
-	set upLcost[6] = 130
-	set upCcost[6] = 80
-    set upPcost[7] = 220 //+2
-	set upLcost[7] = 160
-	set upCcost[7] = 100
-
-	//lexium
-	set UpItem[i] = 'I0CH'
-	set UpItemBecomes[i] = 'I01L'
-	call SetupCosts(i, 0)
-	set UpDiscountItem[i] = 'I0CH'
-	set i = i + 1
-	set UpItem[i] = 'I01L'
-	set UpItemBecomes[i] = 'I01N'
-	call SetupCosts(i, 1)
-	set UpDiscountItem[i] = 'I0CH'
-	set i = i + 1
-	set UpItem[i] = 'I01N'
-	set UpItemBecomes[i] = 'I0NT'
-	call SetupCosts(i, 2)
-	set UpDiscountItem[i] = 'I0CH'
-	set i = i + 1
-	set UpItem[i] = 'I0NT'
-	set UpItemBecomes[i] = 'I0NP'
-	call SetupCosts(i, 3)
-	set UpDiscountItem[i] = 'I0CH'
-	set i = i + 1
-	set UpItem[i] = 'I0NP'
-	set UpItemBecomes[i] = 'I0NQ'
-	call SetupCosts(i, 4)
-	set UpDiscountItem[i] = 'I0CH'
-	set i = i + 1
-	set UpItem[i] = 'I0NQ'
-	set UpItemBecomes[i] = 'I0NR'
-	call SetupCosts(i, 5)
-	set UpDiscountItem[i] = 'I0CH'
-	set i = i + 1
-	set UpItem[i] = 'I0NR'
-	set UpItemBecomes[i] = 'I0NS'
-	call SetupCosts(i, 6)
-	set UpDiscountItem[i] = 'I0CH'
-	set i = i + 1
-	set UpItem[i] = 'I0NS'
-	set UpItemBecomes[i] = 'I019'
-	call SetupCosts(i, 7)
-	set UpDiscountItem[i] = 'I0CH'
-	set i = i + 1
-	//vigor
-	set UpItem[i] = 'I0O1'
-	set UpItemBecomes[i] = 'I0O0'
-	call SetupCosts(i, 0)
-	set UpDiscountItem[i] = 'I0O1'
-	set i = i + 1
-	set UpItem[i] = 'I0O0'
-	set UpItemBecomes[i] = 'I0NZ'
-	call SetupCosts(i, 1)
-	set UpDiscountItem[i] = 'I0O1'
-	set i = i + 1
-	set UpItem[i] = 'I0NZ'
-	set UpItemBecomes[i] = 'I0NY'
-	call SetupCosts(i, 2)
-	set UpDiscountItem[i] = 'I0O1'
-	set i = i + 1
-	set UpItem[i] = 'I0NY'
-	set UpItemBecomes[i] = 'I0O2'
-	call SetupCosts(i, 3)
-	set UpDiscountItem[i] = 'I0O1'
-	set i = i + 1
-	set UpItem[i] = 'I0O2'
-	set UpItemBecomes[i] = 'I0NX'
-	call SetupCosts(i, 4)
-	set UpDiscountItem[i] = 'I0O1'
-	set i = i + 1
-	set UpItem[i] = 'I0NX'
-	set UpItemBecomes[i] = 'I0NV'
-	call SetupCosts(i, 5)
-	set UpDiscountItem[i] = 'I0O1'
-	set i = i + 1
-	set UpItem[i] = 'I0NV'
-	set UpItemBecomes[i] = 'I0NU'
-	call SetupCosts(i, 6)
-	set UpDiscountItem[i] = 'I0O1'
-	set i = i + 1
-	set UpItem[i] = 'I0NU'
-	set UpItemBecomes[i] = 'I0NW'
-	call SetupCosts(i, 7)
-	set UpDiscountItem[i] = 'I0O1'
-	set i = i + 1
-	//torture
-	set UpItem[i] = 'I0OB'
-	set UpItemBecomes[i] = 'I0O9'
-	call SetupCosts(i, 0)
-	set UpDiscountItem[i] = 'I0OB'
-	set i = i + 1
-	set UpItem[i] = 'I0O9'
-	set UpItemBecomes[i] = 'I0O8'
-	call SetupCosts(i, 1)
-	set UpDiscountItem[i] = 'I0OB'
-	set i = i + 1
-	set UpItem[i] = 'I0O8'
-	set UpItemBecomes[i] = 'I0OA'
-	call SetupCosts(i, 2)
-	set UpDiscountItem[i] = 'I0OB'
-	set i = i + 1
-	set UpItem[i] = 'I0OA'
-	set UpItemBecomes[i] = 'I0O4'
-	call SetupCosts(i, 3)
-	set UpDiscountItem[i] = 'I0OB'
-	set i = i + 1
-	set UpItem[i] = 'I0O4'
-	set UpItemBecomes[i] = 'I0O5'
-	call SetupCosts(i, 4)
-	set UpDiscountItem[i] = 'I0OB'
-	set i = i + 1
-	set UpItem[i] = 'I0O5'
-	set UpItemBecomes[i] = 'I0O7'
-	call SetupCosts(i, 5)
-	set UpDiscountItem[i] = 'I0OB'
-	set i = i + 1
-	set UpItem[i] = 'I0O7'
-	set UpItemBecomes[i] = 'I0O6'
-	call SetupCosts(i, 6)
-	set UpDiscountItem[i] = 'I0OB'
-	set i = i + 1
-	set UpItem[i] = 'I0O6'
-	set UpItemBecomes[i] = 'I0O3'
-	call SetupCosts(i, 7)
-	set UpDiscountItem[i] = 'I0OB'
-	
-	set udg_PermanentInteger[2] = i
+	call SetTableData(ItemData, 'I0NE', "level 230 damage 26000 int 24000 prof 10")*/
 endfunction
 
 function killquestsetup takes nothing returns nothing
 	//trolls
-	call SetTableData(KillQuest, 'I07D', "Index 1")
-	call SetTableData(KillQuest, 1, "Goal 15 Min 1 Max 8")
-	set KillQuest[1][StringHash("Spawn")] = 'nitt'
-	set KillQuest[1].string[StringHash("Name")] = "Trolls"
-	set KillQuest[1].rect[StringHash("Region")] = gg_rct_Troll_Demon_1
-	//tuskar
-	call SetTableData(KillQuest, 'I058', "Index 2")
-	call SetTableData(KillQuest, 2, "Goal 20 Min 3 Max 14")
-	set KillQuest[2].string[StringHash("Name")] = "Tuskar"
-	set KillQuest[2].rect[StringHash("Region")] = gg_rct_Tuskar_Horror_1
+	local integer id = 'nits'
+	set KillQuest[0][0] = id
+	set KillQuest['I07D'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 15
+	set KillQuest[id][KILLQUEST_MIN] = 1 
+	set KillQuest[id][KILLQUEST_MAX] = 8
+	set KillQuest[id].string[KILLQUEST_NAME] = "Trolls"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Troll_Demon_1
+	//tuskarr
+	set id = 'ntks'
+	set KillQuest[0][1] = id
+	set KillQuest['I058'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 3 
+	set KillQuest[id][KILLQUEST_MAX] = 14
+	set KillQuest[id].string[KILLQUEST_NAME] = "Tuskarr"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Tuskar_Horror_1
 	//spider
-	call SetTableData(KillQuest, 'I05F', "Index 3")
-	call SetTableData(KillQuest, 3, "Goal 20 Min 5 Max 24")
-	set KillQuest['I05F'][StringHash("Index")] = 3
-	set KillQuest[3][StringHash("Goal")] = 20
-	set KillQuest[3][StringHash("Min")] = 5
-	set KillQuest[3][StringHash("Max")] = 24
-	set KillQuest[3].string[StringHash("Name")] = "Spider"
-	set KillQuest[3].rect[StringHash("Region")] = gg_rct_Spider_Horror_3
+	set id = 'nnwr'
+	set KillQuest[0][2] = id
+	set KillQuest['I05F'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 5 
+	set KillQuest[id][KILLQUEST_MAX] = 24
+	set KillQuest[id].string[KILLQUEST_NAME] = "Spiders"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Spider_Horror_3
 	//ursa
-	call SetTableData(KillQuest, 'I04U', "Index 4")
-	call SetTableData(KillQuest, 4, "Goal 25 Min 8 Max 24")
-	set KillQuest[4].string[StringHash("Name")] = "Ursa"
-	set KillQuest[4].rect[StringHash("Region")] = gg_rct_Ursa_Abyssal_2
+	set id = 'nfpu'
+	set KillQuest[0][3] = id
+	set KillQuest['I04U'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 25
+	set KillQuest[id][KILLQUEST_MIN] = 8 
+	set KillQuest[id][KILLQUEST_MAX] = 24
+	set KillQuest[id].string[KILLQUEST_NAME] = "Ursae"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Ursa_Abyssal_2
 	//polar bears
-	call SetTableData(KillQuest, 'I04V', "Index 5")
-	call SetTableData(KillQuest, 5, "Goal 20 Min 12 Max 46")
-	set KillQuest[5].string[StringHash("Name")] = "Polar Bears"
-	set KillQuest[5].rect[StringHash("Region")] = gg_rct_Bear_2
+	set id = 'nplg'
+	set KillQuest[0][4] = id
+	set KillQuest['I04V'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 12 
+	set KillQuest[id][KILLQUEST_MAX] = 46
+	set KillQuest[id].string[KILLQUEST_NAME] = "Polar Bears & Mammoths"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Bear_2
 	//tauren/ogre
-	call SetTableData(KillQuest, 'I05B', "Index 6")
-	call SetTableData(KillQuest, 6, "Goal 25 Min 20 Max 62")
-	set KillQuest[6].string[StringHash("Name")] = "Tauren/Ogre"
-	set KillQuest[6].rect[StringHash("Region")] = gg_rct_OgreTauren_Void_5
+	set id = 'n01G'
+	set KillQuest[0][5] = id
+	set KillQuest['I05B'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 25
+	set KillQuest[id][KILLQUEST_MIN] = 20 
+	set KillQuest[id][KILLQUEST_MAX] = 62
+	set KillQuest[id].string[KILLQUEST_NAME] = "Taurens & Ogres"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_OgreTauren_Void_5
 	//unbroken
-	call SetTableData(KillQuest, 'I05L', "Index 7")
-	call SetTableData(KillQuest, 7, "Goal 25 Min 29 Max 84")
-	set KillQuest[7].string[StringHash("Name")] = "Unbroken"
-	set KillQuest[7].rect[StringHash("Region")] = gg_rct_Unbroken_Dimensional_2
+	set id = 'nubw'
+	set KillQuest[0][6] = id
+	set KillQuest['I05L'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 25
+	set KillQuest[id][KILLQUEST_MIN] = 29 
+	set KillQuest[id][KILLQUEST_MAX] = 84
+	set KillQuest[id].string[KILLQUEST_NAME] = "Unbroken"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Unbroken_Dimensional_2
 	//hellhounds
-	call SetTableData(KillQuest, 'I05E', "Index 8")
-	call SetTableData(KillQuest, 8, "Goal 20 Min 44 Max 110")
-	set KillQuest[8].string[StringHash("Name")] = "Hellhounds"
-	set KillQuest[8].rect[StringHash("Region")] = gg_rct_Hell_4
+	set id = 'nvdl'
+	set KillQuest[0][7] = id
+	set KillQuest['I05E'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 44 
+	set KillQuest[id][KILLQUEST_MAX] = 110
+	set KillQuest[id].string[KILLQUEST_NAME] = "Hellspawn"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Hell_4
 	//centaur
-	call SetTableData(KillQuest, 'I0GD', "Index 9")
-	call SetTableData(KillQuest, 9, "Goal 20 Min 56 Max 134")
-	set KillQuest[9].string[StringHash("Name")] = "Centaur"
-	set KillQuest[9].rect[StringHash("Region")] = gg_rct_Centaur_Nightmare_5
+	set id = 'n024'
+	set KillQuest[0][8] = id
+	set KillQuest['I0GD'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 56 
+	set KillQuest[id][KILLQUEST_MAX] = 134
+	set KillQuest[id].string[KILLQUEST_NAME] = "Centaurs"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Centaur_Nightmare_5
 	//magnataur
-	call SetTableData(KillQuest, 'I05K', "Index 10")
-	call SetTableData(KillQuest, 10, "Goal 20 Min 70 Max 162")
-	set KillQuest[10].string[StringHash("Name")] = "Magnataur"
-	set KillQuest[10].rect[StringHash("Region")] = gg_rct_Magnataur_Despair_1
+	set id = 'n01M'
+	set KillQuest[0][9] = id
+	set KillQuest['I05K'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 70 
+	set KillQuest[id][KILLQUEST_MAX] = 162
+	set KillQuest[id].string[KILLQUEST_NAME] = "Magnataurs"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Magnataur_Despair_1
 	//dragon
-	call SetTableData(KillQuest, 'I05M', "Index 11")
-	call SetTableData(KillQuest, 11, "Goal 20 Min 92 Max 182")
-	set KillQuest[11].string[StringHash("Name")] = "Dragons"
-	set KillQuest[11].rect[StringHash("Region")] = gg_rct_Dragon_Astral_8
+	set id = 'n02P'
+	set KillQuest[0][10] = id
+	set KillQuest['I05M'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 92 
+	set KillQuest[id][KILLQUEST_MAX] = 182
+	set KillQuest[id].string[KILLQUEST_NAME] = "Dragons"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Dragon_Astral_8
 	//devourers
-	call SetTableData(KillQuest, 'I022', "Index 12")
-	call SetTableData(KillQuest, 12, "Goal 20 Min 108 Max 198")
-	set KillQuest[12].string[StringHash("Name")] = "Devourers"
-	set KillQuest[12].rect[StringHash("Region")] = gg_rct_Devourer_entry
+	set id = 'n02L'
+	set KillQuest[0][11] = id
+	set KillQuest['I022'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 110 
+	set KillQuest[id][KILLQUEST_MAX] = 198
+	set KillQuest[id].string[KILLQUEST_NAME] = "Devourers"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Devourer_entry
 	//demons
-	call SetTableData(KillQuest, 'I03H', "Index 13")
-	call SetTableData(KillQuest, 13, "Goal 20 Min 166 Max 256")
-	set KillQuest[13].string[StringHash("Name")] = "Demons"
-	set KillQuest[13].rect[StringHash("Region")] = gg_rct_Troll_Demon_1
+	set id = 'n034'
+	set KillQuest[1][0] = id
+	set KillQuest['I03H'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 166 
+	set KillQuest[id][KILLQUEST_MAX] = 256
+	set KillQuest[id].string[KILLQUEST_NAME] = "Demons"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Troll_Demon_1
 	//horror beast
-	call SetTableData(KillQuest, 'I09J', "Index 14")
-	call SetTableData(KillQuest, 14, "Goal 20 Min 190 Max 260")
-	set KillQuest[14].string[StringHash("Name")] = "Horror Beasts"
-	set KillQuest[14].rect[StringHash("Region")] = gg_rct_Tuskar_Horror_1
+	set id = 'n03A'
+	set KillQuest[1][1] = id
+	set KillQuest['I09J'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 190 
+	set KillQuest[id][KILLQUEST_MAX] = 260
+	set KillQuest[id].string[KILLQUEST_NAME] = "Horror Beasts"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Tuskar_Horror_1
 	//despair
-	call SetTableData(KillQuest, 'I03C', "Index 15")
-	call SetTableData(KillQuest, 15, "Goal 20 Min 210 Max 280")
-	set KillQuest[15].string[StringHash("Name")] = "Despair"
-	set KillQuest[15].rect[StringHash("Region")] = gg_rct_Magnataur_Despair_1
+	set id = 'n03F'
+	set KillQuest[1][2] = id
+	set KillQuest['I03C'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 210 
+	set KillQuest[id][KILLQUEST_MAX] = 280
+	set KillQuest[id].string[KILLQUEST_NAME] = "Despairs"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Magnataur_Despair_1
 	//abyssal
-	call SetTableData(KillQuest, 'I02A', "Index 16")
-	call SetTableData(KillQuest, 16, "Goal 20 Min 229 Max 299")
-	set KillQuest[16].string[StringHash("Name")] = "Abyssal"
-	set KillQuest[16].rect[StringHash("Region")] = gg_rct_Ursa_Abyssal_2
+	set id = 'n08N'
+	set KillQuest[1][3] = id
+	set KillQuest['I02A'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 229 
+	set KillQuest[id][KILLQUEST_MAX] = 299
+	set KillQuest[id].string[KILLQUEST_NAME] = "Abyssals"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Ursa_Abyssal_2
 	//void
-	call SetTableData(KillQuest, 'I03I', "Index 17")
-	call SetTableData(KillQuest, 17, "Goal 20 Min 250 Max 320")
-	set KillQuest[17].string[StringHash("Name")] = "Void"
-	set KillQuest[17].rect[StringHash("Region")] = gg_rct_OgreTauren_Void_5
+	set id = 'n031'
+	set KillQuest[1][4] = id
+	set KillQuest['I03I'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 250 
+	set KillQuest[id][KILLQUEST_MAX] = 320
+	set KillQuest[id].string[KILLQUEST_NAME] = "Voids"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_OgreTauren_Void_5
 	//nightmares
-	call SetTableData(KillQuest, 'I0GE', "Index 18")
-	call SetTableData(KillQuest, 18, "Goal 20 Min 270 Max 340")
-	set KillQuest[18].string[StringHash("Name")] = "Nightmares"
-	set KillQuest[18].rect[StringHash("Region")] = gg_rct_Centaur_Nightmare_5
+	set id = 'n020'
+	set KillQuest[1][5] = id
+	set KillQuest['I0GE'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 270 
+	set KillQuest[id][KILLQUEST_MAX] = 340
+	set KillQuest[id].string[KILLQUEST_NAME] = "Nightmares"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Centaur_Nightmare_5
 	//hellspawn
-	call SetTableData(KillQuest, 'I03J', "Index 19")
-	call SetTableData(KillQuest, 19, "Goal 20 Min 290 Max 360")
-	set KillQuest[19].string[StringHash("Name")] = "Hellspawn"
-	set KillQuest[19].rect[StringHash("Region")] = gg_rct_Hell_4
+	set id = 'n03D'
+	set KillQuest[1][6] = id
+	set KillQuest['I03J'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 290 
+	set KillQuest[id][KILLQUEST_MAX] = 360
+	set KillQuest[id].string[KILLQUEST_NAME] = "Hellspawn"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Hell_4
 	//denied existence
-	call SetTableData(KillQuest, 'I02G', "Index 20")
-	call SetTableData(KillQuest, 20, "Goal 30 Min 310 Max 380")
-	set KillQuest[20].string[StringHash("Name")] = "Denied Existence"
-	set KillQuest[20].rect[StringHash("Region")] = gg_rct_Devourer_entry
+	set id = 'n03J'
+	set KillQuest[1][7] = id
+	set KillQuest['I02G'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 30
+	set KillQuest[id][KILLQUEST_MIN] = 310 
+	set KillQuest[id][KILLQUEST_MAX] = 380
+	set KillQuest[id].string[KILLQUEST_NAME] = "Existences"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Devourer_entry
 	//astral
-	call SetTableData(KillQuest, 'I039', "Index 21")
-	call SetTableData(KillQuest, 21, "Goal 20 Min 330 Max 400")
-	set KillQuest[21].string[StringHash("Name")] = "Astral"
-	set KillQuest[21].rect[StringHash("Region")] = gg_rct_Dragon_Astral_8
-	//planeswalker
-	call SetTableData(KillQuest, 'I0Q1', "Index 22")
-	call SetTableData(KillQuest, 22, "Goal 20 Min 350 Max 420")
-	set KillQuest[22].string[StringHash("Name")] = "Planeswalker"
-	set KillQuest[22].rect[StringHash("Region")] = gg_rct_Unbroken_Dimensional_2
+	set id = 'n03M'
+	set KillQuest[1][8] = id
+	set KillQuest['I039'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 330 
+	set KillQuest[id][KILLQUEST_MAX] = 400
+	set KillQuest[id].string[KILLQUEST_NAME] = "Astrals"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Dragon_Astral_8
+	//dimensionals
+	set id = 'n026'
+	set KillQuest[1][9] = id
+	set KillQuest['I0Q1'][0] = id
+	set KillQuest[id][KILLQUEST_GOAL] = 20
+	set KillQuest[id][KILLQUEST_MIN] = 350 
+	set KillQuest[id][KILLQUEST_MAX] = 420
+	set KillQuest[id].string[KILLQUEST_NAME] = "Dimensionals"
+	set KillQuest[id].rect[KILLQUEST_REGION] = gg_rct_Unbroken_Dimensional_2
 endfunction
 
-function Reward_Tables_Setup takes nothing returns nothing
-	local integer i=1
-	local integer index=1
-// dragon armor
-	call SaveInteger(RewardItems,1,0, 4) //the 0 lists how many values stored, 4 for armor, 10 for weapons or both
-	call SaveInteger(RewardItems,1,1, 'I048')
-	call SaveInteger(RewardItems,1,2, 'I02U')
-	call SaveInteger(RewardItems,1,3, 'I064')
-	call SaveInteger(RewardItems,1,4, 'I02P')
-// dragon weapons
-	call SaveInteger(RewardItems,2,0, 10)
-	call SaveInteger(RewardItems,2,6, 'I033')
-	call SaveInteger(RewardItems,2,7, 'I0BZ')
-	call SaveInteger(RewardItems,2,8, 'I02S')
-	call SaveInteger(RewardItems,2,9, 'I032')
-	call SaveInteger(RewardItems,2,10, 'I065')
-// hydra weapons
-	call SaveInteger(RewardItems,3,0, 10)
-	call SaveInteger(RewardItems,3,6, 'I02N')
-	call SaveInteger(RewardItems,3,7, 'I072')
-	call SaveInteger(RewardItems,3,8, 'I06Y')
-	call SaveInteger(RewardItems,3,9, 'I070')
-	call SaveInteger(RewardItems,3,10, 'I071')
-// Spider Armors
-	call SaveInteger(RewardItems,4,0, 10) 
-	call SaveInteger(RewardItems,4,1, 'I0B8')
-	call SaveInteger(RewardItems,4,2, 'I0BA')
-	call SaveInteger(RewardItems,4,3, 'I0B4')
-	call SaveInteger(RewardItems,4,4, 'I0B6')
-// blood weapons
-	call SaveInteger(RewardItems,5,0, 10)
-	call SaveInteger(RewardItems,5,6, 'I03F')
-	call SaveInteger(RewardItems,5,7, 'I04S')
-	call SaveInteger(RewardItems,5,8, 'I020')
-	call SaveInteger(RewardItems,5,9, 'I016')
-	call SaveInteger(RewardItems,5,10, 'I0AK')
-// blood armor
-    call SaveInteger(RewardItems,6,0, 4)
-    call SaveInteger(RewardItems,6,1, 'I0N4')
-    call SaveInteger(RewardItems,6,2, 'I0N4')
-    call SaveInteger(RewardItems,6,3, 'I0N5')
-    call SaveInteger(RewardItems,6,4, 'I0N6')
-// blood both
-    call SaveInteger(RewardItems,7,0, 10)
-    call SaveInteger(RewardItems,7,1, 'I0N4')
-    call SaveInteger(RewardItems,7,2, 'I0N4')
-    call SaveInteger(RewardItems,7,3, 'I0N5')
-    call SaveInteger(RewardItems,7,4, 'I0N6')
-    call SaveInteger(RewardItems,7,6, 'I03F')
-	call SaveInteger(RewardItems,7,7, 'I04S')
-	call SaveInteger(RewardItems,7,8, 'I020')
-	call SaveInteger(RewardItems,7,9, 'I016')
-	call SaveInteger(RewardItems,7,10, 'I0AK')
-endfunction
+private struct JVInit
+	private static method onInit takes nothing returns nothing
+		local integer i = 0
 
-function JassVariablesInit takes nothing returns nothing
-    local integer i = 0
+		set ItemData = HashTable.create()
+		set UnitData = HashTable.create()
+		set KillQuest = HashTable.create()
+		set SpellTooltips = HashTable.create()
+		set ItemRewards = HashTable.create()
+		set ItemPrices = HashTable.create()
+		set PrestigeTable = HashTable.create()
+
+		set CrystalRewards = Table.create()
+		
+		call BlzLoadTOCFile("graphicsmode.toc")
+		set IS_HD[GetPlayerId(GetLocalPlayer()) + 1] = GetLocalizedString("IS_HD")
+		
+		loop
+			exitwhen i > 500
+			set udg_Experience_Table[i] = R2I(13 * i * Pow(1.4, i / 20.) + 10)
+			set udg_RewardGold[i] = Pow(udg_Experience_Table[i], .94) / 8.
+			set i = i + 1
+		endloop
+
+		set i = 0
+
+		//base experience rates per 5 levels
+		loop
+			exitwhen i > 400
+			if i <= 10 then
+				set BaseExperience[i] = 425
+			else
+				set BaseExperience[i] = (BaseExperience[i - 5] - 17. / (i - 5)) * 0.919
+			endif
+
+			set i = i + 5
+		endloop
+
+		set udg_Gold_Mod[1] = 1
+		set udg_Gold_Mod[2] = Pow(0.55, 0.5)
+		set udg_Gold_Mod[3] = Pow(0.50, 0.5)
+		set udg_Gold_Mod[4] = Pow(0.45, 0.5)
+		set udg_Gold_Mod[5] = Pow(0.40, 0.5)
+		set udg_Gold_Mod[6] = Pow(0.35, 0.5)
+
+		set POWERSOF2[0] = 0x1
+		set POWERSOF2[1] = 0x2
+		set POWERSOF2[2] = 0x4
+		set POWERSOF2[3] = 0x8
+		set POWERSOF2[4] = 0x10
+		set POWERSOF2[5] = 0x20
+		set POWERSOF2[6] = 0x40
+		set POWERSOF2[7] = 0x80
+		set POWERSOF2[8] = 0x100
+		set POWERSOF2[9] = 0x200
+		set POWERSOF2[10] = 0x400
+		set POWERSOF2[11] = 0x800
+		set POWERSOF2[12] = 0x1000
+		set POWERSOF2[13] = 0x2000
+		set POWERSOF2[14] = 0x4000
+		set POWERSOF2[15] = 0x8000
+		set POWERSOF2[16] = 0x10000
+		set POWERSOF2[17] = 0x20000
+		set POWERSOF2[18] = 0x40000
+		set POWERSOF2[19] = 0x80000
+		set POWERSOF2[20] = 0x100000
+		set POWERSOF2[21] = 0x200000
+		set POWERSOF2[22] = 0x400000
+		set POWERSOF2[23] = 0x800000
+		set POWERSOF2[24] = 0x1000000
+		set POWERSOF2[25] = 0x2000000
+		set POWERSOF2[26] = 0x4000000
+		set POWERSOF2[27] = 0x8000000
+		set POWERSOF2[28] = 0x10000000
+		set POWERSOF2[29] = 0x20000000
+		set POWERSOF2[30] = 0x40000000
+
+		set infoString[0] = "Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Hardmode\n -info 6, Prestige\n -info 7, Proficiency\n -info 8, Aggro System"
+		set infoString[1] = "Most units in this game (besides Bosses, Colosseum, Struggle) will attempt to revive where they died 30 seconds after death. If a player hero/unit is within 800 range they will spawn frozen and invulnerable until no players are around."
+		set infoString[2] = "Bosses respawn after 10 minutes and non-hero bosses respawn after 5 minutes, -hardmode speeds up respawns by 25%" 
+		set infoString[3] = "The town is protected from enemy invasion and any entering enemy will be teleported back to their original spawn."
+		set infoString[4] = "Hardcore players that die without a reincarnation item/spell will be removed from the game and cannot save/load or start a new character. 
+		A hardcore hero can only save every 30 minutes- the timer starts upon saving OR upon loading your hardcore hero. 
+		Hardcore heroes receive double the bonus from prestiging.
+		If you need to save before the timer expires you can use -forcesave to save immediately, but this deletes your hero, leaving you unable to load again in the current game (same as if your hero died)."
+		set infoString[5] = "Hardmode doubles the health and damage of bosses, doubles their drop chance, increases their gold/xp/crystal rewards, and speeds up respawn time by 25%.
+		Does not apply to Dungeons.
+		Automatically turns off when entering Chaos, but can be re-activated."
+		set infoString[6] = "You need a |cffffcc00Prestige Token|r to activate a class prestige bonus.\nPrestige bonuses apply to all your existing characters and any new ones.\n|cffffcc00BONUSES:|r\nAttack Damage(+8%): Bloodzerker, Phoenix Ranger, Elite Marksman\nStrength(+6%): Oblivion Guardian, Savior, Warrior\nAgility(+7%): Master Rogue, Assassin, Vampire Lord\nIntelligence(+7%): Dark Summoner, Bard, Dark Savior\nDamage Reduction(+5%): Royal Guardian, Arcane Warrior\nRegeneration(+8%): Priest\nSpellboost(+4%): Elementalist, Arcanist, Thunderblade, Hydromancer\n|cffffcc00ALL:|r Experience Rate(+4%), Gold Find(+2%)"
+		set infoString[7] = "Most items in this game have a proficiency requirement in their description.
+		While any hero can equip them regardless of proficiency, those lacking proficiency only recieve half stats from the item.
+		Check your hero's proficiency with -pf."
+		set infoString[8] = "Bosses use a threat meter system for each player that increases when attacked or by casting spells. Distance from the boss reduces the threat you 
+		generate significantly when attacking, so melee characters will draw aggro much more quickly-- especially with taunt abilities."
+		set infoString[69] = "Nice"
+
+		set prMulti[0] = 'A0A3'
+		set prMulti[1] = 'A0IW'
+		set prMulti[2] = 'A0IX'
+		set prMulti[3] = 'A0IY'
+		set prMulti[4] = 'A0IZ'
+
+		//currencies
+        set CURRENCY_ICON[0] = "gold.dds"
+        set CURRENCY_ICON[1] = "wood.dds"
+        set CURRENCY_ICON[2] = "plat.dds"
+        set CURRENCY_ICON[3] = "arc.dds"
+        set CURRENCY_ICON[4] = "crystal.dds"
 	
-	loop
-		exitwhen i > 500
-		set udg_Experience_Table[i] = R2I(13 * i * Pow(1.4, i / 20.) + 10)
-		set udg_RewardGold[i] = Pow(udg_Experience_Table[i], .94) / 8.
+		//TODO
+		set SPELL_FIELD[0] = ABILITY_RLF_ART_DURATION
+		set SPELL_FIELD[1] = ABILITY_RLF_AREA_OF_EFFECT
+		set SPELL_FIELD[2] = ABILITY_RLF_CAST_RANGE
+		set SPELL_FIELD[3] = ABILITY_RLF_CASTING_TIME
+		set SPELL_FIELD[4] = ABILITY_RLF_COOLDOWN
+		set SPELL_FIELD[5] = ABILITY_RLF_DURATION_HERO
+		set SPELL_FIELD[6] = ABILITY_RLF_DURATION_NORMAL
+
+		//might as well use this hashtable
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, LIGHTSEAL.id, LIGHTSEAL.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, DIVINEJUDGEMENT.id, DIVINEJUDGEMENT.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, SAVIORSGUIDANCE.id, SAVIORSGUIDANCE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, HOLYBASH.id, HOLYBASH.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, THUNDERCLAP.id, THUNDERCLAP.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, RIGHTEOUSMIGHT.id, RIGHTEOUSMIGHT.typeid)
+
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, SNIPERSTANCE.id, SNIPERSTANCE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, TRIROCKET.id, TRIROCKET.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, ASSAULTHELICOPTER.id, ASSAULTHELICOPTER.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, SINGLESHOT.id, SINGLESHOT.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, HANDGRENADE.id, HANDGRENADE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, U235SHELL.id, U235SHELL.typeid)
+
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, THUNDERDASH.id, THUNDERDASH.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, MONSOON.id, MONSOON.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, BLADESTORM.id, BLADESTORM.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, OMNISLASH.id, OMNISLASH.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, OVERLOAD.id, OVERLOAD.typeid)
+
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, INSTANTDEATH.id, INSTANTDEATH.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, DEATHSTRIKE.id, DEATHSTRIKE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, HIDDENGUISE.id, HIDDENGUISE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, NERVEGAS.id, NERVEGAS.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, BACKSTAB.id, BACKSTAB.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, PIERCINGSTRIKE.id, PIERCINGSTRIKE.typeid)
+
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, BODYOFFIRE.id, BODYOFFIRE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, METEOR.id, METEOR.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, MAGNETICSTANCE.id, MAGNETICSTANCE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, INFERNALSTRIKE.id, INFERNALSTRIKE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, MAGNETICSTRIKE.id, MAGNETICSTRIKE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, GATEKEEPERSPACT.id, GATEKEEPERSPACT.typeid)
+
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, BLOODFRENZY.id, BLOODFRENZY.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, BLOODLEAP.id, BLOODLEAP.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, BLOODCURDLINGSCREAM.id, BLOODCURDLINGSCREAM.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, BLOODCLEAVE.id, BLOODCLEAVE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, RAMPAGE.id, RAMPAGE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, UNDYINGRAGE.id, UNDYINGRAGE.typeid)
+
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, PARRY.id, PARRY.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, SPINDASH.id, SPINDASH.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, SPINDASH.id2, SPINDASH.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, INTIMIDATINGSHOUT.id, INTIMIDATINGSHOUT.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, WINDSCAR.id, WINDSCAR.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, ADAPTIVESTRIKE.id, ADAPTIVESTRIKE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, ADAPTIVESTRIKE.id2, ADAPTIVESTRIKE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, LIMITBREAK.id, LIMITBREAK.typeid)
+		
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, FROSTBLAST.id, FROSTBLAST.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, WHIRLPOOL.id, WHIRLPOOL.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, TIDALWAVE.id, TIDALWAVE.typeid)
+		call SaveInteger(SAVE_TABLE, KEY_SPELLS, ICEBARRAGE.id, ICEBARRAGE.typeid)
+
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("tier"), ITEM_TIER)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("type"), ITEM_TYPE)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("upg"), ITEM_UPGRADE_MAX)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("req"), ITEM_LEVEL_REQUIREMENT)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("health"), ITEM_HEALTH)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("mana"), ITEM_MANA)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("damage"), ITEM_DAMAGE)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("armor"), ITEM_ARMOR)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("str"), ITEM_STRENGTH)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("agi"), ITEM_AGILITY)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("int"), ITEM_INTELLIGENCE)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("regen"), ITEM_REGENERATION)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("dr"), ITEM_DAMAGE_RESIST)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("mr"), ITEM_MAGIC_RESIST)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("ms"), ITEM_MOVESPEED)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("evasion"), ITEM_EVASION)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("spellboost"), ITEM_SPELLBOOST)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("cc"), ITEM_CRIT_CHANCE)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("cd"), ITEM_CRIT_DAMAGE)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("bat"), ITEM_BASE_ATTACK_SPEED)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("abil"), ITEM_ABILITY)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("abil2"), ITEM_ABILITY2)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("cost"), ITEM_COST)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("limit"), ITEM_LIMIT)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("gold"), ITEM_GOLD_GAIN)
+		call SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("discount"), ITEM_DISCOUNT)
+
+		//TODO subject to change?
+		set TIER_NAME[0] = ""
+		set TIER_NAME[1] = "Common"
+		set TIER_NAME[2] = "|cffbbbbbbUncommon|r"
+		set TIER_NAME[3] = "|cffffff00Quest|r"
+		set TIER_NAME[4] = "|cff999999Ursa|r"
+		set TIER_NAME[5] = "|cff999999Ogre|r"
+		set TIER_NAME[6] = "|cff999999Unbroken|r"
+		set TIER_NAME[7] = "|cff999999Magnataur|r"
+		set TIER_NAME[8] = "|cff55ff44Set|r"
+		set TIER_NAME[9] = "|cffba0505Boss|r"
+		set TIER_NAME[10] = "|cff01b9f5Divine|r"
+		set TIER_NAME[11] = "|cffff5050Chaotic Quest|r"
+		set TIER_NAME[12] = "Demon"
+		set TIER_NAME[13] = "Horror"
+		set TIER_NAME[14] = "Despair"
+		set TIER_NAME[15] = "Abyssal"
+		set TIER_NAME[16] = "Void"
+		set TIER_NAME[17] = "Nightmare"
+		set TIER_NAME[18] = "Hell"
+		set TIER_NAME[19] = "Existence"
+		set TIER_NAME[20] = "Astral"
+		set TIER_NAME[21] = "Dimensional"
+		set TIER_NAME[22] = "|cff05aa05Chaotic Set|r"
+		set TIER_NAME[23] = "|cff700909Chaotic Boss|r"
+		set TIER_NAME[24] = "|cffa0a0a0Forgotten|r"
+		set TIER_NAME[25] = "|cff999999Devourer|r"
+		//...
+		set TYPE_NAME[0] = ""
+		set TYPE_NAME[1] = "Plate"
+		set TYPE_NAME[2] = "Fullplate"
+		set TYPE_NAME[3] = "Leather"
+		set TYPE_NAME[4] = "Cloth"
+		set TYPE_NAME[5] = "Shield"
+		set TYPE_NAME[6] = "Heavy"
+		set TYPE_NAME[7] = "Sword"
+		set TYPE_NAME[8] = "Dagger"
+		set TYPE_NAME[9] = "Bow"
+		set TYPE_NAME[10] = "Staff"
+		//...
+		set LEVEL_PREFIX[1] = "|cff40bf5fRefined|r"
+		set LEVEL_PREFIX[2] = "|cff40bf5fRefined|r"
+		set LEVEL_PREFIX[3] = "|cff40bf5fRefined|r"
+		set LEVEL_PREFIX[4] = "|cff40bf5fRefined|r"
+		set LEVEL_PREFIX[5] = "|cff4087bfRare|r"
+		set LEVEL_PREFIX[6] = "|cff4087bfRare|r"
+		set LEVEL_PREFIX[7] = "|cff4087bfRare|r"
+		set LEVEL_PREFIX[8] = "|cff4087bfRare|r"
+		set LEVEL_PREFIX[9] = "|cff7040bfEpic|r"
+		set LEVEL_PREFIX[10] = "|cff7040bfEpic|r"
+		set LEVEL_PREFIX[11] = "|cff7040bfEpic|r"
+		set LEVEL_PREFIX[12] = "|cff7040bfEpic|r"
+		set LEVEL_PREFIX[13] = "|cffbf6b40Legendary|r"
+		set LEVEL_PREFIX[14] = "|cffbf6b40Legendary|r"
+		set LEVEL_PREFIX[15] = "|cffbf6b40Legendary|r"
+		set LEVEL_PREFIX[16] = "|cffbf6b40Legendary|r"
+		set LEVEL_PREFIX[17] = "|cffc41919Chaos|r"
+		set LEVEL_PREFIX[18] = "|cffc41919Chaos|r"
+		set LEVEL_PREFIX[19] = "|cffc41919Chaos|r"
+		set LEVEL_PREFIX[20] = "|cffc41919Chaos|r"
+		//...
+		set SPRITE_RARITY[0] = "war3mapImported\\CommonBorder.dds"
+		set SPRITE_RARITY[1] = "war3mapImported\\RefinedBorder.dds"
+		set SPRITE_RARITY[2] = "war3mapImported\\RefinedBorder.dds"
+		set SPRITE_RARITY[3] = "war3mapImported\\RefinedBorder.dds"
+		set SPRITE_RARITY[4] = "war3mapImported\\RefinedBorder.dds"
+		set SPRITE_RARITY[5] = "war3mapImported\\RareBorder.dds"
+		set SPRITE_RARITY[6] = "war3mapImported\\RareBorder.dds"
+		set SPRITE_RARITY[7] = "war3mapImported\\RareBorder.dds"
+		set SPRITE_RARITY[8] = "war3mapImported\\RareBorder.dds"
+		set SPRITE_RARITY[9] = "war3mapImported\\EpicBorder.dds"
+		set SPRITE_RARITY[10] = "war3mapImported\\EpicBorder.dds"
+		set SPRITE_RARITY[11] = "war3mapImported\\EpicBorder.dds"
+		set SPRITE_RARITY[12] = "war3mapImported\\EpicBorder.dds"
+		set SPRITE_RARITY[13] = "war3mapImported\\LegendaryBorder.dds"
+		set SPRITE_RARITY[14] = "war3mapImported\\LegendaryBorder.dds"
+		set SPRITE_RARITY[15] = "war3mapImported\\LegendaryBorder.dds"
+		set SPRITE_RARITY[16] = "war3mapImported\\LegendaryBorder.dds"
+		set SPRITE_RARITY[17] = "war3mapImported\\ChaosBorder.dds"
+		set SPRITE_RARITY[18] = "war3mapImported\\ChaosBorder.dds"
+		set SPRITE_RARITY[19] = "war3mapImported\\ChaosBorder.dds"
+		set SPRITE_RARITY[20] = "war3mapImported\\ChaosBorder.dds"
+		//...
+		set ITEM_MULT[0] = 0
+		set ITEM_MULT[1] = 0.2
+		set ITEM_MULT[2] = 0.4
+		set ITEM_MULT[3] = 0.6
+		set ITEM_MULT[4] = 0.8
+		set ITEM_MULT[5] = 1.2
+		set ITEM_MULT[6] = 1.6
+		set ITEM_MULT[7] = 2.
+		set ITEM_MULT[8] = 2.4
+		set ITEM_MULT[9] = 3.2
+		set ITEM_MULT[10] = 4.
+		set ITEM_MULT[11] = 4.8
+		set ITEM_MULT[12] = 5.6
+		set ITEM_MULT[13] = 7.
+		set ITEM_MULT[14] = 8.4
+		set ITEM_MULT[15] = 9.8
+		set ITEM_MULT[16] = 11.2
+		set ITEM_MULT[17] = 13.4
+		set ITEM_MULT[18] = 15.6
+		set ITEM_MULT[19] = 17.8
+		//...
+		set CRYSTAL_PRICE[0] = 1
+		set CRYSTAL_PRICE[1] = 1 
+		set CRYSTAL_PRICE[2] = 2
+		set CRYSTAL_PRICE[3] = 2
+		set CRYSTAL_PRICE[4] = 3
+		set CRYSTAL_PRICE[5] = 3
+		set CRYSTAL_PRICE[6] = 4
+		set CRYSTAL_PRICE[7] = 5
+		set CRYSTAL_PRICE[8] = 6
+		set CRYSTAL_PRICE[9] = 8
+		set CRYSTAL_PRICE[10] = 12
+		set CRYSTAL_PRICE[11] = 16
+		set CRYSTAL_PRICE[12] = 24
+		set CRYSTAL_PRICE[13] = 32
+		set CRYSTAL_PRICE[14] = 48
+		set CRYSTAL_PRICE[15] = 64
+		set CRYSTAL_PRICE[16] = 80
+		set CRYSTAL_PRICE[17] = 96
+		set CRYSTAL_PRICE[18] = 128
+		set CRYSTAL_PRICE[19] = 160
+		//...
+		set PROF[1] = PROF_PLATE
+		set PROF[2] = PROF_FULLPLATE
+		set PROF[3] = PROF_LEATHER
+		set PROF[4] = PROF_CLOTH
+		set PROF[5] = PROF_SHIELD
+		set PROF[6] = PROF_HEAVY
+		set PROF[7] = PROF_SWORD
+		set PROF[8] = PROF_DAGGER
+		set PROF[9] = PROF_BOW
+		set PROF[10] = PROF_STAFF
+
+		set STAT_NAME[ITEM_HEALTH] = "|r |cffff0000Health|r"
+		set STAT_NAME[ITEM_MANA] = "|r |cff6699ffMana"
+		set STAT_NAME[ITEM_DAMAGE] = "|r |cffff6600Damage|r"
+		set STAT_NAME[ITEM_ARMOR] = "|r |cffa4a4feArmor|r"
+		set STAT_NAME[ITEM_STRENGTH] = "|r |cffbb0000Strength|r"
+		set STAT_NAME[ITEM_AGILITY] = "|r |cff008800Agility|r"
+		set STAT_NAME[ITEM_INTELLIGENCE] = "|r |cff2255ffIntelligence|r"
+		set STAT_NAME[ITEM_REGENERATION] = "|r |cffa00070Regeneration|r"
+		set STAT_NAME[ITEM_DAMAGE_RESIST] = "%|r |cffff8040Damage Resist|r"
+		set STAT_NAME[ITEM_MAGIC_RESIST] = "%|r |cff8000ffMagic Resist|r"
+		set STAT_NAME[ITEM_MOVESPEED] = "|r |cff888888Movespeed|r"
+		set STAT_NAME[ITEM_CRIT_CHANCE] = "x|r |cffffcc00Critical Strike|r"
+		set STAT_NAME[ITEM_CRIT_DAMAGE] = "x|r |cffffcc00Critical Strike|r"
+		set STAT_NAME[ITEM_EVASION] = "%|r |cff008080Evasion|r"
+		set STAT_NAME[ITEM_SPELLBOOST] = "%|r |cff80ffffSpellboost|r"
+		set STAT_NAME[ITEM_BASE_ATTACK_SPEED] = "%|r |cff446600Base Attack Speed|r"
+		set STAT_NAME[ITEM_GOLD_GAIN] = "%|r |cffffff00Gold Find|r"
+
+		set LIMIT_STRING[1] = "You can only wear one of this item."
+		set LIMIT_STRING[2] = "You only have two feet"
+		set LIMIT_STRING[3] = "A second set of wings won't help you fly better"
+		set LIMIT_STRING[4] = "You can only wear one Bloody armor"
+		set LIMIT_STRING[5] = "You can only use one Bloody weapon"
+		set LIMIT_STRING[6] = "You can only wear one Absolute Horror armor"
+		set LIMIT_STRING[7] = "You can only use one Absolute Horror weapon"
+		set LIMIT_STRING[8] = "You can only wear one Legion armor"
+		set LIMIT_STRING[9] = "You can only use one Legion weapon"
+		set LIMIT_STRING[10] = "You can only wear one Azazoth armor"
+		set LIMIT_STRING[11] = "You can only use one Azazoth weapon"
+		set LIMIT_STRING[12] = "You can only use one Slaughterer weapon"
+		set LIMIT_STRING[13] = "You can only hold one Forgotten gem"
+		set LIMIT_STRING[14] = "You can only wear one Ursine Set"
+		set LIMIT_STRING[15] = "You can only wear one Ogre Set"
+		set LIMIT_STRING[16] = "You can only wear one Unbroken Set"
+		set LIMIT_STRING[17] = "You can only wear one Magnataur Set"
+		set LIMIT_STRING[18] = "You can only wear one Demon Set"
+		set LIMIT_STRING[19] = "You can only wear one Horror Set"
+		set LIMIT_STRING[20] = "You can only wear one Despair Set"
+		set LIMIT_STRING[21] = "You can only wear one Abyssal Set"
+		set LIMIT_STRING[22] = "You can only wear one Void Set"
+		set LIMIT_STRING[23] = "You can only wear one Nightmare Set"
+		set LIMIT_STRING[24] = "You can only wear one Hell Set"
+		set LIMIT_STRING[25] = "You can only wear one Existence Set"
+		set LIMIT_STRING[26] = "You can only wear one Astral Set"
+		set LIMIT_STRING[27] = "You can only wear one Dimensional Set"
+		set LIMIT_STRING[28] = "You can only wear one Devourer Set"
+
+		//quest rewards
+		// spider armors
+		set ItemRewards['I04M'][0] = 'I0B8'
+		set ItemRewards['I04M'][1] = 'I0BA'
+		set ItemRewards['I04M'][2] = 'I0B4'
+		set ItemRewards['I04M'][3] = 'I0B6'
+
+		set i = 0
+
+		set hstarget[i] = gg_unit_H02A_0568 //oblivion guard
+		set hsskinid[i] = 'H02A'
+		set hsselectid[i] = 'A07S'
+		set hspassiveid[i] = 'A0HQ'
 		set i = i + 1
-	endloop
+		set hstarget[i] = gg_unit_H03N_0612 //bloodzerker
+		set hsskinid[i] = 'H03N'
+		set hsselectid[i] = 'A07T'
+		set hspassiveid[i] = 'A06N'
+		set i = i + 1
+		set hstarget[i] = gg_unit_H04Z_0604 //royal guardian
+		set hsskinid[i] = 'H04Z'
+		set hsselectid[i] = 'A07U'
+		set hspassiveid[i] = 'A0I5'
+		set i = i + 1
+		set hstarget[i] = gg_unit_H012_0605 //warrior
+		set hsskinid[i] = 'H012'
+		set hsselectid[i] = 'A07V'
+		set hspassiveid[i] = 'A0IE'
+		set i = i + 1
+		set hstarget[i] = gg_unit_U003_0081 //vampire
+		set hsskinid[i] = 'U003'
+		set hsselectid[i] = 'A029'
+		set hspassiveid[i] = 'A05E'
+		set i = i + 1
+		set hstarget[i] = gg_unit_H01N_0606 //savior
+		set hsskinid[i] = 'H01N'
+		set hsselectid[i] = 'A07W'
+		set hspassiveid[i] = 'A0HW'
+		set i = i + 1
+		set hstarget[i] = gg_unit_H01S_0607 //dark savior
+		set hsskinid[i] = 'H01S'
+		set hsselectid[i] = 'A07Z'
+		set hspassiveid[i] = 'A0DL'
+		set i = i + 1
+		set hstarget[i] = gg_unit_H05B_0608 //arcane warrior
+		set hsskinid[i] = 'H05B'
+		set hsselectid[i] = 'A080'
+		set hspassiveid[i] = 'A0I4'
+		set i = i + 1
+		set hstarget[i] = gg_unit_H029_0617 //arcanist
+		set hsskinid[i] = 'H029'
+		set hsselectid[i] = 'A081'
+		set hspassiveid[i] = 'A0EY'
+		set i = i + 1
+		set hstarget[i] = gg_unit_O02S_0615 //dark summoner
+		set hsskinid[i] = 'O02S'
+		set hsselectid[i] = 'A082'
+		set hspassiveid[i] = 'A0I0'
+		set i = i + 1
+		set hstarget[i] = gg_unit_H00R_0610 //bard
+		set hsskinid[i] = 'H00R'
+		set hsselectid[i] = 'A084'
+		set hspassiveid[i] = 'A0HV'
+		set i = i + 1
+		set hstarget[i] = gg_unit_E00G_0616 //hydromancer
+		set hsskinid[i] = 'E00G'
+		set hsselectid[i] = 'A086'
+		set hspassiveid[i] = 'A0EC'
+		set i = i + 1
+		set hstarget[i] = gg_unit_E012_0613 //high priestess
+		set hsskinid[i] = 'E012'
+		set hsselectid[i] = 'A087'
+		set hspassiveid[i] = 'A0I2'
+		set i = i + 1
+		set hstarget[i] = gg_unit_E00W_0614 //elementalist
+		set hsskinid[i] = 'E00W'
+		set hsselectid[i] = 'A089'
+		set hspassiveid[i] = 'A0I3'
+		set i = i + 1
+		set hstarget[i] = gg_unit_E002_0585 //assassin
+		set hsskinid[i] = 'E002'
+		set hsselectid[i] = 'A07J'
+		set hspassiveid[i] = 'A01N'
+		set i = i + 1
+		set hstarget[i] = gg_unit_O03J_0609 //thunder blade
+		set hsskinid[i] = 'O03J'
+		set hsselectid[i] = 'A01P'
+		set hspassiveid[i] = 'A039'
+		set i = i + 1
+		set hstarget[i] = gg_unit_E015_0586 //master rogue
+		set hsskinid[i] = 'E015'
+		set hsselectid[i] = 'A07L'
+		set hspassiveid[i] = 'A0I1'
+		set i = i + 1
+		set hstarget[i] = gg_unit_E008_0587 //elite marksman
+		set hsskinid[i] = 'E008'
+		set hsselectid[i] = 'A07M'
+		set hspassiveid[i] = 'A070'
+		set i = i + 1
+		set hstarget[i] = gg_unit_E00X_0611 //phoenix ranger
+		set hsskinid[i] = 'E00X'
+		set hsselectid[i] = 'A07N'
+		set hspassiveid[i] = 'A0I6'
 
-	set i = 0
-
-	//base experience rates per 5 levels
-	loop
-		exitwhen i > 400
-		if i <= 10 then
-			set BaseExperience[i] = 425
-		else
-			set BaseExperience[i] = (BaseExperience[i - 5] - 17. / (i - 5)) * 0.919
-		endif
-
-		set i = i + 5
-	endloop
-
-	set udg_Gold_Mod[1] = 1
-	set udg_Gold_Mod[2] = Pow(0.55, 0.5)
-	set udg_Gold_Mod[3] = Pow(0.50, 0.5)
-	set udg_Gold_Mod[4] = Pow(0.45, 0.5)
-	set udg_Gold_Mod[5] = Pow(0.40, 0.5)
-	set udg_Gold_Mod[6] = Pow(0.35, 0.5)
-
-    call ItemUpgrades()
-
-	set prMulti[1] = 'A0A3'
-	set prMulti[2] = 'A0IW'
-	set prMulti[3] = 'A0IX'
-	set prMulti[4] = 'A0IY'
-	set prMulti[5] = 'A0IZ'
- 
-    call SetItemStats()
-    call killquestsetup()
-    call HeadhunterQuestSetup()
-	call Reward_Tables_Setup()
-    call ColosseumSetup()
-    call StruggleSetup()
-    call StringSetup()
-    call ItemRestrictions()
-    call ShieldTypes()
-endfunction
+		//call SetItemStats()
+		call killquestsetup()
+		call HeadhunterQuestSetup()
+		call ColosseumSetup()
+		call StruggleSetup()
+	endmethod
+endstruct
 
 endlibrary
