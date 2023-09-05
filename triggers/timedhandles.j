@@ -72,17 +72,14 @@ library TimedHandles uses optional TimerUtils
         endif
     endfunction
 
-    // here you may add or remove handle types
     //! runtextmacro TIMEDHANDLES("effect", "DestroyEffect", "Thing")
     ///! runtextmacro TIMEDHANDLES("lightning", "DestroyLightning", "")
     ///! runtextmacro TIMEDHANDLES("weathereffect", "RemoveWeatherEffect", "")
-    //! runtextmacro TIMEDHANDLES("item", "RemoveItem", "Thing")
+    //! runtextmacro TIMEDHANDLES("item", "RemoveItem", "")
     //! runtextmacro TIMEDHANDLES("unit", "RemoveUnit", "Thing")
     ///! runtextmacro TIMEDHANDLES("ubersplat", "DestroyUbersplat", "")
     //! runtextmacro TIMEDHANDLES("texttag", "DestroyTextTag", "")
     //! runtextmacro TIMEDHANDLES("timer", "ReleaseTimer", "")
-    
-    // Do not edit below this line
     
     //! textmacro TIMEDHANDLES takes HANDLE,DESTROY,WOW
         
@@ -91,7 +88,7 @@ library TimedHandles uses optional TimerUtils
             $HANDLE$ $HANDLE$_var
             static integer index = -1
             static thistype array instance
-            static real REAL=UPDATE_PERIOD
+            static real REAL = UPDATE_PERIOD
             
             static if SINGLE_TIMER then
                 static timer timer = CreateTimer()
@@ -111,12 +108,6 @@ library TimedHandles uses optional TimerUtils
                     call FlushChildHashtable(ThreatHash, GetUnitId(u))
                     call FlushChildHashtable(MiscHash, GetHandleId(u))
                     call RemoveUnit(u)
-                endif
-            endmethod
-
-            method RemoveItemThing takes item e returns nothing
-                if (GetItemUserData(e) == 0 or GetItemUserData(e) == 42) and IsItemOwned(e) == false and IsItemVisible(e) then
-                    call RemoveItem(e)
                 endif
             endmethod
             
