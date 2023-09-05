@@ -7,9 +7,13 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
         constant integer MAX_PHTL = 4000000 
         constant integer MAX_UPGRADE_LEVEL = 10
         constant integer MAX_STATS = 250000
+        constant integer MAX_SLOTS = 29
+        constant integer MAX_INVENTORY_SLOTS = 24
 
         constant integer KEY_PROFILE = 0
         constant integer KEY_CHARACTER = 1
+
+        integer array VARIATION_FLAG
 
         dialog array LoadDialog
         button array LoadDialogButton
@@ -18,23 +22,23 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
         boolean newSlotFlag = false
         boolean array deleteMode
         integer array loadSlotCounter
-        Profile array Profiles
+
+        boolean array newcharacter
+        boolean array LEFT_CHURCH
+
+        //boolean LOAD_SAFE = true
 
         hashtable SaveData = InitHashtable()
     endglobals
 
-    function CodeReload takes nothing returns boolean
-        call ExecuteFunc("JHCR_Init_parse")
-        return false
-    endfunction
-    
     struct HeroData
+        integer pid
         integer str
         integer agi
         integer int
         integer teleport
         integer reveal
-        item array items[24]
+        Item array items[30] //6 extra for temp storage
         
         integer gold
         integer lumber
@@ -47,6 +51,8 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
         integer level
         integer hardcore
         integer prestige
+
+        integer skin = 26 //wisp backpack
 
         method wipeData takes nothing returns nothing
             local integer i = 0
@@ -68,17 +74,23 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             set .prestige = 0
             
             loop
-                exitwhen i > 23
-                call RemoveItem(.items[i])
+                exitwhen i == MAX_INVENTORY_SLOTS
+                if isImportantItem(.items[i].obj) then
+                    call Item.assign(CreateItemLoc(.items[i].id, TownCenter))
+                endif
+                call .items[i].destroy()
+                set .items[i] = 0
 
                 set i = i + 1
             endloop
         endmethod
 
-        static method create takes nothing returns HeroData
-            local HeroData hd = HeroData.allocate()
+        static method create takes integer id returns HeroData
+            local HeroData hero = HeroData.allocate()
 
-            return hd
+            set hero.pid = id
+
+            return hero
         endmethod
 
         method onDestroy takes nothing returns nothing
@@ -90,30 +102,112 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
         integer pid 
         integer currentSlot
         integer profileHash
-        integer pageIndex
 
         integer array phtl[30]
-        HeroData hd
+        HeroData hero
+        boolean NEW = true
 
-        static method create takes nothing returns thistype
+        static integer array id[10]
+        static trigger sync_event = CreateTrigger()
+        static string array savecode[PLAYER_CAP]
+
+        method operator skin= takes integer id returns nothing
+            set hero.skin = id
+
+            call BlzSetUnitSkin(Backpack[pid], skinID[id])
+            if skinID[id] == 'H02O' then
+                call AddUnitAnimationProperties(Backpack[pid], "alternate", true)
+            endif
+        endmethod
+
+        static method operator [] takes integer i returns thistype
+            return Profile(thistype.id[i])
+        endmethod
+
+        static method create takes integer pid returns thistype
             local thistype p = thistype.allocate()
-            local integer i = 0
 
-            set p.pid = 0
+            set thistype.id[pid] = p
             set p.currentSlot = 0
-            set p.profileHash = 0
-            set p.pageIndex = 0
-            set p.hd = HeroData.create()
-
-            loop
-                exitwhen i > 29
-
-                set p.phtl[i] = 0
-
-                set i = i + 1
-            endloop
+            set p.hero = HeroData.create(pid)
+            set p.profileHash = GetRandomInt(500000, 510000)
+            set p.pid = pid
 
             return p
+        endmethod
+
+        static method load takes string s, integer pid returns thistype
+            local thistype profile
+            local integer i = 0
+            local integer id = 0
+            local integer prestige = 0
+            local integer index = 0
+            local integer vers = 0
+            local player p = Player(pid - 1)
+
+            //fail to load
+            if not Load(s, p) then
+                call DisplayTimedTextToPlayer(p, 0, 0, 30., GetCodeGenError())
+                set p = null
+                return 0
+            endif
+
+            set vers = LoadInteger(SaveData, pid, index)
+
+            //TODO implement version handling
+            if vers <= SAVE_LOAD_VERSION - 2 or vers >= SAVE_LOAD_VERSION + 2 then
+                call DisplayTimedTextToPlayer(p, 0, 0, 30., "Profile data corrupt or version mismatch!")
+                set p = null
+                return 0
+            endif
+
+            set profile = thistype.create(pid)
+            set profile.NEW = false
+
+            call DEBUGMSG("Save Load Version: " + I2S(LoadInteger(SaveData, pid, index)))
+
+            set index = index + 1
+
+            loop
+                exitwhen i > MAX_SLOTS
+                set profile.phtl[i] = LoadInteger(SaveData, pid, index)
+                //
+                //set hardcore = BlzBitAnd(profile.phtl[i], POWERSOF2[0])
+                set prestige = BlzBitAnd(profile.phtl[i], POWERSOF2[1] + POWERSOF2[2]) / POWERSOF2[1]
+                set id = BlzBitAnd(profile.phtl[i], POWERSOF2[3] + POWERSOF2[4] + POWERSOF2[5] + POWERSOF2[6] + POWERSOF2[7] + POWERSOF2[8]) / POWERSOF2[3]
+                //set lvl = BlzBitAnd(profile.phtl[i], POWERSOF2[9] + POWERSOF2[10] + POWERSOF2[11] + POWERSOF2[12] + POWERSOF2[13] + POWERSOF2[14] + POWERSOF2[15] + POWERSOF2[16] + POWERSOF2[17] + POWERSOF2[18])
+                //
+                set index = index + 1
+
+                if prestige > 0 then
+                    call AllocatePrestige(pid, prestige, id)
+                endif
+                //call DEBUGMSG(I2S(profile.phtl[i]))
+
+                set i = i + 1
+            endloop 
+
+            set profile.profileHash = LoadInteger(SaveData, pid, index)
+
+            set p = null
+
+            return profile
+        endmethod
+
+        static method LoadSync takes nothing returns boolean
+            local integer pid = GetPlayerId(GetTriggerPlayer()) + 1
+
+            set thistype.savecode[pid - 1] = BlzGetTriggerSyncData()
+
+            if StringLength(thistype.savecode[pid - 1]) > 1 then
+                if Profile[pid] == 0 then
+                    call Profile[pid].load(thistype.savecode[pid - 1], pid)
+                else
+                    call Profile[pid].loadCharacter(thistype.savecode[pid - 1])
+                endif
+            endif
+
+            return false
         endmethod
 
         method getSlotsUsed takes nothing returns integer
@@ -121,9 +215,9 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             local integer i2 = 0
 
             loop
-                exitwhen i > 29
+                exitwhen i > MAX_SLOTS
 
-                if phtl[i] > 1000000 then
+                if phtl[i] > 0 then
                     set i2 = i2 + 1
                 endif
 
@@ -131,10 +225,6 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             endloop
 
             return i2
-        endmethod
-
-        method createRandomHash takes nothing returns nothing
-            set .profileHash = GetRandomInt(1000, 9999)
         endmethod
 
         method saveProfile takes nothing returns nothing
@@ -147,24 +237,18 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             set index = index + 1
 
             loop
-                exitwhen i > 29 //max slots
+                exitwhen i > MAX_SLOTS
 
                 if i == .currentSlot then
                     if deleteMode[pid] then
-                        set .phtl[i] = 0 
+                        set .phtl[i] = 0
                     else
-                        set .phtl[i] = S2I(I2S(.hd.prestige + 1) + I2S(.hd.hardcore + 1) + I2S(.hd.id + 10) + I2S(.hd.level + 100))
+                        set .phtl[i] = .hero.hardcore + .hero.prestige * POWERSOF2[1] + hero.id * POWERSOF2[3] + hero.level * POWERSOF2[9]
                     endif
-                    call DEBUGMSG(I2S(.hd.prestige) + " " + I2S(.hd.hardcore) + " " + I2S(.hd.id) + " " + I2S(.hd.level))
+                    //call DEBUGMSG(I2S(.hero.prestige) + " " + I2S(.hero.hardcore) + " " + I2S(.hero.id) + " " + I2S(.hero.level))
                 endif
               
-                call SaveInteger(SaveData, pid, index, phtlToValue(.phtl[i], 0))
-                set index = index + 1
-                call SaveInteger(SaveData, pid, index, phtlToValue(.phtl[i], 1))
-                set index = index + 1
-                call SaveInteger(SaveData, pid, index, phtlToValue(.phtl[i], 2))
-                set index = index + 1
-                call SaveInteger(SaveData, pid, index, phtlToValue(.phtl[i], 3))
+                call SaveInteger(SaveData, pid, index, .phtl[i])
                 set index = index + 1
 
                 set i = i + 1
@@ -176,15 +260,15 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             set s = Compile(pid)
 
             if GetLocalPlayer() == Player(.pid - 1) then
-                call FileIO_Write(udg_MapName + "\\" + User[p].name + "\\" + "profile.pld", "\n" + s)
-                call FileIO_Write(udg_MapName + "\\" + "BACKUP" + "\\" + GetObjectName(HeroID[pid]) + I2S(GetHeroLevel(Hero[pid])) + "_" + I2S(TIME) + "\\" + User[p].name + "\\" + "profile.pld", "\n" + s)
+                call FileIO_Write(MAP_NAME + "\\" + User[p].name + "\\" + "profile.pld", "\n" + s)
+                call FileIO_Write(MAP_NAME + "\\" + "BACKUP" + "\\" + GetObjectName(HeroID[pid]) + I2S(GetHeroLevel(Hero[pid])) + "_" + I2S(TIME) + "\\" + User[p].name + "\\" + "profile.pld", "\n" + s)
             endif
 
-            call DisplayTimedTextToPlayer(p, 0, 0, 60, "-------------------------------------------------------------------" )
-            call DisplayTimedTextToPlayer(p, 0, 0, 60, "|cffffcc00Your data has been saved successfully. (Warcraft III\\CustomMapData\\CoT Nevermore 1.33.19)")
+            call DisplayTimedTextToPlayer(p, 0, 0, 60, "-------------------------------------------------------------------")
+            call DisplayTimedTextToPlayer(p, 0, 0, 60, "|cffffcc00Your data has been saved successfully. (Warcraft III\\CustomMapData\\CoT Nevermore\\" + GetPlayerName(p) + ")")
             call DisplayTimedTextToPlayer(p, 0, 0, 60, "|cffffcc00Use|r -load |cffffcc00the next time you play to load your hero.")
             call DisplayTimedTextToPlayer(p, 0, 0, 60, "|cffFF0000YOU MUST RESTART WARCRAFT BEFORE LOADING AGAIN!|r")
-            call DisplayTimedTextToPlayer(p, 0, 0, 60, "-------------------------------------------------------------------" )
+            call DisplayTimedTextToPlayer(p, 0, 0, 60, "-------------------------------------------------------------------")
 
             set p = null
         endmethod
@@ -200,6 +284,8 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
                 hero
                     id, level, str, agi, int
                     item x24
+                        id
+                        quality
                 teleport
                 reveal
                 platinum
@@ -211,132 +297,74 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
 
             call SaveInteger(SaveData, pid, index, .profileHash)
             set index = index + 1
-            call SaveInteger(SaveData, pid, index, .hd.prestige)
+            call SaveInteger(SaveData, pid, index, .hero.prestige)
             set index = index + 1
             if udg_Hardcore[pid] == true then
-                set .hd.hardcore = 1
+                set .hero.hardcore = 1
             else
-                set .hd.hardcore = 0
+                set .hero.hardcore = 0
             endif
-            call SaveInteger(SaveData, pid, index, .hd.hardcore)
+            call SaveInteger(SaveData, pid, index, .hero.hardcore)
             set index = index + 1
-            set .hd.id = ConvertUnitId(HeroID[pid])
-            call SaveInteger(SaveData, pid, index, .hd.id)
+            set .hero.id = LoadInteger(SAVE_TABLE, KEY_UNITS, HeroID[pid])
+            call SaveInteger(SaveData, pid, index, .hero.id)
             set index = index + 1
-            set .hd.level = GetHeroLevel(Hero[pid])
-            call SaveInteger(SaveData, pid, index, .hd.level)
+            set .hero.level = GetHeroLevel(Hero[pid])
+            call SaveInteger(SaveData, pid, index, .hero.level)
             set index = index + 1
-            set .hd.str = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_STR, Hero[pid], false))
-            set .hd.agi = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_AGI, Hero[pid], false))
-            set .hd.int = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_INT, Hero[pid], false))
-            call SaveInteger(SaveData, pid, index, .hd.str)
+            set .hero.str = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_STR, Hero[pid], false))
+            set .hero.agi = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_AGI, Hero[pid], false))
+            set .hero.int = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_INT, Hero[pid], false))
+            call SaveInteger(SaveData, pid, index, .hero.str)
             set index = index + 1
-            call SaveInteger(SaveData, pid, index, .hd.agi)
+            call SaveInteger(SaveData, pid, index, .hero.agi)
             set index = index + 1
-            call SaveInteger(SaveData, pid, index, .hd.int)
+            call SaveInteger(SaveData, pid, index, .hero.int)
             set index = index + 1
-            call StoreItems(pid)
             loop
-                exitwhen i > 23
-                call SaveInteger(SaveData, pid, index, ItemIndexer(.hd.items[i]))
+                exitwhen i == MAX_INVENTORY_SLOTS
+                call SaveInteger(SaveData, pid, index, .hero.items[i].encode_id())
                 set index = index + 1
-                call BindItem(.hd.items[i], pid)
+                call SaveInteger(SaveData, pid, index, .hero.items[i].encode())
+                set index = index + 1
+                set .hero.items[i].owner = p
                 set i = i + 1
             endloop
-            set .hd.teleport = GetUnitAbilityLevel(Backpack[pid], 'A0FV')
-            call SaveInteger(SaveData, pid, index, .hd.teleport)
+            set .hero.teleport = GetUnitAbilityLevel(Backpack[pid], 'A0FV')
+            call SaveInteger(SaveData, pid, index, .hero.teleport)
             set index = index + 1
-            set .hd.reveal = GetUnitAbilityLevel(Backpack[pid], 'A0FK')
-            call SaveInteger(SaveData, pid, index, .hd.reveal)
+            set .hero.reveal = GetUnitAbilityLevel(Backpack[pid], 'A0FK')
+            call SaveInteger(SaveData, pid, index, .hero.reveal)
             set index = index + 1
-            set .hd.platinum = IMinBJ(udg_Plat_Gold[pid], MAX_PLAT_ARC_CRYS)
-            call SaveInteger(SaveData, pid, index, .hd.platinum)
+            set .hero.platinum = IMinBJ(GetCurrency(pid, PLATINUM), MAX_PLAT_ARC_CRYS)
+            call SaveInteger(SaveData, pid, index, .hero.platinum)
             set index = index + 1
-            set .hd.arcadite = IMinBJ(udg_Arca_Wood[pid], MAX_PLAT_ARC_CRYS)
-            call SaveInteger(SaveData, pid, index, .hd.arcadite)
+            set .hero.arcadite = IMinBJ(GetCurrency(pid, ARCADITE), MAX_PLAT_ARC_CRYS)
+            call SaveInteger(SaveData, pid, index, .hero.arcadite)
             set index = index + 1
-            set .hd.crystal = IMinBJ(udg_Crystals[pid], MAX_PLAT_ARC_CRYS)
-            call SaveInteger(SaveData, pid, index, .hd.crystal)
+            set .hero.crystal = IMinBJ(GetCurrency(pid, CRYSTAL), MAX_PLAT_ARC_CRYS)
+            call SaveInteger(SaveData, pid, index, .hero.crystal)
             set index = index + 1
-            set .hd.time = IMinBJ(udg_TimePlayed[pid], MAX_TIME_PLAYED)
-            call SaveInteger(SaveData, pid, index, .hd.time)
+            set .hero.time = IMinBJ(udg_TimePlayed[pid], MAX_TIME_PLAYED)
+            call SaveInteger(SaveData, pid, index, .hero.time)
             set index = index + 1
-            set .hd.gold = IMinBJ(GetPlayerGold(p), MAX_GOLD_LUMB)
-            call SaveInteger(SaveData, pid, index, .hd.gold)
+            set .hero.gold = IMinBJ(GetCurrency(pid, GOLD), MAX_GOLD_LUMB)
+            call SaveInteger(SaveData, pid, index, .hero.gold)
             set index = index + 1
-            set .hd.lumber = IMinBJ(GetPlayerLumber(p), MAX_GOLD_LUMB)
-            call SaveInteger(SaveData, pid, index, .hd.lumber)
+            set .hero.lumber = IMinBJ(GetCurrency(pid, LUMBER), MAX_GOLD_LUMB)
+            call SaveInteger(SaveData, pid, index, .hero.lumber)
+            set index = index + 1
+            call SaveInteger(SaveData, pid, index, .hero.skin)
             set SAVECOUNT[pid] = index
 
             set s = Compile(pid)
 
             if GetLocalPlayer() == p then
-                call FileIO_Write(udg_MapName + "\\" + User[p].name + "\\slot" + I2S(.currentSlot + 1) + ".pld", GetObjectName(HeroID[pid]) + " " + I2S(GetHeroLevel(Hero[pid])) + "\n" + s)
-                call FileIO_Write(udg_MapName + "\\" + "BACKUP" + "\\" + GetObjectName(HeroID[pid]) + I2S(GetHeroLevel(Hero[pid])) + "_" + I2S(TIME) + "\\" + User[p].name + "\\slot" + I2S(.currentSlot + 1) + ".pld", GetObjectName(HeroID[pid]) + " " + I2S(GetHeroLevel(Hero[pid])) + "\n" + s)
+                call FileIO_Write(MAP_NAME + "\\" + User[p].name + "\\slot" + I2S(.currentSlot + 1) + ".pld", GetObjectName(HeroID[pid]) + " " + I2S(GetHeroLevel(Hero[pid])) + "\n" + s)
+                call FileIO_Write(MAP_NAME + "\\" + "BACKUP" + "\\" + GetObjectName(HeroID[pid]) + I2S(GetHeroLevel(Hero[pid])) + "_" + I2S(TIME) + "\\" + User[p].name + "\\slot" + I2S(.currentSlot + 1) + ".pld", GetObjectName(HeroID[pid]) + " " + I2S(GetHeroLevel(Hero[pid])) + "\n" + s)
             endif
 
-            call Profiles[pid].saveProfile()
-
-            set p = null
-        endmethod
-
-        method loadProfile takes string data returns nothing
-            local integer i = 0
-            local integer prestige
-            local integer hardcore
-            local integer id
-            local integer lvl
-            local player p = Player(pid - 1)
-            local integer index = 0
-
-            if not Load(data, p) then
-                call DisplayTimedTextToPlayer(p, 0, 0, 30., GetCodeGenError())
-                set p = null
-                return
-            endif
- 
-            /*
-                prestige
-                hardcore
-                id
-                lvl
-                x30
-                hash
-            */
-            call DEBUGMSG(I2S(LoadInteger(SaveData, pid, index)))
-            if LoadInteger(SaveData, pid, index) != SAVE_LOAD_VERSION then
-                call DisplayTimedTextToPlayer(p, 0, 0, 30., "Invalid profile data!")
-                set p = null
-                return
-            endif
-
-            set index = index + 1
-
-            loop
-                exitwhen i > 29
-                set prestige = LoadInteger(SaveData, pid, index)
-                set index = index + 1
-                set hardcore = LoadInteger(SaveData, pid, index)
-                set index = index + 1
-                set id = LoadInteger(SaveData, pid, index)
-                set index = index + 1
-                set lvl = LoadInteger(SaveData, pid, index)
-                set index = index + 1
-
-                if id > 0 and lvl > 0 then
-                    set phtl[i] = S2I(I2S(prestige + 1) + I2S(hardcore + 1) + I2S(id + 10) + I2S(lvl + 100))
-                endif
-                if prestige > 0 then
-                    call AllocatePrestige(pid, prestige, id)
-                endif
-                call DEBUGMSG(I2S(phtl[i]))
-
-                set i = i + 1
-            endloop 
-
-            set .profileHash = LoadInteger(SaveData, pid, index)
-
-            call DisplayHeroSelectionDialog(pid)
+            call Profile[pid].saveProfile()
 
             set p = null
         endmethod
@@ -347,6 +375,10 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             local integer hash = 0
             local player p = Player(pid - 1)
             local integer index = 0
+            local integer hardcore = 0
+            local integer id = 0
+            local integer prestige = 0
+            local integer herolevel = 0
 
             if not Load(data, p) then
                 call DisplayTimedTextToPlayer(p, 0, 0, 30., GetCodeGenError())
@@ -356,52 +388,61 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
 
             set hash = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.prestige = LoadInteger(SaveData, pid, index)
+            set hero.prestige = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.hardcore = LoadInteger(SaveData, pid, index) 
+            set hero.hardcore = LoadInteger(SaveData, pid, index) 
             set index = index + 1 
-            set hd.id = LoadInteger(SaveData, pid, index)
+            set hero.id = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.level = LoadInteger(SaveData, pid, index)
+            set hero.level = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.str = IMinBJ(MAX_STATS, LoadInteger(SaveData, pid, index))
+            set hero.str = IMinBJ(MAX_STATS, LoadInteger(SaveData, pid, index))
             set index = index + 1 
-            set hd.agi = IMinBJ(MAX_STATS, LoadInteger(SaveData, pid, index))
+            set hero.agi = IMinBJ(MAX_STATS, LoadInteger(SaveData, pid, index))
             set index = index + 1 
-            set hd.int = IMinBJ(MAX_STATS, LoadInteger(SaveData, pid, index))
+            set hero.int = IMinBJ(MAX_STATS, LoadInteger(SaveData, pid, index))
             set index = index + 1 
             loop
-                exitwhen i > 23
-                set i2 = LoadInteger(SaveData, pid, index)
+                exitwhen i == MAX_INVENTORY_SLOTS
+                set hero.items[i] = Item.decode_id(LoadInteger(SaveData, pid, index))
                 set index = index + 1 
-                if i2 > 0 then
-                    set hd.items[i] = CreateItem(udg_SaveItemType[i2], 30000, 30000)
-                    call BindItem(hd.items[i], pid)
-                    call SetItemVisible(hd.items[i], false)
+                if hero.items[i] != 0 then
+                    set .hero.items[i].owner = p
+                    call hero.items[i].decode(LoadInteger(SaveData, pid, index))
                 endif
+                set index = index + 1
                 set i = i + 1
             endloop
-            set hd.teleport = LoadInteger(SaveData, pid, index)
+            set hero.teleport = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.reveal = LoadInteger(SaveData, pid, index)
+            set hero.reveal = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.platinum = LoadInteger(SaveData, pid, index)
+            set hero.platinum = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.arcadite = LoadInteger(SaveData, pid, index)
+            set hero.arcadite = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.crystal = LoadInteger(SaveData, pid, index)
+            set hero.crystal = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.time = LoadInteger(SaveData, pid, index)
+            set hero.time = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.gold = LoadInteger(SaveData, pid, index)
+            set hero.gold = LoadInteger(SaveData, pid, index)
             set index = index + 1 
-            set hd.lumber = LoadInteger(SaveData, pid, index)
+            set hero.lumber = LoadInteger(SaveData, pid, index)
+            set index = index + 1 
+            set hero.skin = LoadInteger(SaveData, pid, index)
 
-            call DEBUGMSG(I2S(hd.prestige) + " " + I2S(hd.hardcore) + " " + I2S(hd.id) + " " + I2S(hd.level)) 
-            call DEBUGMSG(I2S(phtlToValue(phtl[currentSlot], 0)) + " " + I2S(phtlToValue(phtl[currentSlot], 1)) + " " + I2S(phtlToValue(phtl[currentSlot], 2)) + " " + I2S(phtlToValue(phtl[currentSlot], 3))) 
-            if (hash != profileHash) or (phtlToValue(phtl[currentSlot], 0) != hd.prestige) or (phtlToValue(phtl[currentSlot], 1) != hd.hardcore) or (phtlToValue(phtl[currentSlot], 2) != hd.id) or (phtlToValue(phtl[currentSlot], 3) != hd.level) then
-                call DisplayTextToPlayer(p, 0, 0, "Invalid character data!" )
-                call hd.wipeData()
+            set hardcore = BlzBitAnd(.phtl[.currentSlot], POWERSOF2[0])
+            set prestige = BlzBitAnd(.phtl[.currentSlot], POWERSOF2[1] + POWERSOF2[2]) / POWERSOF2[1]
+            set id = BlzBitAnd(.phtl[.currentSlot], POWERSOF2[3] + POWERSOF2[4] + POWERSOF2[5] + POWERSOF2[6] + POWERSOF2[7] + POWERSOF2[8]) / POWERSOF2[3]
+            set herolevel = BlzBitAnd(.phtl[.currentSlot], POWERSOF2[9] + POWERSOF2[10] + POWERSOF2[11] + POWERSOF2[12] + POWERSOF2[13] + POWERSOF2[14] + POWERSOF2[15] + POWERSOF2[16] + POWERSOF2[17] + POWERSOF2[18]) / POWERSOF2[9]
+
+            //call DEBUGMSG(I2S(hero.prestige) + " " + I2S(hero.hardcore) + " " + I2S(hero.id) + " " + I2S(hero.level)) 
+            //call DEBUGMSG(I2S(prestige) + " " + I2S(hardcore) + " " + I2S(id) + " " + I2S(herolevel)) 
+            
+            //TODO remove herolevel mismatch?
+            if (hash != profileHash) or (prestige != hero.prestige) or (hardcore != hero.hardcore) or (id != hero.id) or (herolevel != hero.level) then
+                call DisplayTextToPlayer(p, 0, 0, "Invalid character data!")
+                call hero.wipeData()
                 call DisplayHeroSelectionDialog(pid)
                 set p = null
                 return
@@ -411,6 +452,24 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
 
             set p = null
         endmethod
+
+        method onDestroy takes nothing returns nothing
+            local integer i = 0
+
+            set .pid = 0
+            set .currentSlot = 0
+            set .profileHash = 0
+
+            loop
+                exitwhen i > MAX_SLOTS
+
+                set .phtl[i] = 0
+
+                set i = i + 1
+            endloop
+
+            call .hero.destroy()
+        endmethod
     endstruct
     
     /*example creation*/
@@ -418,7 +477,7 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
 
     //set pt = TimerList[User.ID].addTimer(pid) 
 
-    //call TimerStart(pt.getTimer(), #, #, #, #)
+    //call TimerStart(pt.timer, #, #, #, #)
 
     /*example data grab*/
     //local integer pid = GetTimerData(GetExpiredTimer())
@@ -429,43 +488,42 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
     //call TimerList[pid].removePlayerTimer(pt)
 
     struct PlayerTimer
-        timer PTimer
+        timer timer = null
 
-        integer pid
-        integer tpid
-        integer agi
-        integer str
-        integer int
-        real x
-        real y
-        real dur
-        real dmg
-        real armor
-        real aoe
-        real angle
-        real speed
-        unit caster
-        unit target
-        group ug
-        effect sfx
+        integer pid = 0
+        integer tpid = 0
+        integer agi = 0
+        integer str = 0
+        integer int = 0
+        integer tag = 0
+        integer i = 0
 
-        integer tag
+        real time = 0.
+        real x = 0.
+        real y = 0.
+        real x2 = 0.
+        real y2 = 0.
+        real dur = 0.
+        real dmg = 0.
+        real armor = 0.
+        real aoe = 0.
+        real angle = 0.
+        real speed = 0.
 
-        thistype prev
-        thistype next
+        unit caster = null
+        unit target = null
+        group ug = null
+        effect sfx = null
 
-        method getTimerRemaining takes nothing returns real
-            return TimerGetRemaining(.PTimer)
-        endmethod
+        Spell spell = 0
 
-        method getTimer takes nothing returns timer
-            return .PTimer
-        endmethod
+        thistype prev = 0
+        thistype next = 0
 
         static method create takes integer pid returns thistype
             local thistype pt = thistype.allocate()
 
-            set pt.PTimer = NewTimerEx(pid)
+            set pt.timer = NewTimerEx(pid)
             set pt.prev = 0
             set pt.next = 0
             set pt.tag = 0
@@ -476,14 +534,19 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
         method onDestroy takes nothing returns nothing
             call DestroyGroup(ug)
             call DestroyEffect(sfx)
+            call spell.destroy()
 
             set pid = 0
             set tpid = 0
             set agi = 0
             set str = 0
             set int = 0
+            set i = 0
+            set time = 0.
             set x = 0.
             set y = 0.
+            set x2 = 0.
+            set y2 = 0.
             set dur = 0.
             set dmg = 0.
             set armor = 0.
@@ -491,14 +554,14 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             set angle = 0.
             set speed = 0.
             set tag = 0
+            set spell = 0
             set caster = null
             set target = null
             set ug = null
             set sfx = null
 
-            call ReleaseTimer(.PTimer)
+            call ReleaseTimer(.timer)
         endmethod
-
     endstruct
 
     struct TimerList extends array
@@ -509,7 +572,7 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             local PlayerTimer node = .head
 
             loop
-                exitwhen node.getTimer() == t
+                exitwhen node.timer == t
                 exitwhen node == 0
 
                 set node = node.next
@@ -536,13 +599,13 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
             call pt.destroy()
         endmethod
 
-        method getTimerWithTargetTag takes unit target, integer tag returns PlayerTimer
+        method get takes unit caster, unit target, integer tag returns PlayerTimer
             local PlayerTimer node = .head
 
             loop
                 exitwhen node == 0
 
-                if node.target == target and node.tag == tag then
+                if (node.caster == caster or caster == null) and (node.target == target or target == null) and node.tag == tag then
                     return node
                 endif
 
@@ -617,28 +680,20 @@ library PlayerData requires TimerUtils, PlayerManager, Functions, CodeGen
 
     function PlayerDataSetup takes nothing returns nothing
         local trigger buttonTrigger = CreateTrigger()
-        local trigger keyPress = CreateTrigger()
         local User u = User.first
-        local integer pid
 
         loop
             exitwhen u == User.NULL
-            set pid = u.id
 
-            set Profiles[pid] = Profile.create()
-            set Profiles[pid].pid = pid
-            set LoadDialog[pid] = DialogCreate()
-            call TriggerRegisterDialogEvent(buttonTrigger, LoadDialog[pid])
-            call BlzTriggerRegisterPlayerKeyEvent(keyPress, u.toPlayer(), OSKEY_ESCAPE, 0, true)
+            set LoadDialog[u.id] = DialogCreate()
+            call TriggerRegisterDialogEvent(buttonTrigger, LoadDialog[u.id])
 
             set u = u.next
         endloop
 
         call TriggerAddCondition(buttonTrigger, Filter(function onLoadButtonClick))
-        call TriggerAddCondition(keyPress, Filter(function CodeReload))
 
         set buttonTrigger = null
-        set keyPress = null
     endfunction
 
 endlibrary
