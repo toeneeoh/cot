@@ -1,17 +1,443 @@
 scope Buffs
+    struct SpinDashDebuff extends Buff
+        private static constant integer RAWCODE = 'Asda'
+        private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private effect sfx = null
+        private real as = 1.25
+
+        method onRemove takes nothing returns nothing
+            call DestroyEffect(sfx)
+            call BlzSetUnitAttackCooldown(this.target, BlzGetUnitAttackCooldown(this.target, 0) / as, 0)
+
+            set sfx = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            call BlzSetUnitAttackCooldown(this.target, BlzGetUnitAttackCooldown(this.target, 0) * as, 0)
+
+            set sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\StasisTrap\\StasisTotemTarget.mdl", this.target, "overhead")
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct LimitBreakBuff extends Buff
+        private static constant integer RAWCODE = 'Albr'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private effect sfx = null
+
+        method onRemove takes nothing returns nothing
+            call DestroyEffect(sfx)
+
+            call BlzSetUnitAbilityCooldown(this.target, ADAPTIVESTRIKE.id, 0, 4.)
+            call BlzSetUnitAbilityCooldown(this.target, ADAPTIVESTRIKE.id, 1, 4.)
+            call BlzSetUnitAbilityCooldown(this.target, ADAPTIVESTRIKE.id, 2, 4.)
+            call BlzSetUnitAbilityCooldown(this.target, ADAPTIVESTRIKE.id, 3, 4.)
+            call BlzSetUnitAbilityCooldown(this.target, ADAPTIVESTRIKE.id, 4, 4.)
+
+            set sfx = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            set sfx = AddSpecialEffectTarget("war3mapImported\\Super_Saiyan_Aura_opt.mdx", this.target, "origin")
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct ParryBuff extends Buff
+        private static constant integer RAWCODE = 'Apar'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private effect sfx = null
+        private boolean soundPlayed = false
+
+        method playSound takes nothing returns nothing
+            if not soundPlayed then
+                set soundPlayed = true
+
+                call SoundHandler("war3mapImported\\parry" + I2S(GetRandomInt(1, 2)) + ".mp3", true, GetOwningPlayer(this.target), this.target)
+            endif
+        endmethod
+
+        method onRemove takes nothing returns nothing
+            call AddUnitAnimationProperties(this.target, "ready", false)
+            call DestroyEffect(sfx)
+
+            set sfx = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            local integer pid = GetPlayerId(GetOwningPlayer(this.target)) + 1
+            call AddUnitAnimationProperties(this.target, "ready", true)
+
+            set sfx = AddSpecialEffectTarget("war3mapImported\\Buff_Shield_Non.mdx", this.target, "chest")
+
+            if limitBreak[pid] == 1 then
+                call BlzSetSpecialEffectColor(sfx, 255, 255, 0)
+            endif
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct IntimidatingShoutBuff extends Buff
+        private static constant integer RAWCODE = 'Ainb'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private effect sfx
+        private real dmg
+
+        method onRemove takes nothing returns nothing
+            call DestroyEffect(sfx)
+
+            call UnitAddBonus(this.target, BONUS_DAMAGE, -dmg)
+
+            set sfx = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            local integer stat = GetHeroStat(MainStat(this.target), this.target, true)
+
+            if stat > 0 then
+                set dmg = RMaxBJ(0., (stat + UnitGetBonus(this.target, BONUS_DAMAGE)) * 0.4)
+            else
+                set dmg = RMaxBJ(0., (BlzGetUnitBaseDamage(this.target, 0) + UnitGetBonus(this.target, BONUS_DAMAGE)) * 0.4)
+            endif
+
+            set sfx = AddSpecialEffectTarget("war3mapImported\\BattleCryTarget.mdx", this.target, "overhead")
+
+            call UnitAddBonus(this.target, BONUS_DAMAGE, dmg)
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct IntimidatingShoutDebuff extends Buff
+        private static constant integer RAWCODE = 'Aint'
+        private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private effect sfx = null
+        private real dmg = 0.
+        integer pid = 0
+
+        method onRemove takes nothing returns nothing
+            call DestroyEffect(sfx)
+
+            call UnitAddBonus(this.target, BONUS_DAMAGE, dmg)
+
+            set sfx = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            set pid = GetPlayerId(GetOwningPlayer(this.source)) + 1
+
+            set dmg = RMaxBJ(0., (BlzGetUnitBaseDamage(this.target, 0) + UnitGetBonus(this.target, BONUS_DAMAGE)) * 0.4)
+
+            set sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\HowlOfTerror\\HowlTarget.mdl", this.target, "overhead")
+
+            call UnitAddBonus(this.target, BONUS_DAMAGE, -dmg)
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct UndyingRageBuff extends Buff
+        private static constant integer RAWCODE = 'Arag'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private effect sfx
+        private real totalRegen = 0.
+        private texttag text
+
+        method addRegen takes real dmg returns nothing
+            set totalRegen = RMaxBJ(-200., RMinBJ(200., totalRegen + dmg / BlzGetUnitMaxHP(this.source) * 100))
+        endmethod
+
+        static method undyingRagePeriodic takes nothing returns nothing
+            local integer pid = GetTimerData(GetExpiredTimer())
+            local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
+            local thistype this = thistype.get(pt.caster, pt.caster, thistype.typeid)
+
+            if UnitAlive(pt.caster) then
+                call SetTextTagText(text, I2S(R2I(totalRegen)) + "%", 0.025)
+                call SetTextTagColor(text, R2I(Pow(100. - RMinBJ(100., totalRegen), 1.1)), R2I(SquareRoot(RMaxBJ(0, RMinBJ(100., totalRegen)) * 500)), 0, 255)
+                call SetTextTagPosUnit(text, source, -200.)
+
+                //percent
+                call this.addRegen(TotalRegen[pid] * 0.01)
+
+                call SetWidgetLife(this.source, RMaxBJ(10., BlzGetUnitMaxHP(this.source) * 0.0001))
+            else
+                call TimerList[pid].removePlayerTimer(pt)
+            endif
+        endmethod
+
+        method onRemove takes nothing returns nothing
+            local integer pid = GetPlayerId(GetOwningPlayer(this.source)) + 1
+            local PlayerTimer pt = TimerList[pid].get(this.source, null, thistype.typeid)
+
+            if pt != 0 then
+                call TimerList[pid].removePlayerTimer(pt)
+            endif
+
+            call DestroyEffect(sfx)
+            call DestroyTextTag(text)
+
+            call HP(this.source, BlzGetUnitMaxHP(this.source) * 0.01 * totalRegen)
+
+            set sfx = null
+            set text = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            local integer pid = GetPlayerId(GetOwningPlayer(this.source)) + 1
+            local PlayerTimer pt = TimerList[pid].addTimer(pid)
+
+            set text = CreateTextTag()
+            call SetTextTagText(text, I2S(R2I(totalRegen)) + "%", 0.025)
+            call SetTextTagColor(text, R2I(Pow(100 - totalRegen, 1.1)), R2I(SquareRoot(RMaxBJ(0, totalRegen) * 500)), 0, 255)
+
+            set pt.caster = this.source
+            set pt.tag = thistype.typeid
+
+            set totalRegen = 0.
+
+            set sfx = AddSpecialEffectTarget("war3mapImported\\DemonicAdornment.mdx", this.source, "head")
+
+            call TimerStart(pt.timer, 0.01, true, function thistype.undyingRagePeriodic)
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct RampageBuff extends Buff
+        private static constant integer RAWCODE = 'Aram'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_NONE
+        private effect sfx
+
+        static method rampagePeriodic takes nothing returns nothing
+            local integer pid = GetTimerData(GetExpiredTimer())
+            local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
+
+            call UnitDamageTarget(pt.caster, pt.caster, 0.08 * GetWidgetLife(pt.caster), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_DIVINE, WEAPON_TYPE_WHOKNOWS)
+        endmethod
+
+        method onRemove takes nothing returns nothing
+            local integer pid = GetPlayerId(GetOwningPlayer(this.source)) + 1
+            local PlayerTimer pt = TimerList[pid].get(this.source, null, thistype.typeid)
+
+            call TimerList[pid].removePlayerTimer(pt)
+            call DestroyEffect(sfx)
+
+            set sfx = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            local integer pid = GetPlayerId(GetOwningPlayer(this.source)) + 1
+            local PlayerTimer pt = TimerList[pid].addTimer(pid)
+
+            set pt.caster = this.source
+            set pt.tag = thistype.typeid
+
+            set sfx = AddSpecialEffectTarget("war3mapImported\\Windwalk Blood.mdx", this.source, "origin")
+            call UnitDamageTarget(this.source, this.source, 0.08 * GetWidgetLife(this.source), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_DIVINE, WEAPON_TYPE_WHOKNOWS)
+
+            call TimerStart(pt.timer, 1., true, function thistype.rampagePeriodic)
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct FrostArmorDebuff extends Buff
+        private static constant integer RAWCODE = 'Afde'
+        private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private integer ms
+
+        method onRemove takes nothing returns nothing
+            local integer pid = GetPlayerId(GetOwningPlayer(this.target)) + 1
+
+            set BuffMovespeed[pid] = BuffMovespeed[pid] + ms
+            call BlzSetUnitAttackCooldown(this.target, BlzGetUnitAttackCooldown(this.target, 0) / 1.25, 0)
+
+        endmethod
+
+        method onApply takes nothing returns nothing
+            local integer pid = GetPlayerId(GetOwningPlayer(this.target)) + 1
+
+            set ms = R2I(Movespeed[pid] * 0.25)
+
+            set BuffMovespeed[pid] = BuffMovespeed[pid] - ms
+            call BlzSetUnitAttackCooldown(this.target, BlzGetUnitAttackCooldown(this.target, 0) * 1.25, 0)
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct FrostArmorBuff extends Buff
+        private static constant integer RAWCODE = 'Afar'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_NONE
+        private effect sfx
+
+        method onRemove takes nothing returns nothing
+            call UnitAddBonus(this.source, BONUS_ARMOR, -100.)
+
+            call DestroyEffect(sfx)            
+            set sfx = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            set sfx = AddSpecialEffectTarget("Abilities\\Spells\\Undead\\FrostArmor\\FrostArmorTarget.mdl", this.source, "chest")
+
+            call UnitAddBonus(this.source, BONUS_ARMOR, 100.)
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct MagneticStrikeDebuff extends Buff
+        private static constant integer RAWCODE = 'Amsd'
+        private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+
+        method onRemove takes nothing returns nothing
+        endmethod
+
+        method onApply takes nothing returns nothing
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct MagneticStrikeBuff extends Buff
+        private static constant integer RAWCODE = 'Amst'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+
+        method onRemove takes nothing returns nothing
+        endmethod
+
+        method onApply takes nothing returns nothing
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct InfernalStrikeBuff extends Buff
+        private static constant integer RAWCODE = 'Aist'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+
+        method onRemove takes nothing returns nothing
+        endmethod
+
+        method onApply takes nothing returns nothing
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct PiercingStrikeDebuff extends Buff
+        private static constant integer RAWCODE = 'Apie'
+        private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private effect sfx
+
+        method onRemove takes nothing returns nothing
+            call DestroyEffect(sfx)
+
+            set sfx = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            set sfx = AddSpecialEffectTarget("war3mapImported\\Armor Penetration Orange.mdx", this.target, "overhead") 
+
+            call BlzSetSpecialEffectScale(sfx, 0)
+            if GetLocalPlayer() == GetOwningPlayer(this.source) then
+                call BlzSetSpecialEffectScale(sfx, 1)
+            endif
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct FightMeBuff extends Buff
+        private static constant integer RAWCODE = 'Aftm'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+
+        method onRemove takes nothing returns nothing
+            set HeroInvul[GetPlayerId(GetOwningPlayer(this.source)) + 1] = false
+        endmethod
+
+        method onApply takes nothing returns nothing
+            set HeroInvul[GetPlayerId(GetOwningPlayer(this.source)) + 1] = true
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct RighteousMightBuff extends Buff
+        private static constant integer RAWCODE = 'Armi'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        real dmg
+        real armor
+
+        method onRemove takes nothing returns nothing
+            call UnitAddBonus(this.target, BONUS_DAMAGE, -dmg)
+            call UnitAddBonus(this.target, BONUS_ARMOR, -armor)
+
+            call SetUnitScale(this.target, BlzGetUnitRealField(this.target, UNIT_RF_SCALING_VALUE), BlzGetUnitRealField(this.target, UNIT_RF_SCALING_VALUE), BlzGetUnitRealField(this.target, UNIT_RF_SCALING_VALUE))
+        endmethod
+
+        method onApply takes nothing returns nothing
+            call UnitAddBonus(this.target, BONUS_DAMAGE, dmg)
+            call UnitAddBonus(this.target, BONUS_ARMOR, armor)
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct BloodFrenzyBuff extends Buff
+        private static constant integer RAWCODE = 'A07E'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private effect sfx
+
+        method onRemove takes nothing returns nothing
+            call BlzSetUnitAttackCooldown(this.target, BlzGetUnitAttackCooldown(this.target, 0) * 1.50, 0)
+            call DestroyEffect(sfx)
+
+            set sfx = null
+        endmethod
+
+        method onApply takes nothing returns nothing
+            set sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\Bloodlust\\BloodlustTarget.mdl", this.target, "chest")
+
+            call BlzSetUnitAttackCooldown(this.target, BlzGetUnitAttackCooldown(this.target, 0) / 1.50, 0)
+            call UnitDamageTarget(this.source, this.source, 0.15 * BlzGetUnitMaxHP(this.source), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_DIVINE, WEAPON_TYPE_WHOKNOWS)
+        endmethod
+
+        implement BuffApply
+    endstruct
+
     struct EarthDebuff extends Buff
         private static constant integer RAWCODE = 'A04P'
         private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
-        private static constant integer STACK_TYPE =  BUFF_STACK_FULL
-        integer level = 0
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
 
         method onRemove takes nothing returns nothing
 
         endmethod
 
         method onApply takes nothing returns nothing
-            set level = IMinBJ(level + 1, 10)
-            call SetUnitAbilityLevel(this.target, 'Aear', level)
+
         endmethod
 
         implement BuffApply
@@ -56,7 +482,7 @@ scope Buffs
                 set pt.y = GetUnitY(pt.target) + 200. * Sin(pt.angle)
                 set pt.dur = 33.
 
-                call TimerStart(pt.getTimer(), 0.03, true, function SteedChargePush)
+                call TimerStart(pt.timer, 0.03, true, function SteedChargePush)
             endif
         endmethod
             
@@ -73,6 +499,8 @@ scope Buffs
         method onRemove takes nothing returns nothing
             call SetUnitMoveSpeed(this.target, GetUnitMoveSpeed(this.target) + ms)
             call DestroyEffect(sfx)
+
+             set sfx = null
         endmethod
             
         method onApply takes nothing returns nothing
@@ -104,31 +532,6 @@ scope Buffs
         implement BuffApply
     endstruct
 
-    struct Freeze extends Buff
-        private static constant integer RAWCODE = 'A01D'
-        private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
-        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
-        private effect sfx
-            
-        method onRemove takes nothing returns nothing
-            //stack with stun?
-            if Buff.has(null, this.target, Stun.typeid) == false then
-                call BlzPauseUnitEx(this.target, false)
-            endif
-            if GetUnitTypeId(this.source) == HERO_DARK_SAVIOR or GetUnitTypeId(this.source) == HERO_DARK_SAVIOR_DEMON then
-                set FreezingBlastDebuff.add(this.source, this.target).duration = 3. * LBOOST(GetPlayerId(GetOwningPlayer(this.source)) + 1)
-            endif
-            call DestroyEffect(sfx)
-        endmethod
-            
-        method onApply takes nothing returns nothing
-            call BlzPauseUnitEx(this.target, true)
-            set sfx = AddSpecialEffectTarget("Abilities\\Spells\\Undead\\FreezingBreath\\FreezingBreathTargetArt.mdl", this.target, "chest") 
-        endmethod
-            
-        implement BuffApply
-    endstruct
-
     struct ProtectedBuff extends Buff
         private static constant integer RAWCODE = 'A09I'
         private static constant integer DISPEL_TYPE = BUFF_POSITIVE
@@ -153,6 +556,8 @@ scope Buffs
 
         method onRemove takes nothing returns nothing
             call DestroyEffect(sfx)
+
+             set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -170,6 +575,8 @@ scope Buffs
 
         method onRemove takes nothing returns nothing
             call DestroyEffect(sfx)
+
+            set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -213,7 +620,7 @@ scope Buffs
 
             call SetUnitMoveSpeed(this.target, GetUnitMoveSpeed(this.target) - ms)
 
-            if IsBoss(GetUnitTypeId(this.target)) == false then
+            if IsBoss(GetUnitTypeId(this.target)) < 0 then
                 set regen = UnitGetBonus(this.target, BONUS_LIFE_REGEN)
                 call UnitAddBonus(this.target, BONUS_LIFE_REGEN, -regen)
             endif
@@ -282,6 +689,8 @@ scope Buffs
         method onRemove takes nothing returns nothing
             call UnitAddBonus(this.target, BONUS_ATTACK_SPEED, .35)
             call DestroyEffect(sfx)
+
+             set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -303,6 +712,8 @@ scope Buffs
         method onRemove takes nothing returns nothing
             call UnitAddBonus(this.target, BONUS_ARMOR, armor)
             call DestroyEffect(sfx)
+
+            set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -328,6 +739,8 @@ scope Buffs
             call SetUnitMoveSpeed(this.target, GetUnitMoveSpeed(this.target) + ms)
             call UnitAddBonus(this.target, BONUS_ARMOR, armor)
             call DestroyEffect(sfx)
+
+             set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -375,6 +788,8 @@ scope Buffs
             call UnitAddBonus(this.target, BONUS_ATTACK_SPEED, .25)
             call SetUnitMoveSpeed(this.target, GetUnitMoveSpeed(this.target) + ms)
             call DestroyEffect(sfx)
+
+             set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -388,7 +803,22 @@ scope Buffs
         implement BuffApply
     endstruct
 
-    struct SoakedSlow extends Buff
+    struct TidalWaveDebuff extends Buff
+        private static constant integer RAWCODE = 'Atwa'
+        private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        real percent = .15
+
+        method onRemove takes nothing returns nothing
+        endmethod
+
+        method onApply takes nothing returns nothing
+        endmethod
+
+        implement BuffApply
+    endstruct
+
+    struct SoakedDebuff extends Buff
         private static constant integer RAWCODE = 'A01G'
         private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
         private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
@@ -399,6 +829,8 @@ scope Buffs
             call UnitAddBonus(this.target, BONUS_ATTACK_SPEED, .3)
             call SetUnitMoveSpeed(this.target, GetUnitMoveSpeed(this.target) + ms)
             call DestroyEffect(sfx)
+
+             set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -423,6 +855,8 @@ scope Buffs
             call UnitAddBonus(this.target, BONUS_ATTACK_SPEED, .3)
             call SetUnitMoveSpeed(this.target, GetUnitMoveSpeed(this.target) + ms)
             call DestroyEffect(sfx)
+
+            set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -447,6 +881,8 @@ scope Buffs
             call UnitAddBonus(this.target, BONUS_ATTACK_SPEED, .3)
             call SetUnitMoveSpeed(this.target, GetUnitMoveSpeed(this.target) + ms)
             call DestroyEffect(sfx)
+
+            set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -471,6 +907,8 @@ scope Buffs
             call UnitAddBonus(this.target, BONUS_ATTACK_SPEED, .35)
             call SetUnitMoveSpeed(this.target, GetUnitMoveSpeed(this.target) + ms)
             call DestroyEffect(sfx)
+
+            set sfx = null
         endmethod
 
         method onApply takes nothing returns nothing
@@ -492,6 +930,7 @@ scope Buffs
 
         method onRemove takes nothing returns nothing
             call DestroyEffect(sfx)
+            set sfx = null
         endmethod
             
         method onApply takes nothing returns nothing
@@ -553,19 +992,161 @@ scope Buffs
         implement BuffApply
     endstruct
 
+    struct LightSealBuff extends Buff
+        private static constant integer RAWCODE = 'Alse'
+        private static constant integer DISPEL_TYPE = BUFF_POSITIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private integer pid
+        private PlayerTimer pt
+        real strength = 0.
+        real armor = 0.
+        integer stacks = 0
+
+        method addStack takes integer i returns nothing
+            call UnitAddBonus(this.source, BONUS_HERO_STR, -this.strength)
+            call UnitAddBonus(this.source, BONUS_ARMOR, -this.armor)
+
+            set this.stacks = IMinBJ(this.stacks + i, GetUnitAbilityLevel(this.source, LIGHTSEAL.id) * 10)
+            set this.strength = GetHeroStr(this.source, true) * 0.01 * this.stacks
+            set this.armor = BlzGetUnitArmor(this.source) * 0.01 * this.stacks
+
+            call UnitAddBonus(this.source, BONUS_HERO_STR, this.strength)
+            call UnitAddBonus(this.source, BONUS_ARMOR, this.armor)
+        endmethod
+
+        static method LightSealStackExpire takes nothing returns nothing
+            local integer pid = GetTimerData(GetExpiredTimer())
+            local PlayerTimer pt = TimerList[pid].getTimerFromHandle(GetExpiredTimer())
+            local thistype myBuff = thistype.get(pt.caster, pt.caster, thistype.typeid)
+            set myBuff.stacks = IMaxBJ(0, myBuff.stacks - 1)
+
+            call UnitAddBonus(myBuff.source, BONUS_HERO_STR, -myBuff.strength)
+            call UnitAddBonus(myBuff.source, BONUS_ARMOR, -myBuff.armor)
+
+            if myBuff.stacks <= 0 then
+                call TimerList[pid].removePlayerTimer(pt)
+                set myBuff.duration = 0.
+            else
+                set myBuff.duration = 20.
+                set myBuff.strength = GetHeroStr(myBuff.source, true) * 0.01 * myBuff.stacks
+                set myBuff.armor = BlzGetUnitArmor(myBuff.source) * 0.01 * myBuff.stacks
+
+                call UnitAddBonus(myBuff.source, BONUS_HERO_STR, myBuff.strength)
+                call UnitAddBonus(myBuff.source, BONUS_ARMOR, myBuff.armor)
+            endif
+        endmethod
+
+        method onRemove takes nothing returns nothing
+
+        endmethod
+
+        method onApply takes nothing returns nothing
+            set pid = GetPlayerId(GetOwningPlayer(this.source)) + 1
+            set pt = TimerList[pid].addTimer(pid)
+            set pt.caster = this.source
+
+            call TimerStart(pt.timer, 5., true, function thistype.LightSealStackExpire)
+        endmethod
+            
+        implement BuffApply
+    endstruct
+
     struct DarkSealDebuff extends Buff
         private static constant integer RAWCODE = 'A06W'
         private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
         private static constant integer STACK_TYPE =  BUFF_STACK_NONE
 
         method onRemove takes nothing returns nothing
-            local PlayerTimer pt = TimerList[GetPlayerId(GetOwningPlayer(this.source)) + 1].getTimerWithTargetTag(this.source, 'Dksl')
+            local PlayerTimer pt = TimerList[GetPlayerId(GetOwningPlayer(this.source)) + 1].get(null, this.source, 'Dksl')
 
             call GroupRemoveUnit(pt.ug, this.target)
         endmethod
 
         method onApply takes nothing returns nothing
 
+        endmethod
+            
+        implement BuffApply
+    endstruct
+
+    struct KnockUp extends Buff
+        private static constant integer RAWCODE = 'Akno'
+        private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private static constant real SPEED = 1500.
+        private static constant real DEBUFF_TIME = 1.
+        private real time = 0.
+
+        static method calcHeight takes real deltaTime returns real
+            local real g = 9.81
+            local real h = 0.
+
+            set deltaTime = deltaTime * 1.2
+
+            if deltaTime <= DEBUFF_TIME * 0.5 then
+                set h = SPEED * deltaTime - 0.5 * g * deltaTime * deltaTime
+            else
+                set deltaTime = deltaTime * 1.2
+                set h = SPEED * (DEBUFF_TIME - deltaTime) - 0.5 * g * (DEBUFF_TIME - deltaTime) * (DEBUFF_TIME - deltaTime)
+            endif
+
+            return RMaxBJ(0, h)
+        endmethod
+
+        static method knockUp takes nothing returns nothing
+            local thistype this = thistype(GetTimerData(GetExpiredTimer()))
+            set time = time + TimerGetElapsed(GetExpiredTimer())
+
+            if time >= DEBUFF_TIME then
+                call ReleaseTimer(GetExpiredTimer())
+            else
+                call SetUnitFlyHeight(this.target, calcHeight(time), 0.)
+            endif
+        endmethod
+            
+        method onRemove takes nothing returns nothing
+            //stack with stun?
+            if Buff.has(null, this.target, Stun.typeid) == false and Buff.has(null, this.target, Freeze.typeid) == false then
+                call BlzPauseUnitEx(this.target, false)
+            endif
+            call SetUnitFlyHeight(this.target, 0., 0.)
+        endmethod
+            
+        method onApply takes nothing returns nothing
+            call BlzPauseUnitEx(this.target, true)
+
+            if UnitAddAbility(this.target, 'Amrf') then
+                call UnitRemoveAbility(this.target, 'Amrf')
+            endif
+
+            call TimerStart(NewTimerEx(this), 0.01, true, function thistype.knockUp)
+        endmethod
+            
+        implement BuffApply
+    endstruct
+
+    struct Freeze extends Buff
+        private static constant integer RAWCODE = 'A01D'
+        private static constant integer DISPEL_TYPE = BUFF_NEGATIVE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private effect sfx
+            
+        method onRemove takes nothing returns nothing
+            //stack with stun?
+            if Buff.has(null, this.target, Stun.typeid) == false and Buff.has(null, this.target, KnockUp.typeid) == false then
+                call BlzPauseUnitEx(this.target, false)
+            endif
+            if GetUnitTypeId(this.source) == HERO_DARK_SAVIOR or GetUnitTypeId(this.source) == HERO_DARK_SAVIOR_DEMON then
+                set FreezingBlastDebuff.add(this.source, this.target).duration = 3. * LBOOST[GetPlayerId(GetOwningPlayer(this.source)) + 1]
+            endif
+            call DestroyEffect(sfx)
+
+            set sfx = null
+        endmethod
+            
+        method onApply takes nothing returns nothing
+            call BlzPauseUnitEx(this.target, true)
+            set sfx = AddSpecialEffectTarget("Abilities\\Spells\\Undead\\FreezingBreath\\FreezingBreathTargetArt.mdl", this.target, "chest") 
         endmethod
             
         implement BuffApply
@@ -578,10 +1159,11 @@ scope Buffs
         private effect sfx
             
         method onRemove takes nothing returns nothing
-            if Buff.has(null, this.target, Freeze.typeid) == false then
+            if Buff.has(null, this.target, Freeze.typeid) == false and Buff.has(null, this.target, KnockUp.typeid) == false then
                 call BlzPauseUnitEx(this.target, false)
             endif
             call DestroyEffect(sfx)
+            set sfx = null
         endmethod
             
         method onApply takes nothing returns nothing
@@ -640,4 +1222,25 @@ scope Buffs
         implement BuffApply
     endstruct
 
+    struct WeatherBuff extends Buff
+        private static constant integer RAWCODE = 0
+        private static constant integer DISPEL_TYPE = BUFF_NONE
+        private static constant integer STACK_TYPE =  BUFF_STACK_PARTIAL
+        private real ms = 0.
+        private real as = 0.
+        public integer weather = 0
+            
+        method onRemove takes nothing returns nothing
+            call BlzSetUnitAttackCooldown(this.target, BlzGetUnitAttackCooldown(this.target, 0) * as, 0)
+        endmethod
+            
+        method onApply takes nothing returns nothing
+            set as = weatherAS[currentWeather]
+            set weather = currentWeather
+
+            call BlzSetUnitAttackCooldown(this.target, BlzGetUnitAttackCooldown(this.target, 0) / as, 0)
+        endmethod
+            
+        implement BuffApply
+    endstruct
 endscope
