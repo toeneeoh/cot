@@ -34,8 +34,9 @@ function NagaWaygate takes integer pid returns nothing
                 call SetUnitYBounded(Hero[pid], 100)
                 call SetCameraBoundsRectForPlayerEx(Player(pid - 1), gg_rct_Main_Map_Vision)
                 call PanCameraToTimedForPlayer(Player(pid - 1), -260, 100, 0)
+
                 //bind token on leave
-                call StoreItems(pid)
+                set GetItemFromPlayer(pid, 'I0NN').owner = Player(pid - 1)
             endif
 
             if CountPlayersInForceBJ(NAGA_GROUP) <= 0 then
@@ -54,22 +55,6 @@ function NagaWaygate takes integer pid returns nothing
     call DestroyGroup(ug)
     
     set ug = null
-endfunction
-
-function BossEject takes unit u returns boolean
-    local integer i = 0
-
-    loop
-        exitwhen i > BOSS_TOTAL
-        if u == Boss[i] then
-            call SetUnitPositionLoc(u, BossLoc[i])
-            return true
-        endif
-
-        set i = i + 1
-    endloop
-    
-    return false
 endfunction
 
 function LeaveZone takes nothing returns nothing
@@ -101,11 +86,15 @@ function SafeZones takes nothing returns boolean
     local real y = GetUnitY(u)
     local rect r
     local User U = User.first
+    local integer boss = IsBoss(uid)
     
-    if IsEnemy(pid) and (IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Town_Boundry),GetRectCenterY(gg_rct_Town_Boundry),4000.) or IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Top_of_Town),GetRectCenterY(gg_rct_Top_of_Town),4000.)) then
-        if BossEject(u) then
-        elseif UnitData[uid][StringHash("count")] > 0 then
-            set r = SelectGroupedRegion(UnitData[uid][StringHash("spawn")])
+    if IsUnitIllusion(u) then
+    elseif IsEnemy(pid) and (IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Town_Boundry),GetRectCenterY(gg_rct_Town_Boundry),4000.) or IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Top_of_Town),GetRectCenterY(gg_rct_Top_of_Town),4000.)) then
+        if boss != -1 then
+            call SetUnitXBounded(Boss[boss], GetLocationX(BossLoc[boss]))
+            call SetUnitYBounded(Boss[boss], GetLocationY(BossLoc[boss]))
+        elseif UnitData[uid][UNITDATA_COUNT] > 0 then
+            set r = SelectGroupedRegion(UnitData[uid][UNITDATA_SPAWN])
             call SetUnitPosition(u, GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)))
         endif
     elseif NearbyRect(gg_rct_Town_Boundry, x, y) and uid == 'h04A' then //rescue guard
@@ -142,13 +131,11 @@ function EnterArea takes nothing returns nothing
         call BlzSetUnitFacingEx(u, 0.)
         call SetCameraBoundsRectForPlayerEx(p, gg_rct_ChurchRegion_Vision)
         call PanCameraToTimedForPlayer(p, 20943, 772, 0)
-        call EnterWeather(u)
     elseif NearbyRect(gg_rct_ChurchIn, x, y) and u == Hero[pid] then
-        call SetUnitPosition( u, 448.7, 1600.0 )
+        call SetUnitPosition(u, 448.7, 1600.0)
         call BlzSetUnitFacingEx(u, 270.)
-        call SetCameraBoundsRectForPlayerEx( p, gg_rct_Main_Map_Vision )
-        call PanCameraToTimedForPlayer( p, 448.7, 1600.0, 0 )
-        call EnterWeather(u)
+        call SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
+        call PanCameraToTimedForPlayer(p, 448.7, 1600.0, 0)
         if LEFT_CHURCH[pid] == false then
             set LEFT_CHURCH[pid] = true
             call DisplayTimedTextToPlayer(p, 0, 0, 30., "You may now save.")
@@ -156,44 +143,38 @@ function EnterArea takes nothing returns nothing
     elseif NearbyRect(gg_rct_Tavern_Out, x, y) and u == Hero[pid] then
         call SetUnitPosition(u, 22191., 3441.)
         call BlzSetUnitFacingEx(u, 180.)
-        call SetCameraBoundsRectForPlayerEx( p, gg_rct_Tavern_Vision)
-        call PanCameraToTimedForPlayer( p, GetUnitX(u), GetUnitY(u), 0.)
-        call EnterWeather(u)
+        call SetCameraBoundsRectForPlayerEx(p, gg_rct_Tavern_Vision)
+        call PanCameraToTimedForPlayer(p, GetUnitX(u), GetUnitY(u), 0.)
         call ShowHeroCircle(p, false)
     elseif NearbyRect(gg_rct_Tavern_In, x, y) and u == Hero[pid] then
         call SetUnitPosition(u, -690., -238.)
         call BlzSetUnitFacingEx(u, 0.)
-        call SetCameraBoundsRectForPlayerEx( p, gg_rct_Main_Map_Vision)
-        call PanCameraToTimedForPlayer( p, GetUnitX(u), GetUnitY(u), 0.)
-        call EnterWeather(u)
+        call SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
+        call PanCameraToTimedForPlayer(p, GetUnitX(u), GetUnitY(u), 0.)
         call ShowHeroCircle(p, true)
     elseif NearbyRect(gg_rct_Devourer_entry, x, y) and u == Hero[pid] then
-        call SetUnitPosition( u, 27145, -5489 )
-        call SetCameraBoundsRectForPlayerEx( p, gg_rct_Devourer_Camera_Bounds )
-        call PanCameraToTimedForPlayer( p, 27145, -5489, 0 )
-        call EnterWeather(u)
+        call SetUnitPosition(u, 27145, -5489)
+        call SetCameraBoundsRectForPlayerEx(p, gg_rct_Devourer_Camera_Bounds)
+        call PanCameraToTimedForPlayer(p, 27145, -5489, 0)
     elseif NearbyRect(gg_rct_Naga_Waygate, x, y) and u == Hero[pid] then //naga dungeon
         call NagaWaygate(pid)
     elseif NearbyRect(gg_rct_Flee_Devourers, x, y) then
         if u == Hero[pid] then
-            call SetUnitPosition( u, -15245, -14100 )
-            call SetCameraBoundsRectForPlayerEx( p, gg_rct_Main_Map_Vision )
-            call PanCameraToTimedForPlayer( p, -15245, -14100, 0 )
-            call EnterWeather(u)
+            call SetUnitPosition(u, -15245, -14100)
+            call SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
+            call PanCameraToTimedForPlayer(p, -15245, -14100, 0)
         elseif id == 'h04A' then
-            call SetUnitPosition( u, -15245, -14100)
+            call SetUnitPosition(u, -15245, -14100)
         endif
     elseif NearbyRect(gg_rct_Enter_Tomb, x, y) and u == Hero[pid] then
-        call SetUnitPosition( u, 19709, -20237 )
-        call SetCameraBoundsRectForPlayerEx( p, gg_rct_TombCameraBounds )
-        call PanCameraToTimedForPlayer( p, 19709, -20237, 0 )
-        call EnterWeather(u)
+        call SetUnitPosition(u, 19709, -20237)
+        call SetCameraBoundsRectForPlayerEx(p, gg_rct_TombCameraBounds)
+        call PanCameraToTimedForPlayer(p, 19709, -20237, 0)
     elseif NearbyRect(gg_rct_Exit_Tomb, x, y) and u == Hero[pid] then
-        call SetUnitPosition( u, -15426, 9535 )
-        call SetCameraBoundsRectForPlayerEx( p, gg_rct_Main_Map_Vision )
-        call PanCameraToTimedForPlayer( p, -15426, 9535, 0 )
-        call EnterWeather(u)
-    elseif NearbyRect(gg_rct_Key_Quest, x, y) and not udg_Chaos_World_On and not IsUnitHidden(gg_unit_n0A1_0164) then
+        call SetUnitPosition(u, -15426, 9535)
+        call SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
+        call PanCameraToTimedForPlayer(p, -15426, 9535, 0)
+    elseif NearbyRect(gg_rct_Key_Quest, x, y) and not ChaosMode and not IsUnitHidden(gg_unit_n0A1_0164) then
         if (HasItemType(Hero[pid], 'I04J') or HasItemType(Hero[pid], 'I0NJ') or HasItemType(Backpack[pid], 'I04J') or HasItemType(Backpack[pid], 'I0NJ') or GetHeroLevel(Hero[pid]) > 239) and IsQuestCompleted(udg_Key_Quest) == false then
             call DisplayTextToForce(FORCE_PLAYING, "|cffffcc00The portal to the gods has opened.|r")
             call QuestSetDiscovered(udg_Key_Quest, true)
@@ -216,8 +197,7 @@ The Goddesses' Keys
                 set itm = GetItemFromUnit(Backpack[pid], 'I0M7')
             endif
             if GetItemTypeId(itm) == 'I0M7' then
-                call UnitRemoveItem(Hero[pid], itm)
-                call RemoveItem(itm)
+                call Item[itm].destroy()
                 call QuestSetCompleted(udg_Key_Quest, true)
                 call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_UPDATED, "|cffffcc00QUEST COMPLETED:|r\nThe Goddesses' Keys")
                 call TriggerSleepAction(1.00)
