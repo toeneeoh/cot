@@ -12,6 +12,7 @@ globals
     real array MouseY
     integer array moveCounter
     integer array panCounter
+    integer array selectCounter
     unit array PlayerSelectedUnit
 endglobals
 
@@ -28,7 +29,7 @@ function UnselectBP takes nothing returns nothing
     set p = null
 endfunction
 
-function RightClickUp takes nothing returns nothing
+function MouseUp takes nothing returns boolean
     local integer pid = GetPlayerId(GetTriggerPlayer()) + 1
     local integer i = 1
     local real x = BlzGetTriggerPlayerMouseX()
@@ -39,7 +40,7 @@ function RightClickUp takes nothing returns nothing
 
     if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_LEFT then
         if BP_DESELECT[pid] then
-            call TimerStart(NewTimerEx(pid), 0.01, false, function UnselectBP)
+            call TimerStart(NewTimerEx(pid), 0.00, false, function UnselectBP)
         endif
 
         if hselection[pid] then
@@ -63,7 +64,7 @@ function RightClickUp takes nothing returns nothing
                     set heal = GetUnitState(Hero[pid], UNIT_STATE_MAX_MANA) * (wellheal[i] - 100) / 100
                     call MP(Hero[pid], heal)
                 endif
-                call Fade(well[i], 35, 0.03, 1)
+                call Fade(well[i], 1., true)
                 call RemoveUnitTimed(well[i], 5)
                 call IndexWells(i)
                 exitwhen true
@@ -73,27 +74,44 @@ function RightClickUp takes nothing returns nothing
     
         call ForceRemovePlayer(rightclicked, GetTriggerPlayer())
     endif
+
+    return false
 endfunction
 
-function RightClickDown takes nothing returns nothing
+function MouseDown takes nothing returns boolean
     local player p = GetTriggerPlayer()
     local integer pid = GetPlayerId(p) + 1
+    local PlayerTimer pt
+
+    //backpack ai
+    if PlayerSelectedUnit[pid] == Backpack[pid] then
+        set bpmoving[pid] = true
+        set pt = TimerList[pid].get(Backpack[pid], null, 'Bkpk')
+
+        if pt == 0 then
+            set pt = TimerList[pid].addTimer(pid)
+            set pt.dur = 4
+            set pt.tag = 'Bkpk'
+            set pt.caster = Backpack[pid]
+
+            call TimerStart(pt.timer, 1., true, function MoveExpire)
+        else
+            set pt.dur = 4
+        endif
+    endif
     
     if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_RIGHT then   
-        //backpack ai
-    
-        if PlayerSelectedUnit[pid] == Backpack[pid] and bpmoving[pid] == false then
-            set bpmoving[pid] = true
-            call SaveInteger(MiscHash, 0, GetHandleId(bpmove[pid]), pid)
-            call PauseTimer(bpmove[pid])
-            call TimerStart(bpmove[pid], 4., true, function MoveExpire)
+        if PlayerSelectedUnit[pid] == Hero[pid] and Movespeed[pid] >= 600 then
+            call BlzSetUnitFacingEx(Hero[pid], bj_RADTODEG * Atan2(MouseY[pid] - GetUnitY(Hero[pid]), MouseX[pid] - GetUnitX(Hero[pid])))
         endif
     
         call ForceAddPlayer(rightclicked, p)
     endif
+
+    return false
 endfunction
 
-function MoveMouse takes nothing returns nothing
+function MoveMouse takes nothing returns boolean
     local player p = GetTriggerPlayer()
     local integer pid = GetPlayerId(p) + 1
     local real x = BlzGetTriggerPlayerMouseX()
@@ -103,9 +121,9 @@ function MoveMouse takes nothing returns nothing
     local unit target
 
     if x == 0 and y == 0 then
-    elseif dist < 50 then
+    elseif dist < 100 then
         set moveCounter[pid] = moveCounter[pid] + 1
-    elseif dist > 2000 then
+    elseif dist > 1500 then
         set panCounter[pid] = panCounter[pid] + 1
     endif
     
@@ -133,42 +151,47 @@ function MoveMouse takes nothing returns nothing
     set p = null
     set ug = null
     set target = null
+
+    return false
 endfunction
 
-function Select takes nothing returns nothing
+function Select takes nothing returns boolean
     local player p = GetTriggerPlayer()
     local integer pid = GetPlayerId(p) + 1
     
     set PlayerSelectedUnit[pid] = GetTriggerUnit()
+    set selectCounter[pid] = selectCounter[pid] + 1
 
     set p = null
+
+    return false
 endfunction
 
 function MouseInit takes nothing returns nothing
     local trigger click = CreateTrigger()
     local trigger move = CreateTrigger()
-    local trigger rightclickdown = CreateTrigger()
-    local trigger rightclickup = CreateTrigger()
+    local trigger mousedown = CreateTrigger()
+    local trigger mouseup = CreateTrigger()
     local User u = User.first
     
     loop
         exitwhen u == User.NULL
         call TriggerRegisterPlayerUnitEvent(click, u.toPlayer(), EVENT_PLAYER_UNIT_SELECTED, null)
         call TriggerRegisterPlayerEvent(move, u.toPlayer(), EVENT_PLAYER_MOUSE_MOVE)
-        call TriggerRegisterPlayerEvent(rightclickdown, u.toPlayer(), EVENT_PLAYER_MOUSE_DOWN)
-        call TriggerRegisterPlayerEvent(rightclickup, u.toPlayer(), EVENT_PLAYER_MOUSE_UP)
+        call TriggerRegisterPlayerEvent(mousedown, u.toPlayer(), EVENT_PLAYER_MOUSE_DOWN)
+        call TriggerRegisterPlayerEvent(mouseup, u.toPlayer(), EVENT_PLAYER_MOUSE_UP)
         set u = u.next
     endloop
     
-    call TriggerAddAction(click, function Select)
-    call TriggerAddAction(move, function MoveMouse)
-    call TriggerAddAction(rightclickdown, function RightClickDown)
-    call TriggerAddAction(rightclickup, function RightClickUp)
+    call TriggerAddCondition(click, Filter(function Select))
+    call TriggerAddCondition(move, Filter(function MoveMouse))
+    call TriggerAddCondition(mousedown, Filter(function MouseDown))
+    call TriggerAddCondition(mouseup, Filter(function MouseUp))
     
     set click = null
     set move = null
-    set rightclickdown = null
-    set rightclickup = null
+    set mousedown = null
+    set mouseup = null
 endfunction
 
 endlibrary
