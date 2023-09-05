@@ -1,4 +1,4 @@
-library AshenVat requires Functions, ItemCreation
+library AshenVat requires Functions
 
 globals
     private string DECON = "|c00808080Deconstruct:|r\n"
@@ -50,77 +50,59 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
         endloop
     elseif id == 'e01I' then //fuse
         loop
-            exitwhen ItemCreation_Item('I0MO',3,'fwss',1,'frhg',1,'drph',1,'item',0,'item',0,'I0MP',3,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0MO',3,'I04X',1,'I056',1,'I05Z',1,'item',0,'item',0,'I0MP',3,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop
-            exitwhen ItemCreation_Item('I0MO',3,'I07K',2,'item',0,'item',0,'item',0,'item',0,'I0MQ',3,ASHEN_VAT,0,0,0,true) == false
-            set sfx = true
-        endloop
-        loop //thanatos boots rare
-            exitwhen ItemCreation_Item('I0MR',1,'I00P',1,'I096',1,'item',0,'item',0,'item',0,'I0JT',1,ASHEN_VAT,0,0,0,true) == false
-            set sfx = true
-        endloop
-        loop //thanatos boots leg
-            exitwhen ItemCreation_Item('I0JT',1,'I00Q',1,'I0IT',1,'item',0,'item',0,'item',0,'I023',1,ASHEN_VAT,0,0,0,true) == false
-            set sfx = true
-        endloop
-        loop //legion ring rare
-            exitwhen ItemCreation_Item('rnsp',1,'I00T',1,'I0D0',1,'I0AU',1,'item',0,'item',0,'I0NK',1,ASHEN_VAT,0,0,0,true) == false
-            set sfx = true
-        endloop
-        loop //legion ring leg
-            exitwhen ItemCreation_Item('I04Y',1,'I06I',1,'I0NK',1,'item',0,'item',0,'item',0,'I0NL',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0MO',3,'I07K',2,'item',0,'item',0,'item',0,'item',0,'I0MQ',3,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop //chaos shield
-            exitwhen ItemCreation_Item('I0BY',1,'I09Y',1,'I0OD',1,'I0AI',1,'I0AH',1,'I08N',1,'I01J',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0BY',1,'I09Y',1,'I0OD',1,'I0AI',1,'I0AH',1,'I08N',1,'I01J',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop //drum of war
-            exitwhen ItemCreation_Item('I04J',1,'I00G',1,'I00H',1,'I00I',1,'ward',1,'item',0,'I0NJ',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I04J',1,'I00G',1,'I00H',1,'I00I',1,'I06H',1,'item',0,'I0NJ',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
-        //demon golem fist
-        loop
-            exitwhen ItemCreation_Item('I04Q',1,'I046',1,'item',0,'item',0,'item',0,'item',0,'I0OF',1,ASHEN_VAT,0,0,0,true) == false
+        loop //demon golem fist
+            exitwhen Recipe('I04Q',1,'I046',1,'item',0,'item',0,'item',0,'item',0,'I0OF',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
-        //absolute horror equipment
-        loop
-            exitwhen ItemCreation_Item('I0N9',2,'I02U',1,'item',0,'item',0,'item',0,'item',0,'I0NA',1,ASHEN_VAT,0,0,0,true) == false
-            set sfx = true
-        endloop
-        loop
-            exitwhen ItemCreation_Item('I0N8',2,'I033',1,'item',0,'item',0,'item',0,'item',0,'I0NB',1,ASHEN_VAT,0,0,0,true) == false
+        loop //absolute horror equipment
+            exitwhen Recipe('I0N9',2,'I02U',1,'item',0,'item',0,'item',0,'item',0,'I0NA',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop
-            exitwhen ItemCreation_Item('I0N7',2,'I032',1,'item',0,'item',0,'item',0,'item',0,'I0NC',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0N8',2,'I033',1,'item',0,'item',0,'item',0,'item',0,'I0NB',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop
-            exitwhen ItemCreation_Item('I0N7',2,'I02S',1,'item',0,'item',0,'item',0,'item',0,'I0ND',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0N7',2,'I032',1,'item',0,'item',0,'item',0,'item',0,'I0NC',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop
-            exitwhen ItemCreation_Item('I0N7',1,'I0N8',1,'I065',1,'item',0,'item',0,'item',0,'I0NE',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0N7',2,'I02S',1,'item',0,'item',0,'item',0,'item',0,'I0ND',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop
-            exitwhen ItemCreation_Item('I0N8',2,'I0BZ',1,'item',0,'item',0,'item',0,'item',0,'I0NF',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0N7',1,'I0N8',1,'I065',1,'item',0,'item',0,'item',0,'I0NE',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop
-            exitwhen ItemCreation_Item('I0N9',2,'I02P',1,'item',0,'item',0,'item',0,'item',0,'I0NI',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0N8',2,'I0BZ',1,'item',0,'item',0,'item',0,'item',0,'I0NF',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop
-            exitwhen ItemCreation_Item('I0N9',2,'I048',1,'item',0,'item',0,'item',0,'item',0,'I0NG',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0N9',2,'I02P',1,'item',0,'item',0,'item',0,'item',0,'I0NI',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop
-            exitwhen ItemCreation_Item('I0N9',2,'I064',1,'item',0,'item',0,'item',0,'item',0,'I0NH',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0N9',2,'I048',1,'item',0,'item',0,'item',0,'item',0,'I0NG',0,ASHEN_VAT,0,0,0,true) == false
+            set sfx = true
+        endloop
+        loop
+            exitwhen Recipe('I0N9',2,'I064',1,'item',0,'item',0,'item',0,'item',0,'I0NH',0,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         if sfx then
@@ -128,27 +110,27 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
         endif
     elseif id == 'e01J' then //deconstruct
         loop //big hp pot
-            exitwhen ItemCreation_Item('I0BJ',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',3,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0BJ',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',3,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop //medium hp pot
-            exitwhen ItemCreation_Item('I028',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',2,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I028',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',2,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop //small hp pot
-            exitwhen ItemCreation_Item('pghe',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I062',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',1,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop //big mana pot
-            exitwhen ItemCreation_Item('I0BL',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',3,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I0BL',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',3,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop //medium mana pot
-            exitwhen ItemCreation_Item('I00D',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',2,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I00D',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',2,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         loop //small mana pot
-            exitwhen ItemCreation_Item('pgma',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',1,ASHEN_VAT,0,0,0,true) == false
+            exitwhen Recipe('I06E',1,'item',0,'item',0,'item',0,'item',0,'item',0,'I0MO',1,ASHEN_VAT,0,0,0,true) == false
             set sfx = true
         endloop
         if sfx then
@@ -171,7 +153,7 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
         elseif itid == 'I028' then //medium hp pot
     call DTP(p, 60, DECON + PT('I0MO', 2))
     
-        elseif itid == 'pghe' then //small hp pot
+        elseif itid == 'I062' then //small hp pot
     call DTP(p, 60, DECON + PT('I0MO', 0))
     
         elseif itid == 'I0BL' then //big mana pot
@@ -180,52 +162,30 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
         elseif itid == 'I00D' then //medium mana pot
     call DTP(p, 60, DECON + PT('I0MO', 2))
     
-        elseif itid == 'pgma' then //small mana pot
+        elseif itid == 'I06E' then //small mana pot
     call DTP(p, 60, DECON + PT('I0MO', 0))
     
         elseif itid == 'I0MO' then //empty flask
-    call DTP(p, 60, FUSE + HL(PT('I0MO', 3)) + ADD + PT('fwss', 0) + ADD + PT('frhg', 0) + ADD + PT('drph', 0) + " = " + PT('I0MP', 3))
+    call DTP(p, 60, FUSE + HL(PT('I0MO', 3)) + ADD + PT('I04X', 0) + ADD + PT('I056', 0) + ADD + PT('I05Z', 0) + " = " + PT('I0MP', 3))
     call DTP(p, 60, HL(PT('I0MO', 3)) + ADD + PT('I07K', 2) + " = " + PT('I0MQ', 3))
     
-        elseif itid == 'fwss' then //dragon bone
-    call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + HL(PT('fwss', 0)) + ADD + PT('frhg', 0) + ADD + PT('drph', 0) + " = " + PT('I0MP', 3))
+        elseif itid == 'I04X' then //dragon bone
+    call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + HL(PT('I04X', 0)) + ADD + PT('I056', 0) + ADD + PT('I05Z', 0) + " = " + PT('I0MP', 3))
     
-        elseif itid == 'frhg' then //dragon heart
-    call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + PT('fwss', 0) + ADD + HL(PT('frhg', 0)) + ADD + PT('drph', 0) + " = " + PT('I0MP', 3))
+        elseif itid == 'I056' then //dragon heart
+    call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + PT('I04X', 0) + ADD + HL(PT('I056', 0)) + ADD + PT('I05Z', 0) + " = " + PT('I0MP', 3))
     
-        elseif itid == 'drph' then //dragon scale
-    call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + PT('fwss', 0) + ADD + PT('frhg', 0) + ADD + HL(PT('drph', 0)) + " = " + PT('I0MP', 3))
+        elseif itid == 'I05Z' then //dragon scale
+    call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + PT('I04X', 0) + ADD + PT('I056', 0) + ADD + HL(PT('I05Z', 0)) + " = " + PT('I0MP', 3))
     
         elseif itid == 'I07K' then //horror's blood
     call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + HL(PT('I07K', 2)) + " = " + PT('I0MQ', 3))
     
         elseif itid == 'I0MP' then //dragon potion
-    call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + PT('fwss', 0) + ADD + PT('frhg', 0) + ADD + HL(PT('drph', 0)) + " = " + HL(PT('I0MP', 3)))
+    call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + PT('I04X', 0) + ADD + PT('I056', 0) + ADD + HL(PT('I05Z', 0)) + " = " + HL(PT('I0MP', 3)))
     
         elseif itid == 'I0MQ' then //blood potion
     call DTP(p, 60, FUSE + PT('I0MO', 3) + ADD + PT('I07K', 2) + " = " + HL(PT('I0MQ', 3)))
-    
-        elseif itid == 'I0MR' then //thanatos's boots of rift walking
-    call DTP(p, 60, FUSE + HL(PT('I0MR', 0)) + ADD + PT('I00P', 0) + ADD + PT('I096', 0) + " = " + PT('I0JT', 0))
-
-        elseif itid == 'I00P' then //thanatos's wings rare
-    call DTP(p, 60, FUSE + PT('I0MR', 0) + ADD + HL(PT('I00P', 0)) + ADD + PT('I096', 0) + " = " + PT('I0JT', 0))
-    
-        elseif itid == 'I00Q' then //thanatos's wings leg
-    call DTP(p, 60, FUSE + PT('I0JT', 0) + ADD + HL(PT('I00Q', 0)) + ADD + PT('I0IT', 0) + " = " + PT('I023', 0))
-
-        elseif itid == 'I096' then //abyssal staff + 2
-    call DTP(p, 60, FUSE + PT('I0MR', 0) + ADD + PT('I00P', 0) + ADD + HL(PT('I096', 0)) + " = " + PT('I0JT', 0))
-
-        elseif itid == 'I0IT' then //legion staff rare
-    call DTP(p, 60, FUSE + PT('I0JT', 0) + ADD + PT('I00Q', 0) + ADD + HL(PT('I0IT', 0)) + " = " + PT('I023', 0))
-
-        elseif itid == 'I0JT' then //thanatos's boots of rift walking rare
-    call DTP(p, 60, FUSE + PT('I0MR', 0) + ADD + PT('I00P', 0) + ADD + PT('I096', 0) + " = " + HL(PT('I0JT', 0)))
-    call DTP(p, 60, FUSE + HL(PT('I0JT', 0)) + ADD + PT('I00Q', 0) + ADD + PT('I0IT', 0) + " = " + PT('I023', 0))
-    
-        elseif itid == 'I023' then //thanatos's boots of rift walking leg
-    call DTP(p, 60, FUSE + PT('I0JT', 0) + ADD + PT('I00Q', 0) + ADD + PT('I0IT', 0) + " = " + HL(PT('I023', 0)))
 
         elseif itid == 'I0BY' then //existence soul
     call DTP(p, 60, FUSE + HL(PT('I0BY', 0)) + ADD + PT('I09Y', 0) + ADD + PT('I0OD', 0) + ADD + PT('I0AI', 0) + ADD + PT('I0AH', 0) + ADD + PT('I08N', 0) + " = " + PT('I01J', 0))
@@ -247,31 +207,6 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
 
         elseif itid == 'I01J' then //chaos shield
     call DTP(p, 60, FUSE + PT('I0BY', 0) + ADD + PT('I09Y', 0) + ADD + PT('I0OD', 0) + ADD + PT('I0AI', 0) + ADD + PT('I0AH', 0) + ADD + PT('I08N', 0) + " = " + HL(PT('I01J', 0)))
-
-        elseif itid == 'rnsp' then //waug's ring
-    call DTP(p, 60, FUSE + HL(PT('rnsp', 0)) + ADD + PT('I00T', 0) + ADD + PT('I0D0', 0) + ADD + PT('I0AU', 0) + " = " + PT('I0NK', 0))
-
-        elseif itid == 'I00T' then //lesser ring of struggle
-    call DTP(p, 60, FUSE + PT('rnsp', 0) + ADD + HL(PT('I00T', 0)) + ADD + PT('I0D0', 0) + ADD + PT('I0AU', 0) + " = " + PT('I0NK', 0))
-
-        elseif itid == 'I0D0' then //ring of struggle
-    call DTP(p, 60, FUSE + PT('rnsp', 0) + ADD + PT('I00T', 0) + ADD + HL(PT('I0D0', 0)) + ADD + PT('I0AU', 0) + " = " + PT('I0NK', 0))
-
-        elseif itid == 'I0AU' then //legion ring
-    call DTP(p, 60, FUSE + PT('rnsp', 0) + ADD + PT('I00T', 0) + ADD + PT('I0D0', 0) + ADD + HL(PT('I0AU', 0)) + " = " + PT('I0NK', 0))
-    
-        elseif itid == 'I0NK' then //legion ring rare
-    call DTP(p, 60, FUSE + PT('rnsp', 0) + ADD + PT('I00T', 0) + ADD + PT('I0D0', 0) + ADD + PT('I0AU', 0) + " = " + HL(PT('I0NK', 0)))
-    call DTP(p, 60, FUSE + PT('I04Y', 0) + ADD + PT('I06I', 0) + ADD + HL(PT('I0NK', 0)) + " = " + PT('I0NL', 0))
-
-        elseif itid == 'I04Y' then //void ring
-    call DTP(p, 60, FUSE + HL(PT('I04Y', 0)) + ADD + PT('I06I', 0) + ADD + PT('I0NK', 0) + " = " + PT('I0NL', 0))
-
-        elseif itid == 'I06I' then //ring of existence rare
-    call DTP(p, 60, FUSE + PT('I04Y', 0) + ADD + HL(PT('I06I', 0)) + ADD + PT('I0NK', 0) + " = " + PT('I0NL', 0))
-
-        elseif itid == 'I0NL' then //legion ring leg
-    call DTP(p, 60, FUSE + PT('I04Y', 0) + ADD + PT('I06I', 0) + ADD + PT('I0NK', 0) + " = " + HL(PT('I0NL', 0)))
 
         elseif itid == 'I0N8' then //absolute fang
     call DTP(p, 60, FUSE + HL(PT('I0N8', 2)) + ADD + PT('I033', 0) + " = " + PT('I0NB', 0))
@@ -344,22 +279,22 @@ function Trig_Ashen_Vat_Actions takes nothing returns nothing
     call DTP(p, 60, FUSE + PT('I0N9', 2) + ADD + PT('I064', 0) + " = " + HL(PT('I0NH', 0)))
     
         elseif itid == 'I04J' then //aura of gods
-    call DTP(p, 60, FUSE + HL(PT('I04J', 0)) + ADD + PT('I00G', 0) + ADD + PT('I00H', 0) + ADD + PT('I00I', 0) + ADD + PT('ward', 0) + " = " + PT('I0NJ', 0))
+    call DTP(p, 60, FUSE + HL(PT('I04J', 0)) + ADD + PT('I00G', 0) + ADD + PT('I00H', 0) + ADD + PT('I00I', 0) + ADD + PT('I06H', 0) + " = " + PT('I0NJ', 0))
     
         elseif itid == 'I00G' then //blood elf war drum
-    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + HL(PT('I00G', 0)) + ADD + PT('I00H', 0) + ADD + PT('I00I', 0) + ADD + PT('ward', 0) + " = " + PT('I0NJ', 0))
+    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + HL(PT('I00G', 0)) + ADD + PT('I00H', 0) + ADD + PT('I00I', 0) + ADD + PT('I06H', 0) + " = " + PT('I0NJ', 0))
     
         elseif itid == 'I00H' then //blood horn
-    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + PT('I00G', 0) + ADD + HL(PT('I00H', 0)) + ADD + PT('I00I', 0) + ADD + PT('ward', 0) + " = " + PT('I0NJ', 0))
+    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + PT('I00G', 0) + ADD + HL(PT('I00H', 0)) + ADD + PT('I00I', 0) + ADD + PT('I06H', 0) + " = " + PT('I0NJ', 0))
     
         elseif itid == 'I00I' then //blood shield
-    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + PT('I00G', 0) + ADD + PT('I00H', 0) + ADD + HL(PT('I00I', 0)) + ADD + PT('ward', 0) + " = " + PT('I0NJ', 0))
+    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + PT('I00G', 0) + ADD + PT('I00H', 0) + ADD + HL(PT('I00I', 0)) + ADD + PT('I06H', 0) + " = " + PT('I0NJ', 0))
     
-        elseif itid == 'ward' then //warsong drum
-    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + PT('I00G', 0) + ADD + PT('I00H', 0) + ADD + PT('I00I', 0) + ADD + HL(PT('ward', 0)) + " = " + PT('I0NJ', 0))
+        elseif itid == 'I06H' then //warsong drum
+    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + PT('I00G', 0) + ADD + PT('I00H', 0) + ADD + PT('I00I', 0) + ADD + HL(PT('I06H', 0)) + " = " + PT('I0NJ', 0))
     
         elseif itid == 'I0NJ' then //drum of war
-    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + PT('I00G', 0) + ADD + PT('I00H', 0) + ADD + PT('I00I', 0) + ADD + PT('ward', 0) + " = " + HL(PT('I0NJ', 0)))
+    call DTP(p, 60, FUSE + PT('I04J', 0) + ADD + PT('I00G', 0) + ADD + PT('I00H', 0) + ADD + PT('I00I', 0) + ADD + PT('I06H', 0) + " = " + HL(PT('I0NJ', 0)))
     
         elseif itid == 'I04Q' then //heart of the demon prince
     call DTP(p, 60, FUSE + HL(PT('I04Q', 0)) + ADD + PT('I046', 0) + " = " + PT('I0OF', 0))
@@ -386,7 +321,7 @@ function AshenVatInit takes nothing returns nothing
 
     call SetUnitPosition(ASHEN_VAT, 20478.027, -20244.473)
     call TriggerRegisterUnitEvent(ashen, ASHEN_VAT, EVENT_UNIT_SELL)
-    call TriggerAddAction(ashen, function Trig_Ashen_Vat_Actions )
+    call TriggerAddAction(ashen, function Trig_Ashen_Vat_Actions)
 
     set ashen = null
 endfunction
