@@ -21,7 +21,7 @@ library CodeGen initializer init
 
         loop
             exitwhen i >= MAXVALUE
-            set CHAR[i] = SubString(ALPHABET, i, i+1)
+            set CHAR[i] = SubString(ALPHABET, i, i + 1)
             set i = i + 1
         endloop
 
@@ -68,7 +68,7 @@ library CodeGen initializer init
             set s = SubString(s, 1, 99)
         endloop
         
-        return a+StrPos(s)
+        return a + StrPos(s)
     endfunction
 
     function StringChecksum takes string in returns integer
