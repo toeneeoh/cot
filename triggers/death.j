@@ -5,45 +5,39 @@ globals
 	trigger trg_Revive_Timer_done
     group despawnGroup = CreateGroup()
     effect array HeroReviveIndicator
-    unit array HeroTimedLife
+    effect array HeroTimedLife
     boolean RESPAWN_DEBUG = false
     group StruggleWaveGroup = CreateGroup()
     group ColoWaveGroup = CreateGroup()
-    boolean array firstTimeDrop
+
+    integer FIRST_DROP = 0
 endglobals
 
 function RemoveCreep takes nothing returns nothing
-    local timer t = GetExpiredTimer()
-    local integer uid = GetTimerData(t)
-    local real x = LoadReal(MiscHash, GetHandleId(t), 11)
-    local real y = LoadReal(MiscHash, GetHandleId(t), 12)
-    local unit u2
+    local integer uid = GetTimerData(GetExpiredTimer())
+    local PlayerTimer pt = TimerList[PLAYER_NEUTRAL_AGGRESSIVE].getTimerFromHandle(GetExpiredTimer())
+    local unit u2 = null
     local group ug = CreateGroup()
-    local boolean valid = false
+    local boolean valid = true
 
-    call GroupEnumUnitsInRange(ug, x, y, 800., Condition(function Trig_Enemy_Of_Hostile))
+    call GroupEnumUnitsInRange(ug, pt.x, pt.y, 800., Condition(function Trig_Enemy_Of_Hostile))
 
-    if udg_Chaos_World_On then
-        if UnitData[uid][StringHash("chaos")] > 0 then
-            set valid = true
-        endif
-    else
-        if UnitData[uid][StringHash("count")] > 0 then
-            set valid = true
-        endif
+    if ChaosMode and pt.agi != 1 then
+        set valid = false
     endif
 
-    if valid then
+    if UnitData[uid][UNITDATA_COUNT] > 0 and valid then
         if FirstOfGroup(ug) == null then
-            call CreateUnit(pfoe, uid, x, y, GetRandomInt(0,359))
+            call CreateUnit(pfoe, uid, pt.x, pt.y, GetRandomInt(0,359))
         else
-            set u2 = CreateUnit(pfoe, uid, x, y, GetRandomInt(0,359))
+            set u2 = CreateUnit(pfoe, uid, pt.x, pt.y, GetRandomInt(0,359))
             call PauseUnit(u2, true)
             call UnitAddAbility(u2, 'Avul')
             call GroupAddUnit(despawnGroup, u2)
             call ShowUnit(u2, false)
             call BlzSetItemSkin(PathItem, BlzGetUnitSkin(u2))
-            set bj_lastCreatedEffect = AddSpecialEffect(BlzGetItemStringField(PathItem, ITEM_SF_MODEL_USED), x, y)
+            set bj_lastCreatedEffect = AddSpecialEffect(BlzGetItemStringField(PathItem, ITEM_SF_MODEL_USED), pt.x, pt.y)
+            call BlzSetItemSkin(PathItem, BlzGetUnitSkin(WeatherUnit))
             call BlzSetSpecialEffectColorByPlayer(bj_lastCreatedEffect, pfoe)
             call BlzSetSpecialEffectColor(bj_lastCreatedEffect, 175, 175, 175)
             call BlzSetSpecialEffectAlpha(bj_lastCreatedEffect, 127)
@@ -53,14 +47,11 @@ function RemoveCreep takes nothing returns nothing
         endif
     endif
 
-    call RemoveSavedReal(MiscHash, GetHandleId(t), 11)
-    call RemoveSavedReal(MiscHash, GetHandleId(t), 12)
-    call ReleaseTimer(t)
+    call TimerList[PLAYER_NEUTRAL_AGGRESSIVE].removePlayerTimer(pt)
     call DestroyGroup(ug)
 
     set ug = null
     set u2 = null
-    set t = null
 endfunction
             
 function DeathHandler takes integer pid returns nothing
@@ -81,7 +72,7 @@ function DeathHandler takes integer pid returns nothing
             set target = FirstOfGroup(ug)
             exitwhen target == null
             call GroupRemoveUnit(ug, target)
-            if GetWidgetLife(target) >= 0.406 and target == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
+            if UnitAlive(target) and target == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
                 set i = 42
                 call GroupClear(ug)
                 exitwhen true
@@ -103,7 +94,7 @@ function DeathHandler takes integer pid returns nothing
             set target = FirstOfGroup(ug)
             exitwhen target == null
             call GroupRemoveUnit(ug, target)
-            if GetWidgetLife(target) >= 0.406 and target == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
+            if UnitAlive(target) and target == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
                 set i = 42
                 call GroupClear(ug)
                 exitwhen true
@@ -137,8 +128,8 @@ function DeathHandler takes integer pid returns nothing
         set InStruggle[pid] = false
         set udg_Fleeing[pid] = false
         call EnableItems(pid)
-        call SetCameraBoundsRectForPlayerEx( p, gg_rct_Main_Map )
-        call PanCameraToTimedLocForPlayer( p, TownCenter, 0 )
+        call SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map)
+        call PanCameraToTimedLocForPlayer(p, TownCenter, 0)
         call ExperienceControl(pid)
         call AwardGold(p, udg_GoldWon_Struggle / 10, true)
         if udg_Struggle_Pcount <= 0 then //clear struggle
@@ -184,7 +175,7 @@ endfunction
 function HeroGraveExpire takes nothing returns nothing
     local player p = Player(0)
     local integer pid = 1
-    local item itm
+    local Item itm
     local integer i
     local real heal
     local real cost
@@ -201,10 +192,8 @@ function HeroGraveExpire takes nothing returns nothing
         set pid = pid + 1
     endloop
 
-    if HeroTimedLife[pid] != null then
-        call RecycleDummy(HeroTimedLife[pid])
-        set HeroTimedLife[pid] = null
-    endif
+    call BlzSetSpecialEffectScale(HeroTimedLife[pid], 0)
+    call DestroyEffect(HeroTimedLife[pid])
 
     set itm = GetResurrectionItem(pid, false)
 
@@ -214,18 +203,13 @@ function HeroGraveExpire takes nothing returns nothing
             call RevivePlayer(pid, GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), heal, heal)
         elseif ReincarnationRevival[pid] then //pr passive
             call RevivePlayer(pid, GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), 100, 100)
-            call BlzUnitHideAbility(Hero[pid], 'A04A', true)
-            call UnitDisableAbility(Hero[pid], 'A047', false)
-
-            call IssueImmediateOrder(Hero[pid], "avatar")
-            set ReincarnationPRCD[pid] = 299
-        elseif itm != null then //reincarnation item
-            call SetItemCharges(itm, GetItemCharges(itm) - 1)
-            set heal = ItemData[GetItemTypeId(itm)][StringHash("res")] * 0.01
+            call BlzStartUnitAbilityCooldown(Hero[pid], REINCARNATION.id, 300.)
+        elseif itm != 0 then //reincarnation item
+            set itm.charge = itm.charges - 1
+            set heal = ItemData[itm.id][ITEM_ABILITY] * 0.01
             
-            if ItemData[GetItemTypeId(itm)][StringHash("recharge")] == 0 and GetItemCharges(itm) == 0 then //remove perishable resurrections
-                call UnitRemoveItem(Hero[pid], itm)
-                call RemoveItem(itm)
+            if ItemData[itm.id][ITEM_ABILITY * ABILITY_OFFSET] == 'Anrv' and itm.charges <= 0 then //remove perishable resurrections
+                call itm.destroy()
             endif
             
             call RevivePlayer(pid, GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), heal, heal)
@@ -233,15 +217,15 @@ function HeroGraveExpire takes nothing returns nothing
             call DisplayTextToPlayer(p, 0, 0, "You have died on Hardcore mode, you cannot revive.")
             call DeathHandler(pid)
 
-            call SharedRepick(p)
+            call PlayerCleanup(p)
         else //softcore death
             call ChargeNetworth(p, 0, 0.02, 50 * GetHeroLevel(Hero[pid]), "Dying has cost you")
             set pt = TimerList[pid].addTimer(pid)
             set pt.tag = 'dead'
-            set RTimerBox[pid] = CreateTimerDialog(pt.getTimer())
+            set RTimerBox[pid] = CreateTimerDialog(pt.timer)
             call TimerDialogSetTitle(RTimerBox[pid], User.fromIndex(pid - 1).nameColored)
             call TimerDialogDisplay(RTimerBox[pid], true)
-            call TimerStart(pt.getTimer(), IMinBJ(IMaxBJ(GetUnitLevel(Hero[pid]) - 10, 0), 30), false, function onRevive)
+            call TimerStart(pt.timer, IMinBJ(IMaxBJ(GetUnitLevel(Hero[pid]) - 10, 0), 30), false, function onRevive)
             call DeathHandler(pid)
         endif
 
@@ -256,13 +240,12 @@ function HeroGraveExpire takes nothing returns nothing
         call ShowUnit(HeroGrave[pid], false)
     endif
     
-    set itm = null
     set p = null
 endfunction
 
 function SpawnGrave takes nothing returns nothing
     local integer pid = ReleaseTimer(GetExpiredTimer())
-    local item itm = GetResurrectionItem(pid, false)
+    local Item itm = GetResurrectionItem(pid, false)
     local real scale = 0
     
     call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl", GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid])))
@@ -273,13 +256,13 @@ function SpawnGrave takes nothing returns nothing
         call SuspendHeroXP(HeroGrave[pid], true)
     endif
     call BlzSetHeroProperName(HeroGrave[pid], GetHeroProperName(Hero[pid]))
-    call Fade(HeroGrave[pid], 33, 0.03, -1)
+    call Fade(HeroGrave[pid], 1., true)
     if GetLocalPlayer() == Player(pid - 1) then
         call ClearSelection()
         call SelectUnit(HeroGrave[pid], true)
     endif
     
-    if itm != null then
+    if itm != 0 then
         call UnitAddAbility(HeroGrave[pid], 'A042')
     endif
     
@@ -287,7 +270,7 @@ function SpawnGrave takes nothing returns nothing
         call UnitAddAbility(HeroGrave[pid], 'A044')
     endif
     
-    if itm != null or ReincarnationRevival[pid] then
+    if itm != 0 or ReincarnationRevival[pid] then
         set HeroReviveIndicator[pid] = AddSpecialEffect("UI\\Feedback\\Target\\Target.mdx", GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]))
         
         if GetLocalPlayer() == Player(pid - 1) then
@@ -300,31 +283,25 @@ function SpawnGrave takes nothing returns nothing
         call DestroyEffectTimed(HeroReviveIndicator[pid], 12.5)
     endif
 
-    set HeroTimedLife[pid] = GetDummy(GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), 0, 0, 0) 
-    call BlzSetUnitSkin(HeroTimedLife[pid], 'h00H')
-    call SetUnitFlyHeight(HeroTimedLife[pid], 200., 0.)
-    call SetUnitTimeScale(HeroTimedLife[pid], 0.099)
-    call SetUnitAnimation(HeroTimedLife[pid], "birth")
-    call PauseUnit(HeroTimedLife[pid], true)
-    call SetUnitColor(HeroTimedLife[pid], GetPlayerColor(Player(pid - 1)))
+    set HeroTimedLife[pid] = AddSpecialEffect("war3mapImported\\Progressbar.mdl", GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]))
+    call BlzSetSpecialEffectZ(HeroTimedLife[pid], BlzGetUnitZ(HeroGrave[pid]) + 200.)
+    call BlzSetSpecialEffectColorByPlayer(HeroTimedLife[pid], Player(pid - 1))
+    call BlzPlaySpecialEffectWithTimeScale(HeroTimedLife[pid], ANIM_TYPE_BIRTH, 0.099)
+    call BlzSetSpecialEffectScale(HeroTimedLife[pid], 1.25)
 
     call TimerStart(HeroGraveTimer[pid], 12.5, false, null)
     
     if sniperstance[pid] then //Reset Tri-Rocket
         set sniperstance[pid] = false
-        call BlzSetUnitAbilityCooldown(Hero[pid], 'A06I', 0, 6.)
-        call BlzSetUnitAbilityCooldown(Hero[pid], 'A06I', 1, 6.)
-        call BlzSetUnitAbilityCooldown(Hero[pid], 'A06I', 2, 6.)
-        call BlzSetUnitAbilityCooldown(Hero[pid], 'A06I', 3, 6.)
-        call BlzSetUnitAbilityCooldown(Hero[pid], 'A06I', 4, 6.)
-
-        call UpdateTooltips()
+        call BlzSetUnitAbilityCooldown(Hero[pid], TRIROCKET.id, 0, 6.)
+        call BlzSetUnitAbilityCooldown(Hero[pid], TRIROCKET.id, 1, 6.)
+        call BlzSetUnitAbilityCooldown(Hero[pid], TRIROCKET.id, 2, 6.)
+        call BlzSetUnitAbilityCooldown(Hero[pid], TRIROCKET.id, 3, 6.)
+        call BlzSetUnitAbilityCooldown(Hero[pid], TRIROCKET.id, 4, 6.)
     endif
-    
-    set itm = null
 endfunction
 
-function AssignGoldXp takes unit u, unit u2, boolean awardGold returns nothing
+function RewardXPGold takes unit u, unit u2, boolean awardGold returns nothing
     local integer i = 0
     local unit target
     local integer uid = GetUnitTypeId(u)
@@ -333,7 +310,6 @@ function AssignGoldXp takes unit u, unit u2, boolean awardGold returns nothing
     local real maingold = 0
     local real teamgold = 0
     local integer herocount
-    local integer pid
     local integer size = 0
     local group xpgroup = CreateGroup()
     local string s = ""
@@ -357,15 +333,9 @@ function AssignGoldXp takes unit u, unit u2, boolean awardGold returns nothing
     //nearby allies
     loop
         exitwhen U == User.NULL
-        set pid = GetPlayerId(U.toPlayer()) + 1
-        //dark savior soul steal
-        if IsUnitInRange(Hero[pid], u, 1000. * LBOOST(pid)) and GetWidgetLife(Hero[pid]) >= 0.406 and GetUnitAbilityLevel(Hero[pid], 'A08Z') > 0 then
-            call HP(Hero[pid], BlzGetUnitMaxHP(Hero[pid]) * 0.04)
-            call MP(Hero[pid], BlzGetUnitMaxMana(Hero[pid]) * 0.04)
-        endif
-        if IsUnitInRange(Hero[pid], u, 1800.00) and GetWidgetLife(Hero[pid]) >= 0.406 and pid != pid2 then
-            if (GetHeroLevel(Hero[pid]) >= (GetUnitLevel(u) - 20)) and (GetHeroLevel(Hero[pid])) >= GetUnitLevel(Hero[pid2]) - LEECH_CONSTANT then
-                call GroupAddUnit(xpgroup, Hero[pid])
+        if IsUnitInRange(Hero[U.id], u, 1800.00) and UnitAlive(Hero[U.id]) and U.id != pid2 then
+            if (GetHeroLevel(Hero[U.id]) >= (GetUnitLevel(u) - 20)) and (GetHeroLevel(Hero[U.id])) >= GetUnitLevel(Hero[pid2]) - LEECH_CONSTANT then
+                call GroupAddUnit(xpgroup, Hero[U.id])
             endif
         endif
         set U = U.next
@@ -422,7 +392,7 @@ function ReviveGods takes nothing returns nothing
     local group ug = CreateGroup()
     local unit target
     local integer i = 0
-    local integer i2 = 13
+    local integer i2 = BOSS_HATE
 
     call GroupEnumUnitsInRect(ug, gg_rct_Gods_Vision, function isplayerunit)
     
@@ -435,31 +405,30 @@ function ReviveGods takes nothing returns nothing
             set GodsParticipant[GetPlayerId(GetOwningPlayer(target)) + 1] = false
             call SetCameraBoundsRectForPlayerEx(GetOwningPlayer(target), gg_rct_Main_Map_Vision)
             call PanCameraToTimedLocForPlayer(GetOwningPlayer(target), TownCenter, 0)
-            call EnterWeather(target)
         endif
     endloop
     
     call RemoveUnit(powercrystal)
     
-    set Boss[BOSS_LIFE] = CreateUnitAtLoc(pboss, BossID[BOSS_LIFE], BossLoc[12], 225)
+    set Boss[BOSS_LIFE] = CreateUnitAtLoc(pboss, BossID[BOSS_LIFE], BossLoc[BOSS_LIFE], 225)
 
     call PauseUnit(Boss[BOSS_LIFE], true)
     call ShowUnit(Boss[BOSS_LIFE], false)
 
-    set Boss[BOSS_HATE] = CreateUnitAtLoc(pboss, 'E00B', BossLoc[13], 225)
-    set Boss[BOSS_LOVE] = CreateUnitAtLoc(pboss, 'E00D', BossLoc[14], 225)
-    set Boss[BOSS_KNOWLEDGE] = CreateUnitAtLoc(pboss, 'E00C', BossLoc[15], 225)
+    set Boss[BOSS_HATE] = CreateUnitAtLoc(pboss, 'E00B', BossLoc[BOSS_HATE], 225)
+    set Boss[BOSS_LOVE] = CreateUnitAtLoc(pboss, 'E00D', BossLoc[BOSS_LOVE], 225)
+    set Boss[BOSS_KNOWLEDGE] = CreateUnitAtLoc(pboss, 'E00C', BossLoc[BOSS_KNOWLEDGE], 225)
     
     loop //give back items
-        exitwhen i2 > 16
+        exitwhen i2 > BOSS_KNOWLEDGE
         loop
             exitwhen i > 5
-            call UnitAddItemById(Boss[i2], BossItemType[i2 * 6 + i])
+            call UnitAddItem(Boss[i2], Item.create(BossItemType[i2 * 6 + i], 30000., 30000., 0).obj)
             set i = i + 1
         endloop
         call SetHeroLevel(Boss[i2], BossLevel[i2], false)
         if HardMode > 0 then //reapply hardmode
-            call SetHeroStr(Boss[i2], GetHeroStr(Boss[i2],true) * 2, true)
+            call SetHeroStr(Boss[i2], GetHeroStr(Boss[i2], true) * 2, true)
             call BlzSetUnitBaseDamage(Boss[i2], BlzGetUnitBaseDamage(Boss[i2], 0) * 2 + 1, 0)
         endif
         set i2 = i2 + 1
@@ -475,11 +444,12 @@ function ReviveGods takes nothing returns nothing
 endfunction
 
 function BossRespawn takes nothing returns nothing
-    local PlayerTimer pt = TimerList[bossid].getTimerFromHandle(GetExpiredTimer())
+    local PlayerTimer pt = TimerList[BOSS_ID].getTimerFromHandle(GetExpiredTimer())
     local integer uid = pt.agi
     local integer i = 0
     local integer i2 = 0
     local group ug = CreateGroup()
+    local Item itm
 
     //find boss index
     loop
@@ -508,7 +478,9 @@ function BossRespawn takes nothing returns nothing
             set i2 = 0
             loop //give back items
                 exitwhen i2 > 5
-                call UnitAddItemById(Boss[i], BossItemType[BOSS_TOTAL * i + i2])
+                set itm = Item.create(BossItemType[i * 6 + i2], 30000., 30000., 0)
+                call UnitAddItem(Boss[i], itm.obj)
+                set itm.lvl = ItemData[itm.id][ITEM_UPGRADE_MAX]
                 set i2 = i2 + 1
             endloop
             call SetHeroLevel(Boss[i], BossLevel[i], false)
@@ -520,7 +492,7 @@ function BossRespawn takes nothing returns nothing
         endif
     endif
 
-    call TimerList[bossid].removePlayerTimer(pt)
+    call TimerList[BOSS_ID].removePlayerTimer(pt)
 
     call DestroyGroup(ug)
 
@@ -549,7 +521,7 @@ function BossHandler takes integer uid returns nothing
         if DeadGods == 3 then //spawn goddess of life
             if GodsRepeatFlag == false then
                 set GodsRepeatFlag = true
-                call DoTransmissionBasicsXYBJ(BossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE]), null, "Goddess of Life", "This is your last chance.", 6 )
+                call DoTransmissionBasicsXYBJ(BossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE]), null, "Goddess of Life", "This is your last chance.", 6)
             endif
         
             call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE])))
@@ -558,7 +530,7 @@ function BossHandler takes integer uid returns nothing
             call ShowUnit(Boss[BOSS_LIFE], true)
             call PauseUnit(Boss[BOSS_LIFE], true)
             call UnitAddAbility(Boss[BOSS_LIFE], 'Avul')
-            call UnitAddAbility(Boss[BOSS_LIFE], 'A08L')
+            call UnitAddAbility(Boss[BOSS_LIFE], 'A08L') //life aura
             call TimerStart(NewTimer(), 6., false, function GoddessOfLife)
         endif
 
@@ -572,7 +544,7 @@ function BossHandler takes integer uid returns nothing
         return
     endif
 
-    set pt = TimerList[bossid].addTimer(bossid)
+    set pt = TimerList[BOSS_ID].addTimer(BOSS_ID)
     set pt.agi = uid
     set pt.tag = 'boss'
 
@@ -582,7 +554,7 @@ function BossHandler takes integer uid returns nothing
         set delay = 5.
     endif
     
-    call TimerStart(pt.getTimer(), delay, false, function BossRespawn)
+    call TimerStart(pt.timer, delay, false, function BossRespawn)
 endfunction
 
 function onDeath takes nothing returns nothing
@@ -599,44 +571,59 @@ function onDeath takes nothing returns nothing
     local group ug = CreateGroup()
     local integer i = 0
     local integer i2 = 0
-    local integer myquest = 0
-    local item itm
-    local unit target
-    local timer t
+    local integer UnitType = 0
+    local item itm = null
+    local unit target = null
     local boolean dropflag = false
     local boolean spawnflag = false
-    local boolean goldxpflag = false
-    local boolean training = false
-    local BossItemList il = BossItemList.create()
+    local boolean goldflag = false
+    local boolean xpflag = false
+    local boolean trainingflag = false
     local User U = User.first
+    local PlayerTimer pt
 
-    //determine gold, xp, and spawn
+    //hero skills
+    loop
+        exitwhen U == User.NULL
+        //dark savior soul steal
+        if IsEnemy(pid) and IsUnitInRange(Hero[U.id], u, 1000. * LBOOST[U.id]) and UnitAlive(Hero[U.id]) and GetUnitAbilityLevel(Hero[U.id], 'A08Z') > 0 then
+            call HP(Hero[U.id], BlzGetUnitMaxHP(Hero[U.id]) * 0.04)
+            call MP(Hero[U.id], BlzGetUnitMaxMana(Hero[U.id]) * 0.04)
+        endif
+        set U = U.next
+    endloop
+
+    //determine flags based on area
     if IsEnemy(pid) and IsUnitEnemy(u, p2) then //Gold & XP
         if RectContainsCoords(gg_rct_Training_Chaos, x, y) then
-            set training = true
+            set trainingflag = true
+            set goldflag = true
+            set xpflag = true
             call RemoveUnit(u)
         elseif RectContainsCoords(gg_rct_Training_Prechaos, x, y) then
-            set dropflag = true
-            set training = true
-            set goldxpflag = true
+            set trainingflag = true
+            set goldflag = true
+            set xpflag = true
             call RemoveUnit(u)
         elseif IsUnitInGroup(u, ColoWaveGroup) then //Colo 
-            set goldxpflag = true
+            set goldflag = false
+            set xpflag = true
             call GroupRemoveUnit(ColoWaveGroup, u)
 
             set udg_GoldWon_Colo = udg_GoldWon_Colo + R2I(udg_RewardGold[GetUnitLevel(u)] / udg_Gold_Mod[ColoPlayerCount])
             set udg_Colosseum_Monster_Amount = udg_Colosseum_Monster_Amount - 1
             
             call RemoveUnitTimed(u, 1)
-            call SetTextTagText(ColoText, "Gold won: " + I2S(( udg_GoldWon_Colo )), 10 * 0.023 / 10 )
+            call SetTextTagText(ColoText, "Gold won: " + I2S((udg_GoldWon_Colo)), 10 * 0.023 / 10)
             if BlzGroupGetSize(ColoWaveGroup) == 0 then
                 call TimerStart(NewTimer(), 3., false, function AdvanceColo)
             endif
         elseif IsUnitInGroup(u, StruggleWaveGroup) then //struggle enemies
-            set goldxpflag = true
-            call GroupRemoveUnit( StruggleWaveGroup, u )
+            set goldflag = true
+            set xpflag = true
+            call GroupRemoveUnit(StruggleWaveGroup, u)
 
-            set udg_GoldWon_Struggle= udg_GoldWon_Struggle + R2I( udg_RewardGold[GetUnitLevel(u)]*.65 *udg_Gold_Mod[udg_Struggle_Pcount] )
+            set udg_GoldWon_Struggle= udg_GoldWon_Struggle + R2I(udg_RewardGold[GetUnitLevel(u)]*.65 *udg_Gold_Mod[udg_Struggle_Pcount])
 
             call RemoveUnitTimed(u, 1)
             call SetTextTagText(StruggleText,"Gold won: " +I2S(udg_GoldWon_Struggle),0.023)
@@ -659,9 +646,9 @@ function onDeath takes nothing returns nothing
                     call PauseTimer(NAGA_TIMER)
                     call TimerDialogDisplay(NAGA_TIMER_DISPLAY, false)
                     if not timerflag then //time restriction
-                        call CreateItemEx('I0NN', x, y, false) //token
+                        call Item.create('I0NN', x, y, 0.) //token
                         if NAGA_PLAYERS > 3 and GetRandomInt(0, 99) < 50 then
-                            call CreateItemEx('I0NN', x, y, false)
+                            call Item.create('I0NN', x, y, 0.)
                         endif
                     endif
                     set timerflag = false
@@ -687,648 +674,78 @@ function onDeath takes nothing returns nothing
         else
             set dropflag = true
             set spawnflag = true
-            set goldxpflag = true
+            set goldflag = true
+            set xpflag = true
         endif
     endif
 
     if IsUnitIllusion(u) then
         set dropflag = false
         set spawnflag = false
-        set goldxpflag = false
+        set goldflag = false
+        set xpflag = false
     endif
 
-    if goldxpflag then
-        call AssignGoldXp(u, u2, true)
+    if xpflag then
+        call RewardXPGold(u, u2, goldflag)
     endif
     
     //========================
-    //Drops
+    // Item Drops / Rewards
     //========================
 
-    if dropflag then
-        if uid == 'nits' or uid == 'nitt' then //troll
-            set myquest = 1
-            if rand < 40 then
-                call il.addItem('ratc')
-                call il.addItem('cnob')
-                call il.addItem('gcel')
-                call il.addItem('I0FJ')
-                call il.addItem('rat6')
-                call il.addItem('hval')
-                call il.addItem('rde1')
-                call il.addItem('bgst')
-                call il.addItem('belv')
-                call il.addItem('ciri')
-                call il.addItem('rst1')
-                call il.addItem('rinl')
-                call il.addItem('rag1')
-                call il.addItem('clsd')
-                call il.addItem('rat9')
-                call il.addItem('rin1')
-                call il.addItem('I01X')
-                call il.addItem('mcou')
-                call il.addItem('prvt')
-                call il.addItem('rlif')
-                call il.addItem('pghe')
-                call il.addItem('pgma')
-                call il.addItem('crys')
-                call il.addItem('evtl')
-                call il.addItem('ward')
-                call il.addItem('sor1')
-                call il.addItem('I01Z')
+    if dropflag and not trainingflag then
+        set UnitType = DropTable.getType(uid)
+        set i = IsBoss(UnitType)
 
-                call CreateItemEx(il.pickItem(), x, y, true)
+        //special cases
+        //forest corruption
+        if UnitType == 'N00M' then
+            call Item.create('I03X', x, y, 600.) //corrupted essence
+        endif
+
+        if i >= 0 then
+            //TODO dont bit flip if boss count exceeds 31
+            if BlzBitAnd(FIRST_DROP, POWERSOF2[i]) == 0 then
+                set FIRST_DROP = FIRST_DROP + POWERSOF2[i]
+                call BossDrop(UnitType, DropTable.Rates[UnitType] + 25, x, y)
+            else
+                call BossDrop(UnitType, DropTable.Rates[UnitType], x, y)
             endif
 
-        elseif uid == 'ntks' or uid == 'ntkw' or uid == 'ntkc' then //Tuskarr
-            set myquest = 2
-            if rand < 40 then
-                call il.addItem('odef')
-                call il.addItem('brac')
-                call il.addItem('kpin')
-                call il.addItem('hcun')
-                call il.addItem('rhth')
-                call il.addItem('ratf')
-                call il.addItem('ratc')
-                call il.addItem('cnob')
-                call il.addItem('gcel')
-                call il.addItem('hval')
-                call il.addItem('rat6')
-                call il.addItem('rde1')
-                call il.addItem('rat9')
-                call il.addItem('rin1')
-                call il.addItem('I01X')
-                call il.addItem('mcou')
-                call il.addItem('prvt')
-                call il.addItem('rlif')
-                call il.addItem('ciri')
-                call il.addItem('rag1')
-                call il.addItem('sor2')
-                call il.addItem('pghe')
-                call il.addItem('pgma')
-                call il.addItem('crys')
-                call il.addItem('evtl')
-                call il.addItem('ward')
-                call il.addItem('sora')
-                call il.addItem('sor1')
-                call il.addItem('I03Q')
-                call il.addItem('I01Z')
+            call AwardCrystals(UnitType, x, y)
+        else
+            if rand < DropTable.Rates.integer[UnitType] then
+                call Item.create(DropTable.pickItem(UnitType), x, y, 600.)
+            endif
 
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'nnwr' or uid == 'nnws' then //Spider
-            set myquest = 3
-            if rand < 35 then
-                call il.addItem('odef') //steel dagger
-                call il.addItem('brac') //steel sword
-                call il.addItem('kpin') //arcane staff
-                call il.addItem('ratf') //steel lance
-                call il.addItem('rhth') //long bow
-                call il.addItem('hcun') //steel shield
-                call il.addItem('I0FK') //mythril sword
-                call il.addItem('I00F') //mythril spear
-                call il.addItem('I010') //mythril dagger
-                call il.addItem('ofro') //blood elven staff
-                call il.addItem('I0FM') //blood elven bow
-                call il.addItem('I0FL') //mythril shield
-                call il.addItem('sor2') //tattered cloth
-                call il.addItem('I028') //big health potion
-                call il.addItem('I00D') //big mana potion
-                call il.addItem('sora') //noble blade
-                call il.addItem('I03Q') //horse boost
+            //iron golem ore
+            //chaotic ore
 
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'nfpu' or uid == 'nfpe' then //polar furbolg ursa
-            set myquest = 4
-            if rand < 30 then
-                call il.addItem('I0FG')
-                call il.addItem('I0FT')
-                call il.addItem('I06R')
-                call il.addItem('I06T')
-                call il.addItem('I034')
-                call il.addItem('I028') //big health potion
-                call il.addItem('I00D') //big mana potion
-                call il.addItem('I02L') //great circlet
+            if p == pfoe then
+                set rand = GetRandomInt(0, 99)
 
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif (uid == 'nplg') then // polar bear boss
-            set myquest = 5
-            if rand < 60 then
-                call il.addItem('I0FO')
-                call il.addItem('I035')
-                call il.addItem('I07O')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif (uid == 'nmdr') then //dire mammoth
-            set myquest = 5
-            if (rand < 30) then
-                call CreateItemEx('I0FQ', x, y, true)
-            endif
-        elseif uid == 'n01G' or uid == 'o01G' then // ogre,tauren
-            set myquest = 6
-            if rand < 25 then
-                call il.addItem('I08I')
-                call il.addItem('I0FE')
-                call il.addItem('I07W')
-                call il.addItem('I08B')
-                call il.addItem('I0FD')
-                call il.addItem('I08R')
-                call il.addItem('I08E')
-                call il.addItem('I08F')
-                call il.addItem('I07Y')
-                call il.addItem('I02L') //great circlet
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'nubw' or uid == 'nfor' or uid == 'nfod' then //unbroken
-            set myquest = 7
-            if rand < 25 then
-                call il.addItem('I0FS')
-                call il.addItem('I0FR')
-                call il.addItem('I0FY')
-                call il.addItem('I01W')
-                call il.addItem('I0MB')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'nvdl' or uid == 'nvdw' then // Hellfire, hellhound
-            set myquest = 8
-            if rand < 25 then
-                call il.addItem('ram4')
-                call il.addItem('ram2')
-                call il.addItem('horl')
-                call il.addItem('srbd')
-                call il.addItem('ram1')
-                call il.addItem('I0MA')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'n024' or uid == 'n027' or uid == 'n028' then // Centaur
-            set myquest = 9
-            if rand < 25 then
-                call il.addItem('phlt')
-                call il.addItem('dthb')
-                call il.addItem('engs')
-                call il.addItem('kygh')
-                call il.addItem('bzbf')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'n01M' or uid == 'n08M' then // magnataur,forgotten one
-            set myquest = 10
-            if rand < 20 then
-                call il.addItem('sor9')
-                call il.addItem('shcw')
-                call il.addItem('sor4')
-                call il.addItem('shrs')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'n02P' or uid == 'n01R' then // Frost dragon, frost drake
-            set myquest = 11
-            if rand < 20 then
-                call il.addItem('frhg')
-                call il.addItem('fwss')
-                call il.addItem('drph')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'n099' then // Frost Elder Dragon
-            set i = 11
-            if rand < 40 then
-                call il.addItem('frhg')
-                call il.addItem('fwss')
-                call il.addItem('drph')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'n02L' or uid == 'n098' then // Devourers
-            set myquest = 12
-        elseif uid == 'nplb' then // giant bear
-            if rand < 40 then
-                call il.addItem('I0MC')
-                call il.addItem('I0MD')
-                call il.addItem('I0FB')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'n01H' then // Ancient Hydra
-            if not training then
-                if rand < 10 then
-                    call CreateItemEx('bzbe', x, y, true)
-                elseif rand < 15 then
-                    call CreateItemEx('I044', x, y, true)
+                if GetUnitLevel(u) > 45 and GetUnitLevel(u) < 85 and rand < (0.05 * GetUnitLevel(u)) then
+                    call Item.create('I02Q', GetUnitX(u), GetUnitY(u), 600.)
+                elseif GetUnitLevel(u) > 265 and GetUnitLevel(u) < 305 and rand < (0.02 * GetUnitLevel(u)) then
+                    call Item.create('I04Z', GetUnitX(u), GetUnitY(u), 600.)
                 endif
             endif
-        elseif uid== 'n034' or uid== 'n033' then //demons
-            set myquest = 13
-            if rand < 20 then
-                call il.addItem('I073')
-                call il.addItem('I075')
-                call il.addItem('I06Z')
-                call il.addItem('I06W')
-                call il.addItem('I04T')
-                call il.addItem('I06S')
-                call il.addItem('I06U')
-                call il.addItem('I06O')
-                call il.addItem('I06Q')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid== 'n03A' or uid== 'n03B' or uid== 'n03C' then //horror
-            set myquest = 14
-            if rand < 20 then
-                call il.addItem('I07K')
-                call il.addItem('I05D')
-                call il.addItem('I07E')
-                call il.addItem('I07I')
-                call il.addItem('I07G')
-                call il.addItem('I07C')
-                call il.addItem('I07A')
-                call il.addItem('I07M')
-                call il.addItem('I07L')
-                call il.addItem('I07P')
-                call il.addItem('I077')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid== 'n03F' or uid== 'n01W' then //despair
-            set myquest = 15
-            if rand < 20 then
-                call il.addItem('I05P')
-                call il.addItem('I087')
-                call il.addItem('I089')
-                call il.addItem('I083')
-                call il.addItem('I081')
-                call il.addItem('I07X')
-                call il.addItem('I07V')
-                call il.addItem('I07Z')
-                call il.addItem('I07R')
-                call il.addItem('I07T')
-                call il.addItem('I05O')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid== 'n08N' or uid== 'n00W' or uid== 'n00X' then //abyssal
-            set myquest = 16
-            if rand < 20 then
-                call il.addItem('I06C')
-                call il.addItem('I06B')
-                call il.addItem('I0A0')
-                call il.addItem('I0A2')
-                call il.addItem('I09X')
-                call il.addItem('I0A5')
-                call il.addItem('I09N')
-                call il.addItem('I06D')
-                call il.addItem('I06A')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid== 'n031' or uid== 'n030' or uid== 'n02Z' then //void
-            set myquest = 17
-            if rand < 20 then
-                call il.addItem('I04Y')
-                call il.addItem('I08C')
-                call il.addItem('I08D')
-                call il.addItem('I08G')
-                call il.addItem('I08H')
-                call il.addItem('I08J')
-                call il.addItem('I055')
-                call il.addItem('I08M')
-                call il.addItem('I08N')
-                call il.addItem('I08O')
-                call il.addItem('I08S')
-                call il.addItem('I08U')
-                call il.addItem('I04W')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid== 'n020' or uid== 'n02J' then //nightmare
-            set myquest = 18
-            if rand < 20 then
-                call il.addItem('I09S')
-                call il.addItem('I0AB')
-                call il.addItem('I09R')
-                call il.addItem('I0A9')
-                call il.addItem('I09V')
-                call il.addItem('I0AC')
-                call il.addItem('I0A7')
-                call il.addItem('I09T')
-                call il.addItem('I09P')
-                call il.addItem('I04Z')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid== 'n03D' or uid== 'n03E' or uid== 'n03G' then //hell
-            set myquest = 19
-            if rand < 20 then
-                call il.addItem('I097')
-                call il.addItem('I05H')
-                call il.addItem('I098')
-                call il.addItem('I095')
-                call il.addItem('I08W')
-                call il.addItem('I05G')
-                call il.addItem('I08Z')
-                call il.addItem('I091')
-                call il.addItem('I093')
-                call il.addItem('I05I')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid== 'n03J' or uid== 'n01X' then //existence
-            set myquest = 20
-            if rand < 20 then
-                call il.addItem('I09Y')
-                call il.addItem('I09U')
-                call il.addItem('I09W')
-                call il.addItem('I09Q')
-                call il.addItem('I09O')
-                call il.addItem('I09M')
-                call il.addItem('I09K')
-                call il.addItem('I09I')
-                call il.addItem('I09G')
-                call il.addItem('I09E')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid== 'n03M' or uid== 'n01V' then //astral
-            set myquest = 21
-            if rand < 20 then
-                call il.addItem('I0AL')
-                call il.addItem('I0AN')
-                call il.addItem('I0AA')
-                call il.addItem('I0A8')
-                call il.addItem('I0A6')
-                call il.addItem('I0A3')
-                call il.addItem('I0A1')
-                call il.addItem('I0A4')
-                call il.addItem('I09Z')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid== 'n026' or uid== 'n03T' then //plainswalker
-            set myquest = 22
-            if rand < 20 then
-                call il.addItem('I0AY')
-                call il.addItem('I0B0')
-                call il.addItem('I0B2')
-                call il.addItem('I0B3')
-                call il.addItem('I0AQ')
-                call il.addItem('I0AO')
-                call il.addItem('I0AT')
-                call il.addItem('I0AR')
-                call il.addItem('I0AW')
-
-                call CreateItemEx(il.pickItem(), x, y, true)
-            endif
-        elseif uid == 'n02U' then // nerubian
-            call CreateItemEx('I01E', x, y, true)
-        elseif uid == 'n03L' then // King of ogres
-            call CreateItemEx('I02M', x, y, true)
-        elseif uid == 'n02H' then // Yeti
-            call CreateItemEx('I05R', x, y, true)
-        elseif uid == 'H02H' then // paladin
-            call il.addItem('I0F9')
-            call il.addItem('I03P')
-            call il.addItem('I0C0')
-            call il.addItem('I0FX')
-
-            call BossDrop(il, 1 + HardMode, 70, x, y)
-        elseif uid == 'O002' then // minotaur
-            call il.addItem('I03T')
-            call il.addItem('I0FW')
-            call il.addItem('I07U')
-            call il.addItem('I076')
-            call il.addItem('I078')
-
-            call BossDrop(il, 1 + HardMode, 70, x, y)
-        elseif uid == 'H020' then // lady vashj
-            if rand < 20 then
-                call CreateItemEx('I09F', x, y, true) // sea ward
-            elseif rand < 40 then
-                call CreateItemEx('I09L', x, y, true) // serpent hide boots
-            endif
-        elseif uid == 'H01V' then // dwarven
-            call il.addItem('I079')
-            call il.addItem('I07B')
-            call il.addItem('I0FC')
-            
-            call BossDrop(il, 1 + HardMode, 70, x, y)
-        elseif uid == 'H040' then // death knight
-            call il.addItem('I02O')
-            call il.addItem('I029')
-            call il.addItem('I02C')
-            call il.addItem('I02B')
-
-            call BossDrop(il, 1 + HardMode, 90, x, y)
-        elseif uid == 'U00G' then // tri fire
-            call il.addItem('I0FA')
-            call il.addItem('I0FU')
-            call il.addItem('I03Y')
-
-            call BossDrop(il, 1 + HardMode, 70, x, y)
-        elseif uid == 'H045' then // mistic
-            call il.addItem('I03U')
-            call il.addItem('I0F3')
-            call il.addItem('I07F')
-
-            call BossDrop(il, 1 + HardMode, 70, x, y)
-        elseif uid == 'O01B' or uid == 'U001' then // dragoon
-            call il.addItem('I0EX')
-            call il.addItem('I0EY')
-            call il.addItem('I04N')
-
-            call BossDrop(il, 1 + HardMode, 70, x, y)
-        elseif uid == 'E00B' then // goddess of hate
-            call CreateItemEx('I02Z', x, y, true) // 
-        elseif uid == 'E00D' then // goddess of love
-            call CreateItemEx('I030', x, y, true) // 
-        elseif uid == 'E00C' then // goddess of knowledge
-            call CreateItemEx('I031', x, y, true) // 
-        elseif uid == BossID[BOSS_LIFE] then // goddess of life
-            call CreateItemEx('I04I', x, y, true) // 
-        elseif uid == 'N038' then // Demon Prince
-            call CreateItemEx('I04Q', x, y, true) //heart
-            call AwardCrystals(1, HardMode, u)
-        elseif uid == 'N017' then // Absolute Horror
-            call il.addItem('I0N7')
-            call il.addItem('I0N8')
-            call il.addItem('I0N9')
-
-            if firstTimeDrop[BOSS_ABSOLUTE_HORROR] == false then
-                set firstTimeDrop[BOSS_ABSOLUTE_HORROR] = true
-                call BossDrop(il, 2 + HardMode, 100, x, y)
-            else
-                call BossDrop(il, 1 + HardMode, 85, x, y)
-            endif
-            call AwardCrystals(2, HardMode, u)
-        elseif uid == 'O02B' then // Slaughter
-            call il.addItem('I0AE')
-            call il.addItem('I04F')
-            call il.addItem('I0AF')
-            call il.addItem('I0AD')
-            call il.addItem('I0AG')
-
-            if firstTimeDrop[BOSS_SLAUGHTER_QUEEN] == false then
-                set firstTimeDrop[BOSS_SLAUGHTER_QUEEN] = true
-                call BossDrop(il, 1 + HardMode, 100, x, y)
-            else
-                call BossDrop(il, 1 + HardMode, 85, x, y)
-            endif
-            call AwardCrystals(3, HardMode, u)
-        elseif uid == 'O02H' then // Dark Soul
-            call il.addItem('I05A')
-
-            if GetRandomInt(0, 99) < 25 then
-                call il.addItem('I0AH')
-            endif
-            if GetRandomInt(0, 99) < 25 then
-                call il.addItem('I0AP')
-            endif
-            if GetRandomInt(0, 99) < 25 then
-                call il.addItem('I0AI')
-            endif
-            if rand < 10 then
-                call il.addItem('I06K')
-            endif
-
-            if firstTimeDrop[BOSS_DARK_SOUL] == false then
-                set firstTimeDrop[BOSS_DARK_SOUL] = true
-                call BossDrop(il, 1 + HardMode, 100, x, y)
-            else
-                call BossDrop(il, 1 + HardMode, 70, x, y)
-            endif
-            call AwardCrystals(3, HardMode, u)
-        elseif uid == 'O02I' then //Satan
-            call il.addItem('I0BX')
-            call il.addItem('I05J')
-
-            if rand < 10 then
-                call il.addItem('I00R')
-            endif
-
-            if firstTimeDrop[BOSS_SATAN] == false then
-                set firstTimeDrop[BOSS_SATAN] = true
-                call BossDrop(il, 1 + HardMode, 100, x, y)
-            else
-                call BossDrop(il, 1 + HardMode, 65, x, y)
-            endif
-            call AwardCrystals(5, HardMode, u)
-        elseif uid == 'O02K' then // Thanatos
-            call il.addItem('I04E')
-            call il.addItem('I0MR')
-
-            if rand < 10 then
-                call il.addItem('I00P')
-            endif
-
-            if firstTimeDrop[BOSS_THANATOS] == false then
-                set firstTimeDrop[BOSS_THANATOS] = true
-                call BossDrop(il, 1 + HardMode, 100, x, y)
-            else
-                call BossDrop(il, 1 + HardMode, 65, x, y)
-            endif
-            call AwardCrystals(5, HardMode, u)
-        elseif uid == 'H04R' then //Legion
-            call il.addItem('I0B5')
-            call il.addItem('I0B7')
-            call il.addItem('I0B1')
-            call il.addItem('I0AU')
-            call il.addItem('I04L')
-            call il.addItem('I0AJ')
-            call il.addItem('I0AZ')
-            call il.addItem('I0AS')
-            call il.addItem('I0AV')
-            call il.addItem('I0AX')
-
-            if firstTimeDrop[BOSS_LEGION] == false then
-                set firstTimeDrop[BOSS_LEGION] = true
-                call BossDrop(il, 1 + HardMode, 80, x, y)
-            else
-                call BossDrop(il, 1 + HardMode, 60, x, y)
-            endif
-            call AwardCrystals(8, HardMode, u)
-        elseif uid == 'O02M' then // Existence
-            call il.addItem('I018')
-            call il.addItem('I0BY')
-
-            if rand < 10 then
-                call il.addItem('I06I')
-            endif
-
-            if firstTimeDrop[BOSS_EXISTENCE] == false then
-                set firstTimeDrop[BOSS_EXISTENCE] = true
-                call BossDrop(il, 1 + HardMode, 80, x, y)
-            else
-                call BossDrop(il, 1 + HardMode, 60, x, y)
-            endif
-            call AwardCrystals(8, HardMode, u)
-        elseif uid == 'O03G' then //Forgotten Leader
-            call il.addItem('I0OB')
-            call il.addItem('I0O1')
-            call il.addItem('I0CH')
-
-            if firstTimeDrop[BOSS_FORGOTTEN_LEADER] == false then
-                set firstTimeDrop[BOSS_FORGOTTEN_LEADER] = true
-                call BossDrop(il, 1 + HardMode, 50, x, y)
-            else
-                call BossDrop(il, 1 + HardMode, 30, x, y)
-            endif
-            call AwardCrystals(12, HardMode, u)
-        elseif uid == 'O02T' then //Azazoth
-            call il.addItem('I0BS')
-            call il.addItem('I0BV')
-            call il.addItem('I0BK')
-            call il.addItem('I0BI')
-            call il.addItem('I0BB')
-            call il.addItem('I0BC')
-            call il.addItem('I0BE')
-            call il.addItem('I0B9')
-            call il.addItem('I0BG')
-            call il.addItem('I06M')
-
-            if firstTimeDrop[BOSS_AZAZOTH] == false then
-                set firstTimeDrop[BOSS_AZAZOTH] = true
-                call BossDrop(il, 1 + HardMode, 80, x, y)
-            else
-                call BossDrop(il, 1 + HardMode, 60, x, y)
-            endif
-            call AwardCrystals(12, HardMode, u)
-        endif
-        
-        set i = 0
-        
-        //iron golem ore
-        //chaotic ore
-
-        if p == pfoe then
-            set rand = GetRandomInt(0, 99)
-
-            if GetUnitLevel(u) > 45 and GetUnitLevel(u) < 85 and rand < (0.05 * GetUnitLevel(u)) then
-                set itm = CreateItemEx('I02Q', GetUnitX(u), GetUnitY(u), true)
-            elseif GetUnitLevel(u) > 265 and GetUnitLevel(u) < 305 and rand < (0.02 * GetUnitLevel(u)) then
-                set itm = CreateItemEx('I04Z', GetUnitX(u), GetUnitY(u), true)
-            endif
         endif
     endif
 
-    call il.destroy()
-
     //========================
-    //Quests
+    // Quests
     //========================
     
-    if myquest > 0 and udg_KillQuest_Status[myquest] == 1 and GetHeroLevel(Hero[kpid]) <= KillQuest[myquest][StringHash("Max")] + LEECH_CONSTANT then
-		set KillQuest[myquest][StringHash("Count")] = KillQuest[myquest][StringHash("Count")] + 1
-		call DoFloatingTextUnit(KillQuest[myquest].string[StringHash("Name")] + " " + I2S(KillQuest[myquest][StringHash("Count")]) + "/" + I2S(KillQuest[myquest][StringHash("Goal")]), u, 3.1 ,80 , 90, 9, 125, 200, 200, 0)
+    if UnitType > 0 and KillQuest[UnitType][KILLQUEST_STATUS] == 1 and GetHeroLevel(Hero[kpid]) <= KillQuest[UnitType][KILLQUEST_MAX] + LEECH_CONSTANT then
+		set KillQuest[UnitType][KILLQUEST_COUNT] = KillQuest[UnitType][KILLQUEST_COUNT] + 1
+		call DoFloatingTextUnit(KillQuest[UnitType].string[KILLQUEST_NAME] + " " + I2S(KillQuest[UnitType][KILLQUEST_COUNT]) + "/" + I2S(KillQuest[UnitType][KILLQUEST_GOAL]), u, 3.1 ,80, 90, 9, 125, 200, 200, 0)
 
-		if KillQuest[myquest][StringHash("Count")] >= KillQuest[myquest][StringHash("Goal")] then
-			set udg_KillQuest_Status[myquest] = 2
-            set KillQuest[myquest][StringHash("Last")] = uid
-			call DisplayTimedTextToForce(FORCE_PLAYING, 12, KillQuest[myquest].string[StringHash("Name")] + " quest completed, talk to the Huntsman for your reward.")
+		if KillQuest[UnitType][KILLQUEST_COUNT] >= KillQuest[UnitType][KILLQUEST_GOAL] then
+			set KillQuest[UnitType][KILLQUEST_STATUS] = 2
+            set KillQuest[UnitType][KILLQUEST_LAST] = uid
+			call DisplayTimedTextToForce(FORCE_PLAYING, 12, KillQuest[UnitType].string[KILLQUEST_NAME] + " quest completed, talk to the Huntsman for your reward.")
 		endif
 	endif
     
@@ -1336,12 +753,12 @@ function onDeath takes nothing returns nothing
     if IsQuestDiscovered(udg_Defeat_The_Horde_Quest) and IsQuestCompleted(udg_Defeat_The_Horde_Quest) == false and (uid == 'o01I' or uid == 'o008') then //Defeat the Horde
         call GroupEnumUnitsOfPlayer(ug, pboss, Filter(function isOrc))
 
-        if BlzGroupGetSize(ug) == 0 and GetWidgetLife(gg_unit_N01N_0050) >= 0.406 and GetUnitAbilityLevel(gg_unit_N01N_0050, 'Avul') > 0 then
+        if BlzGroupGetSize(ug) == 0 and UnitAlive(gg_unit_N01N_0050) and GetUnitAbilityLevel(gg_unit_N01N_0050, 'Avul') > 0 then
             call UnitRemoveAbility(gg_unit_N01N_0050, 'Avul')
             if RectContainsUnit(gg_rct_Main_Map, gg_unit_N01N_0050) == false then
                 call SetUnitPosition(gg_unit_N01N_0050, 14650, -15300)
             endif
-            call DoTransmissionBasicsXYBJ(GetUnitTypeId(gg_unit_N01N_0050), GetPlayerColor(pboss), GetUnitX(gg_unit_N01N_0050), GetUnitY(gg_unit_N01N_0050), null, "Kroresh Foretooth", "You dare slaughter my men? Damn you!", 5 )
+            call DoTransmissionBasicsXYBJ(GetUnitTypeId(gg_unit_N01N_0050), GetPlayerColor(pboss), GetUnitX(gg_unit_N01N_0050), GetUnitY(gg_unit_N01N_0050), null, "Kroresh Foretooth", "You dare slaughter my men? Damn you!", 5)
         endif
         
         call GroupClear(ug)
@@ -1351,25 +768,17 @@ function onDeath takes nothing returns nothing
     if u == gg_unit_N01N_0050 then
         call QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_COMPLETED, "|cffffcc00OPTIONAL QUEST COMPLETE|r\nThe Horde")
         call QuestSetCompleted(udg_Defeat_The_Horde_Quest, true)
-        set udg_TalkToMe20=AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl",gg_unit_n02Q_0382,"overhead")
+        set udg_TalkToMe20 = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl",gg_unit_n02Q_0382,"overhead")
     
     //key quest
-    elseif u == gg_unit_H00O_0309 then //arkaden
-        call CreateItemEx('I02B', x, y, true)
-        if GetRandomInt(0, 99) < 50 then
-            call CreateItemEx('I02C', x, y, true)
-        endif
-        if GetRandomInt(0, 99) < 50 then
-            call CreateItemEx('I02O', x, y, true)
-        endif
-
+    elseif u == Boss[BOSS_GODSLAYER] and not ChaosMode and IsUnitHidden(gg_unit_n0A1_0164) then //arkaden
         call SetUnitAnimation(gg_unit_n0A1_0164, "birth")
-        call ShowUnit( gg_unit_n0A1_0164, true )
-        call DoTransmissionBasicsXYBJ(GetUnitTypeId(gg_unit_n0A1_0164), GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(gg_unit_n0A1_0164), GetUnitY(gg_unit_n0A1_0164), null, "Angel", "Halt! Before proceeding you must bring me the 3 keys to unlock the seal and face the gods in their domain.", 7.5 )
+        call ShowUnit(gg_unit_n0A1_0164, true)
+        call DoTransmissionBasicsXYBJ(GetUnitTypeId(gg_unit_n0A1_0164), GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(gg_unit_n0A1_0164), GetUnitY(gg_unit_n0A1_0164), null, "Angel", "Halt! Before proceeding you must bring me the 3 keys to unlock the seal and face the gods in their domain.", 7.5)
     
     //zeknen
     elseif u == gg_unit_O01A_0372 then
-        call DoTransmissionBasicsXYBJ(BossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE]), null, "Goddess of Life", "You are foolish to challenge us in our realm. Prepare yourself.", 7.5 )
+        call DoTransmissionBasicsXYBJ(BossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE]), null, "Goddess of Life", "You are foolish to challenge us in our realm. Prepare yourself.", 7.5)
         
         call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_HATE]), GetUnitY(Boss[BOSS_HATE])))
         call DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_HATE]), GetUnitY(Boss[BOSS_HATE])))
@@ -1392,8 +801,6 @@ function onDeath takes nothing returns nothing
         call TimerStart(NewTimer(), 7., false, function SpawnGods)
     endif
     
-    set i = 0
-    
     //========================
     //Homes
     //========================
@@ -1415,10 +822,12 @@ function onDeath takes nothing returns nothing
             set destroyBaseFlag[pid] = false
         else
             call DisplayTextToPlayer(p, 0, 0, "|cffff0000You must build another base within 2 minutes or be defeated. If you are defeated you will lose your character and be unable to save. If you think you are unable to build another base for some reason, then save now.")
-            set t = NewTimerEx(pid)
-            call TimerStart(t, 120.00, false, function BaseDead)
+            set pt = TimerList[pid].addTimer(pid)
+            set pt.tag = 'bdie'
+
+            call TimerStart(pt.timer, 120., false, function BaseDead)
             call DestroyTimerDialog(udg_Timer_Window_TUD[pid])
-            set udg_Timer_Window_TUD[pid] = CreateTimerDialog(t)
+            set udg_Timer_Window_TUD[pid] = CreateTimerDialog(pt.timer)
             call TimerDialogSetTitle(udg_Timer_Window_TUD[pid], "Defeat In")
             call TimerDialogDisplay(udg_Timer_Window_TUD[pid], false)
             if p == GetLocalPlayer() then
@@ -1500,12 +909,12 @@ function onDeath takes nothing returns nothing
             if IsTerrainWalkable(x, y) then
                 call SetUnitPosition(HeroGrave[pid], x, y)
             else
-                call SetUnitPosition(HeroGrave[pid], TerrainPathability_X, TerrainPathability_Y)
+                call SetUnitPosition(HeroGrave[pid], TERRAIN_X, TERRAIN_Y)
             endif
         endif
             
         //phoenix ranger reincarnation
-        if ReincarnationPRCD[pid] <= 0 and GetUnitAbilityLevel(u, 'A047') > 0 then
+        if BlzGetUnitAbilityCooldownRemaining(u, REINCARNATION.id) <= 0 and GetUnitAbilityLevel(u, REINCARNATION.id) > 0 then
             set ReincarnationRevival[pid] = true
         endif
     
@@ -1518,7 +927,7 @@ function onDeath takes nothing returns nothing
     //Enemy Respawns
     //========================
 
-    elseif IsBoss(uid) and p == pboss and IsUnitIllusion(u) == false then 
+    elseif IsBoss(uid) != -1 and p == pboss and IsUnitIllusion(u) == false then 
         set i = 0
         loop
             exitwhen BossID[i] == uid or BossID[i] == uid or i > BOSS_TOTAL
@@ -1527,9 +936,10 @@ function onDeath takes nothing returns nothing
 
         //add up player boss damage
         set i2 = 0
+        set U = User.first
         loop
             exitwhen U == User.NULL
-            set i2 = i2 + BossDamage[U.id * BOSS_TOTAL + i]
+            set i2 = i2 + BossDamage[BOSS_TOTAL * i + U.id]
             set U = U.next
         endloop
 
@@ -1537,8 +947,8 @@ function onDeath takes nothing returns nothing
         //print percentage contribution
         loop
             exitwhen U == User.NULL
-            if BossDamage[U.id * BOSS_TOTAL + i] >= 1. then
-                call DisplayTimedTextToForce(FORCE_PLAYING, 20., U.nameColored + " contributed |cffffcc00" + R2S(BossDamage[U.id * BOSS_TOTAL + i] * 100. / RMaxBJ(I2R(i2), 1.)) + "%|r damage to " + GetUnitName(u) + ".")
+            if BossDamage[BOSS_TOTAL * i + U.id] >= 1. then
+                call DisplayTimedTextToForce(FORCE_PLAYING, 20., U.nameColored + " contributed |cffffcc00" + R2S(BossDamage[BOSS_TOTAL * i + U.id] * 100. / RMaxBJ(i2 * 1., 1.)) + "%|r damage to " + GetUnitName(u) + ".")
             endif
             set U = U.next
         endloop
@@ -1550,15 +960,19 @@ function onDeath takes nothing returns nothing
         set i2 = 0
         loop
             exitwhen i2 > PLAYER_CAP
-            set BossDamage[i2 * BOSS_TOTAL + i] = 0
+            set BossDamage[BOSS_TOTAL * i + i2] = 0
             set i2 = i2 + 1
         endloop
 
     elseif IsCreep(u) and spawnflag then //Creep Respawn
-        set t = NewTimerEx(uid)
-        call SaveReal(MiscHash, GetHandleId(t), 11, x)
-        call SaveReal(MiscHash, GetHandleId(t), 12, y)
-        call TimerStart(t, 20., false, function RemoveCreep)
+        set pt = TimerList[PLAYER_NEUTRAL_AGGRESSIVE].addTimer(uid)
+        set pt.x = x
+        set pt.y = y
+        set pt.agi = 0
+        if ChaosMode then
+            set pt.agi = 1
+        endif
+        call TimerStart(pt.timer, 20., false, function RemoveCreep)
         call RemoveUnitTimed(u, 30.0)
     endif
     
@@ -1571,7 +985,6 @@ function onDeath takes nothing returns nothing
     set itm = null
     set ug = null
     set target = null
-    set t = null
 endfunction
 
 //===========================================================================
@@ -1590,7 +1003,7 @@ function DeathInit takes nothing returns nothing
         set u = u.next
     endloop
     
-    call TriggerRegisterPlayerUnitEvent(death, Player(8), EVENT_PLAYER_UNIT_DEATH, null)
+    call TriggerRegisterPlayerUnitEvent(death, Player(PLAYER_TOWN), EVENT_PLAYER_UNIT_DEATH, null)
     call TriggerRegisterPlayerUnitEvent(death, pboss, EVENT_PLAYER_UNIT_DEATH, null)
     
     call TriggerRegisterPlayerUnitEvent(death, pfoe, EVENT_PLAYER_UNIT_DEATH, null)
