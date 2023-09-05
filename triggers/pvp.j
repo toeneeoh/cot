@@ -79,9 +79,6 @@ function SetupDuel takes unit a, unit b, rect spawn1, rect spawn2, real face, re
         call BlzSetUnitFacingEx(b, face)
     endif
     
-    call EnterWeather(a)
-    call EnterWeather(b)
-    
     call SetPlayerAllianceStateBJ(p, p2, bj_ALLIANCE_UNALLIED)
     call SetPlayerAllianceStateBJ(p2, p, bj_ALLIANCE_UNALLIED)
 
@@ -131,7 +128,6 @@ function ArenaCleanup takes nothing returns nothing
             call SetWidgetLife(u, BlzGetUnitMaxHP(u))
             call SetCameraBoundsRectForPlayerEx(GetOwningPlayer(u), gg_rct_Main_Map_Vision)
             call PanCameraToTimedForPlayer(GetOwningPlayer(u), GetUnitX(u), GetUnitY(u), 0)
-            call EnterWeather(u)
             set ArenaQueue[GetPlayerId(GetOwningPlayer(u)) + 1] = 0
             call TimerStart(NewTimerEx(GetPlayerId(GetOwningPlayer(u)) + 1), 2, false, function ArenaUnpause)
         endloop
@@ -142,7 +138,6 @@ function ArenaCleanup takes nothing returns nothing
         call SetWidgetLife(killed, BlzGetUnitMaxHP(killed))
         call SetCameraBoundsRectForPlayerEx(GetOwningPlayer(killed), gg_rct_Main_Map_Vision)
         call PanCameraToTimedForPlayer(GetOwningPlayer(killed), GetUnitX(killed), GetUnitY(killed), 0)
-        call EnterWeather(killed)
         set ArenaQueue[GetPlayerId(GetOwningPlayer(killed)) + 1] = 0
         call TimerStart(NewTimerEx(GetPlayerId(GetOwningPlayer(killed)) + 1), 2, false, function ArenaUnpause)
     endif
@@ -279,7 +274,6 @@ function EnterPVP takes nothing returns nothing
             set y = GetRandomReal(GetRectMinY(gg_rct_Arena2), GetRectMaxY(gg_rct_Arena2))
             
             call SetUnitPosition(Hero[pid], x, y)
-            call EnterWeather(Hero[pid])
 
             call SetCameraBoundsRectForPlayerEx(p, gg_rct_Arena2Vision)
             if GetLocalPlayer() == p then
