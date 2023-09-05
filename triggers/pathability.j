@@ -34,20 +34,19 @@ library TerrainPathability initializer Init
 //* IsTerrainWalkable function arguments if the function returned false.
 //* 
 //* Variables that can be used from the library:
-//*     [real]    TerrainPathability_X
-//*     [real]    TerrainPathability_Y
+//*     [real]    TERRAIN_X
+//*     [real]    TERRAIN_Y
 //* 
 globals
-    private constant real    MAX_RANGE     = 10.
+    private constant real    MAX_RANGE     = 8.
 endglobals
 
 globals    
-    item           PathItem   = null
-    real           TerrainPathability_X
-    real           TerrainPathability_Y
-    private rect       Find   = null
-    private item array Hid
-    private integer    HidMax = 0
+    item PathItem = null
+    real TERRAIN_X = 0.
+    real TERRAIN_Y = 0.
+    private integer Count = 0
+    private rect Find
 endglobals
 
 function IsTerrainDeepWater takes real x, real y returns boolean
@@ -66,42 +65,33 @@ function IsTerrainPlatform takes real x, real y returns boolean
     return not IsTerrainPathable(x, y, PATHING_TYPE_FLOATABILITY) and not IsTerrainPathable(x, y, PATHING_TYPE_WALKABILITY) and not IsTerrainPathable(x, y, PATHING_TYPE_BUILDABILITY)
 endfunction
 
-private function HideItem takes nothing returns nothing
-    if IsItemVisible(GetEnumItem()) then
-        set Hid[HidMax] = GetEnumItem()
-        call SetItemVisible(Hid[HidMax], false)
-        set HidMax = HidMax + 1
-    endif
+private function CountItems takes nothing returns nothing
+    set Count = Count + 1
+    set TERRAIN_X = GetItemX(GetEnumItem())
+    set TERRAIN_Y = GetItemY(GetEnumItem())
 endfunction
 
 function IsTerrainWalkable takes real x, real y returns boolean
-    //Hide any items in the area to avoid conflicts with our item
     call MoveRectTo(Find, x, y)
-    call EnumItemsInRect(Find ,null, function HideItem)
+    call EnumItemsInRect(Find, null, function CountItems)
 
-    if PathItem == null then
-        set PathItem = CreateItem('wolg', x, y)
-    else
+    if Count == 0 then
         call SetItemPosition(PathItem, x, y)
-    endif
 
-    set TerrainPathability_X = GetItemX(PathItem)
-    set TerrainPathability_Y = GetItemY(PathItem)
-    call SetItemPosition(PathItem, 30000., 30000.)
+        set TERRAIN_X = GetItemX(PathItem)
+        set TERRAIN_Y = GetItemY(PathItem)
+
+        call SetItemPosition(PathItem, 30000., 30000.)
+    endif
     
-    //Unhide any items hidden at the start
-    loop
-        exitwhen HidMax <= 0
-        set HidMax = HidMax - 1
-        call SetItemVisible(Hid[HidMax], true)
-        set Hid[HidMax] = null
-    endloop
-    //Return walkability
-    return (TerrainPathability_X-x)*(TerrainPathability_X-x)+(TerrainPathability_Y-y)*(TerrainPathability_Y-y) <= MAX_RANGE*MAX_RANGE and not IsTerrainPathable(x, y, PATHING_TYPE_WALKABILITY)
+    set Count = 0
+
+    return SquareRoot(Pow(x - TERRAIN_X, 2) + Pow(y - TERRAIN_Y, 2)) <= MAX_RANGE and not IsTerrainPathable(x, y, PATHING_TYPE_WALKABILITY)
 endfunction
 
 private function Init takes nothing returns nothing
-    set Find = Rect(0., 0., 128., 128.)
+    set Find = Rect(0., 0., 8., 8.)
+    set PathItem = CreateItem('wolg', 30000., 30000.)
 endfunction
 
 endlibrary
