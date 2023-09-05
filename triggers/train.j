@@ -38,7 +38,7 @@ function TrainInit takes nothing returns nothing
     
     loop
         exitwhen u == User.NULL
-        call TriggerRegisterPlayerUnitEvent(cancel, u.toPlayer(), EVENT_PLAYER_UNIT_TRAIN_CANCEL, function boolexp )
+        call TriggerRegisterPlayerUnitEvent(cancel, u.toPlayer(), EVENT_PLAYER_UNIT_TRAIN_CANCEL, null)
         set u = u.next
     endloop
 
