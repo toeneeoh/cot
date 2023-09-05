@@ -2,6 +2,11 @@ library CustomUI requires Functions, Commands, heroselection
 
     globals
         boolean array afkTextVisible
+        boolean array hardcoreClicked
+        trigger votingSelectYes = CreateTrigger()
+        trigger votingSelectNo = CreateTrigger()
+        trigger hardcoreSelectYes = CreateTrigger()
+        trigger hardcoreSelectNo = CreateTrigger()
         framehandle afkTextBG
         framehandle afkText
         framehandle hardcoreBG
@@ -14,10 +19,6 @@ library CustomUI requires Functions, Commands, heroselection
         framehandle votingButtonFrame2
         framehandle votingButtonIconNo
         framehandle votingButtonIconYes
-        trigger votingSelectYes = CreateTrigger()
-        trigger votingSelectNo = CreateTrigger()
-        trigger hardcoreSelectYes = CreateTrigger()
-        trigger hardcoreSelectNo = CreateTrigger()
         framehandle fh
         framehandle menuButton
         framehandle chatButton
@@ -29,11 +30,88 @@ library CustomUI requires Functions, Commands, heroselection
         framehandle arcText
         framehandle showhidemenu
         framehandle upperbuttonBar
-        boolean array hardcoreClicked
         framehandle dummyFrame
         framehandle dummyText
+
+        framehandle hideHealth
+
+        framehandle shieldBackdrop
+        framehandle shieldText
+
+        framehandle array INVENTORYBACKDROP
+
+        //for async frame changes
+        framehandle containerFrame
+        framehandle array frames
+        group MAIN_SELECT_GROUP
+        unit array units
+        integer unitsCount = 0
+        filterfunc filter
+
+        framehandle LimitBreakBackdrop = null 
+        framehandle LimitBreakButton1 = null 
+        framehandle LimitBreakBackdrop1 = null 
+        trigger TriggerLimitBreakButton1 = null 
+        framehandle LimitBreakButton2 = null 
+        framehandle LimitBreakBackdrop2 = null 
+        trigger TriggerLimitBreakButton2 = null 
+        framehandle LimitBreakButton3 = null 
+        framehandle LimitBreakBackdrop3 = null 
+        trigger TriggerLimitBreakButton3 = null 
+        framehandle LimitBreakButton4 = null 
+        framehandle LimitBreakBackdrop4 = null 
+        trigger TriggerLimitBreakButton4 = null 
     endglobals
+
+    function LimitBreakButton1Func takes nothing returns nothing 
+        set limitBreak[GetPlayerId(GetTriggerPlayer()) + 1] = 1
+
+        if GetLocalPlayer() == GetTriggerPlayer() then
+            call BlzFrameSetVisible(LimitBreakBackdrop, false)
+            call BlzSetAbilityIcon(PARRY.id, "ReplaceableTextures\\CommandButtons\\BTNParryLimitBreak.blp")
+        endif
+
+        call BlzFrameSetEnable(LimitBreakButton1, false) 
+        call BlzFrameSetEnable(LimitBreakButton1, true) 
+    endfunction 
     
+    function LimitBreakButton2Func takes nothing returns nothing 
+        set limitBreak[GetPlayerId(GetTriggerPlayer()) + 1] = 2
+
+        if GetLocalPlayer() == GetTriggerPlayer() then
+            call BlzFrameSetVisible(LimitBreakBackdrop, false)
+            call BlzSetAbilityIcon(SPINDASH.id, "ReplaceableTextures\\CommandButtons\\BTNSpinDashLimitBreak.blp")
+            call BlzSetAbilityIcon(SPINDASH.id2, "ReplaceableTextures\\CommandButtons\\BTNSpinDashLimitBreak.blp")
+        endif
+
+        call BlzFrameSetEnable(LimitBreakButton2, false) 
+        call BlzFrameSetEnable(LimitBreakButton2, true) 
+    endfunction 
+    
+    function LimitBreakButton3Func takes nothing returns nothing 
+        set limitBreak[GetPlayerId(GetTriggerPlayer()) + 1] = 3
+
+        if GetLocalPlayer() == GetTriggerPlayer() then
+            call BlzFrameSetVisible(LimitBreakBackdrop, false)
+            call BlzSetAbilityIcon(INTIMIDATINGSHOUT.id, "ReplaceableTextures\\CommandButtons\\BTNIntimidatingShoutLimitBreak.blp")
+        endif
+
+        call BlzFrameSetEnable(LimitBreakButton3, false) 
+        call BlzFrameSetEnable(LimitBreakButton3, true) 
+    endfunction 
+    
+    function LimitBreakButton4Func takes nothing returns nothing 
+        set limitBreak[GetPlayerId(GetTriggerPlayer()) + 1] = 4
+
+        if GetLocalPlayer() == GetTriggerPlayer() then
+            call BlzFrameSetVisible(LimitBreakBackdrop, false)
+            call BlzSetAbilityIcon(WINDSCAR.id, "ReplaceableTextures\\CommandButtons\\BTNWindScarLimitBreak.blp")
+        endif
+
+        call BlzFrameSetEnable(LimitBreakButton4, false) 
+        call BlzFrameSetEnable(LimitBreakButton4, true) 
+    endfunction 
+
     private function onclick takes nothing returns nothing
         if GetTriggerPlayer() == GetLocalPlayer() then
             if BlzFrameIsVisible(menuButton) == true then
@@ -59,13 +137,47 @@ library CustomUI requires Functions, Commands, heroselection
     function CustomUISetup takes nothing returns nothing
         local trigger t = CreateTrigger()
         local integer i = 0
-
+        
         // Prevent multiplayer desyncs by forcing the creation of the QuestDialog frame
         call BlzFrameClick(BlzGetFrameByName("UpperButtonBarQuestsButton", 0))
         call BlzFrameClick(BlzGetFrameByName("QuestAcceptButton", 0))
         call BlzFrameSetSize(BlzGetFrameByName("QuestItemListContainer", 0), 0.01, 0.01)
         call BlzFrameSetSize(BlzGetFrameByName("QuestItemListScrollBar", 0), 0.001, 0.001)    
         call ForceUICancel()
+
+         //inventory buttons
+        //! textmacro inventoryborders takes index, x, y
+            set INVENTORYBACKDROP[$index$] = BlzCreateFrameByType("BACKDROP", "PORTRAIT", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
+            call BlzFrameSetAbsPoint(INVENTORYBACKDROP[$index$], FRAMEPOINT_CENTER, $x$, $y$)
+            call BlzFrameSetSize(INVENTORYBACKDROP[$index$], 0.0375, 0.0375)
+            call BlzFrameSetVisible(INVENTORYBACKDROP[$index$], false)
+        //! endtextmacro
+
+        //! runtextmacro inventoryborders("0", "0.5315", "0.0965")
+        //! runtextmacro inventoryborders("1", "0.5715", "0.0965")
+        //! runtextmacro inventoryborders("2", "0.5315", "0.058")
+        //! runtextmacro inventoryborders("3", "0.5715", "0.058")
+        //! runtextmacro inventoryborders("4", "0.5315", "0.0195")
+        //! runtextmacro inventoryborders("5", "0.5715", "0.0195")
+
+        //cover health text
+        set hideHealth = BlzCreateFrameByType("BACKDROP", "hidehealth", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
+        call BlzFrameSetAbsPoint(hideHealth, FRAMEPOINT_TOPLEFT, 0.225, 0.028)
+        call BlzFrameSetAbsPoint(hideHealth, FRAMEPOINT_BOTTOMRIGHT, 0.28, 0.0185)
+        call BlzFrameSetTexture(hideHealth, "black.dds", 0, true)
+        call BlzFrameSetVisible(hideHealth, false)
+
+        //shield ui
+        set shieldBackdrop = BlzCreateFrameByType("BACKDROP", "shieldbackdrop", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
+        call BlzFrameSetAbsPoint(shieldBackdrop, FRAMEPOINT_TOPLEFT, 0.215570, 0.0428)
+        call BlzFrameSetAbsPoint(shieldBackdrop, FRAMEPOINT_BOTTOMRIGHT, 0.290450, 0.0313600)
+        call BlzFrameSetTexture(shieldBackdrop, "black.dds", 0, true)
+
+        set shieldText = BlzCreateFrameByType("TEXT", "shieldtext", shieldBackdrop, "", 0)
+        call BlzFrameSetText(shieldText, "")
+        call BlzFrameSetAllPoints(shieldText, shieldBackdrop)
+        call BlzFrameSetTextAlignment(shieldText, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_CENTER)
+        call BlzFrameSetVisible(shieldBackdrop, false)
 
         set afkTextBG = BlzCreateFrameByType("BACKDROP", "afkTextBG", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
         call BlzFrameSetPoint(afkTextBG, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0, - 0.41)
@@ -222,17 +334,6 @@ library CustomUI requires Functions, Commands, heroselection
         call BlzTriggerRegisterFrameEvent(t, showhidemenu, FRAMEEVENT_CONTROL_CLICK)
         call TriggerAddAction(t, function onclick)
 
-        //Initial hide menu buttons
-        set allyButton = BlzGetFrameByName("UpperButtonBarAlliesButton", 0)
-        set menuButton = BlzGetFrameByName("UpperButtonBarMenuButton", 0)
-        set chatButton = BlzGetFrameByName("UpperButtonBarChatButton", 0)
-        set questButton = BlzGetFrameByName("UpperButtonBarQuestsButton", 0)
-        set upperbuttonBar = BlzGetFrameByName("UpperButtonBarFrame", 0)
-        //call BlzFrameSetScale(BlzGetFrameByName("AllianceAcceptButton", 0), 0.001)
-        //call BlzFrameSetScale(BlzGetFrameByName("AlliedVictoryCheckBox", 0), 0.001)
-        //call BlzFrameSetScale(BlzGetFrameByName("AlliedVictoryLabel", 0), 0.001)
-        //call BlzFrameSetScale(BlzGetFrameByName("AllianceCancelButton", 0), 0.001)
-
         set i = 0
         loop
             exitwhen i > 6
@@ -240,6 +341,12 @@ library CustomUI requires Functions, Commands, heroselection
             call BlzFrameSetScale(BlzGetFrameByName("AllyCheckBox", i), 0.001)
             set i = i + 1
         endloop
+
+        set allyButton = BlzGetFrameByName("UpperButtonBarAlliesButton", 0)
+        set menuButton = BlzGetFrameByName("UpperButtonBarMenuButton", 0)
+        set chatButton = BlzGetFrameByName("UpperButtonBarChatButton", 0)
+        set questButton = BlzGetFrameByName("UpperButtonBarQuestsButton", 0)
+        set upperbuttonBar = BlzGetFrameByName("UpperButtonBarFrame", 0)
 
         call BlzFrameClearAllPoints(menuButton)
         call BlzFrameClearAllPoints(allyButton)
@@ -255,6 +362,56 @@ library CustomUI requires Functions, Commands, heroselection
         call BlzFrameSetVisible(chatButton, false)
         call BlzFrameSetVisible(questButton, false)
         call BlzFrameSetVisible(allyButton, false)
+ 
+        //limit break upgrade UI
+        set LimitBreakBackdrop = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
+        call BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_TOPLEFT, 0.61, 0.212)
+        call BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_BOTTOMRIGHT, 0.795, 0.158)
+        call BlzFrameSetVisible(LimitBreakBackdrop, false)
+
+        set LimitBreakButton1 = BlzCreateFrameByType("GLUEBUTTON", "lb1", LimitBreakBackdrop, "ScoreScreenTabButtonTemplate", 0)
+        call BlzFrameSetAbsPoint(LimitBreakButton1, FRAMEPOINT_TOPLEFT, 0.617400, 0.205000)
+        call BlzFrameSetAbsPoint(LimitBreakButton1, FRAMEPOINT_BOTTOMRIGHT, 0.657400, 0.165000)
+        set LimitBreakBackdrop1 = BlzCreateFrameByType("BACKDROP", "lbb1", LimitBreakButton1, "", 0)
+        call BlzFrameSetAllPoints(LimitBreakBackdrop1, LimitBreakButton1)
+        call BlzFrameSetTexture(LimitBreakBackdrop1, "ReplaceableTextures\\CommandButtons\\BTNParryLimitBreak.blp", 0, true)
+
+        set TriggerLimitBreakButton1 = CreateTrigger() 
+        call BlzTriggerRegisterFrameEvent(TriggerLimitBreakButton1, LimitBreakButton1, FRAMEEVENT_CONTROL_CLICK) 
+        call TriggerAddAction(TriggerLimitBreakButton1, function LimitBreakButton1Func) 
+
+        set LimitBreakButton2 = BlzCreateFrameByType("GLUEBUTTON", "lb2", LimitBreakBackdrop, "ScoreScreenTabButtonTemplate", 0)
+        call BlzFrameSetAbsPoint(LimitBreakButton2, FRAMEPOINT_TOPLEFT, 0.660810, 0.205000)
+        call BlzFrameSetAbsPoint(LimitBreakButton2, FRAMEPOINT_BOTTOMRIGHT, 0.700810, 0.165000)
+        set LimitBreakBackdrop2 = BlzCreateFrameByType("BACKDROP", "lbb2", LimitBreakButton2, "", 0)
+        call BlzFrameSetAllPoints(LimitBreakBackdrop2, LimitBreakButton2)
+        call BlzFrameSetTexture(LimitBreakBackdrop2, "ReplaceableTextures\\CommandButtons\\BTNSpinDashLimitBreak.blp", 0, true)
+
+        set TriggerLimitBreakButton2 = CreateTrigger() 
+        call BlzTriggerRegisterFrameEvent(TriggerLimitBreakButton2, LimitBreakButton2, FRAMEEVENT_CONTROL_CLICK) 
+        call TriggerAddAction(TriggerLimitBreakButton2, function LimitBreakButton2Func) 
+
+        set LimitBreakButton3 = BlzCreateFrameByType("GLUEBUTTON", "lb3", LimitBreakBackdrop, "ScoreScreenTabButtonTemplate", 0)
+        call BlzFrameSetAbsPoint(LimitBreakButton3, FRAMEPOINT_TOPLEFT, 0.704530, 0.205010)
+        call BlzFrameSetAbsPoint(LimitBreakButton3, FRAMEPOINT_BOTTOMRIGHT, 0.744530, 0.165010)
+        set LimitBreakBackdrop3 = BlzCreateFrameByType("BACKDROP", "lbb3", LimitBreakButton3, "", 0)
+        call BlzFrameSetAllPoints(LimitBreakBackdrop3, LimitBreakButton3)
+        call BlzFrameSetTexture(LimitBreakBackdrop3, "ReplaceableTextures\\CommandButtons\\BTNIntimidatingShoutLimitBreak.blp", 0, true)
+
+        set TriggerLimitBreakButton3 = CreateTrigger() 
+        call BlzTriggerRegisterFrameEvent(TriggerLimitBreakButton3, LimitBreakButton3, FRAMEEVENT_CONTROL_CLICK) 
+        call TriggerAddAction(TriggerLimitBreakButton3, function LimitBreakButton3Func) 
+
+        set LimitBreakButton4 = BlzCreateFrameByType("GLUEBUTTON", "lb4", LimitBreakBackdrop, "ScoreScreenTabButtonTemplate", 0)
+        call BlzFrameSetAbsPoint(LimitBreakButton4, FRAMEPOINT_TOPLEFT, 0.747900, 0.205000)
+        call BlzFrameSetAbsPoint(LimitBreakButton4, FRAMEPOINT_BOTTOMRIGHT, 0.787900, 0.165000)
+        set LimitBreakBackdrop4 = BlzCreateFrameByType("BACKDROP", "lbb4", LimitBreakButton4, "", 0)
+        call BlzFrameSetAllPoints(LimitBreakBackdrop4, LimitBreakButton4)
+        call BlzFrameSetTexture(LimitBreakBackdrop4, "ReplaceableTextures\\CommandButtons\\BTNWindScarLimitBreak.blp", 0, true)
+
+        set TriggerLimitBreakButton4 = CreateTrigger() 
+        call BlzTriggerRegisterFrameEvent(TriggerLimitBreakButton4, LimitBreakButton4, FRAMEEVENT_CONTROL_CLICK) 
+        call TriggerAddAction(TriggerLimitBreakButton4, function LimitBreakButton4Func) 
 
         set t = null
     endfunction
