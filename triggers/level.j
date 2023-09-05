@@ -5,16 +5,29 @@ function LevelUp takes nothing returns nothing
     local player p = GetOwningPlayer(u)
     local integer pid = GetPlayerId(p) + 1
     local integer i = 0
-    local item itm
+    local Item itm
     local integer level = GetHeroLevel(u)
+    local integer uid = GetUnitTypeId(u)
     
     if u == Hero[pid] then
-        if GetUnitTypeId(u) == HERO_DARK_SUMMONER then //summoning improvement level
+        if uid == HERO_DARK_SUMMONER then //summoning improvement level
             call SetUnitAbilityLevel(u, 'A022', R2I(GetHeroLevel(u) / 10.) + 1)
         endif
         
-        if GetUnitTypeId(u) == HERO_DARK_SAVIOR then //dark seal level
+        if uid == HERO_DARK_SAVIOR then //dark seal level
             call SetUnitAbilityLevel(u, 'A0GO', R2I(GetHeroLevel(u) / 100.) + 1)
+        endif
+
+        if uid == HERO_SAVIOR then //light seal level
+            call SetUnitAbilityLevel(u, LIGHTSEAL.id, R2I(GetHeroLevel(u) / 100.) + 1)
+        endif
+
+        if uid == HERO_OBLIVION_GUARD then //body of fire level
+            call SetUnitAbilityLevel(u, BODYOFFIRE.id, R2I(GetHeroLevel(u) / 100.) + 1)
+        endif
+
+        if uid == HERO_MARKSMAN or uid == HERO_MARKSMAN_SNIPER then //sniper stance level
+            call SetUnitAbilityLevel(u, SNIPERSTANCE.id, R2I(GetHeroLevel(u) / 50.) + 1)
         endif
         
         if level >= 180 and urhome[pid] <= 4 then
@@ -32,9 +45,9 @@ function LevelUp takes nothing returns nothing
         //handle duds
         loop
             exitwhen i > 5
-            set itm = UnitItemInSlot(Backpack[pid], i) 
-            if IsItemDud(itm) and (GetHeroLevel(Hero[pid])) >= ItemData[GetItemTypeId(itm)][StringHash("level")] then
-                call DudToItem(itm, Backpack[pid], 0, 0)
+            set itm = Item[UnitItemInSlot(Backpack[pid], i)]
+            if IsItemDud(itm) and (GetHeroLevel(Hero[pid])) >= ItemData[itm.id][ITEM_LEVEL_REQUIREMENT] then
+                call itm.toItem()
             endif
 
             set i = i + 1
@@ -47,7 +60,6 @@ function LevelUp takes nothing returns nothing
 
     set u = null
     set p = null
-    set itm = null
 endfunction
 
 //===========================================================================
@@ -57,7 +69,7 @@ function LevelInit takes nothing returns nothing
     
     loop
         exitwhen u == User.NULL
-        call TriggerRegisterPlayerUnitEvent(level, u.toPlayer(), EVENT_PLAYER_HERO_LEVEL, function boolexp)
+        call TriggerRegisterPlayerUnitEvent(level, u.toPlayer(), EVENT_PLAYER_HERO_LEVEL, null)
         set u = u.next
     endloop
     
