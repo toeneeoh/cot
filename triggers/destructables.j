@@ -37,7 +37,6 @@ endfunction
 
 function Destructable takes nothing returns nothing
     local destructable d = GetTriggerDestructable()
-    local BossItemList il
     
     if d == gg_dest_DTlv_3795 then // gates
         call DoGate(gg_dest_ITg4_0445, d)
@@ -62,39 +61,11 @@ function Destructable takes nothing returns nothing
     elseif d == gg_dest_DTlv_4001 then
         call DoBridge(gg_dest_DTs2_1073, d)
     elseif d == gg_dest_LTcr_4013 then //easter egg
-        call CreateItem('tpow', GetDestructableX(d), GetDestructableY(d))
+        call Item.assign(CreateItem('Ipow', GetDestructableX(d), GetDestructableY(d)))
     elseif d == gg_dest_LTbs_4010 or d == gg_dest_LTbs_4009 or d == gg_dest_LTcr_4012 or d == gg_dest_LTba_4011 or d == gg_dest_LTbs_4008 then
-        set il = BossItemList.create()
-
-        call il.addItem('kpin')
-        call il.addItem('bgst')
-        call il.addItem('bspd')
-        call il.addItem('belv')
-        call il.addItem('clsd')
-        call il.addItem('rst1')
-        call il.addItem('ratc')
-        call il.addItem('gcel')
-        call il.addItem('rde1')
-        call il.addItem('cnob')
-        call il.addItem('rat9')
-        call il.addItem('rinl')
-        call il.addItem('mcou')
-        call il.addItem('prvt')
-        call il.addItem('ciri')
-        call il.addItem('rag1')
-        call il.addItem('hval')
-        call il.addItem('I01X')
-        call il.addItem('crys')
-        call il.addItem('evtl')
-        call il.addItem('ward')
-        call il.addItem('sor1')
-        call il.addItem('I01Z')
-        call il.addItem('I0FJ')
-
-        call CreateItemEx(il.pickItem(), GetWidgetX(d), GetWidgetY(d), true)
-        call il.destroy()
+        call Item.create(DropTable.pickItem(69), GetWidgetX(d), GetWidgetY(d), 600.)
     elseif d == gg_dest_B007_3861 then
-        call CreateItemEx('I042', GetWidgetX(d), GetWidgetY(d), false)
+        call Item.create('I042', GetWidgetX(d), GetWidgetY(d), 0.)
     endif
     
     set d = null
