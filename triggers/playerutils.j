@@ -168,8 +168,7 @@ library PlayerUtils requires Functions
            
                 // clean up
                 call ForceRemovePlayer(FORCE_PLAYING, p.toPlayer())
-                call DisplayTextToForce(FORCE_PLAYING, ( p.nameColored + " has left the game" ) )
-                call RemoveUnit(hsdummy[p.id])
+                call DisplayTextToForce(FORCE_PLAYING, (p.nameColored + " has left the game"))
 
                 call DialogDestroy(dChangeSkin[p.id])
                 call DialogDestroy(dCosmetics[p.id])
@@ -177,15 +176,15 @@ library PlayerUtils requires Functions
                 
                 call MultiboardSetItemValueBJ(MULTI_BOARD, 1, udg_MultiBoardsSpot[p.id], p.name)
                 call MultiboardSetItemColorBJ(MULTI_BOARD, 1, udg_MultiBoardsSpot[p.id], 60, 60, 60, 0)
-                call MultiboardSetItemValueBJ(MULTI_BOARD, 2, udg_MultiBoardsSpot[p.id], "" )
-                call MultiboardSetItemValueBJ(MULTI_BOARD, 3, udg_MultiBoardsSpot[p.id], "" )
-                call MultiboardSetItemValueBJ(MULTI_BOARD, 4, udg_MultiBoardsSpot[p.id], "" )
-                call MultiboardSetItemValueBJ(MULTI_BOARD, 5, udg_MultiBoardsSpot[p.id], "" )
-                call MultiboardSetItemValueBJ(MULTI_BOARD, 6, udg_MultiBoardsSpot[p.id], "" )
+                call MultiboardSetItemValueBJ(MULTI_BOARD, 2, udg_MultiBoardsSpot[p.id], "")
+                call MultiboardSetItemValueBJ(MULTI_BOARD, 3, udg_MultiBoardsSpot[p.id], "")
+                call MultiboardSetItemValueBJ(MULTI_BOARD, 4, udg_MultiBoardsSpot[p.id], "")
+                call MultiboardSetItemValueBJ(MULTI_BOARD, 5, udg_MultiBoardsSpot[p.id], "")
+                call MultiboardSetItemValueBJ(MULTI_BOARD, 6, udg_MultiBoardsSpot[p.id], "")
                 call MultiboardSetItemStyleBJ(MULTI_BOARD, 2, udg_MultiBoardsSpot[p.id], false, false)
                 call MultiboardSetItemStyleBJ(MULTI_BOARD, 3, udg_MultiBoardsSpot[p.id], false, false)
 
-                call SharedRepick(p.toPlayer())
+                call PlayerCleanup(p.toPlayer())
            
                 // recycle index
                 set .AmountPlaying = .AmountPlaying - 1
