@@ -1,0 +1,33 @@
+if Debug then Debug.beginFile 'Main' end
+
+OnInit.main(function()
+    Preload("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdx")
+    Preload("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdx")
+    Preload("Abilities\\Weapons\\Bolt\\BoltImpact.mdx")
+    Preload("war3mapImported\\FrozenOrb.MDX")
+    Preload("war3mapImported\\Death Nova.mdx")
+    Preload("war3mapImported\\Lightnings Long.mdx")
+    Preload("war3mapImported\\NeutralExplosion.mdx")
+    Preload("war3mapImported\\NewMassiveEX.mdx")
+    Preload("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdx")
+    Preload("war3mapImported\\Call of Dread Red.mdx")
+    Preload("war3mapImported\\Lava_Slam.mdx")
+    Preload("war3mapImported\\AnnihilationTarget.mdx")
+    Preload("Units\\Demon\\Infernal\\InfernalBirth.mdx")
+    Preload("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdx")
+    Preload("Abilities\\Spells\\Human\\Thunderclap\\ThunderclapTarget.mdx")
+    Preload("Abilities\\Spells\\Human\\Blizzard\\BlizzardTarget.mdx")
+    Preload("Abilities\\Spells\\Other\\FrostBolt\\FrostBoltMissile.mdx")
+    Preload("Abilities\\Spells\\Human\\StormBolt\\StormBoltMissile.mdx")
+    Preload("war3mapImported\\Coup de Grace.mdx")
+    Preload("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdx")
+    Preload("units\\other\\FleshGolem\\FleshGolem.mdx")
+    Preload("units\\demon\\felhound\\felhound_V1.mdx")
+    Preload("war3mapImported\\MasterWarlock.mdx")
+
+    SetMapFlag(MAP_FOG_HIDE_TERRAIN, false)
+    SetMapFlag(MAP_FOG_MAP_EXPLORED, true)
+    SetMapFlag(MAP_FOG_ALWAYS_VISIBLE, false)
+end)
+
+if Debug then Debug.endFile() end
