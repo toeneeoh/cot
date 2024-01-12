@@ -7,7 +7,7 @@ OnInit.final("UI", function(require)
         _G["LimitBreakButtonFunc" .. index] = function()
             local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-            if not limitBreak[pid] & POWERSOF2[tonumber(index) - 1] and limitBreakPoints[pid] > 0 then
+            if limitBreak[pid] & POWERSOF2[tonumber(index) - 1] == 0 and limitBreakPoints[pid] > 0 then
                 limitBreak[pid] = limitBreak[pid] | POWERSOF2[tonumber(index) - 1]
                 limitBreakPoints[pid] = limitBreakPoints[pid] - 1
 
@@ -27,6 +27,9 @@ OnInit.final("UI", function(require)
                     BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 4, 0)
                 end
             end
+
+            BlzFrameSetEnable(_G["LimitBreakButton" .. index], false)
+            BlzFrameSetEnable(_G["LimitBreakButton" .. index], true)
         end
     end
 
@@ -59,7 +62,6 @@ OnInit.final("UI", function(require)
     end
 
     local t         = CreateTrigger() ---@type trigger 
-    local i         = 0 ---@type integer 
     local leftTreeAlignment      = 0.07 ---@type number 
     local middleTreeAlignment      = 0.31 ---@type number 
     local rightTreeAlignment      = 0.5 ---@type number 
@@ -393,7 +395,6 @@ OnInit.final("UI", function(require)
     LimitBreakBackdrop = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
     BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_TOPLEFT, 0.61 - 0.0434, 0.212)
     BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_BOTTOMRIGHT, 0.795, 0.158)
-    BlzFrameSetVisible(LimitBreakBackdrop, false)
 
     local function limit_break_buttons(index, x, x2, path)
         _G["LimitBreakButton" .. index] = BlzCreateFrameByType("GLUEBUTTON", "lb$index$", LimitBreakBackdrop, "ScoreScreenTabButtonTemplate", 0)
@@ -433,11 +434,12 @@ OnInit.final("UI", function(require)
     end
 
     limit_break_tooltips("1", "|cffffcc00Parry|r|n|nDamage is doubled and immunity window is extended to |cffffcc001|r second.")
-    limit_break_tooltips("2", "|cffffcc00Spin Dash|r|n|nDamage is quadrupled and enemies struck have their attack speed slowed by |cffffcc0025%|r for |cffffcc002|r seconds.")
-    limit_break_tooltips("3", "|cffffcc00Intimidating Shout|r|n|nAlso reduces the spell damage of enemies by |cffffcc0040%|r.")
+    limit_break_tooltips("2", "|cffffcc00Spin Dash|r|n|nDamage is quadrupled and enemies struck have their attack speed slowed by |cffffcc0025\x25|r for |cffffcc002|r seconds.")
+    limit_break_tooltips("3", "|cffffcc00Intimidating Shout|r|n|nAlso reduces the spell damage of enemies by |cffffcc0040\x25|r.")
     limit_break_tooltips("4", "|cffffcc00Wind Scar|r|n|nWind projectiles instead orbit around you for |cffffcc003|r seconds.")
-    limit_break_tooltips("5", "|cffffcc00Adaptive Strike|r|n|nPassive cooldown reset chance increased to |cffffcc0050%|r.|nNow automatically casts after using a skill when available.")
+    limit_break_tooltips("5", "|cffffcc00Adaptive Strike|r|n|nPassive cooldown reset chance increased to |cffffcc0050\x25|r.|nNow automatically casts after using a skill when available.")
 
+    BlzFrameSetVisible(LimitBreakBackdrop, false)
 end)
 
 if Debug then Debug.endFile() end
