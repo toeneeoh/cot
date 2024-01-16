@@ -4,14 +4,14 @@ if Debug then Debug.beginFile "Helper" end
 ---@param ug group
 ---@return fun(): integer?, unit?
 function ieach(ug)
-    local index = 0
+    local index = -1
     local length = BlzGroupGetSize(ug)
 
     return function()
+        index = index + 1
         if index < length then
             return index, BlzGroupUnitAt(ug, index)
         end
-        index = index + 1
     end
 end
 
@@ -19,14 +19,14 @@ end
 ---@param ug group
 ---@return fun(): unit?
 function each(ug)
-    local index = 0
+    local index = -1
     local length = BlzGroupGetSize(ug)
 
     return function()
+        index = index + 1
         if index < length then
             return BlzGroupUnitAt(ug, index)
         end
-        index = index + 1
     end
 end
 
@@ -39,12 +39,7 @@ function array2d(val)
         if rawget(tbl, key) then
             return rawget(tbl, key)
         else
-            local new
-            if val == nil then
-                new = {}
-            else
-                new = __jarray(val)
-            end
+            local new = (val == nil and {}) or __jarray(val)
 
             rawset(tbl, key, new)
             return new
