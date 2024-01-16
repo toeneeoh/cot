@@ -507,7 +507,7 @@ OnInit.global("PlayerData", function(require)
                     return rawget(tbl, key)
                 else
                     local new = {
-                        pid = pid,
+                        pid = key,
                         timers = {}
                     }
                     rawset(tbl, key, new)
