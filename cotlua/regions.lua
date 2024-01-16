@@ -3,240 +3,30 @@ if Debug then Debug.beginFile 'Regions' end
 OnInit.final("Regions", function(require)
     require 'Variables'
     require 'Helper'
+    require 'WorldBounds'
 
-    RegionCount={} ---@type rect[] 
-    AREAS={} ---@type rect[] 
-    GUARD_CAPTURED         = false ---@type boolean 
-
----@param pid integer
-function NagaWaygate(pid)
-    local ug       = CreateGroup()
-    local target ---@type unit 
-
-    GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon_Reward, Condition(ischar))
-
-    if BlzGroupGetSize(ug) == 0 then
-        TimerQueue:callDelayed(2.5, RemoveUnit, nagachest)
-        if NAGA_FLOOR == 1 then
-            BlackMask(NAGA_GROUP, 2, 2)
-            DungeonMove(NAGA_GROUP, -20000, -4600, 2, gg_rct_Naga_Dungeon_Vision)
-            TimerQueue:callDelayed(2., RemoveUnit, nagatp)
-            NagaSpawnFloor(NAGA_FLOOR + 1)
-        elseif NAGA_FLOOR == 2 then
-            BlackMask(NAGA_GROUP, 2, 2)
-            DungeonMove(NAGA_GROUP, -24192, -10500, 2, gg_rct_Naga_Dungeon_Boss_Vision)
-            TimerQueue:callDelayed(2., RemoveUnit, nagatp)
-            NagaSpawnFloor(NAGA_FLOOR + 1)
-        elseif NAGA_FLOOR == 3 then --exit
-            if IsPlayerInForce(Player(pid - 1), NAGA_GROUP) then
-                ForceRemovePlayer(NAGA_GROUP, Player(pid - 1))
-                ShowUnit(HeroGrave[pid], true)
-                SetUnitPosition(HeroGrave[pid], -260, 100)
-                ShowUnit(HeroGrave[pid], false)
-                SetUnitXBounded(Hero[pid], -260)
-                SetUnitYBounded(Hero[pid], 100)
-                SetCameraBoundsRectForPlayerEx(Player(pid - 1), gg_rct_Main_Map_Vision)
-                PanCameraToTimedForPlayer(Player(pid - 1), -260, 100, 0)
-
-                --bind token on leave
-                GetItemFromPlayer(pid, FourCC('I0NN')).owner = Player(pid - 1)
-            end
-
-            if CountPlayersInForceBJ(NAGA_GROUP) <= 0 then
-                TimerQueue:callDelayed(2., RemoveUnit, nagatp)
-
-                target = FirstOfGroup(NAGA_ENEMIES)
-                while target do
-                    GroupRemoveUnit(NAGA_ENEMIES, target)
-                    RemoveUnit(target)
-                    target = FirstOfGroup(NAGA_ENEMIES)
-                end
-            end
-        end
-    end
-
-    DestroyGroup(ug)
-end
-
-function LeaveZone()
-    local u      = GetTriggerUnit() ---@type unit 
-    local x      = GetUnitX(u) ---@type number 
-    local y      = GetUnitY(u) ---@type number 
-    local pid         = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
-    local U      = User.first ---@type User 
-
-    if u == gg_unit_H01Y_0099 or u == gg_unit_H01T_0259 then --prevent paladin, sponsor, villagers from leaving
-        IssuePointOrderLoc(u, "move", TownCenter)
-
-    elseif IsUnitInRangeXY(u, GetRectCenterX(gg_rct_Town_Boundry), GetRectCenterY(gg_rct_Town_Boundry), 4000.) and pid == PLAYER_NEUTRAL_PASSIVE + 1 then
-        IssuePointOrderLoc(u, "move", TownCenter)
-    end
-end
-
----@return boolean
-function SafeZones()
-    local u      = GetFilterUnit() ---@type unit 
-    local uid         = GetUnitTypeId(u) ---@type integer 
-    local pid         = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
-    local x      = GetUnitX(u) ---@type number 
-    local y      = GetUnitY(u) ---@type number 
-    local r ---@type rect 
-    local U      = User.first ---@type User 
-    local boss         = IsBoss(uid) ---@type integer 
-
-    if IsUnitIllusion(u) then
-    elseif IsEnemy(pid) and (IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Town_Boundry),GetRectCenterY(gg_rct_Town_Boundry),4000.) or IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Top_of_Town),GetRectCenterY(gg_rct_Top_of_Town),4000.)) then
-        if boss ~= -1 then
-            SetUnitXBounded(Boss[boss], GetLocationX(BossLoc[boss]))
-            SetUnitYBounded(Boss[boss], GetLocationY(BossLoc[boss]))
-        elseif UnitData[uid][UNITDATA_COUNT] > 0 then
-            r = SelectGroupedRegion(UnitData[uid][UNITDATA_SPAWN])
-            SetUnitPosition(u, GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)))
-        end
-    elseif NearbyRect(gg_rct_Town_Boundry, x, y) and uid == FourCC('h04A') then --rescue guard
-        DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Velreon Scholar:|r Excellent work, traveler. Perhaps you would be interested in the ancient tales of the |cffffcc00Medean Empire|r...")
-        RemoveUnit(u)
-        while U do
-            SetPlayerTechResearched(U.player, FourCC('R018'), 1)
-            U = U.next
-        end
-    end
-
-    return false
-end
-
-function EnterArea()
-    local u      = GetTriggerUnit() ---@type unit 
-    local x      = GetUnitX(u) ---@type number 
-    local y      = GetUnitY(u) ---@type number 
-    local id         = GetUnitTypeId(u) ---@type integer 
-    local p        = GetOwningPlayer(u) ---@type player 
-    local pid         = GetPlayerId(p) + 1 ---@type integer 
-    local i         = 0 ---@type integer 
-    local angle ---@type number 
-    local itm ---@type item?
-    local ug       = CreateGroup()
-    local U      = User.first ---@type User 
-
-    if NearbyRect(gg_rct_ChurchO, x, y) and u == Hero[pid] then
-        SetUnitPosition(u, 20943, 772)
-        BlzSetUnitFacingEx(u, 0.)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_ChurchRegion_Vision)
-        PanCameraToTimedForPlayer(p, 20943, 772, 0)
-    elseif NearbyRect(gg_rct_ChurchIn, x, y) and u == Hero[pid] then
-        SetUnitPosition(u, 448.7, 1600.0)
-        BlzSetUnitFacingEx(u, 270.)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-        PanCameraToTimedForPlayer(p, 448.7, 1600.0, 0)
-        if CANNOT_LOAD[pid] == false then
-            CANNOT_LOAD[pid] = true
-            DisplayTimedTextToPlayer(p, 0, 0, 30., "You may now save.")
-        end
-    elseif NearbyRect(gg_rct_Tavern_Out, x, y) and u == Hero[pid] then
-        SetUnitPosition(u, 22191., 3441.)
-        BlzSetUnitFacingEx(u, 180.)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Tavern_Vision)
-        PanCameraToTimedForPlayer(p, GetUnitX(u), GetUnitY(u), 0.)
-        ShowHeroCircle(p, false)
-    elseif NearbyRect(gg_rct_Tavern_In, x, y) and u == Hero[pid] then
-        SetUnitPosition(u, -690., -238.)
-        BlzSetUnitFacingEx(u, 0.)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-        PanCameraToTimedForPlayer(p, GetUnitX(u), GetUnitY(u), 0.)
-        ShowHeroCircle(p, true)
-    elseif NearbyRect(gg_rct_Devourer_entry, x, y) and u == Hero[pid] then
-        SetUnitPosition(u, 27145, -5489)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Devourer_Camera_Bounds)
-        PanCameraToTimedForPlayer(p, 27145, -5489, 0)
-    elseif NearbyRect(gg_rct_Naga_Waygate, x, y) and u == Hero[pid] then --naga dungeon
-        NagaWaygate(pid)
-    elseif NearbyRect(gg_rct_Flee_Devourers, x, y) then
-        if u == Hero[pid] then
-            SetUnitPosition(u, -15245, -14100)
-            SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-            PanCameraToTimedForPlayer(p, -15245, -14100, 0)
-        elseif id == FourCC('h04A') then
-            SetUnitPosition(u, -15245, -14100)
-        end
-    elseif NearbyRect(gg_rct_Enter_Tomb, x, y) and u == Hero[pid] then
-        SetUnitPosition(u, 19709, -20237)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_TombCameraBounds)
-        PanCameraToTimedForPlayer(p, 19709, -20237, 0)
-    elseif NearbyRect(gg_rct_Exit_Tomb, x, y) and u == Hero[pid] then
-        SetUnitPosition(u, -15426, 9535)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-        PanCameraToTimedForPlayer(p, -15426, 9535, 0)
-    elseif NearbyRect(gg_rct_Key_Quest, x, y) and not ChaosMode and not IsUnitHidden(god_angel) then
-        if (HasItemType(Hero[pid], FourCC('I04J')) or HasItemType(Hero[pid], FourCC('I0NJ')) or HasItemType(Backpack[pid], FourCC('I04J')) or HasItemType(Backpack[pid], FourCC('I0NJ')) or GetHeroLevel(Hero[pid]) > 239) and IsQuestCompleted(Key_Quest) == false then
-            DisplayTextToForce(FORCE_PLAYING, "|cffffcc00The portal to the gods has opened.|r")
-            QuestSetDiscovered(Key_Quest, true)
-            QuestSetCompleted(Key_Quest, true)
-            QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_UPDATED, "|cffffcc00QUEST COMPLETED:|r\nThe Goddesses' Keys")
-            DestroyEffect(TalkToMe13)
-            TimerQueue:callDelayed(1., OpenGodsPortal)
-        end
-        if IsQuestDiscovered(Key_Quest) == false then
-            DestroyEffect(TalkToMe13)
-            QuestSetDiscovered(Key_Quest, true)
-            QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1REQUIRED QUEST|r|nThe Goddesses' Keys|n   - Retrieve the Key of the Gods")
-        elseif IsQuestCompleted(Key_Quest) == false then
-            if HasItemType(Hero[pid], 'I0M7') then
-                itm = GetItemFromUnit(Hero[pid], 'I0M7')
-            elseif HasItemType(Backpack[pid], 'I0M7') then
-                itm = GetItemFromUnit(Backpack[pid], 'I0M7')
-            end
-            if GetItemTypeId(itm) == 'I0M7' then
-                Item[itm].destroy()
-                QuestSetCompleted(Key_Quest, true)
-                QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_UPDATED, "|cffffcc00QUEST COMPLETED:|r\nThe Goddesses' Keys")
-                TimerQueue:callDelayed(1., OpenGodsPortal)
-            end
-        end
-    elseif NearbyRect(gg_rct_Rescueable_Worker, x, y) and u == Hero[pid] and GUARD_CAPTURED == false then --guard
-        GUARD_CAPTURED = true
-        DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Velreon Scholar:|r Thank the lords! If you could escort me back to town I will be able to share the wealth of knowledge I have obtained.")
-        SetUnitOwner(gg_unit_h04A_0438, p, true)
-    elseif NearbyRect(gg_rct_CryptO, x, y) and u == Hero[pid] then
-        SetUnitPosition(u, 20353., 11426.)
-        BlzSetUnitFacingEx(u, 270.)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Crypt_Vision)
-        PanCameraToTimedForPlayer(p, 20353., 11426., 0)
-    elseif NearbyRect(gg_rct_CryptIn, x, y) and u == Hero[pid] then
-        SetUnitPosition(u, 11793., 8501.)
-        BlzSetUnitFacingEx(u, 180.)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-        PanCameraToTimedForPlayer(p, 11793., 8501., 0)
-    end
-
-    DestroyGroup(ug)
-end
-
-    local enterRegion        = CreateRegion() ---@type region 
-    local leaveRegion        = CreateRegion() ---@type region 
-    local map        = CreateRegion() ---@type region 
-    local safeRegion        = CreateRegion() ---@type region 
-    local safezone         = CreateTrigger() ---@type trigger 
-    local enterzone         = CreateTrigger()  ---@type trigger 
-    local villagerleave         = CreateTrigger() ---@type trigger 
-
-    AREAS[0] = gg_rct_Main_Map
-    AREAS[1] = gg_rct_Tavern
-    AREAS[2] = gg_rct_Infinite_Struggle
-    AREAS[3] = gg_rct_Colosseum
-    AREAS[4] = gg_rct_Cave
-    AREAS[5] = gg_rct_Gods_Vision
-    AREAS[6] = gg_rct_Training_Prechaos
-    AREAS[7] = gg_rct_Training_Chaos
-    AREAS[8] = gg_rct_Church
-    AREAS[9] = gg_rct_Naga_Dungeon_Boss
-    AREAS[10] = gg_rct_Naga_Dungeon_Reward
-    AREAS[11] = gg_rct_Naga_Dungeon
-    AREAS[12] = gg_rct_Crypt
+    GUARD_CAPTURED = false ---@type boolean 
+    AREAS          = { ---@type rect[]
+        MAIN_MAP.rect,
+        gg_rct_Tavern,
+        gg_rct_Infinite_Struggle,
+        gg_rct_Colosseum,
+        gg_rct_Cave,
+        gg_rct_Gods_Vision,
+        gg_rct_Training_Prechaos,
+        gg_rct_Training_Chaos,
+        gg_rct_Church,
+        gg_rct_Naga_Dungeon_Boss,
+        gg_rct_Naga_Dungeon_Reward,
+        gg_rct_Naga_Dungeon,
+        gg_rct_Crypt,
+    }
 
     colospot[1] = GetRectCenter(gg_rct_Colloseum_Monster_Spawn)
     colospot[2] = GetRectCenter(gg_rct_Colloseum_Monster_Spawn_2)
     colospot[3] = GetRectCenter(gg_rct_Colloseum_Monster_Spawn_3)
 
+    RegionCount      = {} ---@type rect[] 
     RegionCount[25]  = gg_rct_Troll_Demon_1
     RegionCount[26]  = gg_rct_Troll_Demon_2
     RegionCount[27]  = gg_rct_Troll_Demon_3
@@ -315,23 +105,199 @@ end
     RegionCount[450] = gg_rct_Magnataur_Despair_1
     RegionCount[451] = gg_rct_Magnataur_Despair_2
 
+    function LeaveRegions()
+        local u = GetFilterUnit() ---@type unit 
+        local pid = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
 
-    RegionAddRect(enterRegion, gg_rct_ChurchO)
-    RegionAddRect(enterRegion, gg_rct_ChurchIn)
-    RegionAddRect(enterRegion, gg_rct_Tavern_Out)
-    RegionAddRect(enterRegion, gg_rct_Tavern_In)
-    RegionAddRect(enterRegion, gg_rct_Devourer_entry)
-    RegionAddRect(enterRegion, gg_rct_Flee_Devourers)
-    RegionAddRect(enterRegion, gg_rct_Colloseum_Monster_Spawn)
-    RegionAddRect(enterRegion, gg_rct_Colloseum_Monster_Spawn_2)
-    RegionAddRect(enterRegion, gg_rct_Colloseum_Monster_Spawn_3)
-    RegionAddRect(enterRegion, gg_rct_Rescueable_Worker)
-    RegionAddRect(enterRegion, gg_rct_Key_Quest)
-    RegionAddRect(enterRegion, gg_rct_Enter_Tomb)
-    RegionAddRect(enterRegion, gg_rct_Exit_Tomb)
-    RegionAddRect(enterRegion, gg_rct_Naga_Waygate)
-    RegionAddRect(enterRegion, gg_rct_CryptO)
-    RegionAddRect(enterRegion, gg_rct_CryptIn)
+        if u == gg_unit_H01Y_0099 or u == gg_unit_H01T_0259 then --prevent paladin and sponsor from leaving
+            IssuePointOrderLoc(u, "move", TownCenter)
+
+        elseif IsUnitInRangeXY(u, GetRectCenterX(gg_rct_Town_Boundry), GetRectCenterY(gg_rct_Town_Boundry), 4000.) and pid == PLAYER_NEUTRAL_PASSIVE + 1 then
+            IssuePointOrderLoc(u, "move", TownCenter)
+        end
+    end
+
+    ---@return boolean
+    function SafeRegions()
+        local u    = GetFilterUnit()
+        local uid  = GetUnitTypeId(u)
+        local pid  = GetPlayerId(GetOwningPlayer(u)) + 1
+        local x    = GetUnitX(u)
+        local y    = GetUnitY(u)
+        local r    = nil
+        local U    = User.first
+        local boss = IsBoss(uid)
+
+        if IsUnitIllusion(u) then
+            return false
+        end
+
+        if IsEnemy(pid) and (IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Town_Boundry),GetRectCenterY(gg_rct_Town_Boundry),4000.) or IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Top_of_Town),GetRectCenterY(gg_rct_Top_of_Town),4000.)) then
+            if boss ~= -1 then
+                SetUnitXBounded(BossTable[boss].unit, GetLocationX(BossTable[boss].loc))
+                SetUnitYBounded(BossTable[boss].unit, GetLocationY(BossTable[boss].loc))
+            elseif UnitData[uid][UNITDATA_COUNT] > 0 then
+                r = SelectGroupedRegion(UnitData[uid][UNITDATA_SPAWN])
+                SetUnitPosition(u, GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)))
+            end
+        elseif NearbyRect(gg_rct_Town_Boundry, x, y) and u == velreon_guard then --rescue guard
+            DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Velreon Scholar:|r Excellent work, traveler. Perhaps you would be interested in the ancient tales of the |cffffcc00Medean Empire|r...")
+            while U do
+                SetPlayerTechResearched(U.player, FourCC('R018'), 1)
+                U = U.next
+            end
+            RemoveUnit(velreon_guard)
+            velreon_guard = nil
+        end
+
+        return false
+    end
+
+    function SpecialRegions()
+        local u   = GetTriggerUnit() ---@type unit 
+        local x   = GetUnitX(u) ---@type number 
+        local y   = GetUnitY(u) ---@type number 
+        local p   = GetOwningPlayer(u) ---@type player 
+        local pid = GetPlayerId(p) + 1 ---@type integer 
+
+        if NearbyRect(gg_rct_Naga_Waygate, x, y) and u == Hero[pid] then --naga dungeon
+            NagaWaygate(pid)
+        elseif NearbyRect(gg_rct_Key_Quest, x, y) and not ChaosMode and not IsUnitHidden(god_angel) then
+            if (HasItemType(Hero[pid], FourCC('I04J')) or HasItemType(Hero[pid], FourCC('I0NJ')) or HasItemType(Backpack[pid], FourCC('I04J')) or HasItemType(Backpack[pid], FourCC('I0NJ')) or GetHeroLevel(Hero[pid]) > 239) and IsQuestCompleted(Key_Quest) == false then
+                DisplayTextToForce(FORCE_PLAYING, "|cffffcc00The portal to the gods has opened.|r")
+                QuestSetDiscovered(Key_Quest, true)
+                QuestSetCompleted(Key_Quest, true)
+                QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_UPDATED, "|cffffcc00QUEST COMPLETED:|r\nThe Goddesses' Keys")
+                DestroyEffect(TalkToMe13)
+                TimerQueue:callDelayed(1., OpenGodsPortal)
+            end
+            if IsQuestDiscovered(Key_Quest) == false then
+                DestroyEffect(TalkToMe13)
+                QuestSetDiscovered(Key_Quest, true)
+                QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1REQUIRED QUEST|r|nThe Goddesses' Keys\n   - Retrieve the Key of the Gods")
+            elseif IsQuestCompleted(Key_Quest) == false then
+                local itm = GetItemFromPlayer(pid, FourCC('I0M7'))
+                if itm then
+                    QuestSetCompleted(Key_Quest, true)
+                    QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_UPDATED, "|cffffcc00QUEST COMPLETED:|r\nThe Goddesses' Keys")
+                    TimerQueue:callDelayed(1., OpenGodsPortal)
+                    itm:destroy()
+                end
+            end
+        elseif UnitAlive(velreon_guard) and NearbyRect(gg_rct_Rescueable_Worker, x, y) and u == Hero[pid] and GUARD_CAPTURED == false then --guard
+            GUARD_CAPTURED = true
+            DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Velreon Scholar:|r Thank the lords! If you could escort me back to town I will be able to share the wealth of knowledge I have obtained.")
+            SetUnitOwner(velreon_guard, p, true)
+            PauseUnit(velreon_guard, false)
+        end
+    end
+
+    function EnterArea()
+        local u = GetFilterUnit()
+        local r = GetTriggeringRegion()
+        local p = GetOwningPlayer(u) ---@type player 
+        local pid = GetPlayerId(p) + 1
+        local data = MoveRegions[r]
+
+        if UnitAlive(u) and u == Hero[pid] then
+            SetUnitPosition(u, data.x, data.y)
+            BlzSetUnitFacingEx(u, data.facing)
+            SetCameraBoundsRectForPlayerEx(p, data.vision)
+            PanCameraToTimedForPlayer(p, data.x, data.y, 0)
+            if data.extra then
+                data.extra(pid, p)
+            end
+        end
+
+        if data.exception then
+            data.exception(u, data.x, data.y)
+        end
+
+        return false
+    end
+
+    local enterTrigger  = CreateTrigger()
+
+    local specialTrigger = CreateTrigger()
+    local specialRegion = CreateRegion()
+
+    local safeTrigger   = CreateTrigger()
+    local safeRegion    = CreateRegion()
+
+    local leaveTrigger  = CreateTrigger()
+    local leaveRegion   = CreateRegion()
+
+    MoveRegions = {
+        CreateRegion(),
+        CreateRegion(),
+        CreateRegion(),
+        CreateRegion(),
+        CreateRegion(),
+        CreateRegion(),
+        CreateRegion(),
+        CreateRegion(),
+        CreateRegion(),
+        [gg_rct_ChurchO]        = { x = 20943., y = 772., facing = 0., vision = gg_rct_ChurchRegion_Vision },
+        [gg_rct_ChurchIn]       = { x = 448.7, y = 1600., facing = 270., vision = MAIN_MAP.vision, extra = function(pid, p) if CANNOT_LOAD[pid] == false then
+                CANNOT_LOAD[pid] = true
+                DisplayTimedTextToPlayer(p, 0, 0, 30., "You may now save.")
+            end
+        end},
+        [gg_rct_Tavern_Out]     = { x = 22191., y = 3441., facing = 180., vision = gg_rct_Tavern_Vision, extra = function(pid, p) ShowHeroCircle(p, false) end },
+        [gg_rct_Tavern_In]      = { x = -690., y = -238., facing = 0., vision = MAIN_MAP.vision, extra = function(pid, p) ShowHeroCircle(p, true) end },
+        [gg_rct_Devourer_entry] = { x = -27145., y = -5489., facing = 0., vision = gg_rct_Devourer_Camera_Bounds, },
+        [gg_rct_Flee_Devourers] = { x = -15245., y = -14100., facing = 0., vision = MAIN_MAP.vision, exception = function(u, x, y) if u == velreon_guard then SetUnitPosition(u, x, y) end end },
+        [gg_rct_Enter_Tomb]     = { x = -19709., y = -20237., facing = 0., vision = gg_rct_TombCameraBounds },
+        [gg_rct_Exit_Tomb]      = { x = -15426., y = -9535., facing = 225., vision = MAIN_MAP.vision },
+        [gg_rct_CryptO]         = { x = 20353., y = 11426., facing = 270., vision = gg_rct_Crypt_Vision },
+        [gg_rct_CryptIn]        = { x = 11793., y = 8501., facing = 180., vision = MAIN_MAP.vision },
+    }
+
+    --Enter church
+    RegionAddRect(MoveRegions[1], gg_rct_ChurchO)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[1], nil)
+
+    --Leave church
+    RegionAddRect(MoveRegions[2], gg_rct_ChurchIn)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[2], nil)
+
+    --Enter tavern
+    RegionAddRect(MoveRegions[3], gg_rct_Tavern_Out)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[3], nil)
+
+    --Leave tavern
+    RegionAddRect(MoveRegions[4], gg_rct_Tavern_In)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[4], nil)
+
+    --Enter devourer cave
+    RegionAddRect(MoveRegions[5], gg_rct_Devourer_entry)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[5], nil)
+
+    --Leave devourer cave
+    RegionAddRect(MoveRegions[6], gg_rct_Flee_Devourers)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[6], nil)
+
+    --Enter wizard tower
+    RegionAddRect(MoveRegions[7], gg_rct_Enter_Tomb)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[7], nil)
+
+    --Leave wizard tower
+    RegionAddRect(MoveRegions[8], gg_rct_Exit_Tomb)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[8], nil)
+
+    --Enter crypt
+    RegionAddRect(MoveRegions[9], gg_rct_CryptO)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[9], nil)
+
+    --Leave crypt
+    RegionAddRect(MoveRegions[10], gg_rct_CryptIn)
+    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[10], nil)
+
+    TriggerAddCondition(enterTrigger, Condition(EnterArea))
+
+    RegionAddRect(specialRegion, gg_rct_Rescueable_Worker)
+    RegionAddRect(specialRegion, gg_rct_Key_Quest)
+    RegionAddRect(specialRegion, gg_rct_Naga_Waygate)
 
     RegionAddRect(safeRegion, gg_rct_Town_Boundry)
     RegionAddRect(safeRegion, gg_rct_Top_of_Town)
@@ -339,16 +305,9 @@ end
     RegionAddRect(leaveRegion, gg_rct_Town_Boundry_2)
     RegionAddRect(leaveRegion, gg_rct_Town_boundry_4)
 
-    RegionAddRect(map, bj_mapInitialPlayableArea)
-
-    TriggerRegisterEnterRegion(enterzone, enterRegion, Condition(isplayerunitRegion))
-    TriggerAddAction(enterzone, EnterArea)
-
-    TriggerRegisterEnterRegion(safezone, safeRegion, Filter(SafeZones))
-
-    TriggerRegisterEnterRegion(villagerleave, leaveRegion, Condition(isvillager))
-    TriggerAddAction(villagerleave, LeaveZone)
-
+    TriggerRegisterEnterRegion(specialTrigger, specialRegion, Filter(SpecialRegions))
+    TriggerRegisterEnterRegion(safeTrigger, safeRegion, Filter(SafeRegions))
+    TriggerRegisterEnterRegion(leaveTrigger, leaveRegion, Filter(LeaveRegions))
 end)
 
 if Debug then Debug.endFile() end

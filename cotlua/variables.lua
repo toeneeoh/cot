@@ -3,16 +3,17 @@ if Debug then Debug.beginFile 'Variables' end
 OnInit.global("Variables", function(require)
     require 'Users'
 
-    LIBRARY_dev = true
-    MAP_NAME = "CoT Nevermore" ---@type string 
-    SAVE_LOAD_VERSION                  = 1 ---@type integer 
-    TIME = 0 ---@type integer 
+    LIBRARY_dev         = true
+    MAP_NAME            = "CoT Nevermore" ---@type string 
+    SAVE_LOAD_VERSION   = 1 ---@type integer 
+    TIME                = 0 ---@type integer 
 
     PLAYER_CAP                         = 6 ---@type integer 
     MAX_LEVEL                          = 400 ---@type integer 
     LEECH_CONSTANT                     = 50 ---@type integer 
     CALL_FOR_HELP_RANGE                = 800. ---@type number 
     NEARBY_BOSS_RANGE                  = 2500. ---@type number 
+    BOSS_RESPAWN_TIME                  = 600 ---@type integer
     MIN_LIFE                           = 0.406 ---@type number 
     PLAYER_TOWN                        = 8 ---@type integer 
     PLAYER_BOSS                        = 11 ---@type integer 
@@ -28,7 +29,7 @@ OnInit.global("Variables", function(require)
     BACKPACK                           = FourCC('H05D') ---@type integer 
     HERO_PHOENIX_RANGER                = FourCC('E00X') ---@type integer 
     HERO_ROYAL_GUARDIAN                = FourCC('H04Z') ---@type integer 
-    HERO_ARCANE_WARRIOR                = FourCC('H05B') ---@type integer 
+    HERO_CRUSADER                      = FourCC('H05B') ---@type integer 
     HERO_MASTER_ROGUE                  = FourCC('E015') ---@type integer 
     HERO_ELEMENTALIST                  = FourCC('E00W') ---@type integer 
     HERO_HIGH_PRIEST                   = FourCC('E012') ---@type integer 
@@ -65,6 +66,51 @@ OnInit.global("Variables", function(require)
     PROF_BOW                           = 0x100 ---@type integer 
     PROF_STAFF                         = 0x200 ---@type integer 
 
+    HeroStats = {
+        [HERO_PHOENIX_RANGER]   = { prof = PROF_BOW + PROF_LEATHER,
+                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3 },
+        [HERO_MARKSMAN]         = { prof = PROF_BOW + PROF_LEATHER,
+                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3 },
+        [HERO_MARKSMAN_SNIPER]  = { prof = PROF_BOW + PROF_LEATHER,
+                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3 },
+        [HERO_MASTER_ROGUE]     = { prof = PROF_DAGGER + PROF_LEATHER,
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25 },
+        [HERO_THUNDERBLADE]     = { prof = PROF_DAGGER + PROF_LEATHER,
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25 },
+        [HERO_ASSASSIN]         = { prof = PROF_DAGGER + PROF_LEATHER,
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25 },
+        [HERO_VAMPIRE]          = { prof = PROF_HEAVY + PROF_PLATE + PROF_DAGGER + PROF_LEATHER,
+                                    phys_resist = 1.5, magic_resist = 1.5, phys_damage = 1.25 },
+        [HERO_BLOODZERKER]      = { prof = PROF_HEAVY + PROF_SWORD + PROF_PLATE,
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.2 },
+        [HERO_WARRIOR]          = { prof = PROF_HEAVY + PROF_SWORD + PROF_PLATE,
+                                    phys_resist = 1.1, magic_resist = 1.5, phys_damage = 1.2 },
+        [HERO_ROYAL_GUARDIAN]   = { prof = PROF_HEAVY + PROF_SWORD + PROF_PLATE + PROF_FULLPLATE,
+                                    phys_resist = 0.9, magic_resist = 1.5, phys_damage = 1.2 },
+        [HERO_OBLIVION_GUARD]   = { prof = PROF_HEAVY + PROF_PLATE + PROF_FULLPLATE,
+                                    phys_resist = 1.0, magic_resist = 1.3, phys_damage = 1.2 },
+        [HERO_CRUSADER]         = { prof = PROF_HEAVY + PROF_FULLPLATE + PROF_STAFF + PROF_CLOTH,
+                                    phys_resist = 1.1, magic_resist = 1.1, phys_damage = 1.2 },
+        [HERO_DARK_SAVIOR]      = { prof = PROF_SWORD + PROF_PLATE + PROF_STAFF + PROF_CLOTH,
+                                    phys_resist = 1.6, magic_resist = 1.0, phys_damage = 1.2 },
+        [HERO_DARK_SAVIOR_DEMON]= { prof = PROF_SWORD + PROF_PLATE + PROF_STAFF + PROF_CLOTH,
+                                    phys_resist = 1.6, magic_resist = 1.0, phys_damage = 1.2 },
+        [HERO_SAVIOR]           = { prof = PROF_SWORD + PROF_PLATE + PROF_HEAVY + PROF_FULLPLATE,
+                                    phys_resist = 1.2, magic_resist = 1.3, phys_damage = 1.2 },
+        [HERO_DARK_SUMMONER]    = { prof = PROF_STAFF + PROF_CLOTH,
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+        [HERO_BARD]             = { prof = PROF_STAFF + PROF_CLOTH,
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+        [HERO_ARCANIST]         = { prof = PROF_STAFF + PROF_CLOTH,
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+        [HERO_HYDROMANCER]      = { prof = PROF_STAFF + PROF_CLOTH,
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+        [HERO_HIGH_PRIEST]      = { prof = PROF_STAFF + PROF_CLOTH,
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+        [HERO_ELEMENTALIST]     = { prof = PROF_STAFF + PROF_CLOTH,
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+    }
+
     --currency
     GOLD                               = 0 ---@type integer 
     LUMBER                             = 1 ---@type integer 
@@ -74,40 +120,40 @@ OnInit.global("Variables", function(require)
     CURRENCY_COUNT                     = 5 ---@type integer 
 
     --bosses
-    BOSS_TAUREN                        = 0 ---@type integer 
-    BOSS_DEMON_PRINCE                  = 0 ---@type integer 
-    BOSS_MYSTIC                        = 1 ---@type integer 
-    BOSS_ABSOLUTE_HORROR               = 1 ---@type integer 
-    BOSS_HELLFIRE                      = 2 ---@type integer 
-    BOSS_ORSTED                        = 2 ---@type integer 
-    BOSS_SLAUGHTER_QUEEN               = 3 ---@type integer 
-    BOSS_DWARF                         = 3 ---@type integer 
-    BOSS_SATAN                         = 4 ---@type integer 
-    BOSS_PALADIN                       = 4 ---@type integer 
-    BOSS_DARK_SOUL                     = 5 ---@type integer 
-    BOSS_DRAGOON                       = 5 ---@type integer 
-    BOSS_LEGION                        = 6 ---@type integer 
-    BOSS_DEATH_KNIGHT                  = 6 ---@type integer 
-    BOSS_THANATOS                      = 7 ---@type integer 
-    BOSS_VASHJ                         = 7 ---@type integer 
-    BOSS_EXISTENCE                     = 8 ---@type integer 
-    BOSS_YETI                          = 8 ---@type integer 
-    BOSS_AZAZOTH                       = 9 ---@type integer 
-    BOSS_OGRE                          = 9 ---@type integer 
-    BOSS_XALLARATH                     = 10 ---@type integer 
-    BOSS_NERUBIAN                      = 10 ---@type integer 
-    BOSS_POLAR_BEAR                    = 11 ---@type integer 
-    BOSS_LIFE                          = 12 ---@type integer 
-    BOSS_HATE                          = 13 ---@type integer 
-    BOSS_LOVE                          = 14 ---@type integer 
-    BOSS_KNOWLEDGE                     = 15 ---@type integer 
-    BOSS_GODSLAYER                     = 16 ---@type integer 
-    BOSS_TOTAL                         = 16 ---@type integer 
+    BOSS_TAUREN                        = 1 ---@type integer 
+    BOSS_DEMON_PRINCE                  = 1 ---@type integer 
+    BOSS_MYSTIC                        = 2 ---@type integer 
+    BOSS_ABSOLUTE_HORROR               = 2 ---@type integer 
+    BOSS_HELLFIRE                      = 3 ---@type integer 
+    BOSS_ORSTED                        = 3 ---@type integer 
+    BOSS_SLAUGHTER_QUEEN               = 4 ---@type integer 
+    BOSS_DWARF                         = 4 ---@type integer 
+    BOSS_SATAN                         = 5 ---@type integer 
+    BOSS_PALADIN                       = 5 ---@type integer 
+    BOSS_DARK_SOUL                     = 6 ---@type integer 
+    BOSS_DRAGOON                       = 6 ---@type integer 
+    BOSS_LEGION                        = 7 ---@type integer 
+    BOSS_DEATH_KNIGHT                  = 7 ---@type integer 
+    BOSS_THANATOS                      = 8 ---@type integer 
+    BOSS_VASHJ                         = 8 ---@type integer 
+    BOSS_EXISTENCE                     = 9 ---@type integer 
+    BOSS_YETI                          = 9 ---@type integer 
+    BOSS_AZAZOTH                       = 10 ---@type integer 
+    BOSS_OGRE                          = 10 ---@type integer 
+    BOSS_XALLARATH                     = 11 ---@type integer 
+    BOSS_NERUBIAN                      = 11 ---@type integer 
+    BOSS_POLAR_BEAR                    = 12 ---@type integer 
+    BOSS_LIFE                          = 13 ---@type integer 
+    BOSS_HATE                          = 14 ---@type integer 
+    BOSS_LOVE                          = 15 ---@type integer 
+    BOSS_KNOWLEDGE                     = 16 ---@type integer 
+    BOSS_ARKADEN                       = 17 ---@type integer 
 
     --items
     MAX_REINCARNATION_CHARGES          = 3 ---@type integer 
     BOUNDS_OFFSET                      = 50  ---@type integer --leaves room for 50 different values per stat? (overkill?)
-    ABILITY_OFFSET                     = 100 ---@type integer 
+    SYNTAX_COUNT                       = 6
+    ABILITY_OFFSET                     = 500 ---@type integer --minimum above 30 + BOUNDS_OFFSET * SYNTAX_COUNT
     QUALITY_SAVED                      = 7 ---@type integer 
     ITEM_TOOLTIP                       = 0 ---@type integer 
     ITEM_TIER                          = 1 ---@type integer 
@@ -150,24 +196,40 @@ OnInit.global("Variables", function(require)
     KILLQUEST_LAST                     = 6 ---@type integer 
     KILLQUEST_STATUS                   = 7 ---@type integer 
 
-    --unit data
+    --creep data
     UNITDATA_COUNT                     = 0 ---@type integer 
     UNITDATA_SPAWN                     = 1 ---@type integer 
 
+    MAIN_MAP = {
+        rect = gg_rct_Main_Map,
+        vision = gg_rct_Main_Map_Vision,
+        minX = GetRectMinX(gg_rct_Main_Map),
+        minY = GetRectMinY(gg_rct_Main_Map),
+        maxX = GetRectMaxX(gg_rct_Main_Map),
+        maxY = GetRectMaxY(gg_rct_Main_Map),
+        region = CreateRegion()
+    }
+
+    RegionAddRect(MAIN_MAP.region, MAIN_MAP.rect)
+
+    MAIN_MAP.centerX = (MAIN_MAP.minX + MAIN_MAP.maxX) / 2.00
+    MAIN_MAP.centerY = (MAIN_MAP.minY + MAIN_MAP.maxY) / 2.00
+
     ASHEN_VAT = nil
 
-    abc        = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" ---@type string 
-    afkInt         = 0 ---@type integer 
-    Hardcore = __jarray(false)
-    HardMode         = 0 ---@type integer 
-    MiscHash           = InitHashtable() ---@type hashtable 
-    PlayerProf           = InitHashtable() ---@type hashtable 
-    pfoe        = Player(PLAYER_NEUTRAL_AGGRESSIVE) ---@type player 
-    pboss        = Player(11) ---@type player 
-    ChaosMode         = false ---@type boolean 
-    ForcedRevive         = false ---@type boolean 
-    CWLoading         = false ---@type boolean 
+    abc = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" ---@type string 
+    afkInt = 0 ---@type integer 
+    Hardcore = __jarray(false) ---@type boolean[]
+    HARD_MODE = 0 ---@type integer 
+    MiscHash = InitHashtable() ---@type hashtable 
+    PlayerProf = InitHashtable() ---@type hashtable 
+    pfoe = Player(PLAYER_NEUTRAL_AGGRESSIVE) ---@type player 
+    pboss = Player(11) ---@type player 
+    ChaosMode = false ---@type boolean 
+    ForcedRevive = false ---@type boolean 
+    CHAOS_LOADING = false ---@type boolean 
     TimePlayed = __jarray(0) ---@type integer[]
+    DummyUnit = gg_unit_h05E_0717
 
     --tables
     infoString=__jarray("") ---@type string[] 
@@ -175,36 +237,17 @@ OnInit.global("Variables", function(require)
     IS_HD=__jarray("") ---@type string[] 
     CURRENCY_ICON=__jarray("") ---@type string[] 
     XP_Rate=__jarray(0) ---@type number[]
+    player_fog = __jarray(false)
 
-    BaseExperience=__jarray(0) ---@type number[] 
-    POWERSOF2=__jarray(0) ---@type integer[] 
-
-    SpellTooltips = {} ---@type table 
-    Threat = {} ---@type table
-    KillQuest = {} ---@type table
+    SpellTooltips = array2d("") ---@type string[][] 
+    Threat = array2d(0) ---@type table
+    KillQuest = array2d(0) ---@type table
     ItemData = {} ---@type table
     UnitData = {} ---@type table
     ItemRewards = {} ---@type table
     ItemPrices = {} ---@type table
-    CosmeticTable = {} ---@type table
-    PrestigeTable = {} ---@type table
-    CrystalRewards = {} ---@type table
+    CosmeticTable = array2d(0) ---@type table
     HeroCircle = {}
-
-    -- nil indexes are initialized as __jarray(0)
-    local mt = {
-        __index = function(tbl, key)
-            if rawget(tbl, key) then
-                return rawget(tbl, key)
-            else
-                local new = __jarray(0)
-                rawset(tbl, key, new)
-                return new
-            end
-        end
-    }
-    setmetatable(CosmeticTable, mt)
-    setmetatable(Threat, mt)
 
     ColoCount_main=__jarray(0) ---@type integer[] 
     ColoEnemyType_main=__jarray(0) ---@type integer[] 
@@ -222,17 +265,13 @@ OnInit.global("Variables", function(require)
     hslook=__jarray(0) ---@type integer[] 
     hsstat=__jarray(0) ---@type integer[] 
     hssort=__jarray(false) ---@type boolean[] 
-    dSkinName=__jarray("") ---@type string[] 
-    ispublic=__jarray(false) ---@type boolean[] 
 
-    funnyList=__jarray(0) ---@type integer[] 
-    funnyList[0] = -894554765
-    funnyList[1] = -1291321931
+    funnyList = {
+        -894554765,
+        -1291321931,
+    }
 
     altModifier = __jarray(false) ---@type boolean[]
-
-    funnyListTotal = 1
-
     charLight={} ---@type effect[] 
 
     RollBoard=nil ---@type leaderboard 
@@ -259,10 +298,7 @@ OnInit.global("Variables", function(require)
     TotalRegen=__jarray(0) ---@type number[] 
     BuffRegen=__jarray(0) ---@type number[] 
     BoostValue=__jarray(0) ---@type number[] 
-    DealtDmgBase=__jarray(0) ---@type number[] 
-    PhysicalTakenBase=__jarray(0) ---@type number[] 
     PhysicalTaken=__jarray(0) ---@type number[] 
-    MagicTakenBase=__jarray(0) ---@type number[] 
     MagicTaken=__jarray(0) ---@type number[] 
 
     MultiShot=__jarray(false) ---@type boolean[] 
@@ -272,14 +308,14 @@ OnInit.global("Variables", function(require)
     BOOST=__jarray(0) ---@type number[] 
     LBOOST=__jarray(0) ---@type number[] 
 
-    TownCenter          = Location(-250., 160.) ---@type location 
-    ColosseumCenter          = Location(21710., -4261.) ---@type location 
-    StruggleCenter          = Location(28030., 4361.) ---@type location 
+    TownCenter = Location(-250., 160.) ---@type location 
+    ColosseumCenter = Location(21710., -4261.) ---@type location 
+    StruggleCenter = Location(28030., 4361.) ---@type location 
     InColo=__jarray(false) ---@type boolean[] 
     InStruggle=__jarray(false) ---@type boolean[] 
-    StruggleText         = CreateTextTag() ---@type texttag 
-    ColoText         = CreateTextTag() ---@type texttag 
-    ColoWaveCount         = 0 ---@type integer 
+    StruggleText = CreateTextTag() ---@type texttag 
+    ColoText = CreateTextTag() ---@type texttag 
+    ColoWaveCount = 0 ---@type integer 
 
     DEFAULT_LIGHTING        = "Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx" ---@type string 
 
@@ -292,18 +328,16 @@ OnInit.global("Variables", function(require)
     StruggleGoldPer = __jarray(0) ---@type integer[]
 
     SYNC_PREFIX        = "S" ---@type string 
-    DUMMY_LIST={} ---@type unit[] 
-    DUMMY_STACK       = CreateGroup()
+    DUMMY_LIST = {}
+    DUMMY_STACK = {}
+    DUMMY_FLAG = {}
     DUMMY_COUNT         = 0 ---@type integer 
     DUMMY_RECYCLE_TIME      = 5. ---@type number 
-    TEMP_DUMMY = nil ---@type unit 
     QUEUE_BOARD = nil ---@type multiboard
     MULTI_BOARD = nil ---@type multiboard 
     MB_SPOT=__jarray(0) ---@type integer[] 
     ColoPlayerCount         = 0 ---@type integer 
     BOOST_OFF         = false ---@type boolean 
-    callbackCount         = 0 ---@type integer 
-    passedValue=__jarray(0) ---@type integer[] 
 
     GodsEnterFlag         = false ---@type boolean 
     GodsRepeatFlag         = false ---@type boolean 
@@ -312,13 +346,13 @@ OnInit.global("Variables", function(require)
     DeadGods         = 4 ---@type integer 
     BANISH_FLAG         = false ---@type boolean 
 
-    ACQUIRE_TRIGGER         = CreateTrigger() ---@type trigger 
-    afkTextVisible=__jarray(false) ---@type boolean[] 
-    hardcoreClicked=__jarray(false) ---@type boolean[] 
-    votingSelectYes         = CreateTrigger() ---@type trigger 
-    votingSelectNo         = CreateTrigger() ---@type trigger 
-    hardcoreSelectYes         = CreateTrigger() ---@type trigger 
-    hardcoreSelectNo         = CreateTrigger() ---@type trigger 
+    ACQUIRE_TRIGGER = CreateTrigger() ---@type trigger 
+    afkTextVisible =__jarray(false) ---@type boolean[] 
+    hardcoreClicked =__jarray(false) ---@type boolean[] 
+    votingSelectYes = CreateTrigger() ---@type trigger 
+    votingSelectNo = CreateTrigger() ---@type trigger 
+    hardcoreSelectYes = CreateTrigger() ---@type trigger 
+    hardcoreSelectNo = CreateTrigger() ---@type trigger 
     afkTextBG=nil ---@type framehandle 
     afkText=nil ---@type framehandle 
     hardcoreBG=nil ---@type framehandle 
@@ -1233,13 +1267,9 @@ OnInit.global("Variables", function(require)
         },
     }
 
-    KillQuest[0] = {}
-    KillQuest[1] = {}
     --trolls
     local id         = FourCC('nits') ---@type integer 
-    KillQuest[id] = {}
     KillQuest[0][0] = id
-    KillQuest[FourCC('I07D')] = {}
     KillQuest[FourCC('I07D')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 15
     KillQuest[id][KILLQUEST_MIN] = 1
@@ -1248,9 +1278,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Troll_Demon_1
     --tuskarr
     id = FourCC('ntks')
-    KillQuest[id] = {}
     KillQuest[0][1] = id
-    KillQuest[FourCC('I058')] = {}
     KillQuest[FourCC('I058')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 3
@@ -1259,9 +1287,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Tuskar_Horror_1
     --spider
     id = FourCC('nnwr')
-    KillQuest[id] = {}
     KillQuest[0][2] = id
-    KillQuest[FourCC('I05F')] = {}
     KillQuest[FourCC('I05F')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 5
@@ -1270,9 +1296,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Spider_Horror_3
     --ursa
     id = FourCC('nfpu')
-    KillQuest[id] = {}
     KillQuest[0][3] = id
-    KillQuest[FourCC('I04U')] = {}
     KillQuest[FourCC('I04U')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 25
     KillQuest[id][KILLQUEST_MIN] = 8
@@ -1281,9 +1305,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Ursa_Abyssal_2
     --polar bears
     id = FourCC('nplg')
-    KillQuest[id] = {}
     KillQuest[0][4] = id
-    KillQuest[FourCC('I04V')] = {}
     KillQuest[FourCC('I04V')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 12
@@ -1292,9 +1314,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Bear_2
     --tauren/ogre
     id = FourCC('n01G')
-    KillQuest[id] = {}
     KillQuest[0][5] = id
-    KillQuest[FourCC('I05B')] = {}
     KillQuest[FourCC('I05B')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 25
     KillQuest[id][KILLQUEST_MIN] = 20
@@ -1303,9 +1323,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_OgreTauren_Void_5
     --unbroken
     id = FourCC('nubw')
-    KillQuest[id] = {}
     KillQuest[0][6] = id
-    KillQuest[FourCC('I05L')] = {}
     KillQuest[FourCC('I05L')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 25
     KillQuest[id][KILLQUEST_MIN] = 29
@@ -1314,9 +1332,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Unbroken_Dimensional_2
     --hellhounds
     id = FourCC('nvdl')
-    KillQuest[id] = {}
     KillQuest[0][7] = id
-    KillQuest[FourCC('I05E')] = {}
     KillQuest[FourCC('I05E')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 44
@@ -1325,9 +1341,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Hell_4
     --centaur
     id = FourCC('n024')
-    KillQuest[id] = {}
     KillQuest[0][8] = id
-    KillQuest[FourCC('I0GD')] = {}
     KillQuest[FourCC('I0GD')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 56
@@ -1336,9 +1350,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Centaur_Nightmare_5
     --magnataur
     id = FourCC('n01M')
-    KillQuest[id] = {}
     KillQuest[0][9] = id
-    KillQuest[FourCC('I05K')] = {}
     KillQuest[FourCC('I05K')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 70
@@ -1347,9 +1359,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Magnataur_Despair_1
     --dragon
     id = FourCC('n02P')
-    KillQuest[id] = {}
     KillQuest[0][10] = id
-    KillQuest[FourCC('I05M')] = {}
     KillQuest[FourCC('I05M')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 92
@@ -1358,9 +1368,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Dragon_Astral_8
     --devourers
     id = FourCC('n02L')
-    KillQuest[id] = {}
     KillQuest[0][11] = id
-    KillQuest[FourCC('I022')] = {}
     KillQuest[FourCC('I022')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 110
@@ -1369,9 +1377,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Devourer_entry
     --demons
     id = FourCC('n034')
-    KillQuest[id] = {}
     KillQuest[1][0] = id
-    KillQuest[FourCC('I03H')] = {}
     KillQuest[FourCC('I03H')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 166
@@ -1380,9 +1386,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Troll_Demon_1
     --horror beast
     id = FourCC('n03A')
-    KillQuest[id] = {}
     KillQuest[1][1] = id
-    KillQuest[FourCC('I09J')] = {}
     KillQuest[FourCC('I09J')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 190
@@ -1391,9 +1395,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Tuskar_Horror_1
     --despair
     id = FourCC('n03F')
-    KillQuest[id] = {}
     KillQuest[1][2] = id
-    KillQuest[FourCC('I03C')] = {}
     KillQuest[FourCC('I03C')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 210
@@ -1402,9 +1404,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Magnataur_Despair_1
     --abyssal
     id = FourCC('n08N')
-    KillQuest[id] = {}
     KillQuest[1][3] = id
-    KillQuest[FourCC('I02A')] = {}
     KillQuest[FourCC('I02A')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 229
@@ -1413,9 +1413,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Ursa_Abyssal_2
     --void
     id = FourCC('n031')
-    KillQuest[id] = {}
     KillQuest[1][4] = id
-    KillQuest[FourCC('I03I')] = {}
     KillQuest[FourCC('I03I')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 250
@@ -1424,9 +1422,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_OgreTauren_Void_5
     --nightmares
     id = FourCC('n020')
-    KillQuest[id] = {}
     KillQuest[1][5] = id
-    KillQuest[FourCC('I0GE')] = {}
     KillQuest[FourCC('I0GE')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 270
@@ -1435,9 +1431,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Centaur_Nightmare_5
     --hellspawn
     id = FourCC('n03D')
-    KillQuest[id] = {}
     KillQuest[1][6] = id
-    KillQuest[FourCC('I03J')] = {}
     KillQuest[FourCC('I03J')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 290
@@ -1446,9 +1440,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Hell_4
     --denied existence
     id = FourCC('n03J')
-    KillQuest[id] = {}
     KillQuest[1][7] = id
-    KillQuest[FourCC('I02G')] = {}
     KillQuest[FourCC('I02G')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 30
     KillQuest[id][KILLQUEST_MIN] = 310
@@ -1457,9 +1449,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Devourer_entry
     --astral
     id = FourCC('n03M')
-    KillQuest[id] = {}
     KillQuest[1][8] = id
-    KillQuest[FourCC('I039')] = {}
     KillQuest[FourCC('I039')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 330
@@ -1468,9 +1458,7 @@ OnInit.global("Variables", function(require)
     KillQuest[id][KILLQUEST_REGION] = gg_rct_Dragon_Astral_8
     --dimensionals
     id = FourCC('n026')
-    KillQuest[id] = {}
     KillQuest[1][9] = id
-    KillQuest[FourCC('I0Q1')] = {}
     KillQuest[FourCC('I0Q1')][0] = id
     KillQuest[id][KILLQUEST_GOAL] = 20
     KillQuest[id][KILLQUEST_MIN] = 350
@@ -1483,6 +1471,7 @@ OnInit.global("Variables", function(require)
 
     Experience_Table = {}
     RewardGold = {}
+
     for i = 1, 500 do
         Experience_Table[i] = R2I(13. * i * 1.4 ^ (i / 20) + 10)
         RewardGold[i] = Experience_Table[i] ^ 0.94 / 8.
@@ -1490,59 +1479,29 @@ OnInit.global("Variables", function(require)
 
     --base experience rates per 5 levels
 
-    for i = 1, 400, 5 do
+    BaseExperience = __jarray(0) ---@type number[]
+    for i = 0, 400, 5 do
         BaseExperience[i] = (i <= 10) and 425 or (BaseExperience[i - 5] - 17 / (i - 5)) * 0.919
     end
 
-    Gold_Mod = {}
-    Gold_Mod[1] = 1
-    Gold_Mod[2] = Pow(0.55, 0.5)
-    Gold_Mod[3] = Pow(0.50, 0.5)
-    Gold_Mod[4] = Pow(0.45, 0.5)
-    Gold_Mod[5] = Pow(0.40, 0.5)
-    Gold_Mod[6] = Pow(0.35, 0.5)
-
-    POWERSOF2[0] = 0x1
-    POWERSOF2[1] = 0x2
-    POWERSOF2[2] = 0x4
-    POWERSOF2[3] = 0x8
-    POWERSOF2[4] = 0x10
-    POWERSOF2[5] = 0x20
-    POWERSOF2[6] = 0x40
-    POWERSOF2[7] = 0x80
-    POWERSOF2[8] = 0x100
-    POWERSOF2[9] = 0x200
-    POWERSOF2[10] = 0x400
-    POWERSOF2[11] = 0x800
-    POWERSOF2[12] = 0x1000
-    POWERSOF2[13] = 0x2000
-    POWERSOF2[14] = 0x4000
-    POWERSOF2[15] = 0x8000
-    POWERSOF2[16] = 0x10000
-    POWERSOF2[17] = 0x20000
-    POWERSOF2[18] = 0x40000
-    POWERSOF2[19] = 0x80000
-    POWERSOF2[20] = 0x100000
-    POWERSOF2[21] = 0x200000
-    POWERSOF2[22] = 0x400000
-    POWERSOF2[23] = 0x800000
-    POWERSOF2[24] = 0x1000000
-    POWERSOF2[25] = 0x2000000
-    POWERSOF2[26] = 0x4000000
-    POWERSOF2[27] = 0x8000000
-    POWERSOF2[28] = 0x10000000
-    POWERSOF2[29] = 0x20000000
-    POWERSOF2[30] = 0x40000000
+    Gold_Mod = {
+        1,
+        0.55 ^ 0.5,
+        0.50 ^ 0.5,
+        0.45 ^ 0.5,
+        0.40 ^ 0.5,
+        0.35 ^ 0.5,
+    }
 
     infoString[0] = "Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Hardmode\n -info 6, Prestige\n -info 7, Proficiency\n -info 8, Aggro System"
     infoString[1] = "Most units in this game (besides Bosses, Colosseum, Struggle) will attempt to revive where they died 30 seconds after death. If a player hero/unit is within 800 range they will spawn frozen and invulnerable until no players are around."
-    infoString[2] = "Bosses respawn after 10 minutes and non-hero bosses respawn after 5 minutes, -hardmode speeds up respawns by 25%"
+    infoString[2] = "Bosses respawn after 10 minutes and non-hero bosses respawn after 5 minutes, -hardmode speeds up respawns by 25\x25"
     infoString[3] = "The town is protected from enemy invasion and any entering enemy will be teleported back to their original spawn."
     infoString[4] = [[Hardcore players that die without a reincarnation item/spell will be removed from the game and cannot save/load or start a new character. 
     A hardcore hero can only save every 30 minutes- the timer starts upon saving OR upon loading your hardcore hero. 
     Hardcore heroes receive double the bonus from prestiging.
     If you need to save before the timer expires you can use -forcesave to save immediately, but this deletes your hero, leaving you unable to load again in the current game (same as if your hero died).]]
-    infoString[5] = [[Hardmode doubles the health and damage of bosses, doubles their drop chance, increases their gold/xp/crystal rewards, and speeds up respawn time by 25%.
+    infoString[5] = [[Hardmode doubles the health and damage of bosses, doubles their drop chance, increases their gold/xp/crystal rewards, and speeds up respawn time by 25\x25.
     Does not apply to Dungeons.
     Automatically turns off when entering Chaos, but can be re-activated.]]
     infoString[6] = "You need a |cffffcc00Prestige Token|r to prestige your hero from the church.\nPrestige Talent points are awarded and can be accessed with -prestige.\nPrestige bonuses apply to all of your characters and any new ones."
@@ -1578,40 +1537,42 @@ OnInit.global("Variables", function(require)
     SPELL_FIELD[6] = ABILITY_RLF_DURATION_NORMAL
     SPELL_FIELD_TOTAL = 6 ---@type integer 
 
-    SAVE_TABLE           = InitHashtable() ---@type hashtable 
-    KEY_ITEMS         = 1 ---@type integer 
-    KEY_UNITS         = 2 ---@type integer 
-    CUSTOM_ITEM_OFFSET         = FourCC('I000') ---@type integer 
-    MAX_SAVED_ITEMS         = 8191 ---@type integer 
-    MAX_SAVED_HEROES         = 63  ---@type integer --6 bits
-    SAVE_UNIT_TYPE = __jarray(0) ---@type integer[] 
+    CUSTOM_ITEM_OFFSET = FourCC('I000') ---@type integer 
+    MAX_SAVED_ITEMS    = 8191 ---@type integer 
+    MAX_SAVED_HEROES   = 63  ---@type integer --6 bits
+    SAVE_UNIT_TYPE     = __jarray(0) ---@type integer[] 
 
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("tier"), ITEM_TIER)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("type"), ITEM_TYPE)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("upg"), ITEM_UPGRADE_MAX)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("req"), ITEM_LEVEL_REQUIREMENT)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("health"), ITEM_HEALTH)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("mana"), ITEM_MANA)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("damage"), ITEM_DAMAGE)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("armor"), ITEM_ARMOR)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("str"), ITEM_STRENGTH)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("agi"), ITEM_AGILITY)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("int"), ITEM_INTELLIGENCE)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("regen"), ITEM_REGENERATION)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("dr"), ITEM_DAMAGE_RESIST)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("mr"), ITEM_MAGIC_RESIST)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("ms"), ITEM_MOVESPEED)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("evasion"), ITEM_EVASION)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("spellboost"), ITEM_SPELLBOOST)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("cc"), ITEM_CRIT_CHANCE)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("cd"), ITEM_CRIT_DAMAGE)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("bat"), ITEM_BASE_ATTACK_SPEED)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("abil"), ITEM_ABILITY)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("abil2"), ITEM_ABILITY2)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("cost"), ITEM_COST)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("limit"), ITEM_LIMIT)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("gold"), ITEM_GOLD_GAIN)
-    SaveInteger(SAVE_TABLE, KEY_ITEMS, StringHash("discount"), ITEM_DISCOUNT)
+    SAVE_TABLE = {
+        KEY_ITEMS = {
+            tier = ITEM_TIER,
+            type = ITEM_TYPE,
+            upg = ITEM_UPGRADE_MAX,
+            req = ITEM_LEVEL_REQUIREMENT,
+            health = ITEM_HEALTH,
+            mana = ITEM_MANA,
+            damage = ITEM_DAMAGE,
+            armor = ITEM_ARMOR,
+            str = ITEM_STRENGTH,
+            agi = ITEM_AGILITY,
+            int = ITEM_INTELLIGENCE,
+            regen = ITEM_REGENERATION,
+            dr = ITEM_DAMAGE_RESIST,
+            mr = ITEM_MAGIC_RESIST,
+            ms = ITEM_MOVESPEED,
+            evasion = ITEM_EVASION,
+            spellboost = ITEM_SPELLBOOST,
+            cc = ITEM_CRIT_CHANCE,
+            cd = ITEM_CRIT_DAMAGE,
+            bat = ITEM_BASE_ATTACK_SPEED,
+            abil = ITEM_ABILITY,
+            abil2 = ITEM_ABILITY2,
+            cost = ITEM_COST,
+            limit = ITEM_LIMIT,
+            gold = ITEM_GOLD_GAIN,
+            discount = ITEM_DISCOUNT,
+        },
+        KEY_UNITS = {}
+    }
 
     TIER_NAME= {} ---@type string[] 
     TYPE_NAME= {} ---@type string[] 
@@ -1789,15 +1750,15 @@ OnInit.global("Variables", function(require)
     STAT_NAME[ITEM_AGILITY] = "|r |cff008800Agility|r"
     STAT_NAME[ITEM_INTELLIGENCE] = "|r |cff2255ffIntelligence|r"
     STAT_NAME[ITEM_REGENERATION] = "|r |cffa00070Regeneration|r"
-    STAT_NAME[ITEM_DAMAGE_RESIST] = "%|r |cffff8040Damage Resist|r"
-    STAT_NAME[ITEM_MAGIC_RESIST] = "%|r |cff8000ffMagic Resist|r"
+    STAT_NAME[ITEM_DAMAGE_RESIST] = "\x25|r |cffff8040Damage Resist|r"
+    STAT_NAME[ITEM_MAGIC_RESIST] = "\x25|r |cff8000ffMagic Resist|r"
     STAT_NAME[ITEM_MOVESPEED] = "|r |cff888888Movespeed|r"
     STAT_NAME[ITEM_CRIT_CHANCE] = "x|r |cffffcc00Critical Strike|r"
     STAT_NAME[ITEM_CRIT_DAMAGE] = "x|r |cffffcc00Critical Strike|r"
-    STAT_NAME[ITEM_EVASION] = "%|r |cff008080Evasion|r"
-    STAT_NAME[ITEM_SPELLBOOST] = "%|r |cff80ffffSpellboost|r"
-    STAT_NAME[ITEM_BASE_ATTACK_SPEED] = "%|r |cff446600Base Attack Speed|r"
-    STAT_NAME[ITEM_GOLD_GAIN] = "%|r |cffffff00Gold Find|r"
+    STAT_NAME[ITEM_EVASION] = "\x25|r |cff008080Evasion|r"
+    STAT_NAME[ITEM_SPELLBOOST] = "\x25|r |cff80ffffSpellboost|r"
+    STAT_NAME[ITEM_BASE_ATTACK_SPEED] = "\x25|r |cff446600Base Attack Speed|r"
+    STAT_NAME[ITEM_GOLD_GAIN] = "\x25|r |cffffff00Gold Find|r"
 
     LIMIT_STRING[1] = "You can only wear one of this item."
     LIMIT_STRING[2] = "You only have two feet"
@@ -1851,7 +1812,7 @@ OnInit.global("Variables", function(require)
         "|cffc0c0c0Once you challenge the gods you cannot flee.|r",
         "|cffc0c0c0Some artifacts remain frozen in ice, waiting to be recovered...|r",
         "|cffc0c0c0Your colosseum experience rate will drop the more you participate, recover it by gaining experience outside of colosseum.|r",
-        "|cffc0c0c0Spellboost innately affects the damage of your spells by plus or minus 20%.|r",
+        "|cffc0c0c0Spellboost innately affects the damage of your spells by plus or minus 20\x25.|r",
         "|cffc0c0c0Critical strike items and spells can stack their effect, the multipliers are additive.|r",
         "|cffc0c0c0The Ashen Vat is a mysterious crafting device located in the north-west tower.|r",
         "|cffc0c0c0The actions menu (Z on your hero) provides many useful settings such as displaying allied hero portraits on the left.|r",
@@ -1863,10 +1824,11 @@ OnInit.global("Variables", function(require)
     LAST_HINT = 0
     FORCE_HINT = CreateForce() ---@type force 
 
+    PrestigeTable = array2d(0) ---@type table
+
     local U = User.first
 
     while U do
-        PrestigeTable[U.id] = __jarray(0)
         ForceAddPlayer(FORCE_HINT, U.player)
         U = U.next
     end

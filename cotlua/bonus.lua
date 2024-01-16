@@ -8,8 +8,7 @@ OnInit.global("Bonus", function()
     BONUS_HERO_INT                 = 4  ---@type integer 
     BONUS_LIFE_REGEN               = 5  ---@type integer 
     BONUS_ATTACK_SPEED             = 6  ---@type integer 
-
-    BONUS_COUNT         = 6 ---@type integer 
+    BONUS_COUNT                    = 6 ---@type integer 
 
     BONUS_ABIL = { ---@type integer
         [0] = FourCC('Z000'),
@@ -32,9 +31,7 @@ OnInit.global("Bonus", function()
         [6] = ABILITY_RLF_ATTACK_SPEED_INCREASE_ISX1
     }
 
-    ---@param u unit
-    ---@param bonus integer
-    ---@return number
+    ---@type fun(u: unit, bonus: integer): number
     function UnitGetBonus(u, bonus)
         if bonus == BONUS_LIFE_REGEN then
             return BlzGetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE)
@@ -45,9 +42,7 @@ OnInit.global("Bonus", function()
         end
     end
 
-    ---@param u unit
-    ---@param bonus integer
-    ---@param amount number
+    ---@type fun(u: unit, bonus: integer, amount: number)
     function UnitSetBonus(u, bonus, amount)
         if GetUnitAbilityLevel(u, BONUS_ABIL[bonus]) == 0 then
             UnitAddAbility(u, BONUS_ABIL[bonus])
@@ -66,9 +61,7 @@ OnInit.global("Bonus", function()
         DecUnitAbilityLevel(u, BONUS_ABIL[bonus])
     end
 
-    ---@param u unit
-    ---@param bonus integer
-    ---@param amount number
+    ---@type fun(u: unit, bonus: integer, amount: number)
     function UnitAddBonus(u, bonus, amount)
         if amount ~= 0 then
             UnitSetBonus(u, bonus, UnitGetBonus(u, bonus) + amount)

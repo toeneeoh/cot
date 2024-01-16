@@ -3,31 +3,20 @@ if Debug then Debug.beginFile 'PlayerData' end
 OnInit.global("PlayerData", function(require)
     require 'CodeGen'
 
-    HERO_PROF=__jarray(0) ---@type integer[] 
-    LOAD_FLAG=__jarray(false) ---@type boolean[] 
+    LOAD_FLAG = __jarray(false) ---@type boolean[] 
 
-    MAX_TIME_PLAYED         = 1000000  ---@type integer --max minutes - 16666 hours
-    MAX_PLAT_ARC_CRYS         = 100000 ---@type integer 
-    MAX_GOLD_LUMB         = 10000000 ---@type integer 
-    MAX_PHTL         = 4000000  ---@type integer 
-    MAX_UPGRADE_LEVEL         = 10 ---@type integer 
-    MAX_STATS         = 250000 ---@type integer 
-    MAX_SLOTS         = 29 ---@type integer 
-    MAX_INVENTORY_SLOTS         = 24 ---@type integer 
+    MAX_TIME_PLAYED     = 1000000  ---@type integer --max minutes - 16666 hours
+    MAX_PLAT_ARC_CRYS   = 100000 ---@type integer 
+    MAX_GOLD_LUMB       = 10000000 ---@type integer 
+    MAX_UPGRADE_LEVEL   = 10 ---@type integer 
+    MAX_STATS           = 250000 ---@type integer 
+    MAX_SLOTS           = 29 ---@type integer 
+    MAX_INVENTORY_SLOTS = 24 ---@type integer 
 
-    KEY_PROFILE         = 0 ---@type integer 
-    KEY_CHARACTER         = 1 ---@type integer 
+    deleteMode      =__jarray(false) ---@type boolean[] 
 
-    VARIATION_FLAG=__jarray(0) ---@type integer[] 
-
-    loadPage=__jarray(0) ---@type integer[] 
-    loadCounter=__jarray(0) ---@type integer[] 
-    newSlotFlag         = false ---@type boolean 
-    deleteMode=__jarray(false) ---@type boolean[] 
-    loadSlotCounter=__jarray(0) ---@type integer[] 
-
-    newcharacter=__jarray(false) ---@type boolean[] 
-    CANNOT_LOAD=__jarray(false) ---@type boolean[] 
+    newcharacter    =__jarray(false) ---@type boolean[] 
+    CANNOT_LOAD     =__jarray(false) ---@type boolean[] 
 
     --boolean LOAD_SAFE = true
 
@@ -133,19 +122,7 @@ OnInit.global("PlayerData", function(require)
     do
         local thistype = Profile
         thistype.sync_event = CreateTrigger() ---@type trigger 
-        thistype.savecode=__jarray("") ---@type string[] [PLAYER_CAP]
-
-        -- metatable to handle indices (Profile[1])
-        local mt = {
-            __index = function(tbl, key)
-                if type(key) == "number" then
-                    return rawget(tbl, key)
-                end
-            end
-        }
-
-        -- Set metatable for the Profile table
-        setmetatable(thistype, mt)
+        thistype.savecode   =__jarray("") ---@type string[] [PLAYER_CAP]
 
         ---@type fun(pid: integer):Profile
         function thistype.create(pid)
@@ -299,13 +276,9 @@ OnInit.global("PlayerData", function(require)
 
             table.insert(SaveData[self.pid], self.profileHash)
             table.insert(SaveData[self.pid], self.hero.prestige)
-            if Hardcore[self.pid] == true then
-                self.hero.hardcore = 1
-            else
-                self.hero.hardcore = 0
-            end
+            self.hero.hardcore = (Hardcore[self.pid] == true and 1) or 0
             table.insert(SaveData[self.pid], self.hero.hardcore)
-            self.hero.id = LoadInteger(SAVE_TABLE, KEY_UNITS, HeroID[self.pid])
+            self.hero.id = SAVE_TABLE.KEY_ITEMS[HeroID[self.pid]]
             table.insert(SaveData[self.pid], self.hero.id)
             self.hero.level = GetHeroLevel(Hero[self.pid])
             table.insert(SaveData[self.pid], self.hero.level)
@@ -419,9 +392,9 @@ OnInit.global("PlayerData", function(require)
         function thistype:skin(id)
             self.hero.skin = id
 
-            BlzSetUnitSkin(Backpack[pid], skinID[id])
-            if skinID[id] == FourCC('H02O') then
-                AddUnitAnimationProperties(Backpack[pid], "alternate", true)
+            BlzSetUnitSkin(Backpack[self.pid], CosmeticTable.skins[id])
+            if CosmeticTable.skins[id] == FourCC('H02O') then
+                AddUnitAnimationProperties(Backpack[self.pid], "alternate", true)
             end
         end
 
@@ -437,40 +410,50 @@ OnInit.global("PlayerData", function(require)
     end
 
     ---@class PlayerTimer
+    ---@field create function
+    ---@field destroy function
     ---@field timer TimerQueue
-    ---@field pid integer
-    ---@field tpid integer
-    ---@field str number
-    ---@field agi number
-    ---@field int number
-    ---@field x number
-    ---@field y number
-    ---@field x2 number
-    ---@field y2 number
-    ---@field dmg number
-    ---@field dur number
-    ---@field armor number
-    ---@field aoe number
-    ---@field angle number
-    ---@field speed number
-    ---@field time number
     ---@field ug group
     ---@field sfx effect
+    ---@field curve BezierCurve
     ---@field lfx lightning
     ---@field source unit
     ---@field target unit
-    ---@field curve BezierCurve
-    ---@field create function
-    ---@field destroy function
-    ---@field song integer
+    ---@field range number
+    ---@field agi number
+    ---@field str number
+    ---@field int number
+    ---@field dur number
+    ---@field tag any
+    ---@field pid integer
     ---@field uid integer
+    ---@field song integer
+    ---@field dmg number
+    ---@field angle number
+    ---@field aoe number
+    ---@field x number
+    ---@field y number
+    ---@field speed number
+    ---@field dist number
+    ---@field armor number
+    ---@field id number
+    ---@field infused boolean
+    ---@field limitbreak boolean
+    ---@field cd number
+    ---@field time number
+    ---@field element number
+    ---@field spell number
+    ---@field pause boolean
+    ---@field index integer
     PlayerTimer = {}
     do
         local thistype = PlayerTimer
 
-        ---@type fun():PlayerTimer
+        ---@type fun(): PlayerTimer
         function thistype.create()
             local self = {
+                dur = 0.,
+                time = 0.,
                 timer = TimerQueue.create()
             }
 
@@ -501,6 +484,7 @@ OnInit.global("PlayerData", function(require)
             end
 
             TimerList[self.pid]:removeTimer(self)
+            self = nil
         end
     end
 
@@ -513,39 +497,25 @@ OnInit.global("PlayerData", function(require)
     ---@field stopAllTimers function
     ---@field add function
     ---@field create function
-    TimerList = {}
+    TimerList = {} ---@type TimerList | TimerList[] | PlayerTimer[][]
     do
         local thistype = TimerList
 
-        -- metatable to handle indices (TimerList[1])
-        local mt = {
-            __index = function(tbl, key)
-                if type(key) == "number" then
-                    if rawget(tbl, key) then
-                        return rawget(tbl, key)
-                    else
-                        local new = thistype.create(key)
-                        rawset(tbl, key, new)
-                        return new
-                    end
+        -- Set metatable for the TimerList table
+        setmetatable(thistype, { __index = function(tbl, key)
+                if rawget(tbl, key) then
+                    return rawget(tbl, key)
+                else
+                    local new = {
+                        pid = pid,
+                        timers = {}
+                    }
+                    rawset(tbl, key, new)
+                    setmetatable(new, { __index = thistype })
+                    return new
                 end
             end
-        }
-
-        -- Set metatable for the TimerList table
-        setmetatable(thistype, mt)
-
-        ---@type fun():TimerList
-        function thistype.create(pid)
-            local self = {
-                pid = pid,
-                timers = {}
-            }
-
-            setmetatable(self, { __index = TimerList })
-
-            return self
-        end
+        })
 
         ---@type fun(pt: PlayerTimer)
         function thistype:removeTimer(pt)
@@ -591,9 +561,9 @@ OnInit.global("PlayerData", function(require)
         end
 
         --PlayerTimer constructor
-        ---@type fun():PlayerTimer
+        ---@return PlayerTimer
         function thistype:add()
-            local pt = PlayerTimer.create() ---@class PlayerTimer 
+            local pt = PlayerTimer.create()
 
             pt.pid = self.pid
             self.timers[#self.timers + 1] = pt
@@ -604,13 +574,13 @@ OnInit.global("PlayerData", function(require)
 
     ---@type fun(heroLevel: integer):integer
     function TomeCap(heroLevel)
-        return R2I(Pow(heroLevel, 3) * 0.002 + 10 * heroLevel)
+        return R2I(heroLevel ^ 3 * 0.002 + 10 * heroLevel)
     end
 
     ---@type fun(pid: integer, load: boolean)
     function CharacterSetup(pid, load)
-        local myHero          = Profile[pid].hero ---@type HeroData 
-        local p        = Player(pid - 1) ---@type player 
+        local myHero = Profile[pid].hero ---@type HeroData 
+        local p = Player(pid - 1) ---@type player 
 
         ItemMagicRes[pid] = 1
         ItemDamageRes[pid] = 1
@@ -618,7 +588,7 @@ OnInit.global("PlayerData", function(require)
         if load then
             Hero[pid] = CreateUnit(p, SAVE_UNIT_TYPE[myHero.id], GetRectCenterX(gg_rct_ChurchSpawn), GetRectCenterY(gg_rct_ChurchSpawn), 270.)
             HeroID[pid] = GetUnitTypeId(Hero[pid])
-            urhome[pid] = 0
+            BaseID[pid] = 0
             selectingHero[pid] = false
             Hardcore[pid] = (myHero.hardcore > 0)
 
@@ -700,109 +670,18 @@ OnInit.global("PlayerData", function(require)
 
         --hero proficiencies / inner resistances
 
-        if HeroID[pid] == HERO_PHOENIX_RANGER then
-            HERO_PROF[pid]      = PROF_BOW + PROF_LEATHER
-            PhysicalTakenBase[pid] = 2.0
-            DealtDmgBase[pid]      = 1.3
-            MagicTakenBase[pid]    = 1.8
-        elseif HeroID[pid] == HERO_DARK_SUMMONER then
-            HERO_PROF[pid]      = PROF_STAFF + PROF_CLOTH
-            PhysicalTakenBase[pid] = 1.8
-            DealtDmgBase[pid]      = 1.0
-            MagicTakenBase[pid]    = 1.6
-        elseif HeroID[pid] == HERO_BARD then
-            HERO_PROF[pid]      = PROF_STAFF + PROF_CLOTH
-            PhysicalTakenBase[pid] = 1.8
-            DealtDmgBase[pid]      = 1.0
-            MagicTakenBase[pid]    = 1.6
-        elseif HeroID[pid] == HERO_ARCANIST then
-            HERO_PROF[pid]      = PROF_STAFF + PROF_CLOTH
-            PhysicalTakenBase[pid] = 1.8
-            DealtDmgBase[pid]      = 1.0
-            MagicTakenBase[pid]    = 1.6
+        if HeroID[pid] == HERO_ARCANIST then
             UnitRemoveAbility(Hero[pid], ARCANECOMETS.id)
-        elseif HeroID[pid] == HERO_MASTER_ROGUE then
-            HERO_PROF[pid]      = PROF_DAGGER + PROF_LEATHER
-            PhysicalTakenBase[pid] = 1.6
-            DealtDmgBase[pid]      = 1.25
-            MagicTakenBase[pid]    = 1.8
-        elseif HeroID[pid] == HERO_THUNDERBLADE then
-            HERO_PROF[pid]      = PROF_DAGGER + PROF_LEATHER
-            PhysicalTakenBase[pid] = 1.6
-            DealtDmgBase[pid]      = 1.25
-            MagicTakenBase[pid]    = 1.8
-        elseif HeroID[pid] == HERO_HYDROMANCER then
-            HERO_PROF[pid]      = PROF_STAFF + PROF_CLOTH
-            PhysicalTakenBase[pid] = 1.8
-            DealtDmgBase[pid]      = 1.0
-            MagicTakenBase[pid]    = 1.6
-        elseif HeroID[pid] == HERO_HIGH_PRIEST then
-            HERO_PROF[pid]      = PROF_STAFF + PROF_CLOTH
-            PhysicalTakenBase[pid] = 1.8
-            DealtDmgBase[pid]      = 1.0
-            MagicTakenBase[pid]    = 1.6
-        elseif HeroID[pid] == HERO_ELEMENTALIST then
-            HERO_PROF[pid]      = PROF_STAFF + PROF_CLOTH
-            PhysicalTakenBase[pid] = 1.8
-            DealtDmgBase[pid]      = 1.0
-            MagicTakenBase[pid]    = 1.6
-        elseif HeroID[pid] == HERO_BLOODZERKER then
-            HERO_PROF[pid]      = PROF_HEAVY + PROF_SWORD + PROF_PLATE
-            PhysicalTakenBase[pid] = 1.6
-            DealtDmgBase[pid]      = 1.2
-            MagicTakenBase[pid]    = 1.8
-        elseif HeroID[pid] == HERO_WARRIOR then
-            HERO_PROF[pid]      = PROF_HEAVY + PROF_SWORD + PROF_PLATE
-            PhysicalTakenBase[pid] = 1.1
-            DealtDmgBase[pid]      = 1.2
-            MagicTakenBase[pid]    = 1.5
         elseif HeroID[pid] == HERO_ROYAL_GUARDIAN then
-            HERO_PROF[pid]      = PROF_HEAVY + PROF_SWORD + PROF_PLATE + PROF_FULLPLATE
-            PhysicalTakenBase[pid] = 0.9
-            DealtDmgBase[pid]      = 1.2
-            MagicTakenBase[pid]    = 1.5
             BlzUnitHideAbility(Hero[pid], FourCC('A06K'), true)
         elseif HeroID[pid] == HERO_OBLIVION_GUARD then
-            HERO_PROF[pid]      = PROF_HEAVY + PROF_PLATE + PROF_FULLPLATE
-            PhysicalTakenBase[pid] = 1.0
-            DealtDmgBase[pid]      = 1.2
-            MagicTakenBase[pid]    = 1.3
             BodyOfFireCharges[pid] = 5 --default
 
             if GetLocalPlayer() == Player(pid - 1) then
                 BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\PASBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
             end
-        elseif HeroID[pid] == HERO_VAMPIRE then
-            HERO_PROF[pid]      = PROF_HEAVY + PROF_PLATE + PROF_DAGGER + PROF_LEATHER
-            PhysicalTakenBase[pid]        = 1.5
-            DealtDmgBase[pid]   = 1.25
-            MagicTakenBase[pid] = 1.5
-        elseif HeroID[pid] == HERO_ARCANE_WARRIOR then
-            HERO_PROF[pid]      = PROF_HEAVY + PROF_FULLPLATE + PROF_STAFF + PROF_CLOTH
-            PhysicalTakenBase[pid]        = 1.1
-            DealtDmgBase[pid]   = 1.2
-            MagicTakenBase[pid] = 1.1
-        elseif HeroID[pid] == HERO_DARK_SAVIOR or HeroID[pid] == HERO_DARK_SAVIOR_DEMON then
-            HERO_PROF[pid]      = PROF_SWORD + PROF_PLATE + PROF_STAFF + PROF_CLOTH
-            PhysicalTakenBase[pid]        = 1.6
-            DealtDmgBase[pid]   = 1.2
-            MagicTakenBase[pid] = 1.0
-        elseif HeroID[pid] == HERO_SAVIOR then
-            HERO_PROF[pid]      = PROF_HEAVY + PROF_FULLPLATE + PROF_PLATE + PROF_SWORD
-            PhysicalTakenBase[pid]        = 1.2
-            DealtDmgBase[pid]   = 1.2
-            MagicTakenBase[pid] = 1.3
         elseif HeroID[pid] == HERO_ASSASSIN then
-            HERO_PROF[pid]      = PROF_DAGGER + PROF_LEATHER
-            PhysicalTakenBase[pid]        = 1.6
-            DealtDmgBase[pid]   = 1.25
-            MagicTakenBase[pid] = 1.8
             UnitRemoveAbility(Hero[pid], BLADESPIN.id)
-        elseif HeroID[pid] == HERO_MARKSMAN or HeroID[pid] == HERO_MARKSMAN_SNIPER then
-            HERO_PROF[pid]      = PROF_BOW + PROF_LEATHER
-            PhysicalTakenBase[pid]        = 2.0
-            DealtDmgBase[pid]   = 1.3
-            MagicTakenBase[pid] = 1.8
         end
 
         --load items

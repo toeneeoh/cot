@@ -1,6 +1,7 @@
 if Debug then Debug.beginFile 'ShopComponent' end
 
 OnInit.final("ShopComponent", function()
+
     -- Credits:
     --      Taysen: FDF file
     --      Bribe: Table library
@@ -176,8 +177,10 @@ OnInit.final("ShopComponent", function()
     end
 
     canScroll = __jarray(false) ---@type boolean[] 
+    local doubleTime = array2d(0)
 
     ---@class Button
+    ---@field icon function
     ---@field tooltip Tooltip
     ---@field frame framehandle
     ---@field clicked trigger
@@ -192,13 +195,18 @@ OnInit.final("ShopComponent", function()
     ---@field doubleClick trigger
     ---@field rightClick trigger
     ---@field time table
-    ---@field doubleTime table
     ---@field create function
     ---@field destroy function
     ---@field onClick function
     ---@field onScroll function
     ---@field onRightClick function
     ---@field onDoubleClick function
+    ---@field visible function
+    ---@field available function
+    ---@field tag function
+    ---@field display function
+    ---@field checked function
+    ---@field isChecked boolean
     Button = {}
     do
         local thistype = Button
@@ -208,7 +216,6 @@ OnInit.final("ShopComponent", function()
         thistype.double       = CreateTimer() ---@type timer 
         thistype.timer={} ---@type timer[] 
         thistype.table={} ---@type table 
-        thistype.doubleTime={} ---@type table 
         thistype.time={} ---@type table 
 
         thistype.click=nil ---@type trigger 
@@ -353,8 +360,8 @@ OnInit.final("ShopComponent", function()
                 self.isEnabled = flag
 
                 if not flag then
-                    if string.sub(t, 34, 35) == "\\" then
-                        t = string.sub(t, 0, 34) .. "Disabled\\DIS" + string.sub(t, 35, StringLength(t))
+                    if t:sub(35, 36) == "\\" then
+                        t = t:sub(1, 35) .. "Disabled\\DIS" .. t:sub(36, t:len())
                     end
                 end
 
@@ -528,7 +535,7 @@ OnInit.final("ShopComponent", function()
             local self = thistype.table[GetHandleId(BlzGetTriggerFrame())] ---@type Button
             local i = GetPlayerId(GetLocalPlayer()) ---@type integer 
 
-            if self ~= 0 then
+            if self then
                 if canScroll[i] and self.scroll ~= nil then
                     if SCROLL_DELAY > 0 then
                         canScroll[i] = false
@@ -546,7 +553,7 @@ OnInit.final("ShopComponent", function()
         function thistype.onRightClicked()
             local self = thistype.table[GetHandleId(BlzGetTriggerFrame())] ---@type Button
 
-            if self ~= 0 then
+            if self then
                 if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_RIGHT and self.rightClick ~= nil then
                     TriggerEvaluate(self.rightClick)
                 end
@@ -558,7 +565,7 @@ OnInit.final("ShopComponent", function()
             local j = GetHandleId(BlzGetTriggerFrame()) ---@type integer 
             local self = thistype.table[j] ---@type Button
 
-            if self ~= 0 then
+            if self then
                 if not self.time[i] then
                     self.time[i] = {}
                 end
@@ -568,18 +575,14 @@ OnInit.final("ShopComponent", function()
                     TriggerEvaluate(self.click)
                 end
 
-                if not self.doubleTime[i] then
-                    self.doubleTime[i] = {}
-                    self.doubleTime[i][j] = 0
-                end
-                if self.time[i][j] - self.doubleTime[i][j] <= DOUBLE_CLICK_DELAY then
-                    self.doubleTime[i][j] = 0
+                if self.time[i][j] - doubleTime[i][j] <= DOUBLE_CLICK_DELAY then
+                    doubleTime[i][j] = 0
 
                     if self.doubleClick ~= nil then
                         TriggerEvaluate(self.doubleClick)
                     end
                 else
-                    self.doubleTime[i][j] = self.time[i][j]
+                    doubleTime[i][j] = self.time[i][j]
                 end
             end
         end

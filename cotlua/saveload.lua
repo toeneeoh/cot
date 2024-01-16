@@ -6,6 +6,28 @@ OnInit.final("SaveLoad", function(require)
     require 'FileIO'
     require 'PlayerData'
 
+    SAVE_UNIT_TYPE[1] = HERO_ARCANIST
+    SAVE_UNIT_TYPE[2] = HERO_ASSASSIN
+    SAVE_UNIT_TYPE[3] = HERO_MARKSMAN
+    SAVE_UNIT_TYPE[4] = HERO_HYDROMANCER
+    SAVE_UNIT_TYPE[5] = HERO_PHOENIX_RANGER
+    SAVE_UNIT_TYPE[6] = HERO_ELEMENTALIST
+    SAVE_UNIT_TYPE[7] = HERO_HIGH_PRIEST
+    SAVE_UNIT_TYPE[8] = HERO_MASTER_ROGUE
+    SAVE_UNIT_TYPE[9] = HERO_SAVIOR
+    SAVE_UNIT_TYPE[10] = HERO_BARD
+    SAVE_UNIT_TYPE[11] = HERO_CRUSADER
+    SAVE_UNIT_TYPE[12] = HERO_BLOODZERKER
+    SAVE_UNIT_TYPE[13] = HERO_DARK_SAVIOR
+    SAVE_UNIT_TYPE[14] = HERO_DARK_SUMMONER
+    SAVE_UNIT_TYPE[15] = HERO_OBLIVION_GUARD
+    SAVE_UNIT_TYPE[16] = HERO_ROYAL_GUARDIAN
+    SAVE_UNIT_TYPE[17] = HERO_THUNDERBLADE
+    SAVE_UNIT_TYPE[18] = HERO_WARRIOR
+    SAVE_UNIT_TYPE[19] = FourCC('H00H')
+    SAVE_UNIT_TYPE[20] = HERO_DRUID
+    SAVE_UNIT_TYPE[21] = HERO_VAMPIRE
+
     ---@return boolean
     function ActionLoadHero()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
@@ -64,7 +86,7 @@ OnInit.final("SaveLoad", function(require)
 
         Profile[pid]:saveCharacter()
 
-        PlayerCleanup(whichPlayer)
+        PlayerCleanup(pid)
     end
 
     ---@type fun(pt: PlayerTimer)
@@ -169,38 +191,15 @@ OnInit.final("SaveLoad", function(require)
         end
     end
 
-    --Initialization
     do
-        SAVE_UNIT_TYPE[1] = HERO_ARCANIST
-        SAVE_UNIT_TYPE[2] = HERO_ASSASSIN
-        SAVE_UNIT_TYPE[3] = HERO_MARKSMAN
-        SAVE_UNIT_TYPE[4] = HERO_HYDROMANCER
-        SAVE_UNIT_TYPE[5] = HERO_PHOENIX_RANGER
-        SAVE_UNIT_TYPE[6] = HERO_ELEMENTALIST
-        SAVE_UNIT_TYPE[7] = HERO_HIGH_PRIEST
-        SAVE_UNIT_TYPE[8] = HERO_MASTER_ROGUE
-        SAVE_UNIT_TYPE[9] = HERO_SAVIOR
-        SAVE_UNIT_TYPE[10] = HERO_BARD
-        SAVE_UNIT_TYPE[11] = HERO_ARCANE_WARRIOR
-        SAVE_UNIT_TYPE[12] = HERO_BLOODZERKER
-        SAVE_UNIT_TYPE[13] = HERO_DARK_SAVIOR
-        SAVE_UNIT_TYPE[14] = HERO_DARK_SUMMONER
-        SAVE_UNIT_TYPE[15] = HERO_OBLIVION_GUARD
-        SAVE_UNIT_TYPE[16] = HERO_ROYAL_GUARDIAN
-        SAVE_UNIT_TYPE[17] = HERO_THUNDERBLADE
-        SAVE_UNIT_TYPE[18] = HERO_WARRIOR
-        SAVE_UNIT_TYPE[19] = FourCC('H00H')
-        SAVE_UNIT_TYPE[20] = HERO_DRUID
-        SAVE_UNIT_TYPE[21] = HERO_VAMPIRE
-
         local loadHeroTrigger = CreateTrigger() ---@type trigger 
-        local load = true ---@type boolean 
+        local load = true ---@type boolean
 
         TriggerAddCondition(Profile.sync_event, Filter(Profile.LoadSync))
         TriggerAddCondition(loadHeroTrigger, Filter(ActionLoadHero))
 
         for i = 0, 21 do
-            SaveInteger(SAVE_TABLE, KEY_UNITS, SAVE_UNIT_TYPE[i], i)
+            SAVE_TABLE.KEY_ITEMS[SAVE_UNIT_TYPE[i]] = i
         end
 
         --dev game state bypass
@@ -212,14 +211,15 @@ OnInit.final("SaveLoad", function(require)
         if GAME_STATE == 0 then
             DisplayTimedTextToForce(FORCE_PLAYING, 600., "|cffff0000Save / Load is disabled in single player.|r")
         else
-            local u      = User.first ---@type User 
+            local u = User.first
+
             --load all players
             while u do
 
                 load = true
 
-                for i = 0, funnyListTotal do
-                    if StringHash(u.name) == funnyList[i] then
+                for _, v in ipairs(funnyList) do
+                    if StringHash(u.name) == v then
                         DisplayTimedTextToForce(FORCE_PLAYING, 120., BlzGetItemDescription(PathItem) .. u.nameColored .. BlzGetItemExtendedTooltip(PathItem))
                         load = false
                         break

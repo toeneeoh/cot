@@ -8,40 +8,28 @@ OnInit.global("BuffSystem", function(require)
     ----------- BUFF TYPES --------//
     -------------------------------//
     BUFF_NONE         = 0   ---@type integer 
-    BUFF_POSITIVE         = 1     ---@type integer 
-    BUFF_NEGATIVE         = 2 ---@type integer 
+    BUFF_POSITIVE     = 1     ---@type integer 
+    BUFF_NEGATIVE     = 2 ---@type integer 
 
     -------------------------------//
     -------- BUFF STACK TYPES -----//
     -------------------------------//
     --Applying the same buff only refreshes the duration
     --If the buff is reapplied but from a different source, the Buff unit source gets replaced.
-    BUFF_STACK_NONE         = 0 ---@type integer 
+    BUFF_STACK_NONE   = 0 ---@type integer 
 
     --Each buff from different source stacks.
     --Re-applying the same buff from the same source only refreshes the duration
-    BUFF_STACK_PARTIAL         = 1 ---@type integer 
+    BUFF_STACK_PARTIAL= 1 ---@type integer 
 
     --Each buff applied fully stacks.
-    BUFF_STACK_FULL         = 2 ---@type integer 
+    BUFF_STACK_FULL   = 2 ---@type integer 
 
     --Determines the automatic Buff rawcode based on the Ability rawcode
     --If BUFF_OFFSET = 0x01000000, then Ability rawcode of FourCC('AXXX') will have Buff rawcode of FourCC('BXXX')
-    --If BUFF_OFFSET = 0x20000000, then Ability rawcode of FourCC('AXXX') will have Buff rawcode of FourCC('aXXX')
-    local BUFF_OFFSET         = 0x01000000 ---@type integer 
+    local BUFF_OFFSET = 0x01000000 ---@type integer 
     local buffs = {}
-    local count = {}
-
-    --establish count as a 2d __jarray(0)
-    setmetatable(count, { __index = function(tbl, key)
-        if rawget(tbl, key) then
-            return rawget(tbl, key)
-        else
-            local new = __jarray(0)
-            rawset(tbl, key, new)
-            return new
-        end
-    end})
+    local count = array2d(0)
 
     ---@class Buff
     ---@field pid integer
@@ -58,6 +46,7 @@ OnInit.global("BuffSystem", function(require)
     ---@field get function
     ---@field has function
     ---@field remove function
+    ---@field removeAll function
     ---@field check function
     ---@field dispel function
     ---@field dispelBoth function
@@ -74,7 +63,6 @@ OnInit.global("BuffSystem", function(require)
         thistype.target = nil ---@type unit 
         thistype.source = nil ---@type unit 
         thistype.RAWCODE = 0 ---@type integer 
-        thistype.buffId = 0 ---@type integer 
         thistype.STACK_TYPE = 0 ---@type integer 
         thistype.DISPEL_TYPE = 0 ---@type integer 
 
@@ -100,25 +88,8 @@ OnInit.global("BuffSystem", function(require)
             return self:get(source, target) ~= nil
         end
 
-        function thistype:onDestroy()
-            --remove TimerQueue
-            self.t:destroy()
-            self.t = nil
-
-            --remove from buffs
-            for i = 1, #buffs do
-                if buffs[i] == self then
-                    buffs[i] = buffs[#buffs]
-                    buffs[#buffs] = nil
-                    break
-                end
-            end
-        end
-
         function thistype:remove()
             local remove = false
-
-            self:onRemove()
 
             if self.STACK_TYPE == BUFF_STACK_FULL or self.STACK_TYPE == BUFF_STACK_PARTIAL then
                 --Update Buff count
@@ -133,10 +104,25 @@ OnInit.global("BuffSystem", function(require)
 
             if remove then
                 UnitRemoveAbility(self.target, self.RAWCODE)
-                UnitRemoveAbility(self.target, self.buffId)
+                UnitRemoveAbility(self.target, self.RAWCODE + BUFF_OFFSET)
             end
 
-            self:onDestroy()
+            --remove TimerQueue
+            self.t:destroy()
+            self.t = nil
+
+            --remove from buffs
+            for i = 1, #buffs do
+                if buffs[i] == self then
+                    buffs[i] = buffs[#buffs]
+                    buffs[#buffs] = nil
+                    break
+                end
+            end
+
+            self:onRemove()
+
+            self = nil
         end
 
         ---@type fun(dur: number):number
@@ -180,11 +166,10 @@ OnInit.global("BuffSystem", function(require)
 
             self.source = source
             self.target = target
-            self.buffId = self.RAWCODE + BUFF_OFFSET
 
             if apply then
                 --Append to buffs
-                buffs[#buffs] = self
+                buffs[#buffs + 1] = self
 
                 if GetUnitAbilityLevel(target, self.RAWCODE) == 0 then
                     UnitAddAbility(target, self.RAWCODE)
@@ -237,9 +222,23 @@ OnInit.global("BuffSystem", function(require)
             end
         end
 
+        ---@type fun(source: unit, target: unit)
+        function thistype:dispel(source, target)
+            for i = 1, #buffs do
+                if buffs[i].RAWCODE == self.RAWCODE and target == buffs[i].target and (source == nil or source == buffs[i].source) then
+                    buffs[i]:remove()
+                    break
+                end
+            end
+        end
+
         ---@type fun()
-        function thistype:dispel()
-            self:remove()
+        function thistype:removeAll()
+            if #buffs > 0 then
+                repeat
+                    buffs[1]:remove()
+                until not buffs[1]
+            end
         end
 
         ---@type fun():Buff

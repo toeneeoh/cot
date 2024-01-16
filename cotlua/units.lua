@@ -8,17 +8,10 @@ OnInit.final("Units", function(require)
     require 'Items'
     require 'Spells'
 
-    Boss={} ---@type unit[] 
-    BossLoc={} ---@type location[] 
-    BossLeash=__jarray(0) ---@type number[] 
-    BossFacing=__jarray(0) ---@type number[] 
-    BossName=__jarray("") ---@type string[] 
-    BossID=__jarray(0) ---@type integer[] 
-    BossItemType=__jarray(0) ---@type integer[] 
-    BossLevel=__jarray(0) ---@type integer[] 
-    BossNearbyPlayers=__jarray(0) ---@type integer[] 
-    REGION_GAP         = 25 ---@type integer 
-    ShopkeeperTrackable         = CreateTrigger() ---@type trigger 
+    BossTable           = {} ---@type table[]
+    BossNearbyPlayers   = __jarray(0) ---@type integer[] 
+    REGION_GAP          = 25 ---@type integer 
+    ShopkeeperTrackable = CreateTrigger() ---@type trigger 
     --group Sins = CreateGroup()
 
 function ShopSetup()
@@ -1314,12 +1307,15 @@ end
     forgottenTypes[3] = FourCC('o02W') --warrior
     forgottenTypes[4] = FourCC('o02Y') --monster
 
-    local sid         = 0 ---@type integer 
     local x      = 0. ---@type number 
     local y      = 0. ---@type number 
     local s        = "" ---@type string 
     local target ---@type unit 
     local track ---@type trackable 
+
+    --velreon guard
+    velreon_guard = gg_unit_h04A_0438
+    PauseUnit(velreon_guard, true)
 
     --angel
     god_angel = gg_unit_n0A1_0164
@@ -1335,8 +1331,10 @@ end
     TalkToMe20 = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl",gg_unit_n02Q_0382,"overhead")
 
     --zeknen
-    PauseUnit(gg_unit_O01A_0372, true)
-    UnitAddAbility(gg_unit_O01A_0372, FourCC('Avul'))
+    zeknen = CreateUnit(pboss, FourCC('O01A'), -1886., -27549., 225.)
+    SetHeroLevel(zeknen, 150, false)
+    PauseUnit(zeknen, true)
+    UnitAddAbility(zeknen, FourCC('Avul'))
 
     --sponsor
     BlzSetUnitMaxHP(gg_unit_H01Y_0099, 1)
@@ -1367,210 +1365,103 @@ end
     SetUnitPosition(target, x, y)
 
     --special prechaos "bosses"
+
     --pinky
-    UnitAddItem(gg_unit_O019_0375, Item.create(CreateItem(FourCC('I02Y'), 30000., 30000.)).obj)
+    pinky = CreateUnit(pboss, FourCC('O019'), 11528., 8168., 180.)
+    SetHeroLevel(pinky, 100, false)
+    UnitAddItem(pinky, Item.create(CreateItem(FourCC('I02Y'), 30000., 30000.)).obj)
     --bryan
-    UnitAddItem(gg_unit_H043_0566, Item.create(CreateItem(FourCC('I02X'), 30000., 30000.)).obj)
+    bryan = CreateUnit(pboss, FourCC('H043'), 11528., 7880., 180.)
+    SetHeroLevel(bryan, 100, false)
+    UnitAddItem(bryan, Item.create(CreateItem(FourCC('I02X'), 30000., 30000.)).obj)
     --ice troll
-    UnitAddItem(gg_unit_O00T_0089, Item.create(CreateItem(FourCC('I03Z'), 30000., 30000.)).obj)
+    ice_troll = CreateUnit(pboss, FourCC('O00T'), 15833., 4382., 254.)
+    SetHeroLevel(ice_troll, 100, false)
+    UnitAddItem(ice_troll, Item.create(CreateItem(FourCC('I03Z'), 30000., 30000.)).obj)
     --kroresh
-    UnitAddItem(gg_unit_N01N_0050, Item.create(CreateItem(FourCC('I0BZ'), 30000., 30000.)).obj)
-    UnitAddItem(gg_unit_N01N_0050, Item.create(CreateItem(FourCC('I064'), 30000., 30000.)).obj)
-    UnitAddItem(gg_unit_N01N_0050, Item.create(CreateItem(FourCC('I04B'), 30000., 30000.)).obj)
+    kroresh = CreateUnit(pboss, FourCC('N01N'), 17000., -19000., 0.)
+    SetHeroLevel(kroresh, 120, false)
+    UnitAddItem(kroresh, Item.create(CreateItem(FourCC('I0BZ'), 30000., 30000.)).obj)
+    UnitAddItem(kroresh, Item.create(CreateItem(FourCC('I064'), 30000., 30000.)).obj)
+    UnitAddItem(kroresh, Item.create(CreateItem(FourCC('I04B'), 30000., 30000.)).obj)
     --forest corruption
-    UnitAddItem(gg_unit_N00M_0495, Item.create(CreateItem(FourCC('I03X'), 30000., 30000.)).obj)
-    UnitAddItem(gg_unit_N00M_0495, Item.create(CreateItem(FourCC('I03Y'), 30000., 30000.)).obj)
+    forest_corruption = CreateUnit(pboss, FourCC('N00M'), 5777., -15523., 90.)
+    SetHeroLevel(forest_corruption, 100, false)
+    UnitAddItem(forest_corruption, Item.create(CreateItem(FourCC('I03X'), 30000., 30000.)).obj)
+    UnitAddItem(forest_corruption, Item.create(CreateItem(FourCC('I03Y'), 30000., 30000.)).obj)
     --zeknen
-    UnitAddItem(gg_unit_O01A_0372, Item.create(CreateItem(FourCC('I03Y'), 30000., 30000.)).obj)
+    UnitAddItem(zeknen, Item.create(CreateItem(FourCC('I03Y'), 30000., 30000.)).obj)
 
     --prechaos bosses
-    BossLoc[0] = Location(-11692., -12774.)
-    BossFacing[0] = 45.
-    BossID[0] = FourCC('O002')
-    BossName[0] = "Minotaur"
-    BossLevel[0] = 75
-    BossItemType[0] = FourCC('I03T')
-    BossItemType[1] = FourCC('I0FW')
-    BossItemType[2] = FourCC('I078')
-    BossItemType[3] = FourCC('I076')
-    BossItemType[4] = FourCC('I07U')
-    BossLeash[0] = 2000.
 
-    BossLoc[1] = Location(-15435., -14354.)
-    BossFacing[1] = 270.
-    BossID[1] = FourCC('H045')
-    BossName[1] = "Forgotten Mystic"
-    BossLevel[1] = 100
-    BossItemType[6] = FourCC('I03U')
-    BossItemType[7] = FourCC('I07F')
-    BossItemType[8] = FourCC('I0F3')
-    BossItemType[9] = FourCC('I03Y')
-    BossItemType[10] = 0
-    BossItemType[11] = 0
-    BossLeash[1] = 2000.
+    -- Minotaur
+    CreateBossEntry(BOSS_TAUREN, Location(-11692., -12774.), 45., FourCC('O002'), "Minotaur", 75,
+    {FourCC('I03T'), FourCC('I0FW'), FourCC('I078'), FourCC('I076'), FourCC('I07U'), 0}, 0, 2000)
+    -- Forgotten Mystic
+    CreateBossEntry(BOSS_MYSTIC, Location(-15435., -14354.), 270., FourCC('H045'), "Forgotten Mystic", 100,
+    {FourCC('I03U'), FourCC('I07F'), FourCC('I0F3'), FourCC('I03Y'), 0, 0}, 0, 2000)
+    -- Hellfire Magi
+    CreateBossEntry(BOSS_HELLFIRE, GetRectCenter(gg_rct_Hell_Boss_Spawn), 315., FourCC('U00G'), "Hellfire Magi", 100,
+    {FourCC('I03Y'), FourCC('I0FA'), FourCC('I0FU'), FourCC('I00V'), 0, 0}, 0, 2000)
+    -- Last Dwarf
+    CreateBossEntry(BOSS_DWARF, Location(11520., 15466.), 225., FourCC('H01V'), "Last Dwarf", 100,
+    {FourCC('I0FC'), FourCC('I079'), FourCC('I03Y'), FourCC('I07B'), 0, 0}, 0, 2000)
+    -- Vengeful Test Paladin
+    CreateBossEntry(BOSS_PALADIN, GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn), 270., FourCC('H02H'), "Vengeful Test Paladin", 140,
+    {FourCC('I03P'), FourCC('I0FX'), FourCC('I0F9'), FourCC('I0C0'), FourCC('I03Y'), 0}, 0, 2000)
+    -- Dragoon
+    CreateBossEntry(BOSS_DRAGOON, GetRectCenter(gg_rct_Thanatos_Boss_Spawn), 320., FourCC('O01B'), "Dragoon", 100,
+    {FourCC('I0EY'), FourCC('I074'), FourCC('I04N'), FourCC('I0EX'), FourCC('I046'), FourCC('I03Y')}, 0, 2000)
+    -- Death Knight
+    CreateBossEntry(BOSS_DEATH_KNIGHT, Location(6932., -14177.), 0., FourCC('H040'), "Death Knight", 120,
+    {FourCC('I02B'), FourCC('I029'), FourCC('I02C'), FourCC('I02O'), 0, 0}, 0, 2000)
+    -- Siren of the Tides
+    CreateBossEntry(BOSS_VASHJ, Location(-12375., -1181.), 0., FourCC('H020'), "Siren of the Tides", 75,
+    {FourCC('I09L'), FourCC('I09F'), FourCC('I03Y'), 0, 0, 0}, 0, 2000)
+    -- Super Fun Happy Yeti
+    CreateBossEntry(BOSS_YETI, Location(15816., 6250.), 180., FourCC('n02H'), "Super Fun Happy Yeti", 0,
+    {0, 0, 0, 0, 0, 0}, 0, 2000)
+    -- King of Ogres
+    CreateBossEntry(BOSS_OGRE, Location(-5242., -15630.), 135., FourCC('n03L'), "King of Ogres", 0,
+    {0, 0, 0, 0, 0, 0}, 0, 2000)
+    -- Nerubian Empress
+    CreateBossEntry(BOSS_NERUBIAN, GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn), 315., FourCC('n02U'), "Nerubian Empress", 0,
+    {0, 0, 0, 0, 0, 0}, 0, 2000)
+    -- Giant Polar Bear
+    CreateBossEntry(BOSS_POLAR_BEAR, Location(-16040., 6579.), 45., FourCC('nplb'), "Giant Polar Bear", 0,
+    {0, 0, 0, 0, 0, 0}, 0, 2000)
+    -- The Goddesses
+    CreateBossEntry(BOSS_LIFE, Location(-1840., -27400.), 230., FourCC('H04Q'), "The Goddesses", 180,
+    {FourCC('I04I'), FourCC('I030'), FourCC('I031'), FourCC('I02Z'), FourCC('I03Y'), 0}, 0, 2000)
+    -- Hate
+    CreateBossEntry(BOSS_HATE, Location(-1977., -27116.), 230., FourCC('E00B'), "Hate", 180,
+    {FourCC('I02Z'), FourCC('I03Y'), FourCC('I02B'), 0, 0, 0}, 0, 2000)
+    -- Love
+    CreateBossEntry(BOSS_LOVE, Location(-1560., -27486.), 230., FourCC('E00D'), "Love", 180,
+    {FourCC('I030'), FourCC('I03Y'), FourCC('I0EY'), 0, 0, 0}, 0, 2000)
+    -- Knowledge
+    CreateBossEntry(BOSS_KNOWLEDGE, Location(-1689., -27210.), 230., FourCC('E00C'), "Knowledge", 180,
+    {FourCC('I031'), FourCC('I03Y'), FourCC('I03U'), 0, 0, 0}, 0, 2000)
+    -- Arkaden
+    CreateBossEntry(BOSS_ARKADEN, Location(-1413., -15846.), 90., FourCC('H00O'), "Arkaden", 140,
+    {FourCC('I02B'), FourCC('I02C'), FourCC('I02O'), FourCC('I03Y'), FourCC('I036'), 0}, 0, 2000)
 
-    BossLoc[2] = GetRectCenter(gg_rct_Hell_Boss_Spawn)
-    BossFacing[2] = 315.
-    BossID[2] = FourCC('U00G')
-    BossName[2] = "Hellfire Magi"
-    BossLevel[2] = 100
-    BossItemType[12] = FourCC('I03Y')
-    BossItemType[13] = FourCC('I0FA')
-    BossItemType[14] = FourCC('I0FU')
-    BossItemType[15] = FourCC('I00V')
-    BossLeash[2] = 2000.
-
-    BossLoc[3] = Location(11520., 15466.)
-    BossFacing[3] = 225.
-    BossID[3] = FourCC('H01V')
-    BossName[3] = "Last Dwarf"
-    BossLevel[3] = 100
-    BossItemType[18] = FourCC('I0FC')
-    BossItemType[19] = FourCC('I079')
-    BossItemType[20] = FourCC('I03Y')
-    BossItemType[21] = FourCC('I07B')
-    BossLeash[3] = 2000.
-
-    BossLoc[4] = GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn)
-    BossFacing[4] = 270.
-    BossID[4] = FourCC('H02H')
-    BossName[4] = "Vengeful Test Paladin"
-    BossLevel[4] = 140
-    BossItemType[24] = FourCC('I03P')
-    BossItemType[25] = FourCC('I0FX')
-    BossItemType[26] = FourCC('I0F9')
-    BossItemType[27] = FourCC('I0C0')
-    BossItemType[28] = FourCC('I03Y')
-    BossItemType[29] = 0
-    BossLeash[4] = 2000.
-
-    BossLoc[5] = GetRectCenter(gg_rct_Thanatos_Boss_Spawn)
-    BossFacing[5] = 320.
-    BossID[5] = FourCC('O01B')
-    BossName[5] = "Dragoon"
-    BossLevel[5] = 100
-    BossItemType[30] = FourCC('I0EY')
-    BossItemType[31] = FourCC('I074')
-    BossItemType[32] = FourCC('I04N')
-    BossItemType[33] = FourCC('I0EX')
-    BossItemType[34] = FourCC('I046')
-    BossItemType[35] = FourCC('I03Y')
-    BossLeash[5] = 2000.
-
-    BossLoc[6] = Location(6932., -14177.)
-    BossFacing[6] = 0.
-    BossID[6] = FourCC('H040')
-    BossName[6] = "Death Knight"
-    BossLevel[6] = 120
-    BossItemType[36] = FourCC('I02B')
-    BossItemType[37] = FourCC('I029')
-    BossItemType[38] = FourCC('I02C')
-    BossItemType[39] = FourCC('I02O')
-    BossLeash[6] = 2000.
-
-    BossLoc[7] = Location(-12375., -1181.)
-    BossFacing[7] = 0.
-    BossID[7] = FourCC('H020')
-    BossName[7] = "Siren of the Tides"
-    BossLevel[7] = 75
-    BossItemType[42] = FourCC('I09L')
-    BossItemType[43] = FourCC('I09F')
-    BossItemType[44] = FourCC('I03Y')
-    BossLeash[7] = 2000.
-
-    BossLoc[8] = Location(15816., 6250.)
-    BossFacing[8] = 180.
-    BossID[8] = FourCC('n02H')
-    BossName[8] = "Super Fun Happy Yeti"
-    BossLeash[8] = 2000.
-
-    BossLoc[9] = Location(-5242., -15630.)
-    BossFacing[9] = 135.
-    BossID[9] = FourCC('n03L')
-    BossName[9] = "King of Ogres"
-    BossLeash[9] = 2000.
-
-    BossLoc[10] = GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn)
-    BossFacing[10] = 315.
-    BossID[10] = FourCC('n02U')
-    BossName[10] = "Nerubian Empress"
-    BossLeash[10] = 2000.
-
-    BossLoc[11] = Location(-16040., 6579.)
-    BossFacing[11] = 45.
-    BossID[11] = FourCC('nplb')
-    BossName[11] = "Giant Polar Bear"
-    BossLeash[11] = 2000.
-
-    BossLoc[12] = Location(-1840., -27400.)
-    BossFacing[12] = 230.
-    BossID[12] = FourCC('H04Q')
-    BossName[12] = "The Goddesses"
-    BossLevel[12] = 180
-    BossItemType[72] = FourCC('I04I')
-    BossItemType[73] = FourCC('I030')
-    BossItemType[74] = FourCC('I031')
-    BossItemType[75] = FourCC('I02Z')
-    BossItemType[76] = FourCC('I03Y')
-    BossLeash[12] = 2000.
-
-    BossLoc[13] = Location(-1977., -27116.) --hate
-    BossFacing[13] = 230.
-    BossID[13] = FourCC('E00B')
-    BossLevel[13] = 180
-    BossItemType[78] = FourCC('I02Z')
-    BossItemType[79] = FourCC('I03Y')
-    BossItemType[80] = FourCC('I02B')
-    BossLeash[13] = 2000.
-
-    BossLoc[14] = Location(-1560., -27486.) --love
-    BossFacing[14] = 230.
-    BossID[14] = FourCC('E00D')
-    BossLevel[14] = 180
-    BossItemType[84] = FourCC('I030')
-    BossItemType[85] = FourCC('I03Y')
-    BossItemType[86] = FourCC('I0EY')
-    BossLeash[14] = 2000.
-
-    BossLoc[15] = Location(-1689., -27210.) --knowledge
-    BossFacing[15] = 230.
-    BossID[15] = FourCC('E00C')
-    BossLevel[15] = 180
-    BossItemType[90] = FourCC('I031')
-    BossItemType[91] = FourCC('I03Y')
-    BossItemType[92] = FourCC('I03U')
-    BossLeash[15] = 2000.
-
-    BossLoc[16] = Location(-1413., -15846.) --arkaden
-    BossFacing[16] = 90.
-    BossID[16] = FourCC('H00O')
-    BossName[16] = "Arkaden"
-    BossLevel[16] = 140
-    BossItemType[96] = FourCC('I02B')
-    BossItemType[97] = FourCC('I02C')
-    BossItemType[98] = FourCC('I02O')
-    BossItemType[99] = FourCC('I03Y')
-    BossItemType[100] = FourCC('I036')
-    BossItemType[101] = 0
-    BossLeash[16] = 2000.
-
-    for i = 0, BOSS_TOTAL do
-        Boss[i] = CreateUnitAtLoc(pboss, BossID[i], BossLoc[i], BossFacing[i])
-        SetHeroLevel(Boss[i], BossLevel[i], false)
-        local j = 0
-        while not (BossItemType[i * 6 + j] == 0 or j > 5) do
-            UnitAddItem(Boss[i], Item.create(CreateItem(BossItemType[i * 6 + j], 30000., 30000.)).obj)
-            j = j + 1
+    for i = 1, #BossTable do
+        SetHeroLevel(BossTable[i].unit, BossTable[i].level, false)
+        for j = 1, 6 do
+            if BossTable[i].item[j] ~= 0 then
+                UnitAddItem(BossTable[i].unit, Item.create(CreateItem(BossTable[i].item[j], 30000., 30000.)).obj)
+            end
         end
     end
 
     --start death march cd
-    BlzStartUnitAbilityCooldown(Boss[BOSS_DEATH_KNIGHT], FourCC('A0AU'), 2040. - (User.AmountPlaying * 240))
+    BlzStartUnitAbilityCooldown(BossTable[BOSS_DEATH_KNIGHT].unit, FourCC('A0AU'), 2040. - (User.AmountPlaying * 240))
 
-    ShowUnit(Boss[BOSS_LIFE], false) --gods
-    ShowUnit(Boss[BOSS_LOVE], false)
-    ShowUnit(Boss[BOSS_HATE], false)
-    ShowUnit(Boss[BOSS_KNOWLEDGE], false)
+    ShowUnit(BossTable[BOSS_LIFE].unit, false) --gods
+    ShowUnit(BossTable[BOSS_LOVE].unit, false)
+    ShowUnit(BossTable[BOSS_HATE].unit, false)
+    ShowUnit(BossTable[BOSS_KNOWLEDGE].unit, false)
 
     --shopkeeper
     for i = 0, PLAYER_CAP - 1 do
@@ -1715,19 +1606,11 @@ end
             --store innate spell tooltip strings
             local abil = BlzGetUnitAbilityByIndex(HeroCircle[i].unit, j)
             while abil do
-                sid = BlzGetAbilityId(abil)
+                local sid = BlzGetAbilityId(abil)
 
                 if Spells[sid] then
-                    local ablev = 1
-                    while not (ablev > BlzGetAbilityIntegerField(abil, ABILITY_IF_LEVELS)) do
-
-                        if not SpellTooltips[sid] then
-                            SpellTooltips[sid] = {}
-                        end
-
+                    for ablev = 1, BlzGetAbilityIntegerField(abil, ABILITY_IF_LEVELS) do
                         SpellTooltips[sid][ablev] = BlzGetAbilityStringLevelField(abil, ABILITY_SLF_TOOLTIP_NORMAL_EXTENDED, ablev - 1)
-
-                        ablev = ablev + 1
                     end
                 end
 

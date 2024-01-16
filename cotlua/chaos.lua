@@ -3,7 +3,7 @@ if Debug then Debug.beginFile 'Chaos' end
 OnInit.final("Chaos", function()
 
 function OpenGodsPortal()
-    local sfx        = AddSpecialEffect("war3mapImported\\Rune Blue Aura.mdl", -1420., -15270.) ---@type effect 
+    local sfx = AddSpecialEffect("war3mapImported\\Rune Blue Aura.mdl", -1420., -15270.) ---@type effect 
     BlzSetSpecialEffectScale(sfx, 2.45)
     BlzPlaySpecialEffect(sfx, ANIM_TYPE_BIRTH)
 
@@ -13,47 +13,32 @@ function OpenGodsPortal()
 end
 
 function GoddessOfLife()
-    PauseUnit(Boss[BOSS_LIFE], false)
-    UnitRemoveAbility(Boss[BOSS_LIFE], FourCC('Avul'))
+    PauseUnit(BossTable[BOSS_LIFE].unit, false)
+    UnitRemoveAbility(BossTable[BOSS_LIFE].unit, FourCC('Avul'))
 end
 
 function SpawnGods()
-    PauseUnit(Boss[BOSS_HATE], false)
-    UnitRemoveAbility(Boss[BOSS_HATE], FourCC('Avul'))
-    PauseUnit(Boss[BOSS_LOVE], false)
-    UnitRemoveAbility(Boss[BOSS_LOVE], FourCC('Avul'))
-    PauseUnit(Boss[BOSS_KNOWLEDGE], false)
-    UnitRemoveAbility(Boss[BOSS_KNOWLEDGE], FourCC('Avul'))
+    PauseUnit(BossTable[BOSS_HATE].unit, false)
+    UnitRemoveAbility(BossTable[BOSS_HATE].unit, FourCC('Avul'))
+    PauseUnit(BossTable[BOSS_LOVE].unit, false)
+    UnitRemoveAbility(BossTable[BOSS_LOVE].unit, FourCC('Avul'))
+    PauseUnit(BossTable[BOSS_KNOWLEDGE].unit, false)
+    UnitRemoveAbility(BossTable[BOSS_KNOWLEDGE].unit, FourCC('Avul'))
 end
 
 function ZeknenExpire()
-    UnitRemoveAbility(gg_unit_O01A_0372, FourCC('Avul'))
-    PauseUnit(gg_unit_O01A_0372, false)
-    DoTransmissionBasicsXYBJ(GetUnitTypeId(gg_unit_O01A_0372), GetPlayerColor(pboss), GetUnitX(gg_unit_O01A_0372), GetUnitY(gg_unit_O01A_0372), nil, "Zeknen", "Very well.", 4)
-end
-
-function HideItems()
-    local itm      = GetEnumItem() ---@type item 
-    local itid         = GetItemTypeId(itm) ---@type integer 
-
-    if itid ~= FourCC('I04I') and itid ~= FourCC('I031') and itid ~= FourCC('I030') and itid ~= FourCC('I02Z') and itid ~= FourCC('wolg') and itm ~= PathItem then
-        Item[itm]:destroy()
-    end
+    UnitRemoveAbility(zeknen, FourCC('Avul'))
+    PauseUnit(zeknen, false)
+    DoTransmissionBasicsXYBJ(GetUnitTypeId(zeknen), GetPlayerColor(pboss), GetUnitX(zeknen), GetUnitY(zeknen), nil, "Zeknen", "Very well.", 4)
 end
 
 function SetupChaos()
-    local i         = 0 ---@type integer 
-    local i2         = 0 ---@type integer 
-    local target      = nil ---@type unit 
-    local ug       = CreateGroup()
-    local g       = CreateGroup()
-    local x      = 0. ---@type number 
-    local y      = 0. ---@type number 
-    local loc          = nil ---@type location 
-    local myItem      = nil ---@type item 
-    local r      = 0. ---@type number 
-    local u      = User.first ---@type User 
-    local itm ---@type Item 
+    FIRST_DROP = 0
+    HARD_MODE = 0
+    BANISH_FLAG = false
+
+    --change water color
+    SetWaterBaseColorBJ(150.00, 0.00, 0.00, 0)
 
     --crypt coffin
     RemoveDestructable(gg_dest_B003_1936)
@@ -82,317 +67,162 @@ function SetupChaos()
 
     DestroyEffect(TalkToMe13)
     DestroyEffect(TalkToMe20)
-    RemoveUnit(gg_unit_O01A_0372) --zeknen
+    RemoveUnit(zeknen) --zeknen
     RemoveUnit(gg_unit_h03A_0005) --headhunter
     RemoveUnit(god_angel)
     RemoveUnit(gg_unit_n02Q_0382)
-    RemoveUnit(gg_unit_N01N_0050)
+    RemoveUnit(kroresh)
 
     --huntsman
-    r = GetUnitFacing(gg_unit_h036_0002)
-    loc = Location(GetUnitX(gg_unit_h036_0002), GetUnitY(gg_unit_h036_0002))
+    local facing = GetUnitFacing(gg_unit_h036_0002)
+    local loc = {GetUnitX(gg_unit_h036_0002), GetUnitY(gg_unit_h036_0002)}
     RemoveUnit(gg_unit_h036_0002) --huntsman
-    CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h009'), loc, r)
-    RemoveLocation(loc)
+    CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h009'), loc[1], loc[2], facing)
 
     --home salesmen
-    r = GetUnitFacing(gg_unit_n01Q_0045)
-    loc = Location(GetUnitX(gg_unit_n01Q_0045), GetUnitY(gg_unit_n01Q_0045))
+    facing = GetUnitFacing(gg_unit_n01Q_0045)
+    loc = {GetUnitX(gg_unit_n01Q_0045), GetUnitY(gg_unit_n01Q_0045)}
     RemoveUnit(gg_unit_n01Q_0045)
-    CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03V'), loc, r)
-    RemoveLocation(loc)
-    r = GetUnitFacing(gg_unit_n00Z_0004)
-    loc = Location(GetUnitX(gg_unit_n00Z_0004), GetUnitY(gg_unit_n00Z_0004))
+    CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03V'), loc[1], loc[2], facing)
+
+    facing = GetUnitFacing(gg_unit_n00Z_0004)
+    loc = {GetUnitX(gg_unit_n00Z_0004), GetUnitY(gg_unit_n00Z_0004)}
     RemoveUnit(gg_unit_n00Z_0004)
-    CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03H'), loc, r)
-    RemoveLocation(loc)
+    CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03H'), loc[1], loc[2], facing)
 
-    --clean up bosses
-    i = 0
-
-    while i <= BOSS_TOTAL do
-        RemoveUnit(Boss[i])
-        RemoveLocation(BossLoc[i])
-        Boss[i] = nil
-        BossID[i] = 0
-        i = i + 1
-    end
+    --removes creeps and villagers
+    local ug = CreateGroup()
+    local g  = CreateGroup()
 
     GroupEnumUnitsInRect(ug, bj_mapInitialPlayableArea, Condition(ChaosTransition)) --need exception for struggle / colo
     GroupEnumUnitsOfPlayer(g, Player(PLAYER_NEUTRAL_PASSIVE), Condition(isvillager))
     BlzGroupAddGroupFast(despawnGroup, ug)
     BlzGroupAddGroupFast(g, ug)
 
-    while true do
-        target = FirstOfGroup(ug)
-        if target == nil then break end
-        GroupRemoveUnit(ug, target)
+    for target in each(ug) do
         if target ~= gg_unit_H01Y_0099 then
             RemoveUnit(target)
         end
     end
 
-    r = GetUnitFacing(PunchingBag[1])
-    loc = Location(GetUnitX(PunchingBag[1]), GetUnitY(PunchingBag[1]))
-    RemoveUnit(PunchingBag[1])
-    PunchingBag[1] = CreateUnitAtLoc(pfoe, FourCC('h02F'), loc, r)
-    RemoveLocation(loc)
-    r = GetUnitFacing(PunchingBag[2])
-    loc = Location(GetUnitX(PunchingBag[2]), GetUnitY(PunchingBag[2]))
-    RemoveUnit(PunchingBag[2])
-    PunchingBag[2] = CreateUnitAtLoc(pfoe, FourCC('h02G'), loc, r)
-    RemoveLocation(loc)
+    DestroyGroup(ug)
+    DestroyGroup(g)
 
-    CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n0A2'), 1344., 1472., 270.) -- chaos merchant
-    CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n01K'), -12363, -1185, 0) -- naga npc
-    --call CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('ngol'), 15957, -15953, 175) // gold mine
+    --replace punching bags
+    local pbag = {}
+
+    for _, v in ipairs(PunchingBag) do
+        pbag[#pbag + 1] = GetUnitX(v)
+        pbag[#pbag + 1] = GetUnitY(v)
+        pbag[#pbag + 1] = GetUnitFacing(v)
+        RemoveUnit(v)
+    end
+
+    PunchingBag[1] = CreateUnit(pfoe, FourCC('h02F'), pbag[1], pbag[2], pbag[3])
+    PunchingBag[2] = CreateUnit(pfoe, FourCC('h02G'), pbag[4], pbag[5], pbag[6])
 
     -- ------------------
     -- town
     -- ------------------
 
+    --chaos merchant
+    CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n0A2'), 1344., 1472., 270.)
+    --naga dungeon npc
+    CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n01K'), -12363, -1185, 0)
+
+    local u = User.first
+    local x = 0. ---@type number 
+    local y = 0. ---@type number 
+
+    --move players to fountain (unless in struggle or colosseum)
     while u do
-            x = GetUnitX(Hero[u.id])
-            y = GetUnitY(Hero[u.id])
-            if not selectingHero[u.id] and RectContainsCoords(gg_rct_Colosseum, x, y) == false and RectContainsCoords(gg_rct_Infinite_Struggle, x, y) == false and RectContainsCoords(gg_rct_Church, x, y) == false then
-                ForceRemovePlayer(AZAZOTH_GROUP, u.player)
-                MoveHeroLoc(u.id, TownCenter)
-                PanCameraToTimedForPlayer(u.player, GetUnitX(Hero[u.id]), GetUnitY(Hero[u.id]), 0.)
-                SetCameraBoundsRectForPlayerEx(u.player, gg_rct_Main_Map_Vision)
-            end
+        x = GetUnitX(Hero[u.id])
+        y = GetUnitY(Hero[u.id])
+        if not selectingHero[u.id] and RectContainsCoords(gg_rct_Colosseum, x, y) == false and RectContainsCoords(gg_rct_Infinite_Struggle, x, y) == false and RectContainsCoords(gg_rct_Church, x, y) == false then
+            TableRemove(AZAZOTH_GROUP, u.player)
+            MoveHeroLoc(u.id, TownCenter)
+            PanCameraToTimedForPlayer(u.player, GetUnitX(Hero[u.id]), GetUnitY(Hero[u.id]), 0.)
+            SetCameraBoundsRectForPlayerEx(u.player, gg_rct_Main_Map_Vision)
+        end
 
         u = u.next
     end
 
-    i = 1
+    --spawn new villagers
+    for _ = 1, 15 do
+        loc = {GetRandomReal(GetRectMinX(gg_rct_Town_Boundry) + 300.00, GetRectMaxX(gg_rct_Town_Boundry) - 300.00),
+                GetRandomReal(GetRectMinY(gg_rct_Town_Boundry) + 300.0, GetRectMaxY(gg_rct_Town_Boundry) - 300.0)}
 
-    while i <= 15 do
-        loc = Location(GetRandomReal(GetRectMinX(gg_rct_Town_Boundry) + 300.00, GetRectMaxX(gg_rct_Town_Boundry) - 300.00), GetRandomReal(GetRectMinY(gg_rct_Town_Boundry) + 300.0, GetRectMaxY(gg_rct_Town_Boundry) - 300.0))
-
-        if i < 6 then
-            target = CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n036'), loc, GetRandomReal(0, 360.00))
-        elseif i < 11 then
-            target = CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n035'), loc, GetRandomReal(0, 360.00))
-        elseif i < 16 then
-            target = CreateUnitAtLoc(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n037'), loc, GetRandomReal(0, 360.00))
-        end
-
-        RemoveLocation(loc)
-        i = i + 1
+        CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03' .. GetRandomInt(5, 7)), loc[1], loc[2], GetRandomReal(0, 360.00))
     end
-
-    SetWaterBaseColorBJ(150.00, 0.00, 0.00, 0)
-
-    HardMode = 0
-    BANISH_FLAG = false
 
     -- ------------------
     -- bosses
     -- ------------------
 
-    i = 0
-    BossLoc[i] = GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn) --demon prince
+    --clear spider webs in demon prince pit
     SetDoodadAnimation(7810., 1203., 1000., FourCC('D05Q'), false, "death", false)
-    BossFacing[i] = 315.00
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('N038'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('N038')
-    BossName[i] = "Demon Prince"
-    BossLevel[i] = 190
-    BossItemType[i * 6] = FourCC('I03F')
-    BossItemType[i * 6 + 1] = FourCC('I00X')
-    BossItemType[i * 6 + 2] = 0
-    BossItemType[i * 6 + 3] = 0
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 1
-    BossLeash[i] = 2000.
 
-    i = i + 1
-    BossLoc[i] = GetRectCenter(gg_rct_Absolute_Horror_Spawn) --absolute horror
-    BossFacing[i] = 270.00
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('N017'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('N017')
-    BossName[i] = "Absolute Horror"
-    BossLevel[i] = 230
-    BossItemType[i * 6] = FourCC('I0ND')
-    BossItemType[i * 6 + 1] = FourCC('I0NH')
-    BossItemType[i * 6 + 2] = 0
-    BossItemType[i * 6 + 3] = 0
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 2
-    BossLeash[i] = 2000.
+    --clean up bosses
+    for i = 1, #BossTable do
+        RemoveUnit(BossTable[i].unit)
+        RemoveLocation(BossTable[i].loc)
+        BossTable[i] = nil
+    end
 
-    i = i + 1
-    BossLoc[i] = GetRectCenter(gg_rct_Orsted_Boss_Spawn) --orsted
-    BossFacing[i] = 270.
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('N00F'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('N00F')
-    BossName[i] = "Orsted"
-    BossLevel[i] = 250
-    BossItemType[i * 6] = 0
-    BossItemType[i * 6 + 1] = 0
-    BossItemType[i * 6 + 2] = 0
-    BossItemType[i * 6 + 3] = 0
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 3
-    BossLeash[i] = 2000.
-
-    i = i + 1
-    BossLoc[i] = Location(-5400, -15470) --slaughter queen
-    BossFacing[i] = 135.00
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('O02B'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('O02B')
-    BossName[i] = "Slaughter Queen"
-    BossLevel[i] = 270
-    BossItemType[i * 6] = FourCC('I0AE')
-    BossItemType[i * 6 + 1] = FourCC('I04F')
-    BossItemType[i * 6 + 2] = 0
-    BossItemType[i * 6 + 3] = 0
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 3
-    BossLeash[i] = 2000.
-
-    i = i + 1
-    BossLoc[i] = GetRectCenter(gg_rct_Hell_Boss_Spawn) --satan
-    BossFacing[i] = 315.00
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('O02I'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('O02I')
-    BossName[i] = "Satan"
-    BossLevel[i] = 310
-    BossItemType[i * 6] = FourCC('I05J')
-    BossItemType[i * 6 + 1] = FourCC('I0BX')
-    BossItemType[i * 6 + 2] = 0
-    BossItemType[i * 6 + 3] = 0
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 5
-    BossLeash[i] = 2000.
-
-    i = i + 1
-    BossLoc[i] = GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn) --dark soul
-    BossFacing[i] = bj_UNIT_FACING
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('O02H'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('O02H')
-    BossName[i] = "Essence of Darkness"
-    BossLevel[i] = 300
-    BossItemType[i * 6] = FourCC('I05A')
-    BossItemType[i * 6 + 1] = FourCC('I0AP')
-    BossItemType[i * 6 + 2] = FourCC('I0AH')
-    BossItemType[i * 6 + 3] = FourCC('I0AI')
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 3
-    BossLeash[i] = 2000.
-
-    i = i + 1
-    BossLoc[i] = GetRectCenter(gg_rct_To_The_Forrest) --legion
-    BossFacing[i] = bj_UNIT_FACING
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('H04R'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('H04R')
-    BossName[i] = "Legion"
-    BossLevel[i] = 340
-    BossItemType[i * 6] = FourCC('I0AJ')
-    BossItemType[i * 6 + 1] = FourCC('I0B1')
-    BossItemType[i * 6 + 2] = FourCC('I0AU')
-    BossItemType[i * 6 + 3] = 0
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 8
-    BossLeash[i] = 2000.
-
-    i = i + 1
-    BossLoc[i] = GetRandomLocInRect(gg_rct_Thanatos_Boss_Spawn) --thanatos
-    BossFacing[i] = bj_UNIT_FACING
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('O02K'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('O02K')
-    BossName[i] = "Thanatos"
-    BossLevel[i] = 320
-    BossItemType[i * 6] = FourCC('I04E')
-    BossItemType[i * 6 + 1] = FourCC('I0MR')
-    BossItemType[i * 6 + 2] = 0
-    BossItemType[i * 6 + 3] = 0
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 5
-    BossLeash[i] = 2000.
-
-    i = i + 1
-    BossLoc[i] = GetRandomLocInRect(gg_rct_Existence_Boss_Spawn) --existence
-    BossFacing[i] = bj_UNIT_FACING
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('O02M'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('O02M')
-    BossName[i] = "Pure Existence"
-    BossLevel[i] = 320
-    BossItemType[i * 6] = FourCC('I09E')
-    BossItemType[i * 6 + 1] = FourCC('I09O')
-    BossItemType[i * 6 + 2] = FourCC('I018')
-    BossItemType[i * 6 + 3] = FourCC('I0BY')
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 8
-    BossLeash[i] = 2000.
-
-    i = i + 1
-    BossLoc[i] = GetRectCenter(gg_rct_Azazoth_Boss_Spawn) --azazoth
-    BossFacing[i] = 270.00
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('O02T'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('O02T')
-    BossName[i] = "Azazoth"
-    BossLevel[i] = 380
-    BossItemType[i * 6] = FourCC('I0BG')
-    BossItemType[i * 6 + 1] = FourCC('I0BI')
-    BossItemType[i * 6 + 2] = FourCC('I06M')
-    BossItemType[i * 6 + 3] = 0
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 12
-    BossLeash[i] = 2000.
-
-    i = i + 1
-    BossLoc[i] = GetRectCenter(gg_rct_Forgotten_Leader_Boss_Spawn) --xallarath
-    BossFacing[i] = 135.00
-    Boss[i] = CreateUnitAtLoc(pboss, FourCC('O03G'), BossLoc[i], BossFacing[i])
-    BossID[i] = FourCC('O03G')
-    BossName[i] = "Xallarath"
-    BossLevel[i] = 360
-    BossItemType[i * 6] = FourCC('I0O1')
-    BossItemType[i * 6 + 1] = FourCC('I0OB')
-    BossItemType[i * 6 + 2] = FourCC('I0CH')
-    BossItemType[i * 6 + 3] = 0
-    BossItemType[i * 6 + 4] = 0
-    BossItemType[i * 6 + 5] = 0
-    CrystalRewards[BossID[i]] = 12
-    BossLeash[i] = 4000.
-
-    BOSS_TOTAL = i
-    FIRST_DROP = 0
+    -- Demon Prince
+    CreateBossEntry(BOSS_DEMON_PRINCE, GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn), 315.00, FourCC('N038'), "Demon Prince", 190,
+    {FourCC('I03F'), FourCC('I00X'), 0, 0, 0, 0}, 1, 2000)
+    -- Absolute Horror
+    CreateBossEntry(BOSS_ABSOLUTE_HORROR, GetRectCenter(gg_rct_Absolute_Horror_Spawn), 270.00, FourCC('N017'), "Absolute Horror", 230,
+    {FourCC('I0ND'), FourCC('I0NH'), 0, 0, 0, 0}, 2, 2000)
+    -- Orsted
+    CreateBossEntry(BOSS_ORSTED, GetRectCenter(gg_rct_Orsted_Boss_Spawn), 270.00, FourCC('N00F'), "Orsted", 250,
+    {0, 0, 0, 0, 0, 0}, 3, 2000)
+    -- Slaughter Queen
+    CreateBossEntry(BOSS_SLAUGHTER_QUEEN, Location(-5400, -15470), 135.00, FourCC('O02B'), "Slaughter Queen", 270,
+    {FourCC('I0AE'), FourCC('I04F'), 0, 0, 0, 0}, 3, 2000)
+    -- Satan
+    CreateBossEntry(BOSS_SATAN, GetRectCenter(gg_rct_Hell_Boss_Spawn), 315.00, FourCC('O02I'), "Satan", 310,
+    {FourCC('I05J'), FourCC('I0BX'), 0, 0, 0, 0}, 5, 2000)
+    -- Dark Soul
+    CreateBossEntry(BOSS_DARK_SOUL, GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn), bj_UNIT_FACING, FourCC('O02H'), "Essence of Darkness", 300,
+    {FourCC('I05A'), FourCC('I0AP'), FourCC('I0AH'), FourCC('I0AI'), 0, 0}, 3, 2000)
+    -- Legion
+    CreateBossEntry(BOSS_LEGION, GetRectCenter(gg_rct_To_The_Forrest), bj_UNIT_FACING, FourCC('H04R'), "Legion", 340,
+    {FourCC('I0AJ'), FourCC('I0B1'), FourCC('I0AU'), 0, 0, 0}, 8, 2000)
+    -- Thanatos
+    CreateBossEntry(BOSS_THANATOS, GetRandomLocInRect(gg_rct_Thanatos_Boss_Spawn), bj_UNIT_FACING, FourCC('O02K'), "Thanatos", 320,
+    {FourCC('I04E'), FourCC('I0MR'), 0, 0, 0, 0}, 5, 2000)
+    -- Existence
+    CreateBossEntry(BOSS_EXISTENCE, GetRandomLocInRect(gg_rct_Existence_Boss_Spawn), bj_UNIT_FACING, FourCC('O02M'), "Pure Existence", 320,
+    {FourCC('I09E'), FourCC('I09O'), FourCC('I018'), FourCC('I0BY'), 0, 0}, 8, 2000)
+    -- Azazoth
+    CreateBossEntry(BOSS_AZAZOTH, GetRectCenter(gg_rct_Azazoth_Boss_Spawn), 270.00, FourCC('O02T'), "Azazoth", 380,
+    {FourCC('I0BG'), FourCC('I0BI'), FourCC('I06M'), 0, 0, 0}, 12, 2000)
+    -- Xallarath
+    CreateBossEntry(BOSS_XALLARATH, GetRectCenter(gg_rct_Forgotten_Leader_Boss_Spawn), 135.00, FourCC('O03G'), "Xallarath", 360,
+    {FourCC('I0O1'), FourCC('I0OB'), FourCC('I0CH'), 0, 0, 0}, 12, 4000)
 
     -- ------------------
     -- chaos boss items
     -- ------------------
 
-    i = 0
+    for i = 1, #BossTable do
+        BossNearbyPlayers[i] = 0
+        SetHeroLevel(BossTable[i].unit, BossTable[i].level, false)
 
-    while i <= BOSS_TOTAL do
-        i2 = 0
-
-        SetHeroLevel(Boss[i], BossLevel[i], false)
-        while not (BossItemType[i * 6 + i2] == 0 or i2 > 5) do
-            BossNearbyPlayers[i] = 0
-            itm = Item.create(CreateItem(BossItemType[i * 6 + i2], 30000., 30000.))
-            UnitAddItem(Boss[i], itm.obj)
-            itm:lvl(ItemData[itm.id][ITEM_UPGRADE_MAX])
-            i2 = i2 + 1
+        for j = 1, 6 do
+            if BossTable[i].item[j] ~= 0 then
+                local itm = Item.create(CreateItem(BossTable[i].item[j], 30000., 30000.))
+                UnitAddItem(BossTable[i].unit, itm.obj)
+                itm:lvl(ItemData[itm.id][ITEM_UPGRADE_MAX])
+            end
         end
-        SetUnitCreepGuard(Boss[i], true)
-
-        i = i + 1
+        SetUnitCreepGuard(BossTable[i].unit, true)
     end
 
-    target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h01M'), GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1), 180.00)
+    local target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h01M'), GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1), 180.00)
     SetUnitPathing(target, false)
     SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1))
 
@@ -416,30 +246,25 @@ function SetupChaos()
 
     forgotten_spawner = CreateUnit(pboss, FourCC('o02E'), 15100., -12650., bj_UNIT_FACING)
     SetUnitAnimation(forgotten_spawner, "Stand Work")
-    SpawnForgotten()
-    SpawnForgotten()
-    SpawnForgotten()
-    SpawnForgotten()
-    SpawnForgotten()
+    for _ = 0, 4 do
+        SpawnForgotten()
+    end
     TimerQueue:callPeriodically(60., not UnitAlive(forgotten_spawner), SpawnForgotten)
 
     CinematicFadeBJ(bj_CINEFADETYPE_FADEIN, 2.5, "ReplaceableTextures\\CameraMasks\\Black_mask.blp", 0, 0, 0, 0)
 
-    CWLoading = false
-
-    DestroyGroup(ug)
-    DestroyGroup(g)
+    CHAOS_LOADING = false
 end
 
 function BeginChaos()
     --stop prechaos boss respawns
-    TimerList[BOSS_ID]:stopAllTimers(FourCC('boss'))
+    TimerList[BOSS_ID]:stopAllTimers('boss')
 
     --reset legion jump timer
     PauseTimer(wanderingTimer)
     TimerStart(wanderingTimer, 2040. - (User.AmountPlaying * 240), true, ShadowStepExpire)
 
-    CWLoading = true
+    CHAOS_LOADING = true
     ChaosMode = true
 
     RemoveUnit(power_crystal)

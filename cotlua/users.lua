@@ -26,25 +26,13 @@ OnInit.global("Users", function()
     do
         local thistype = User
 
-        ---@type fun():User
-        function thistype.create()
-            local self = {}
-            setmetatable(self, { __index = User })
-
-            -- Increment the number of players when a new user is created
-            thistype.AmountPlaying = User.AmountPlaying + 1
-
-            return self
-        end
-
         -- metatable to handle custom indices (User[1], User[Player(1)])
         local mt = {
             __index = function(tbl, key)
-                if type(key) == "number" then
-                    return rawget(tbl, key)
-                elseif type(key) == "userdata" then
+                if type(key) == "userdata" then
                     return rawget(tbl, GetPlayerId(key))
                 end
+                return rawget(tbl, key)
             end
         }
 
@@ -72,7 +60,7 @@ OnInit.global("Users", function()
             local p = GetTriggerPlayer()
 
             if BlzForceHasPlayer(FORCE_PLAYING, p) then
-                local u = thistype[p] ---@class User
+                local u = thistype[p]
 
                 ForceRemovePlayer(FORCE_PLAYING, p)
 
@@ -124,25 +112,34 @@ OnInit.global("Users", function()
             p = Player(i)
 
             if (GetPlayerController(p) == MAP_CONTROL_USER and GetPlayerSlotState(p) == PLAYER_SLOT_STATE_PLAYING) then
-                thistype[i] = thistype.create()
-                thistype[i].player = p
-                thistype[i].id = i + 1
-                thistype[i].isPlaying = true
-                thistype[i].color = GetPlayerColor(p)
-                thistype[i].name = GetPlayerName(p)
-                thistype[i].hex = OriginalHex[i]
-                thistype[i].nameColored = thistype[i].hex .. thistype[i].name .. "|r"
+                local self = {
+                    player = p,
+                    id = i + 1,
+                    isPlaying = true,
+                    color = GetPlayerColor(p),
+                    name = GetPlayerName(p),
+                    hex = OriginalHex[i],
+                }
 
-                thistype.last = thistype[i]
+                self.nameColored = self.hex .. self.name .. "|r"
+
+                thistype[i] = self
+                setmetatable(self, { __index = thistype })
+
+                thistype.last = self
 
                 if not thistype.first then
-                    thistype.first = thistype[i]
-                    thistype[i].next = nil
-                    thistype[i].prev = nil
+                    thistype.first = self
+                    self.next = nil
+                    self.prev = nil
                 else
-                    thistype[i].prev = thistype[thistype.AmountPlaying - 1]
-                    thistype[i].next = nil
+                    self.prev = thistype[thistype.AmountPlaying - 1]
+                    self.prev.next = self
+                    self.next = nil
                 end
+
+                -- Increment the number of players when a new user is created
+                thistype.AmountPlaying = thistype.AmountPlaying + 1
 
                 TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_LEAVE)
                 TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_DEFEAT)

@@ -13,11 +13,11 @@ OnInit.global("Buffs", function(require)
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target]:attack(true)
+            Unit[self.target].attack = true
         end
 
         function thistype:onApply()
-            Unit[self.target]:attack(false)
+            Unit[self.target].attack = false
         end
     end
 
@@ -55,7 +55,7 @@ OnInit.global("Buffs", function(require)
             UnitRemoveAbility(self.target, FourCC('ARal'))
             ToggleCommandCard(self.target, true)
 
-            Unit[self.target]:attack(true)
+            Unit[self.target].attack = true
         end
 
         function thistype:onApply()
@@ -65,7 +65,7 @@ OnInit.global("Buffs", function(require)
             UnitAddAbility(self.target, FourCC('ARal'))
             ToggleCommandCard(self.target, false)
 
-            Unit[self.target]:attack(false)
+            Unit[self.target].attack = false
         end
     end
 
@@ -139,7 +139,7 @@ OnInit.global("Buffs", function(require)
             self.count = self.count - 1
 
             if self.count <= 0 then
-                self:dispel()
+                self:remove()
             end
         end
 
@@ -194,9 +194,9 @@ OnInit.global("Buffs", function(require)
             self.timer = TimerQueue.create()
 
             SetUnitVertexColor(self.target, 255, 25, 25, 255)
-            DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Call of Dread Red.mdx", self.target, "origin"))
+            DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Call of Dread Red.mdx", self.target, "chest"))
 
-            self.timer:callPeriodically(3., nil, Taunt, self.tpid, 800., false, 500, 500)
+            self.timer:callPeriodically(3., nil, Taunt, self.target, self.tpid, 800., false, 500, 500)
             self.timer:callPeriodically(0.1, nil, pull, self.tpid, self.target)
         end
     end
@@ -314,9 +314,11 @@ OnInit.global("Buffs", function(require)
 
         function thistype:onRemove()
             SetUnitPathing(self.target, true)
-            TimerQueue:callDelayed(0., DestroyEffect, self.sfx)
 
             SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+
+            BlzSetSpecialEffectScale(self.sfx, 0)
+            DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
@@ -363,13 +365,13 @@ OnInit.global("Buffs", function(require)
         end
 
         function thistype:onApply()
-            self.armor = ROYALPLATE.armor(tpid) * BOOST[tpid]
+            self.armor = ROYALPLATE.armor(self.tpid) * BOOST[self.tpid]
 
-            if ShieldCount[tpid] > 0 then
+            if ShieldCount[self.tpid] > 0 then
                 self.armor = self.armor * 1.3
             end
 
-            UnitAddBonus(self.target, BONUS_ARMOR, armor)
+            UnitAddBonus(self.target, BONUS_ARMOR, self.armor)
         end
     end
 
@@ -426,7 +428,7 @@ OnInit.global("Buffs", function(require)
         end
 
         function thistype:onApply()
-            local angle      = math.rad(GetUnitFacing(self.target) - 180) ---@type number 
+            local angle  = math.rad(GetUnitFacing(self.target) - 180) ---@type number 
             local x      = GetUnitX(self.target) + 75. * math.cos(angle) ---@type number 
             local y      = GetUnitY(self.target) + 75. * math.sin(angle) ---@type number 
 
@@ -436,7 +438,7 @@ OnInit.global("Buffs", function(require)
             BlzSetItemSkin(PathItem, BlzGetUnitSkin(self.target))
             self.sfx = AddSpecialEffect(BlzGetItemStringField(PathItem, ITEM_SF_MODEL_USED), x, y)
             self.lfx = AddLightningEx("HCHA", false, x, y, BlzGetUnitZ(self.target) + 75., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 75.)
-            BlzSetItemSkin(PathItem, BlzGetUnitSkin(WeatherUnit))
+            BlzSetItemSkin(PathItem, BlzGetUnitSkin(DummyUnit))
 
             DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIil\\AIilTarget.mdl", x, y))
 
@@ -798,7 +800,7 @@ OnInit.global("Buffs", function(require)
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Buff_Shield_Non.mdx", self.target, "chest")
 
-            if limitBreak[self.tpid] & 0x10 then
+            if limitBreak[self.tpid] & 0x1 > 0 then
                 BlzSetSpecialEffectColor(self.sfx, 255, 255, 0)
             end
         end
@@ -884,8 +886,6 @@ OnInit.global("Buffs", function(require)
         function thistype:onRemove()
             self.timer:destroy()
             BuffRegen[self.tpid] = BuffRegen[self.tpid] - self.bonusRegen
-            UnitAddBonus(self.source, BONUS_DAMAGE, -undyingRageAttackBonus[self.tpid])
-            undyingRageAttackBonus[self.tpid] = 0
 
             DestroyEffect(self.sfx)
             DestroyTextTag(self.text)
@@ -900,7 +900,7 @@ OnInit.global("Buffs", function(require)
         function thistype:onApply()
             self.text = CreateTextTag()
             self.totalRegen = 0.
-            SetTextTagText(self.text, (R2I(self.totalRegen)) .. "%", 0.025)
+            SetTextTagText(self.text, (R2I(self.totalRegen)) .. "\x25", 0.025)
             SetTextTagColor(self.text, R2I(Pow(100 - self.totalRegen, 1.1)), R2I(SquareRoot(math.max(0, self.totalRegen) * 500)), 0, 255)
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\DemonicAdornment.mdx", self.source, "head")
@@ -908,17 +908,18 @@ OnInit.global("Buffs", function(require)
             self.timer = TimerQueue.create()
 
             local periodic = function()
-                SetTextTagText(self.text, (R2I(self.totalRegen)) .. "%", 0.025)
-                SetTextTagColor(self.text, R2I(Pow(100. - math.min(100., self.totalRegen), 1.1)), R2I(SquareRoot(math.max(0, math.min(100., self.totalRegen)) * 500)), 0, 255)
+                SetTextTagText(self.text, (R2I(self.totalRegen)) .. "\x25", 0.025)
+                local red, green, blue = HealthGradient(self.totalRegen)
+                SetTextTagColor(self.text, red, green, blue, 255)
                 SetTextTagPosUnit(self.text, self.source, -200.)
 
                 --percent
-                self:addRegen(TotalRegen[self.pid] * 0.01)
+                self:addRegen(TotalRegen[self.pid] * FPS_32)
 
                 SetWidgetLife(self.source, math.max(10., BlzGetUnitMaxHP(self.source) * 0.0001))
             end
 
-            self.timer:callPeriodically(FPS_32, not UnitAlive(self.source), periodic)
+            self.timer:callPeriodically(FPS_32, nil, periodic)
         end
     end
 
@@ -1797,10 +1798,7 @@ OnInit.global("Buffs", function(require)
         end
 
         function thistype:onRemove()
-            --stack with stun?
-            if Stun:has(nil, self.target) == false and Freeze:has(nil, self.target) == false then
-                BlzPauseUnitEx(self.target, false)
-            end
+            BlzPauseUnitEx(self.target, false)
             SetUnitFlyHeight(self.target, 0., 0.)
         end
 
@@ -1832,12 +1830,9 @@ OnInit.global("Buffs", function(require)
         thistype.sfx        = nil ---@type effect 
 
         function thistype:onRemove()
-            --stack with stun?
-            if Stun:has(nil, self.target) == false and KnockUp:has(nil, self.target) == false then
-                BlzPauseUnitEx(self.target, false)
-            end
+            BlzPauseUnitEx(self.target, false)
             if GetUnitTypeId(self.source) == HERO_DARK_SAVIOR or GetUnitTypeId(self.source) == HERO_DARK_SAVIOR_DEMON then
-                FreezingBlastDebuff:add(self.source, self.target).duration = FREEZINGBLAST.freeze * LBOOST[self.pid]
+                FreezingBlastDebuff:add(self.source, self.target):duration(FREEZINGBLAST.freeze * LBOOST[self.pid])
             end
             DestroyEffect(self.sfx)
         end
@@ -1859,9 +1854,7 @@ OnInit.global("Buffs", function(require)
         thistype.sfx        = nil ---@type effect 
 
         function thistype:onRemove()
-            if Freeze:has(nil, self.target) == false and KnockUp:has(nil, self.target) == false then
-                BlzPauseUnitEx(self.target, false)
-            end
+            BlzPauseUnitEx(self.target, false)
             DestroyEffect(self.sfx)
         end
 
@@ -1871,10 +1864,10 @@ OnInit.global("Buffs", function(require)
         end
     end
 
-    ---@class DarkestOfDarkness : Buff
-    DarkestOfDarkness = {} --
+    ---@class DarkestOfDarknessBuff : Buff
+    DarkestOfDarknessBuff = {} --
     do
-        local thistype = DarkestOfDarkness
+        local thistype = DarkestOfDarknessBuff
         setmetatable(thistype, { __index = Buff })
         thistype.RAWCODE         = FourCC('A056') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
@@ -1922,7 +1915,7 @@ OnInit.global("Buffs", function(require)
     do
         local thistype = WeatherBuff
         setmetatable(thistype, { __index = Buff })
-        thistype.RAWCODE         = 0 ---@type integer 
+        thistype.RAWCODE         = FourCC('Wcle') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NONE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
         thistype.ms      = 0. ---@type number 
@@ -1934,29 +1927,35 @@ OnInit.global("Buffs", function(require)
             UnitAddBonus(self.target, BONUS_DAMAGE, -self.atk)
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.as, 0)
 
-            --TODO entering dungeon check
-            if GetLocalPlayer() == GetOwningPlayer(self.target) and not IsPlayerInForce(GetOwningPlayer(self.target), NAGA_GROUP) then
-                DisplayCineFilter(false)
-            end
-
-            UnitRemoveAbility(self.target, WeatherTable[weather][WEATHER_BUFF])
-        end
-
-        function thistype:onApply()
-            self.as = 1. - WeatherTable[CURRENT_WEATHER][WEATHER_AS_SLOW] * 0.01
-            self.atk = (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * WeatherTable[CURRENT_WEATHER][WEATHER_ATK] * 0.01
-            self.weather = CURRENT_WEATHER
-
-            if GetLocalPlayer() == GetOwningPlayer(self.target) and WeatherTable[self.weather][WEATHER_FOG] > 0 then
+            if player_fog[self.tpid] and GetLocalPlayer() == GetOwningPlayer(self.target) then
+                player_fog[self.tpid] = false
                 SetCineFilterTexture("ReplaceableTextures\\CameraMasks\\HazeAndFogFilter_Mask.blp")
-                SetCineFilterStartColor(171, 174, WeatherTable[self.weather][WEATHER_BLUE], 0)
-                SetCineFilterEndColor(171, 174, WeatherTable[self.weather][WEATHER_BLUE], WeatherTable[self.weather][WEATHER_FOG])
+                SetCineFilterStartColor(171, 174, WeatherTable[self.weather].blue, WeatherTable[self.weather].fog)
+                SetCineFilterEndColor(171, 174, WeatherTable[self.weather].blue, 0)
                 SetCineFilterBlendMode(BLEND_MODE_BLEND)
-                SetCineFilterDuration(7.)
+                SetCineFilterDuration(4.)
                 DisplayCineFilter(true)
             end
 
-            UnitAddAbility(self.target, WeatherTable[self.weather][WEATHER_BUFF])
+            UnitRemoveAbility(self.target, WeatherTable[self.weather].buff)
+        end
+
+        function thistype:onApply()
+            self.as = 1. - WeatherTable[CURRENT_WEATHER].as * 0.01
+            self.atk = (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * WeatherTable[CURRENT_WEATHER].atk * 0.01
+            self.weather = CURRENT_WEATHER
+
+            if GetLocalPlayer() == GetOwningPlayer(self.target) and WeatherTable[self.weather].fog > 0 then
+                player_fog[self.tpid] = true
+                SetCineFilterTexture("ReplaceableTextures\\CameraMasks\\HazeAndFogFilter_Mask.blp")
+                SetCineFilterStartColor(171, 174, WeatherTable[self.weather].blue, 0)
+                SetCineFilterEndColor(171, 174, WeatherTable[self.weather].blue, WeatherTable[self.weather].fog)
+                SetCineFilterBlendMode(BLEND_MODE_BLEND)
+                SetCineFilterDuration(5.)
+                DisplayCineFilter(true)
+            end
+
+            UnitAddAbility(self.target, WeatherTable[self.weather].buff)
 
             UnitAddBonus(self.target, BONUS_DAMAGE, self.atk)
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / self.as, 0)

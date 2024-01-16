@@ -145,7 +145,7 @@ function Selection(pid, id)
 
     Hero[pid] = CreateUnit(p, id, -690., -238., 0.)
     HeroID[pid] = id
-    urhome[pid] = 0
+    BaseID[pid] = 0
     TimePlayed[pid] = 0
     PlayerSelectedUnit[pid] = Hero[pid]
     selectingHero[pid] = false

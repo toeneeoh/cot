@@ -7,15 +7,14 @@ OnInit.final("Timers", function(require)
     require 'Buffs'
     require 'BuffSystem'
 
-    MISSILE_EXPIRE_AOE=__jarray(false) ---@type boolean[] 
-    SaveTimer={} ---@type timer[] 
-    LAST_HERO_X=__jarray(0) ---@type number[] 
-    LAST_HERO_Y=__jarray(0) ---@type number[] 
-    HeroGroup       = CreateGroup()
-    wanderingTimer       = CreateTimer() ---@type timer 
+    SaveTimer      = {} ---@type timer[] 
+    LAST_HERO_X    = __jarray(0) ---@type number[] 
+    LAST_HERO_Y    = __jarray(0) ---@type number[] 
+    HeroGroup      = CreateGroup()
+    wanderingTimer = CreateTimer() ---@type timer 
 
 function DisplayHint()
-    local rand = GetRandomInt(2, NUM_HINTS) ---@type integer 
+    local rand = GetRandomInt(2, #HINT_TOOLTIP) ---@type integer 
 
     if LAST_HINT < 2 then
         LAST_HINT = LAST_HINT + 1
@@ -29,24 +28,21 @@ function DisplayHint()
     else
         LAST_HINT = LAST_HINT + 1
     end
-    if LAST_HINT > NUM_HINTS then
+    if LAST_HINT > #HINT_TOOLTIP then
         LAST_HINT = 1
     end
 end
 
 ---@type fun(i: integer)
 function BossBonusLinger(i)
-    local index         = 0 ---@type integer 
-    local count         = BlzGroupGetSize(HeroGroup) ---@type integer 
-    local numplayers         = 0 ---@type integer 
+    if CHAOS_LOADING == false and UnitAlive(BossTable[i].unit) then
+        local numplayers = 0
 
-    if CWLoading == false and UnitAlive(Boss[i]) then
-        repeat
-            if IsUnitInRange(BlzGroupUnitAt(HeroGroup, index), Boss[i], NEARBY_BOSS_RANGE) then
+        for hero in each(HeroGroup) do
+            if IsUnitInRange(hero, BossTable[i].unit, NEARBY_BOSS_RANGE) then
                 numplayers = numplayers + 1
             end
-            index = index + 1
-        until index >= count
+        end
 
         BossNearbyPlayers[i] = numplayers
     end
@@ -54,19 +50,19 @@ end
 
 ---@type fun(pt: PlayerTimer)
 function ReturnBoss(pt)
-    if UnitAlive(Boss[pt.i]) and not CWLoading then
-        local angle = Atan2(GetLocationY(BossLoc[pt.i]) - GetUnitY(Boss[pt.i]), GetLocationX(BossLoc[pt.i]) - GetUnitX(Boss[pt.i]))
-        if IsUnitInRangeLoc(Boss[pt.i], BossLoc[pt.i], 100.) then
+    if UnitAlive(BossTable[pt.id].unit) and not CHAOS_LOADING then
+        local angle = Atan2(GetLocationY(BossTable[pt.id].loc) - GetUnitY(BossTable[pt.id].unit), GetLocationX(BossTable[pt.id].loc) - GetUnitX(BossTable[pt.id].unit))
+        if IsUnitInRangeLoc(BossTable[pt.id].unit, BossTable[pt.id].loc, 100.) then
             pt:destroy()
-            SetUnitMoveSpeed(Boss[pt.i], GetUnitDefaultMoveSpeed(Boss[pt.i]))
-            SetUnitPathing(Boss[pt.i], true)
-            UnitRemoveAbility(Boss[pt.i], FourCC('Amrf'))
-            SetUnitTurnSpeed(Boss[pt.i], GetUnitDefaultTurnSpeed(Boss[pt.i]))
+            SetUnitMoveSpeed(BossTable[pt.id].unit, GetUnitDefaultMoveSpeed(BossTable[pt.id].unit))
+            SetUnitPathing(BossTable[pt.id].unit, true)
+            UnitRemoveAbility(BossTable[pt.id].unit, FourCC('Amrf'))
+            SetUnitTurnSpeed(BossTable[pt.id].unit, GetUnitDefaultTurnSpeed(BossTable[pt.id].unit))
         else
-            SetUnitXBounded(Boss[pt.i], GetUnitX(Boss[pt.i]) + 20. * Cos(angle))
-            SetUnitYBounded(Boss[pt.i], GetUnitY(Boss[pt.i]) + 20. * Sin(angle))
-            IssuePointOrder(Boss[pt.i], "move", GetUnitX(Boss[pt.i]) + 70. * Cos(angle), GetUnitY(Boss[pt.i]) + 70. * Sin(angle))
-            UnitRemoveBuffs(Boss[pt.i], false, true)
+            SetUnitXBounded(BossTable[pt.id].unit, GetUnitX(BossTable[pt.id].unit) + 20. * Cos(angle))
+            SetUnitYBounded(BossTable[pt.id].unit, GetUnitY(BossTable[pt.id].unit) + 20. * Sin(angle))
+            IssuePointOrder(BossTable[pt.id].unit, "move", GetUnitX(BossTable[pt.id].unit) + 70. * Cos(angle), GetUnitY(BossTable[pt.id].unit) + 70. * Sin(angle))
+            UnitRemoveBuffs(BossTable[pt.id].unit, false, true)
         end
     else
         pt:destroy()
@@ -81,19 +77,26 @@ function DelayedSave(pid)
 end
 
 function Periodic()
-    local pid         = 0 ---@type integer 
-    local x      = 0 ---@type number 
-    local y      = 0 ---@type number 
-    local u      = User.first ---@type User 
-    local pt ---@class PlayerTimer 
-    local ablev         = 0 ---@type integer 
+    local x     = 0 ---@type number 
+    local y     = 0 ---@type number 
+    local ablev = 0 ---@type integer 
     local itm ---@type Item 
     local b ---@type Buff 
+    local pt
 
     --player loop
 
+    local u = User.first ---@type User 
+
     while u do
-        pid = GetPlayerId(u.player) + 1
+        local pid = u.id
+
+        --camera lock
+        if CameraLock[pid] and not selectingHero[pid] then
+            if (GetLocalPlayer() == u.player) then
+                SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, Zoom[pid], 0)
+            end
+        end
 
         if HeroID[pid] > 0 then
 
@@ -153,8 +156,8 @@ function Periodic()
             end
 
             --damage taken
-            PhysicalTaken[pid] = math.max(0, PhysicalTakenBase[pid] * ItemDamageRes[pid])
-            MagicTaken[pid] = math.max(0, MagicTakenBase[pid] * ItemDamageRes[pid] * ItemMagicRes[pid])
+            PhysicalTaken[pid] = math.max(0, HeroStats[HeroID[pid]].phys_resist * ItemDamageRes[pid])
+            MagicTaken[pid] = math.max(0, HeroStats[HeroID[pid]].magic_resist * ItemDamageRes[pid] * ItemMagicRes[pid])
 
             --master of elements (earth)
             if masterElement[pid] == ELEMENTEARTH.value then
@@ -184,39 +187,41 @@ function Periodic()
             end
 
             --darkest of darkness
-            if GetUnitAbilityLevel(Hero[pid], FourCC('B056')) > 0 then
+            if DarkestOfDarknessBuff:has(Hero[pid], Hero[pid]) then
                 PhysicalTaken[pid] = PhysicalTaken[pid] * 0.7
                 MagicTaken[pid] = MagicTaken[pid] * 0.7
             end
 
             --magnetic stance
-            if GetUnitAbilityLevel(Hero[pid], FourCC('Bmag')) > 0 then
+            if MagneticStanceBuff:has(Hero[pid], Hero[pid]) then
                 PhysicalTaken[pid] = PhysicalTaken[pid] * (0.95 - 0.05 * GetUnitAbilityLevel(Hero[pid], MAGNETICSTANCE.id))
                 MagicTaken[pid] = MagicTaken[pid] * (0.95 - 0.05 * GetUnitAbilityLevel(Hero[pid], MAGNETICSTANCE.id))
             end
 
             --protected
-            if GetUnitAbilityLevel(Hero[pid], FourCC('A09I')) > 0 then
-                PhysicalTaken[pid] = PhysicalTaken[pid] * (0.93 - 0.02 * GetUnitAbilityLevel(ProtectedBuff:get(nil, Hero[pid]).source, PROTECTOR.id))
-                MagicTaken[pid] = MagicTaken[pid] * (0.93 - 0.02 * GetUnitAbilityLevel(ProtectedBuff:get(nil, Hero[pid]).source, PROTECTOR.id))
+            b = ProtectedBuff:get(nil, Hero[pid])
+
+            if b then
+                PhysicalTaken[pid] = PhysicalTaken[pid] * (0.93 - 0.02 * GetUnitAbilityLevel(b.source, PROTECTOR.id))
+                MagicTaken[pid] = MagicTaken[pid] * (0.93 - 0.02 * GetUnitAbilityLevel(b.source, PROTECTOR.id))
             end
 
-            --omnislash 80% reduction 
+            --omnislash 80 percent reduction 
             if TimerList[pid]:has(OMNISLASH.id) then
                 PhysicalTaken[pid] = PhysicalTaken[pid] * 0.2
                 MagicTaken[pid] = MagicTaken[pid] * 0.2
             end
 
-            --righteous might 80% reduction
+            --righteous might 80 percent reduction
             if RighteousMightBuff:has(nil, Hero[pid]) then
                 MagicTaken[pid] = MagicTaken[pid] * 0.2
             end
 
             --weather
             if WeatherBuff:has(Hero[pid], Hero[pid]) then
-                BoostValue[pid] = BoostValue[pid] + WeatherTable[CURRENT_WEATHER][WEATHER_BOOST] * 0.01
-                PhysicalTaken[pid] = PhysicalTaken[pid] * (1. - WeatherTable[CURRENT_WEATHER][WEATHER_DR] * 0.01)
-                MagicTaken[pid] = MagicTaken[pid] * (1. - WeatherTable[CURRENT_WEATHER][WEATHER_DR] * 0.01)
+                BoostValue[pid] = BoostValue[pid] + WeatherTable[CURRENT_WEATHER].boost * 0.01
+                PhysicalTaken[pid] = PhysicalTaken[pid] * (1. - WeatherTable[CURRENT_WEATHER].dr * 0.01)
+                MagicTaken[pid] = MagicTaken[pid] * (1. - WeatherTable[CURRENT_WEATHER].dr * 0.01)
             end
 
             --evasion
@@ -298,7 +303,7 @@ function Periodic()
 
                 --weather
                 if WeatherBuff:has(Hero[pid], Hero[pid]) then
-                    Movespeed[pid] = R2I(Movespeed[pid] * (1. - WeatherTable[CURRENT_WEATHER][WEATHER_MS_SLOW] * 0.01))
+                    Movespeed[pid] = R2I(Movespeed[pid] * (1. - WeatherTable[CURRENT_WEATHER].ms * 0.01))
                 end
 
                 Movespeed[pid] = Movespeed[pid] + BuffMovespeed[pid]
@@ -323,11 +328,11 @@ function Periodic()
 end
 
 function CreateWell()
-    local heal         = 50 ---@type integer 
-    local x      = 0 ---@type number 
-    local y      = 0 ---@type number 
+    local heal = 50 ---@type integer 
+    local x    = 0 ---@type number 
+    local y    = 0 ---@type number 
     local r ---@type rect 
-    local rand         = GetRandomInt(1, 14) ---@type integer 
+    local rand = GetRandomInt(1, 14) ---@type integer 
 
     if rand == 14 then
         rand = 15 --exclude elder dragon
@@ -360,8 +365,8 @@ function CreateWell()
 end
 
 function SpawnStruggleUnits()
-    local end_         = R2I(Struggle_Wave_SR[Struggle_WaveN]) ---@type integer 
-    local rand         = GetRandomInt(1,4) ---@type integer 
+    local end_ = R2I(Struggle_Wave_SR[Struggle_WaveN]) ---@type integer 
+    local rand = GetRandomInt(1,4) ---@type integer 
     local u ---@type unit 
 
     if Struggle_Pcount > 0 and Struggle_WaveU[Struggle_WaveN] > 0 then
@@ -390,15 +395,12 @@ function LavaBurn()
     GroupEnumUnitsInRect(ug2, gg_rct_Lava2, Condition(isplayerunit))
     BlzGroupAddGroupFast(ug2, ug)
 
-    local target = FirstOfGroup(ug)
-    while target do
-        GroupRemoveUnit(ug, target)
+    for target in each(ug) do
         local dmg = BlzGetUnitMaxHP(target) / 40. + 1000.
 
         if GetUnitFlyHeight(u) < 75.00 then
-            UnitDamageTarget(WeatherUnit, target, dmg, true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
+            UnitDamageTarget(DummyUnit, target, dmg, true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
         end
-        target = FirstOfGroup(ug)
     end
 
     DestroyGroup(ug)
@@ -406,7 +408,7 @@ function LavaBurn()
 end
 
 function ColosseumXPDecrease()
-    local u      = User.first ---@type User 
+    local u = User.first ---@type User 
     local i ---@type integer 
 
     while u do
@@ -427,26 +429,26 @@ function WanderingGuys()
     local y ---@type number 
     local x2 ---@type number 
     local y2 ---@type number 
-    local count         = 0 ---@type integer 
-    local id         = BOSS_DEATH_KNIGHT ---@type integer 
+    local count = 0 ---@type integer 
+    local id    = BOSS_DEATH_KNIGHT ---@type integer 
 
     if ChaosMode then
         id = BOSS_LEGION
     end
 
     --dk / legion
-    if GetUnitTypeId(Boss[id]) ~= 0 and UnitAlive(Boss[id]) then
+    if GetUnitTypeId(BossTable[id].unit) ~= 0 and UnitAlive(BossTable[id].unit) then
         repeat
-            x = GetRandomReal(GetRectMinX(gg_rct_Main_Map), GetRectMaxX(gg_rct_Main_Map))
-            y = GetRandomReal(GetRectMinY(gg_rct_Main_Map), GetRectMaxY(gg_rct_Main_Map))
-            x2 = GetUnitX(Boss[id])
-            y2 = GetUnitY(Boss[id])
+            x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
+            y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
+            x2 = GetUnitX(BossTable[id].unit)
+            y2 = GetUnitY(BossTable[id].unit)
             count = count + 1
 
-        until LineContainsRect(x2, y2, x, y, -4000, -3000, 4000, 5000) == false and IsTerrainWalkable(x, y) and DistanceCoords(x, y, x2, y2) > 2000.
+        until LineContainsRect(x2, y2, x, y, -4000, -3000, 4000, 5000) == false and IsTerrainWalkable(x, y) and DistanceCoords(x, y, x2, y2) > 2500.
 
         --call DEBUGMSG("Iterations: " .. count)
-        IssuePointOrder(Boss[id], "patrol", x, y)
+        IssuePointOrder(BossTable[id].unit, "patrol", x, y)
     end
 
     if UnitAlive(gg_unit_H01T_0259) and not TimerList[0]:has('pala') then
@@ -465,11 +467,11 @@ function WanderingGuys()
 end
 
 function SaveTimerExpire()
-    local u      = User.first ---@type User 
+    local u = User.first ---@type User 
     local pid ---@type integer 
 
     while u do
-        pid = GetPlayerId(u.player) + 1
+        pid = u.id
         if GetExpiredTimer() == SaveTimer[pid] then
             if autosave[pid] and not ActionSave(u.player) then
                 TimerQueue:callDelayed(30., DelayedSave, pid)
@@ -504,14 +506,13 @@ function OneMinute()
 end
 
 function AFKClock()
-    local pid ---@type integer 
-    local u      = User.first ---@type User 
+    local u = User.first ---@type User 
 
     afkInt = GetRandomInt(1000, 9999)
     BlzFrameSetText(afkText, "TYPE -" .. afkInt)
 
     while u do
-        pid = GetPlayerId(u.player) + 1
+        local pid = u.id
 
         if HeroID[pid] > 0 then
             if afkTextVisible[pid] then
@@ -520,10 +521,10 @@ function AFKClock()
                 end
                 PanCameraToTimedLocForPlayer(u.player, TownCenter, 0)
                 DisplayTextToForce(FORCE_PLAYING, u.nameColored .. " was removed for being AFK.")
-                DisplayTextToPlayer(u.player,0,0, "You have lost the game. All of your structures and units will be removed from the game, however you may stay and watch or leave as you choose.")
-                PlayerCleanup(u.player)
+                DisplayTextToPlayer(u.player, 0, 0, "You have lost the game. All of your structures and units will be removed from the game, however you may stay and watch or leave as you choose.")
+                PlayerCleanup(pid)
                 --call SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_FOOD_USED, 0)
-            elseif panCounter[pid] < 75 or moveCounter[pid] < 1000 or selectCounter[pid] < 20 then
+            elseif panCounter[pid] < 50 or moveCounter[pid] < 5000 or clickCounter[pid] < 200 then
                 afkTextVisible[pid] = true
                 if GetLocalPlayer() == Player(pid - 1) then
                     BlzFrameSetVisible(afkTextBG, true)
@@ -534,7 +535,7 @@ function AFKClock()
 
         moveCounter[pid] = 0
         panCounter[pid] = 0
-        selectCounter[pid] = 0
+        clickCounter[pid] = 0
 
         u = u.next
     end
@@ -542,12 +543,12 @@ end
 
 function ShopkeeperMove()
     if UnitAlive(gg_unit_n01F_0576) then
-        local x      = 0. ---@type number 
-        local y      = 0. ---@type number 
+        local x = 0. ---@type number 
+        local y = 0. ---@type number 
 
         repeat
-            x = GetRandomReal(GetRectMinX(gg_rct_Main_Map), GetRectMaxX(gg_rct_Main_Map))
-            y = GetRandomReal(GetRectMinY(gg_rct_Main_Map), GetRectMaxY(gg_rct_Main_Map))
+            x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
+            y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
 
             if GetRandomInt(0, 99) < 5 then
                 x = GetRandomReal(GetRectMinX(gg_rct_Tavern), GetRectMaxX(gg_rct_Tavern))
@@ -579,29 +580,23 @@ function ShopkeeperMove()
 end
 
 function OneSecond()
-    local pid         = 0 ---@type integer 
-    local hp      = 0. ---@type number 
-    local mp      = 0. ---@type number 
-    local i         = 0 ---@type integer 
-    local boardpos         = 0 ---@type integer 
-    local g       = CreateGroup()
-    local ug       = CreateGroup()
-    local index         = 0 ---@type integer 
-    local count         = 0 ---@type integer 
-    local numplayers         = 0 ---@type integer 
-    local p      = User.first ---@class User 
-    local b ---@type Buff 
-    local mbitem                = nil ---@type multiboarditem 
+    local ug = CreateGroup()
+    local p  = User.first
+    local hp = 0.
+    local mp = 0.
 
     TIME = TIME + 1
+
+    --clock frame
+    BlzFrameSetText(clockText, IntegerToTime(TIME))
+
+    --set space bar camera to town
+    SetCameraQuickPositionLoc(TownCenter)
 
     --fountain regeneration
     MakeGroupInRange(TOWN_ID, ug, -260., 350., 600., Condition(FilterAlly))
 
-    local target = FirstOfGroup(ug)
-    while target do
-        GroupRemoveUnit(ug, target)
-
+    for target in each(ug) do
         hp = GetWidgetLife(target)
         mp = GetUnitState(target, UNIT_STATE_MANA)
 
@@ -614,28 +609,24 @@ function OneSecond()
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIma\\AImaTarget.mdl", target, "origin"))
             SetUnitState(target, UNIT_STATE_MANA, GetUnitState(target, UNIT_STATE_MANA) + BlzGetUnitMaxMana(target))
         end
-        target = FirstOfGroup(ug)
     end
 
     --boss regeneration / player scaling / reset
-    while i <= BOSS_TOTAL do
-        index = 0
-        count = BlzGroupGetSize(HeroGroup)
-        numplayers = 0
+    for i = 1, #BossTable do
+        if CHAOS_LOADING == false and UnitAlive(BossTable[i].unit) then
 
-        if CWLoading == false and UnitAlive(Boss[i]) then
             --death knight / legion exception
-            if BossID[i] ~= FourCC('H04R') and BossID[i] ~= FourCC('H040') then
-                if IsUnitInRangeLoc(Boss[i], BossLoc[i], BossLeash[i]) == false and GetUnitAbilityLevel(Boss[i], FourCC('Amrf')) == 0 then
-                    hp = GetHeroStr(Boss[i], false) * 25 * 0.16
-                    if GetUnitAbilityLevel(Boss[i], FourCC('Asan')) > 0 then
+            if BossTable[i].id ~= FourCC('H04R') and BossTable[i].id ~= FourCC('H040') then
+                if IsUnitInRangeLoc(BossTable[i].unit, BossTable[i].loc, BossTable[i].leash) == false and GetUnitAbilityLevel(BossTable[i].unit, FourCC('Amrf')) == 0 then
+                    hp = GetHeroStr(BossTable[i].unit, false) * 25 * 0.16
+                    if GetUnitAbilityLevel(BossTable[i].unit, FourCC('Asan')) > 0 then
                         hp = hp * 0.5
                     end
-                    UnitSetBonus(Boss[i], BONUS_LIFE_REGEN, hp)
-                    UnitAddAbility(Boss[i], FourCC('Amrf'))
-                    SetUnitMoveSpeed(Boss[i], 522)
-                    SetUnitPathing(Boss[i], false)
-                    SetUnitTurnSpeed(Boss[i], 1.)
+                    UnitSetBonus(BossTable[i].unit, BONUS_LIFE_REGEN, hp)
+                    UnitAddAbility(BossTable[i].unit, FourCC('Amrf'))
+                    SetUnitMoveSpeed(BossTable[i].unit, 522)
+                    SetUnitPathing(BossTable[i].unit, false)
+                    SetUnitTurnSpeed(BossTable[i].unit, 1.)
                     pt = TimerList[BOSS_ID]:add()
                     pt.id = i
                     TimerQueue:callPeriodically(0.06, ReturnBoss, pt)
@@ -643,13 +634,11 @@ function OneSecond()
             end
 
             --determine number of nearby heroes
-            if count > 0 then
-                repeat
-                    if IsUnitInRange(BlzGroupUnitAt(HeroGroup, index), Boss[i], NEARBY_BOSS_RANGE) then
-                        numplayers = numplayers + 1
-                    end
-                    index = index + 1
-                until index >= count
+            local numplayers = 0
+            for hero in each(HeroGroup) do
+                if IsUnitInRange(hero, BossTable[i].unit, NEARBY_BOSS_RANGE) then
+                    numplayers = numplayers + 1
+                end
             end
 
             BossNearbyPlayers[i] = IMaxBJ(BossNearbyPlayers[i], numplayers)
@@ -659,49 +648,43 @@ function OneSecond()
             end
 
             --calculate hp regeneration
-            if GetWidgetLife(Boss[i]) > GetHeroStr(Boss[i], false) * 25 * 0.15 then -- > 15%
+            if GetWidgetLife(BossTable[i].unit) > GetHeroStr(BossTable[i].unit, false) * 25 * 0.15 then -- > 15 percent
                 if ChaosMode then
-                    hp = GetHeroStr(Boss[i], false) * 25 * (0.0001 + 0.0004 * BossNearbyPlayers[i]) --0.04% per player
+                    hp = GetHeroStr(BossTable[i].unit, false) * 25 * (0.0001 + 0.0004 * BossNearbyPlayers[i]) --0.04 percent per player
                 else
-                    hp = GetHeroStr(Boss[i], false) * 25 * 0.002 * BossNearbyPlayers[i] --0.2%
+                    hp = GetHeroStr(BossTable[i].unit, false) * 25 * 0.002 * BossNearbyPlayers[i] --0.2 percent
                 end
             else
                 if ChaosMode then
-                    hp = GetHeroStr(Boss[i], false) * 25 * (0.0002 + 0.0008 * BossNearbyPlayers[i]) --0.08%
+                    hp = GetHeroStr(BossTable[i].unit, false) * 25 * (0.0002 + 0.0008 * BossNearbyPlayers[i]) --0.08 percent
                 else
-                    hp = GetHeroStr(Boss[i], false) * 25 * 0.004 * BossNearbyPlayers[i] --0.4%
+                    hp = GetHeroStr(BossTable[i].unit, false) * 25 * 0.004 * BossNearbyPlayers[i] --0.4 percent
                 end
             end
 
             if numplayers == 0 then --out of combat?
-                hp = GetHeroStr(Boss[i], false) * 25 * 0.02 --2%
+                hp = GetHeroStr(BossTable[i].unit, false) * 25 * 0.02 --2 percent
             else --bonus damage and health
                 if ChaosMode then
-                    UnitSetBonus(Boss[i], BONUS_DAMAGE, R2I(BlzGetUnitBaseDamage(Boss[i], 0) * 0.2 * (BossNearbyPlayers[i] - 1)))
-                    UnitSetBonus(Boss[i], BONUS_HERO_STR, R2I(GetHeroStr(Boss[i], false) * 0.2 * (BossNearbyPlayers[i] - 1)))
+                    UnitSetBonus(BossTable[i].unit, BONUS_DAMAGE, R2I(BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 0.2 * (BossNearbyPlayers[i] - 1)))
+                    UnitSetBonus(BossTable[i].unit, BONUS_HERO_STR, R2I(GetHeroStr(BossTable[i].unit, false) * 0.2 * (BossNearbyPlayers[i] - 1)))
                 end
             end
 
             --sanctified ground debuff
-            if SanctifiedGroundDebuff:has(nil, Boss[i]) then
+            if SanctifiedGroundDebuff:has(nil, BossTable[i].unit) then
                 hp = hp * 0.5
             end
 
             --non-returning hp regeneration
-            if GetUnitAbilityLevel(Boss[i], FourCC('Amrf')) == 0 then
-                UnitSetBonus(Boss[i], BONUS_LIFE_REGEN, hp)
+            if GetUnitAbilityLevel(BossTable[i].unit, FourCC('Amrf')) == 0 then
+                UnitSetBonus(BossTable[i].unit, BONUS_LIFE_REGEN, hp)
             end
         end
-
-        i = i + 1
     end
 
     --summon regeneration
-    BlzGroupAddGroupFast(SummonGroup, ug)
-
-    target = FirstOfGroup(ug)
-    while target do
-        GroupRemoveUnit(ug, target)
+    for _, target in ipairs(SummonGroup) do
         if UnitAlive(target) and GetUnitAbilityLevel(target, FourCC('A06Q')) > 0 then
             if GetUnitTypeId(target) == SUMMON_DESTROYER then
                 UnitSetBonus(target, BONUS_LIFE_REGEN, BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q'))))
@@ -711,7 +694,6 @@ function OneSecond()
                 UnitSetBonus(target, BONUS_LIFE_REGEN, BlzGetUnitMaxHP(target) * (0.02 + 0.00025 * GetUnitAbilityLevel(target, FourCC('A06Q'))))
             end
         end
-        target = FirstOfGroup(ug)
     end
 
     --zeppelin kill
@@ -720,17 +702,12 @@ function OneSecond()
     end
 
     --Undespawn Units
-    BlzGroupAddGroupFast(despawnGroup, ug)
-
-    target = FirstOfGroup(ug)
-    while target do
-        GroupRemoveUnit(ug, target)
-        GroupEnumUnitsInRange(g, GetUnitX(target), GetUnitY(target), 800., Condition(Trig_Enemy_Of_Hostile))
-        if BlzGroupGetSize(g) == 0 then
+    for target in each(despawnGroup) do
+        GroupEnumUnitsInRange(ug, GetUnitX(target), GetUnitY(target), 800., Condition(FilterDespawn))
+        if BlzGroupGetSize(ug) == 0 then
             GroupRemoveUnit(despawnGroup, target)
-            TimerQueue:callDelayed(1., Undespawn, target, UnitData[target]["ghost"])
+            TimerQueue:callDelayed(1., Undespawn, target, UnitData[target].ghost)
         end
-        target = FirstOfGroup(ug)
     end
 
     --add & remove players in dungeon queue
@@ -738,18 +715,18 @@ function OneSecond()
         while p do
 
             if IsUnitInRangeXY(Hero[p.id], QUEUE_X, QUEUE_Y, 750.) and UnitAlive(Hero[p.id]) and isteleporting[p.id] == false then
-                if IsPlayerInForce(p.player, QUEUE_GROUP) == false and GetHeroLevel(Hero[p.id]) >= QUEUE_LEVEL then
-                    ForceAddPlayer(QUEUE_GROUP, p.player)
+                if TableHas(QUEUE_GROUP, p.player) == false and GetHeroLevel(Hero[p.id]) >= QUEUE_LEVEL then
+                    QUEUE_GROUP[#QUEUE_GROUP + 1] = p.player
                 end
             elseif IsPlayerInForce(p.player, QUEUE_GROUP) then
-                ForceRemovePlayer(QUEUE_GROUP, p.player)
+                TableRemove(QUEUE_GROUP, p.player)
                 QUEUE_READY[p.id] = false
                 if GetLocalPlayer() == p.player then
                     MultiboardDisplay(QUEUE_BOARD, false)
                     MultiboardDisplay(MULTI_BOARD, true)
                 end
 
-                if CountPlayersInForceBJ(QUEUE_GROUP) <= 0 then
+                if #QUEUE_GROUP <= 0 then
                     QUEUE_DUNGEON = 0
                 end
             end
@@ -758,20 +735,14 @@ function OneSecond()
         end
     end
 
-    --clock frame
-    BlzFrameSetText(clockText, IntegerToTime(TIME))
-
     --refresh multiboard
-    pid = 1
-
-    while pid <= PLAYER_CAP do
-
+    for pid = 1, PLAYER_CAP do
         if MB_SPOT[pid] > 0 then
             if HeroID[pid] > 0 then
-                hp = GetUnitState(Hero[pid], UNIT_STATE_LIFE) / BlzGetUnitMaxHP(Hero[pid])
+                hp = GetWidgetLife(Hero[pid]) / BlzGetUnitMaxHP(Hero[pid]) * 100.
 
-                mbitem = MultiboardGetItem(MULTI_BOARD, MB_SPOT[pid], 0)
-                if isdonator[pid] then
+                local mbitem = MultiboardGetItem(MULTI_BOARD, MB_SPOT[pid], 0)
+                if  isdonator[pid] then
                     MultiboardSetItemValue(mbitem, User[pid - 1].nameColored .. "|r|cffffcc00*|r")
                 else
                     MultiboardSetItemValue(mbitem, User[pid - 1].nameColored)
@@ -788,8 +759,9 @@ function OneSecond()
                 MultiboardReleaseItem(mbitem)
 
                 mbitem = MultiboardGetItem(MULTI_BOARD, MB_SPOT[pid], 5)
-                MultiboardSetItemValue(mbitem, (R2I(hp * 100.)) .. "%")
-                MultiboardSetItemValueColor(mbitem, R2I(MathClamp(CubicInterpolation(hp, 295., 275., 140., 0.), 0, 255)), R2I(MathClamp(CubicInterpolation(hp, 0, 20., 255., 255.), 0, 255)), 0, 255)
+                MultiboardSetItemValue(mbitem, math.ceil(hp) .. "\x25")
+                local red, green, blue = HealthGradient(hp)
+                MultiboardSetItemValueColor(mbitem, red, green, blue, 255)
                 MultiboardReleaseItem(mbitem)
 
                 mbitem = MultiboardGetItem(MULTI_BOARD, MB_SPOT[pid], 1)
@@ -822,38 +794,13 @@ function OneSecond()
                 MultiboardReleaseItem(mbitem)
             end
         end
-
-        pid = pid + 1
-    end
-
-    --unit id loop
-    for _, v in ipairs(Unit.list) do
-        --refresh weather
-        if TimerGetRemaining(WeatherTimer) > 0 then
-            --weather that only affects players
-            if GetPlayerId(GetOwningPlayer(v.unit)) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER][WEATHER_ALL] == 1 then
-                if UnitAlive(v.unit) and RectContainsCoords(gg_rct_Main_Map, GetUnitX(v.unit), GetUnitY(v.unit)) then
-                    WeatherBuff:add(v.unit, v.unit).duration = TimerGetRemaining(WeatherTimer)
-                    if WeatherBuff:get(v.unit, v.unit).weather ~= CURRENT_WEATHER then
-                        WeatherBuff:get(v.unit, v.unit):dispel()
-                    end
-                else
-                    WeatherBuff:get(v.unit, v.unit):dispel()
-                end
-            end
-        end
     end
 
     --player loop
+    local boardpos = 0
     p = User.first
 
     while p do
-
-        --set space bar camera to town
-        if GetLocalPlayer() == p.player then
-            SetCameraQuickPositionLoc(TownCenter)
-        end
-
         --update boost variance every second
         BOOST[p.id] = 1. + BoostValue[p.id] + GetRandomReal(-0.2, 0.2)
         LBOOST[p.id] = 1. + 0.5 * BoostValue[p.id]
@@ -864,18 +811,13 @@ function OneSecond()
             end
         end
 
-        --Heli leash
-        if helicopter[p.id] ~= nil and UnitDistance(Hero[p.id], helicopter[p.id]) > 700. then
-            SetUnitPosition(helicopter[p.id], GetUnitX(Hero[p.id]), GetUnitY(Hero[p.id]))
-        end
-
         --Refresh dungeon queue multiboard
-        if CountPlayersInForceBJ(QUEUE_GROUP) > 0 then
-            MultiboardSetRowCount(QUEUE_BOARD, CountPlayersInForceBJ(QUEUE_GROUP))
+        if #QUEUE_GROUP > 0 then
+            MultiboardSetRowCount(QUEUE_BOARD, #QUEUE_GROUP)
             MultiboardSetColumnCount(QUEUE_BOARD, 2)
 
-            if IsPlayerInForce(p.player, QUEUE_GROUP) then
-                mbitem = MultiboardGetItem(QUEUE_BOARD, boardpos, 0)
+            if TableHas(QUEUE_GROUP, p.player) then
+                local mbitem = MultiboardGetItem(QUEUE_BOARD, boardpos, 0)
                 MultiboardSetItemValue(mbitem, p.nameColored)
                 MultiboardSetItemStyle(mbitem, true, false)
                 MultiboardSetItemWidth(mbitem, 0.1)
@@ -909,7 +851,12 @@ function OneSecond()
             UpdateManaCosts(p.id)
 
             --intense focus
-            if GetUnitAbilityLevel(Hero[p.id], FourCC('A0B9')) > 0 and UnitAlive(Hero[p.id]) and LAST_HERO_X[p.id] == GetUnitX(Hero[p.id]) and LAST_HERO_Y[p.id] == GetUnitY(Hero[p.id]) and BlzBitAnd(HERO_PROF[p.id], PROF_BOW) ~= 0 then
+            if (HasProficiency(p.id, PROF_BOW) and
+                GetUnitAbilityLevel(Hero[p.id], FourCC('A0B9')) > 0 and
+                UnitAlive(Hero[p.id]) and
+                LAST_HERO_X[p.id] == GetUnitX(Hero[p.id]) and
+                LAST_HERO_Y[p.id] == GetUnitY(Hero[p.id]))
+            then
                 IntenseFocus[p.id] = IMinBJ(10, IntenseFocus[p.id] + 1)
             else
                 IntenseFocus[p.id] = 0
@@ -925,11 +872,11 @@ function OneSecond()
                 DisplayTimedTextToPlayer(p.player, 0, 0, 5.0, "You have been removed from the PvP queue.")
             end
 
-            hp = GetUnitState(Hero[p.id], UNIT_STATE_LIFE) / BlzGetUnitMaxHP(Hero[p.id]) * 100
+            hp = GetWidgetLife(Hero[p.id]) / BlzGetUnitMaxHP(Hero[p.id]) * 100
 
             --backpack hp/mp percentage
             if hp >= 1 then
-                hp = GetUnitState(Hero[p.id], UNIT_STATE_LIFE) / BlzGetUnitMaxHP(Hero[p.id])
+                hp = GetWidgetLife(Hero[p.id]) / BlzGetUnitMaxHP(Hero[p.id])
                 SetUnitState(Backpack[p.id], UNIT_STATE_LIFE, BlzGetUnitMaxHP(Backpack[p.id]) * hp)
                 mp = GetUnitState(Hero[p.id], UNIT_STATE_MANA) / GetUnitState(Hero[p.id], UNIT_STATE_MAX_MANA)
                 SetUnitState(Backpack[p.id], UNIT_STATE_MANA, GetUnitState(Backpack[p.id], UNIT_STATE_MAX_MANA) * mp)
@@ -958,18 +905,21 @@ function OneSecond()
                 end
 
                 --vampire blood mist
-                if BloodMistBuff:has(Hero[p.id], Hero[p.id]) and BloodBank[p.id] >= BLOODMIST.cost(pid) then
-                    BloodBank[p.id] = BloodBank[p.id] - BLOODMIST.cost(pid)
-                    SetUnitState(Hero[p.id], UNIT_STATE_MANA, BloodBank[p.id])
+                local b = BloodMistBuff:get(Hero[p.id], Hero[p.id])
+                if b then
+                    if BloodBank[p.id] >= BLOODMIST.cost(pid) then
+                        BloodBank[p.id] = BloodBank[p.id] - BLOODMIST.cost(pid)
+                        SetUnitState(Hero[p.id], UNIT_STATE_MANA, BloodBank[p.id])
 
-                    HP(Hero[p.id], BLOODMIST.heal(pid) * BOOST[p.id])
-                    if GetUnitAbilityLevel(Hero[p.id], FourCC('B02Q')) == 0 then
-                        Item.create(UnitAddItemById(Hero[p.id], FourCC('I0OE')))
+                        HP(Hero[p.id], BLOODMIST.heal(pid) * BOOST[p.id])
+                        if GetUnitAbilityLevel(Hero[p.id], FourCC('B02Q')) == 0 then
+                            Item.create(UnitAddItemById(Hero[p.id], FourCC('I0OE')))
+                        end
+                        BlzSetSpecialEffectAlpha(b.sfx, 255)
+                    else
+                        UnitRemoveAbility(Hero[p.id], FourCC('B02Q'))
+                        BlzSetSpecialEffectAlpha(b.sfx, 0)
                     end
-                    BlzSetSpecialEffectAlpha(BloodMistBuff:get(Hero[p.id], Hero[p.id]).sfx, 255)
-                else
-                    UnitRemoveAbility(Hero[p.id], FourCC('B02Q'))
-                    BlzSetSpecialEffectAlpha(BloodMistBuff:get(Hero[p.id], Hero[p.id]).sfx, 0)
                 end
             end
 
@@ -979,12 +929,10 @@ function OneSecond()
             --TODO for now use 900 as default aura range
             MakeGroupInRange(p.id, ug, GetUnitX(Hero[p.id]), GetUnitY(Hero[p.id]), 900. * LBOOST[p.id], Condition(isalive))
 
-            target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 if IsUnitAlly(target, Player(p.id - 1)) then
                     if InspireActive[p.id] then
-                        b = InspireBuff:get(nil, target)
+                        local b = InspireBuff:get(nil, target)
 
                         --choose strongest one
                         if b then
@@ -1002,7 +950,7 @@ function OneSecond()
                         end
                     end
                     if BardSong[p.id] == SONG_WAR then
-                        b = SongOfWarBuff:get(nil, target)
+                        local b = SongOfWarBuff:get(nil, target)
 
                         --allow for damage bonus refresh
                         if b then
@@ -1019,7 +967,7 @@ function OneSecond()
                     end
                     if GetUnitAbilityLevel(Hero[p.id], AURAOFJUSTICE.id) > 0 then
                         JusticeAuraBuff:add(Hero[p.id], target):duration(2.)
-                        b = JusticeAuraBuff:get(nil, target)
+                        local b = JusticeAuraBuff:get(nil, target)
                         b.ablev = IMaxBJ(b.ablev, GetUnitAbilityLevel(Hero[p.id], AURAOFJUSTICE.id))
                     end
                 elseif IsUnitAlly(target, Player(p.id - 1)) == false and UnitIsSleeping(target) == false then
@@ -1029,7 +977,6 @@ function OneSecond()
                         IceElementSlow:add(Hero[p.id], target):duration(2.)
                     end
                 end
-                target = FirstOfGroup(ug)
             end
         end
 
@@ -1040,7 +987,6 @@ function OneSecond()
     BlzFrameClearAllPoints(MultiBoard)
     BlzFrameSetAbsPoint(MultiBoard, FRAMEPOINT_TOPRIGHT, 0.8, 0.6)
 
-    DestroyGroup(g)
     DestroyGroup(ug)
 end
 
@@ -1080,8 +1026,6 @@ function CustomMovement()
 end
 
 function PeriodicFPS()
-    local U = User.first ---@type User 
-    local itm ---@type Item 
     local u = GetMainSelectedUnitEx() ---@type unit 
 
     --rarity item borders
@@ -1093,7 +1037,7 @@ function PeriodicFPS()
     BlzFrameSetVisible(INVENTORYBACKDROP[5], false)
 
     for i = 0, 5 do
-        itm = Item[UnitItemInSlot(u, i)]
+        local itm = Item[UnitItemInSlot(u, i)]
 
         if itm then
             BlzFrameSetTexture(INVENTORYBACKDROP[i], SPRITE_RARITY[itm.level], 0, true)
@@ -1102,41 +1046,12 @@ function PeriodicFPS()
     end
 
     --hide health ui
-    if UndyingRageBuff:has(u, u) then
-        BlzFrameSetVisible(hideHealth, true)
-    else
-        BlzFrameSetVisible(hideHealth, false)
-    end
-
-    while U do
-        --heli text follow
-        if helitag[U.id] ~= nil and UnitAlive(helicopter[U.id]) then
-            SetTextTagPosUnit(helitag[U.id], helicopter[U.id], -200.)
-        end
-
-        --camera lock
-        if selectingHero[U.id] then
-            if (GetLocalPlayer() == U.player) then
-                SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 500, 0)
-                SetCameraField(CAMERA_FIELD_ANGLE_OF_ATTACK, 340, 0)
-                SetCameraField(CAMERA_FIELD_FIELD_OF_VIEW, 60, 0)
-                SetCameraField(CAMERA_FIELD_ZOFFSET, 200, 0)
-                SetCameraField(CAMERA_FIELD_ROTATION, GetUnitFacing(HeroCircle[hslook[U.id]].unit) + 180, 0)
-                SetCameraTargetController(gg_unit_h00T_0511, 0, 0, false)
-            end
-        elseif CameraLock[U.id] then
-            if (GetLocalPlayer() == U.player) then
-                SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, Zoom[U.id], 0)
-            end
-        end
-
-        U = U.next
-    end
+    BlzFrameSetVisible(hideHealth, UndyingRageBuff:has(u, u))
 end
 
-    local savetimer         = CreateTrigger() ---@type trigger 
-    local wandering         = CreateTrigger() ---@type trigger 
-    local u      = User.first ---@type User 
+    local savetimer = CreateTrigger() ---@type trigger 
+    local wandering = CreateTrigger() ---@type trigger 
+    local u         = User.first ---@type User 
 
     TimerQueue:callPeriodically(FPS_64, nil, PeriodicFPS)
     TimerQueue:callPeriodically(FPS_64, nil, CustomMovement)

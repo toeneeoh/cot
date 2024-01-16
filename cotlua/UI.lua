@@ -7,8 +7,8 @@ OnInit.final("UI", function(require)
         _G["LimitBreakButtonFunc" .. index] = function()
             local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-            if limitBreak[pid] & POWERSOF2[tonumber(index) - 1] == 0 and limitBreakPoints[pid] > 0 then
-                limitBreak[pid] = limitBreak[pid] | POWERSOF2[tonumber(index) - 1]
+            if limitBreak[pid] & 2 ^ (tonumber(index) - 1) == 0 and limitBreakPoints[pid] > 0 then
+                limitBreak[pid] = limitBreak[pid] | 2 ^ (tonumber(index) - 1)
                 limitBreakPoints[pid] = limitBreakPoints[pid] - 1
 
                 if GetLocalPlayer() == GetTriggerPlayer() then

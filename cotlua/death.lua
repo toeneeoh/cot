@@ -4,23 +4,21 @@ OnInit.final("Death", function(require)
     require 'Users'
     require 'Variables'
 
-    RTimerBox={} ---@type timerdialog[] 
-    trg_Revive_Timer_done=nil ---@type trigger 
-    despawnGroup       = CreateGroup()
-    HeroReviveIndicator={} ---@type effect[] 
-    HeroTimedLife={} ---@type effect[] 
-    RESPAWN_DEBUG         = false ---@type boolean 
-    StruggleWaveGroup       = CreateGroup()
+    RTimerBox           = {} ---@type timerdialog[] 
+    despawnGroup        = CreateGroup()
+    HeroReviveIndicator = {} ---@type effect[] 
+    HeroTimedLife       = {} ---@type effect[] 
+    RESPAWN_DEBUG       = false ---@type boolean 
+    StruggleWaveGroup   = CreateGroup()
     ColoWaveGroup       = CreateGroup()
-
-    FIRST_DROP         = 0 ---@type integer 
+    FIRST_DROP          = 0 ---@type integer 
 
 ---@type fun(pt: PlayerTimer)
 function RemoveCreep(pt)
     local ug = CreateGroup()
     local valid = true ---@type boolean 
 
-    GroupEnumUnitsInRange(ug, pt.x, pt.y, 800., Condition(Trig_Enemy_Of_Hostile))
+    GroupEnumUnitsInRange(ug, pt.x, pt.y, 800., Condition(FilterDespawn))
 
     if ChaosMode and pt.agi ~= 1 then
         valid = false
@@ -37,7 +35,7 @@ function RemoveCreep(pt)
             ShowUnit(u2, false)
             BlzSetItemSkin(PathItem, BlzGetUnitSkin(u2))
             local sfx = AddSpecialEffect(BlzGetItemStringField(PathItem, ITEM_SF_MODEL_USED), pt.x, pt.y)
-            BlzSetItemSkin(PathItem, BlzGetUnitSkin(WeatherUnit))
+            BlzSetItemSkin(PathItem, BlzGetUnitSkin(DummyUnit))
             BlzSetSpecialEffectColorByPlayer(sfx, pfoe)
             BlzSetSpecialEffectColor(sfx, 175, 175, 175)
             BlzSetSpecialEffectAlpha(sfx, 127)
@@ -46,7 +44,7 @@ function RemoveCreep(pt)
             if not UnitData[u2] then
                 UnitData[u2] = {}
             end
-            UnitData[u2]["ghost"] = sfx
+            UnitData[u2].ghost = sfx
         end
     end
 
@@ -56,60 +54,41 @@ end
 
 ---@param pid integer
 function DeathHandler(pid)
-    local p        = Player(pid - 1) ---@type player 
-    local x      = GetUnitX(HeroGrave[pid]) ---@type number 
-    local y      = GetUnitY(HeroGrave[pid]) ---@type number 
-    local ug       = CreateGroup()
-    local target ---@type unit 
-    local i         = 0 ---@type integer 
+    local p  = Player(pid - 1) ---@type player 
+    local x  = GetUnitX(HeroGrave[pid]) ---@type number 
+    local y  = GetUnitY(HeroGrave[pid]) ---@type number 
+    local ug = CreateGroup()
 
     CleanupSummons(p)
 
-    if RectContainsCoords(gg_rct_PrechaosTrainingSpawn, x, y) then --Clear Training
+    --clear training area if no heroes remain
+    if RectContainsCoords(gg_rct_PrechaosTrainingSpawn, x, y) then
         GroupEnumUnitsInRect(ug, gg_rct_PrechaosTrainingSpawn, Condition(isplayerAlly))
-        while true do
-            target = FirstOfGroup(ug)
-            if target == nil then break end
-            GroupRemoveUnit(ug, target)
-            if UnitAlive(target) and target == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
-                i = 42
-                GroupClear(ug)
+        for hero in each(ug) do
+            if UnitAlive(hero) and hero == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
+                GroupEnumUnitsInRect(ug, gg_rct_PrechaosTrainingSpawn, Condition(ishostile))
+                for target in each(ug) do
+                    RemoveUnit(target)
+                end
                 break
             end
         end
-        if i ~= 42 then
-            GroupEnumUnitsInRect(ug, gg_rct_PrechaosTrainingSpawn, Condition(ishostile))
-            while true do
-                target = FirstOfGroup(ug)
-                if target == nil then break end
-                GroupRemoveUnit(ug, target)
-                RemoveUnit(target)
-            end
-        end
 
-    elseif RectContainsCoords(gg_rct_ChaosTrainingSpawn, x, y) then --Clear Chaos Training
+    --clear chaos training area if no heroes remain
+    elseif RectContainsCoords(gg_rct_ChaosTrainingSpawn, x, y) then
         GroupEnumUnitsInRect(ug, gg_rct_ChaosTrainingSpawn, Condition(isplayerAlly))
-        while true do
-            target = FirstOfGroup(ug)
-            if target == nil then break end
-            GroupRemoveUnit(ug, target)
-            if UnitAlive(target) and target == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
-                i = 42
-                GroupClear(ug)
+        for hero in each(ug) do
+            if UnitAlive(hero) and hero == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
+                GroupEnumUnitsInRect(ug, gg_rct_PrechaosTrainingSpawn, Condition(ishostile))
+                for target in each(ug) do
+                    RemoveUnit(target)
+                end
                 break
             end
         end
-        if i ~= 42 then
-            GroupEnumUnitsInRect(ug, gg_rct_ChaosTrainingSpawn, Condition(ishostile))
-            while true do
-                target = FirstOfGroup(ug)
-                if target == nil then break end
-                GroupRemoveUnit(ug, target)
-                RemoveUnit(target)
-            end
-        end
 
-    elseif InColo[pid] then --Colosseum
+    --colosseum
+    elseif InColo[pid] then
         ColoPlayerCount = ColoPlayerCount - 1
         InColo[pid] = false
         Fleeing[pid] = false
@@ -122,12 +101,13 @@ function DeathHandler(pid)
             ClearColo()
         end
 
-    elseif InStruggle[pid] then --Struggle
+    --struggle
+    elseif InStruggle[pid] then
         Struggle_Pcount = Struggle_Pcount - 1
         InStruggle[pid] = false
         Fleeing[pid] = false
         EnableItems(pid)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map)
+        SetCameraBoundsRectForPlayerEx(p, MAIN_MAP.rect)
         PanCameraToTimedLocForPlayer(p, TownCenter, 0)
         ExperienceControl(pid)
         AwardGold(pid, GoldWon_Struggle * 0.1, true)
@@ -135,34 +115,34 @@ function DeathHandler(pid)
             ClearStruggle()
         end
 
-    elseif IsPlayerInForce(p, AZAZOTH_GROUP) then --Azazoth reset / Gods
-        ForceRemovePlayer(AZAZOTH_GROUP, p)
+    --azazoth reset / gods area
+    elseif TableHas(AZAZOTH_GROUP, p) then
+        TableRemove(AZAZOTH_GROUP, p)
 
         if ChaosMode then
             DisplayTimedTextToForce(FORCE_PLAYING, 20.00, "|c00ff3333Azazoth: Mortal weakling, begone! Your flesh is not even worth annihilation.")
 
-            if CountPlayersInForceBJ(AZAZOTH_GROUP) == 0 then
-                UnitRemoveBuffsBJ(bj_REMOVEBUFFS_ALL, Boss[BOSS_AZAZOTH])
-                SetUnitLifePercentBJ(Boss[BOSS_AZAZOTH], 100)
-                SetUnitManaPercentBJ(Boss[BOSS_AZAZOTH], 100)
-                SetUnitPosition(Boss[BOSS_AZAZOTH], GetRectCenterX(gg_rct_Azazoth_Boss_Spawn), GetRectCenterY(gg_rct_Azazoth_Boss_Spawn))
-                BlzSetUnitFacingEx(Boss[BOSS_AZAZOTH], 90.00)
+            if #AZAZOTH_GROUP == 0 then
+                UnitRemoveBuffsBJ(bj_REMOVEBUFFS_ALL, BossTable[BOSS_AZAZOTH].unit)
+                SetUnitLifePercentBJ(BossTable[BOSS_AZAZOTH].unit, 100)
+                SetUnitManaPercentBJ(BossTable[BOSS_AZAZOTH].unit, 100)
+                SetUnitPosition(BossTable[BOSS_AZAZOTH].unit, GetRectCenterX(gg_rct_Azazoth_Boss_Spawn), GetRectCenterY(gg_rct_Azazoth_Boss_Spawn))
+                BlzSetUnitFacingEx(BossTable[BOSS_AZAZOTH].unit, 90.00)
             end
         end
 
         SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
         PanCameraToTimedLocForPlayer(p, TownCenter, 0)
-    elseif IsPlayerInForce(p, NAGA_GROUP) then --Naga dungeon
-        ForceRemovePlayer(NAGA_GROUP, p)
+
+    --naga dungeon
+    elseif TableHas(NAGA_GROUP, p) then
+        TableRemove(NAGA_GROUP, p)
         EnableItems(pid)
 
-        if CountPlayersInForceBJ(NAGA_GROUP) <= 0 then
+        if #NAGA_GROUP <= 0 then
             PauseTimer(NAGA_TIMER)
             TimerStart(NAGA_TIMER, 0.01, false, NAGA_TIMER_END)
-            while true do
-                target = FirstOfGroup(NAGA_ENEMIES)
-                if target == nil then break end
-                GroupRemoveUnit(NAGA_ENEMIES, target)
+            for target in each(NAGA_ENEMIES) do
                 RemoveUnit(target)
             end
         end
@@ -173,10 +153,9 @@ end
 
 ---@type fun(pid: integer)
 function HeroGraveExpire(pid)
-    local p        = Player(pid - 1) ---@type player 
-    local itm = GetResurrectionItem(pid, false) ---@type Item?
-    local heal      = 0. ---@type number 
-    local pt ---@type PlayerTimer 
+    local p    = Player(pid - 1) ---@type player 
+    local itm  = GetResurrectionItem(pid, false) ---@type Item?
+    local heal = 0. ---@type number 
 
     BlzSetSpecialEffectScale(HeroTimedLife[pid], 0)
     DestroyEffect(HeroTimedLife[pid])
@@ -198,13 +177,13 @@ function HeroGraveExpire(pid)
 
             RevivePlayer(pid, GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), heal, heal)
         elseif Hardcore[pid] then --hardcore death
-            DisplayTextToPlayer(p, 0, 0, "You have died on Hardcore mode, you cannot revive.")
+            DisplayTextToPlayer(p, 0, 0, "You have died on Hardcore mode, you cannot revive. However, you may -repick to begin a new character in a new character save slot.")
             DeathHandler(pid)
 
-            PlayerCleanup(p)
+            PlayerCleanup(pid)
         else --softcore death
             ChargeNetworth(p, 0, 0.02, 50 * GetHeroLevel(Hero[pid]), "Dying has cost you")
-            pt = TimerList[pid]:add()
+            local pt = TimerList[pid]:add()
             pt.tag = FourCC('dead')
             RTimerBox[pid] = CreateTimerDialog(pt.timer)
             TimerDialogSetTitle(RTimerBox[pid], User[pid - 1].nameColored)
@@ -324,7 +303,7 @@ function RewardXPGold(killed, killer, awardGold)
     if IsUnitType(killed, UNIT_TYPE_HERO) == true then
         expbase = expbase * 15.
         maingold = expbase * 87.5
-        if HardMode > 0 then
+        if HARD_MODE > 0 then
             expbase = math.floor(expbase * 1.3)
             maingold = maingold * 1.3
         end
@@ -336,101 +315,87 @@ function RewardXPGold(killed, killer, awardGold)
         AwardGold(pid, teamgold, false)
         AwardXP(pid, XP)
     end
-
-    DestroyGroup(xpgroup)
 end
 
 function ReviveGods()
-    local ug       = CreateGroup()
-    local target ---@type unit 
-    local i         = 0 ---@type integer 
-    local i2         = BOSS_HATE ---@type integer 
+    local ug = CreateGroup()
 
     GroupEnumUnitsInRect(ug, gg_rct_Gods_Vision, isplayerunitRegion)
 
-    while true do
-        target = FirstOfGroup(ug)
-        if target == nil then break end
-        GroupRemoveUnit(ug, target)
+    for target in each(ug) do
         SetUnitPositionLoc(target, TownCenter)
         if target == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
-            ForceRemovePlayer(AZAZOTH_GROUP, GetOwningPlayer(target))
+            TableRemove(AZAZOTH_GROUP, GetOwningPlayer(target))
             SetCameraBoundsRectForPlayerEx(GetOwningPlayer(target), gg_rct_Main_Map_Vision)
             PanCameraToTimedLocForPlayer(GetOwningPlayer(target), TownCenter, 0)
         end
     end
 
+    DestroyGroup(ug)
+
     RemoveUnit(power_crystal)
 
-    Boss[BOSS_LIFE] = CreateUnitAtLoc(pboss, BossID[BOSS_LIFE], BossLoc[BOSS_LIFE], 225)
+    BossTable[BOSS_LIFE]:revive()
 
-    PauseUnit(Boss[BOSS_LIFE], true)
-    ShowUnit(Boss[BOSS_LIFE], false)
+    PauseUnit(BossTable[BOSS_LIFE].unit, true)
+    ShowUnit(BossTable[BOSS_LIFE].unit, false)
 
-    Boss[BOSS_HATE] = CreateUnitAtLoc(pboss, FourCC('E00B'), BossLoc[BOSS_HATE], 225)
-    Boss[BOSS_LOVE] = CreateUnitAtLoc(pboss, FourCC('E00D'), BossLoc[BOSS_LOVE], 225)
-    Boss[BOSS_KNOWLEDGE] = CreateUnitAtLoc(pboss, FourCC('E00C'), BossLoc[BOSS_KNOWLEDGE], 225)
+    BossTable[BOSS_HATE]:revive()
+    BossTable[BOSS_LOVE]:revive()
+    BossTable[BOSS_KNOWLEDGE]:revive()
 
-    while true do --give back items
-        if i2 > BOSS_KNOWLEDGE then break end
-        while i <= 5 do
-            UnitAddItem(Boss[i2], Item.create(CreateItem(BossItemType[i2 * 6 + i], 30000., 30000.)))
-            i = i + 1
+    for i = BOSS_HATE, BOSS_KNOWLEDGE do
+        for j = 1, 6 do
+            if BossTable[i].item[j] ~= 0 then
+                UnitAddItem(BossTable[i].unit, Item.create(CreateItem(BossTable[i].item[j], 30000., 30000.)))
+            end
         end
-        SetHeroLevel(Boss[i2], BossLevel[i2], false)
-        if HardMode > 0 then --reapply hardmode
-            SetHeroStr(Boss[i2], GetHeroStr(Boss[i2], true) * 2, true)
-            BlzSetUnitBaseDamage(Boss[i2], BlzGetUnitBaseDamage(Boss[i2], 0) * 2 + 1, 0)
+        SetHeroLevel(BossTable[i].unit, BossTable[i].level, false)
+        if HARD_MODE > 0 then --reapply hardmode
+            SetHeroStr(BossTable[i].unit, GetHeroStr(BossTable[i].unit, true) * 2, true)
+            BlzSetUnitBaseDamage(BossTable[i].unit, BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 2 + 1, 0)
         end
-        i2 = i2 + 1
-        i = 0
     end
 
     DeadGods = 0
-
-    DestroyGroup(ug)
 end
 
 ---@type fun(pt: PlayerTimer)
 function BossRespawn(pt)
-    local i = 0 ---@type integer 
+    local index = IsBoss(pt.uid)
 
-    --find boss index
-    while not (BossID[i] == pt.uid or i > BOSS_TOTAL) do
-        i = i + 1
-    end
-
-    if i <= BOSS_TOTAL then
-        if pt.uid == BossID[BOSS_LIFE] then --revive gods
+    if index ~= -1 then
+        if pt.uid == BossTable[BOSS_LIFE].id then --revive gods
             ReviveGods()
-            DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" .. BossName[i] .. " have revived.|r")
+            DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" .. BossTable[index].name .. " have revived.|r")
         else
             local ug = CreateGroup()
 
             if pt.uid == FourCC('H040') or pt.uid == FourCC('H04R') then --death knight / legion
                 repeat
-                    RemoveLocation(BossLoc[i])
-                    BossLoc[i] = GetRandomLocInRect(gg_rct_Main_Map)
-                    GroupEnumUnitsInRangeOfLoc(ug, BossLoc[i], 4000., Condition(isbase))
-                until IsTerrainWalkable(GetLocationX(BossLoc[i]), GetLocationY(BossLoc[i])) and BlzGroupGetSize(ug) == 0 and RectContainsLoc(gg_rct_Town_Boundry, BossLoc[i]) == false and RectContainsLoc(gg_rct_Top_of_Town, BossLoc[i]) == false
+                    RemoveLocation(BossTable[index].loc)
+                    BossTable[index].loc = GetRandomLocInRect(MAIN_MAP.rect)
+                    GroupEnumUnitsInRangeOfLoc(ug, BossTable[index].loc, 4000., Condition(isbase))
+                until IsTerrainWalkable(GetLocationX(BossTable[index].loc), GetLocationY(BossTable[index].loc)) and BlzGroupGetSize(ug) == 0 and RectContainsLoc(gg_rct_Town_Boundry, BossTable[index].loc) == false and RectContainsLoc(gg_rct_Top_of_Town, BossTable[index].loc) == false
             end
-
-            Boss[i] = CreateUnitAtLoc(pboss, pt.uid, BossLoc[i], BossFacing[i])
-            DestroyEffect(AddSpecialEffectLoc("Abilities\\Spells\\Orc\\Reincarnation\\ReincarnationTarget.mdl", BossLoc[i]))
-            local itm
-            for i2 = 0, 5 do
-                itm = Item.create(CreateItem(BossItemType[i * 6 + i2], 30000., 30000.))
-                UnitAddItem(Boss[i], itm.obj)
-                itm:lvl(ItemData[itm.id][ITEM_UPGRADE_MAX])
-            end
-            SetHeroLevel(Boss[i], BossLevel[i], false)
-            if HardMode > 0 then --reapply hardmode
-                SetHeroStr(Boss[i], GetHeroStr(Boss[i],true) * 2, true)
-                BlzSetUnitBaseDamage(Boss[i], BlzGetUnitBaseDamage(Boss[i], 0) * 2 + 1, 0)
-            end
-            DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" .. BossName[i] .. " has revived.|r")
 
             DestroyGroup(ug)
+
+            BossTable[index]:revive()
+            DestroyEffect(AddSpecialEffectLoc("Abilities\\Spells\\Orc\\Reincarnation\\ReincarnationTarget.mdl", BossTable[index].loc))
+            for j = 1, 6 do
+                if BossTable[index].item[j] ~= 0 then
+                    local itm = Item.create(CreateItem(BossTable[index].item[j], 30000., 30000.))
+                    UnitAddItem(BossTable[index].unit, itm.obj)
+                    itm:lvl(ItemData[itm.id][ITEM_UPGRADE_MAX])
+                end
+            end
+            SetHeroLevel(BossTable[index].unit, BossTable[index].level, false)
+            if HARD_MODE > 0 then --reapply hardmode
+                SetHeroStr(BossTable[index].unit, GetHeroStr(BossTable[index].unit,true) * 2, true)
+                BlzSetUnitBaseDamage(BossTable[index].unit, BlzGetUnitBaseDamage(BossTable[index].unit, 0) * 2 + 1, 0)
+            end
+            DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" .. BossTable[index].name .. " has revived.|r")
         end
     end
 
@@ -439,15 +404,14 @@ end
 
 ---@param uid integer
 function BossHandler(uid)
-    local delay      = 600.  ---@type number 
-    local pt ---@type PlayerTimer 
+    local delay = BOSS_RESPAWN_TIME
 
-    if CWLoading then
+    if CHAOS_LOADING then
         return
     end
 
     if IsUnitIdType(uid, UNIT_TYPE_HERO) == false then
-        delay = 300.
+        delay = delay // 2
     end
 
     if uid == FourCC('O02T') then
@@ -459,35 +423,35 @@ function BossHandler(uid)
         if DeadGods == 3 then --spawn goddess of life
             if GodsRepeatFlag == false then
                 GodsRepeatFlag = true
-                DoTransmissionBasicsXYBJ(BossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE]), nil, "Goddess of Life", "This is your last chance.", 6)
+                DoTransmissionBasicsXYBJ(BossTable[BOSS_LIFE].id, GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(BossTable[BOSS_LIFE].unit), GetUnitY(BossTable[BOSS_LIFE].unit), nil, "Goddess of Life", "This is your last chance.", 6)
             end
 
-            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE])))
-            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE])))
-            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE])))
-            ShowUnit(Boss[BOSS_LIFE], true)
-            PauseUnit(Boss[BOSS_LIFE], true)
-            UnitAddAbility(Boss[BOSS_LIFE], FourCC('Avul'))
-            UnitAddAbility(Boss[BOSS_LIFE], FourCC('A08L')) --life aura
+            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(BossTable[BOSS_LIFE].unit), GetUnitY(BossTable[BOSS_LIFE].unit)))
+            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(BossTable[BOSS_LIFE].unit), GetUnitY(BossTable[BOSS_LIFE].unit)))
+            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(BossTable[BOSS_LIFE].unit), GetUnitY(BossTable[BOSS_LIFE].unit)))
+            ShowUnit(BossTable[BOSS_LIFE].unit, true)
+            PauseUnit(BossTable[BOSS_LIFE].unit, true)
+            UnitAddAbility(BossTable[BOSS_LIFE].unit, FourCC('Avul'))
+            UnitAddAbility(BossTable[BOSS_LIFE].unit, FourCC('A08L')) --life aura
             TimerQueue:callDelayed(6., GoddessOfLife)
         end
 
         return
-    elseif uid == BossID[BOSS_LIFE] then
+    elseif uid == BossTable[BOSS_LIFE].id then
         DeadGods = 4
         DisplayTimedTextToForce(FORCE_PLAYING, 10, "You may now -flee.")
         power_crystal = CreateUnit(pfoe, FourCC('h04S'), -2026.936, -27753.830, bj_UNIT_FACING)
-    elseif BANISH_FLAG and (uid == BossID[BOSS_DEATH_KNIGHT] or uid == BossID[BOSS_LEGION]) then
+    elseif BANISH_FLAG and (uid == BossTable[BOSS_DEATH_KNIGHT].id or uid == BossTable[BOSS_LEGION].id) then
         --banish death knight / legion
         return
     end
 
-    pt = TimerList[BOSS_ID]:add()
+    local pt = TimerList[BOSS_ID]:add()
     pt.agi = uid
-    pt.tag = FourCC('boss')
+    pt.tag = 'boss'
     pt.uid = BOSS_ID
 
-    delay = delay * BossDelay
+    delay = delay * bossResMod
 
     if RESPAWN_DEBUG then
         delay = 5.
@@ -496,30 +460,29 @@ function BossHandler(uid)
     pt.timer:callDelayed(delay, BossRespawn, pt)
 end
 
-function onDeath()
-    local u      = GetTriggerUnit() ---@type unit 
-    local u2      = GetKillingUnit() ---@type unit 
-    local x      = GetUnitX(u) ---@type number 
-    local y      = GetUnitY(u) ---@type number 
-    local uid         = GetUnitTypeId(u) ---@type integer 
-    local p        = GetOwningPlayer(u) ---@type player 
-    local p2        = GetOwningPlayer(u2) ---@type player 
-    local pid         = GetPlayerId(p) + 1 ---@type integer 
-    local kpid         = GetPlayerId(p2) + 1 ---@type integer 
-    local rand         = GetRandomInt(0, 99) ---@type integer 
-    local ug       = CreateGroup()
-    local i         = 0 ---@type integer 
-    local i2         = 0 ---@type integer 
-    local UnitType         = 0 ---@type integer 
-    local itm      = nil ---@type item 
-    local target      = nil ---@type unit 
-    local dropflag         = true ---@type boolean 
-    local spawnflag         = false ---@type boolean 
-    local goldflag         = false ---@type boolean 
-    local xpflag         = false ---@type boolean 
-    local trainingflag         = false ---@type boolean 
-    local U      = User.first ---@class User 
-    local pt ---@type PlayerTimer 
+---@type fun(): boolean
+function OnDeath()
+    local u            = GetTriggerUnit()
+    local u2           = GetKillingUnit()
+    local x            = GetUnitX(u)
+    local y            = GetUnitY(u)
+    local uid          = GetUnitTypeId(u)
+    local p            = GetOwningPlayer(u)
+    local p2           = GetOwningPlayer(u2)
+    local pid          = GetPlayerId(p) + 1
+    local kpid         = GetPlayerId(p2) + 1
+    local dropflag     = true
+    local spawnflag    = false
+    local goldflag     = false
+    local xpflag       = false
+    local trainingflag = false
+    local unitType     = DropTable:getType(uid)
+    local index        = IsBoss(unitType)
+    local U            = User.first
+
+    if EXTRA_DEBUG then
+        DEBUGMSG(GetObjectName(uid))
+    end
 
     --hero skills
     while U do
@@ -580,11 +543,11 @@ function onDeath()
                 if NAGA_FLOOR < 3 then
                     nagachest = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h002'), -23000, -3750, 270)
                     nagatp = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n00O'), -21894, -4667, 270)
-                    MoveForce(NAGA_GROUP, -24000, -4700, gg_rct_Naga_Dungeon_Reward_Vision)
+                    MovePlayers(NAGA_GROUP, -24000, -4700, gg_rct_Naga_Dungeon_Reward_Vision)
                 else --naga boss
                     nagachest = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h002'), -22141, -10500, 0)
                     nagatp = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n00O'), -20865, -10500, 270)
-                    DisplayTextToForce(NAGA_GROUP, "You have vanquished the Ancient Nagas!")
+                    DisplayTextToTable(NAGA_GROUP, "You have vanquished the Ancient Nagas!")
                     StartSound(bj_questCompletedSound)
                     PauseTimer(NAGA_TIMER)
                     TimerDialogDisplay(NAGA_TIMER_DISPLAY, false)
@@ -596,7 +559,7 @@ function onDeath()
                     end
                     timerflag = false
                     for i = 0, PLAYER_CAP do
-                        if IsPlayerInForce(Player(i), NAGA_GROUP) then
+                        if TableHas(NAGA_GROUP, Player(i)) then
                             local XP = R2I(Experience_Table[500] / 700. * XP_Rate[i + 1])
                             AwardXP(i + 1, XP)
                             EnableItems(i + 1)
@@ -632,28 +595,31 @@ function onDeath()
     --========================
 
     if dropflag and not trainingflag then
-        UnitType = DropTable:getType(uid)
-        i = IsBoss(UnitType)
-
         --special cases
         --forest corruption
-        if UnitType == FourCC('N00M') then
+        if u == forest_corruption then
             Item.create(CreateItem(FourCC('I03X'), x, y), 600.) --corrupted essence
         end
 
-        if i >= 0 then
+        --ice troll
+        if u == ice_troll then
+            Item.create(CreateItem('I040', x, y)) --key of redemption
+        end
+
+        if index >= 0 then
             --TODO dont bit flip if boss count exceeds 31
-            if BlzBitAnd(FIRST_DROP, POWERSOF2[i]) == 0 then
-                FIRST_DROP = FIRST_DROP + POWERSOF2[i]
-                BossDrop(UnitType, Rates[UnitType] + 25, x, y)
+            if BlzBitAnd(FIRST_DROP, 2 ^ index) == 0 then
+                FIRST_DROP = FIRST_DROP + 2 ^ index
+                BossDrop(unitType, Rates[unitType] + 25, x, y)
             else
-                BossDrop(UnitType, Rates[UnitType], x, y)
+                BossDrop(unitType, Rates[unitType], x, y)
             end
 
-            AwardCrystals(UnitType, x, y)
+            AwardCrystals(index, x, y)
         else
-            if rand < Rates[UnitType] then
-                Item.create(CreateItem(DropTable:pickItem(UnitType), x, y), 600.)
+            local rand = GetRandomInt(0, 99)
+            if rand < Rates[unitType] then
+                Item.create(CreateItem(DropTable:pickItem(unitType), x, y), 600.)
             end
 
             --iron golem ore
@@ -675,67 +641,68 @@ function onDeath()
     -- Quests
     --========================
 
-    if UnitType > 0 and KillQuest[UnitType][KILLQUEST_STATUS] == 1 and GetHeroLevel(Hero[kpid]) <= KillQuest[UnitType][KILLQUEST_MAX] + LEECH_CONSTANT then
-        KillQuest[UnitType][KILLQUEST_COUNT] = KillQuest[UnitType][KILLQUEST_COUNT] + 1
-        FloatingTextUnit(KillQuest[UnitType][KILLQUEST_NAME] .. " " .. (KillQuest[UnitType][KILLQUEST_COUNT]) .. "/" .. (KillQuest[UnitType][KILLQUEST_GOAL]), u, 3.1 ,80, 90, 9, 125, 200, 200, 0, true)
+    if unitType > 0 and KillQuest[unitType][KILLQUEST_STATUS] == 1 and GetHeroLevel(Hero[kpid]) <= KillQuest[unitType][KILLQUEST_MAX] + LEECH_CONSTANT then
+        KillQuest[unitType][KILLQUEST_COUNT] = KillQuest[unitType][KILLQUEST_COUNT] + 1
+        FloatingTextUnit(KillQuest[unitType][KILLQUEST_NAME] .. " " .. (KillQuest[unitType][KILLQUEST_COUNT]) .. "/" .. (KillQuest[unitType][KILLQUEST_GOAL]), u, 3.1 ,80, 90, 9, 125, 200, 200, 0, true)
 
-        if KillQuest[UnitType][KILLQUEST_COUNT] >= KillQuest[UnitType][KILLQUEST_GOAL] then
-            KillQuest[UnitType][KILLQUEST_STATUS] = 2
-            KillQuest[UnitType][KILLQUEST_LAST] = uid
-            DisplayTimedTextToForce(FORCE_PLAYING, 12, KillQuest[UnitType][KILLQUEST_NAME] .. " quest completed, talk to the Huntsman for your reward.")
+        if KillQuest[unitType][KILLQUEST_COUNT] >= KillQuest[unitType][KILLQUEST_GOAL] then
+            KillQuest[unitType][KILLQUEST_STATUS] = 2
+            KillQuest[unitType][KILLQUEST_LAST] = uid
+            DisplayTimedTextToForce(FORCE_PLAYING, 12, KillQuest[unitType][KILLQUEST_NAME] .. " quest completed, talk to the Huntsman for your reward.")
         end
     end
 
     --the horde
     if IsQuestDiscovered(Defeat_The_Horde_Quest) and IsQuestCompleted(Defeat_The_Horde_Quest) == false and (uid == FourCC('o01I') or uid == FourCC('o008')) then --Defeat the Horde
+        local ug = CreateGroup()
         GroupEnumUnitsOfPlayer(ug, pboss, Filter(isOrc))
 
-        if BlzGroupGetSize(ug) == 0 and UnitAlive(gg_unit_N01N_0050) and GetUnitAbilityLevel(gg_unit_N01N_0050, FourCC('Avul')) > 0 then
-            UnitRemoveAbility(gg_unit_N01N_0050, FourCC('Avul'))
-            if RectContainsUnit(gg_rct_Main_Map, gg_unit_N01N_0050) == false then
-                SetUnitPosition(gg_unit_N01N_0050, 14650, -15300)
+        if BlzGroupGetSize(ug) == 0 and UnitAlive(kroresh) and GetUnitAbilityLevel(kroresh, FourCC('Avul')) > 0 then
+            UnitRemoveAbility(kroresh, FourCC('Avul'))
+            if RectContainsUnit(MAIN_MAP.rect, kroresh) == false then
+                SetUnitPosition(kroresh, 14650, -15300)
             end
-            DoTransmissionBasicsXYBJ(GetUnitTypeId(gg_unit_N01N_0050), GetPlayerColor(pboss), GetUnitX(gg_unit_N01N_0050), GetUnitY(gg_unit_N01N_0050), nil, "Kroresh Foretooth", "You dare slaughter my men? Damn you!", 5)
+            DoTransmissionBasicsXYBJ(GetUnitTypeId(kroresh), GetPlayerColor(pboss), GetUnitX(kroresh), GetUnitY(kroresh), nil, "Kroresh Foretooth", "You dare slaughter my men? Damn you!", 5)
         end
 
-        GroupClear(ug)
+        DestroyGroup(ug)
     end
 
     --kroresh
-    if u == gg_unit_N01N_0050 then
+    if u == kroresh then
         QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_COMPLETED, "|cffffcc00OPTIONAL QUEST COMPLETE|r\nThe Horde")
         QuestSetCompleted(Defeat_The_Horde_Quest, true)
-        TalkToMe20 = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl",gg_unit_n02Q_0382,"overhead")
+        TalkToMe20 = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl", gg_unit_n02Q_0382, "overhead")
 
     --key quest
-    elseif u == Boss[BOSS_GODSLAYER] and not ChaosMode and IsUnitHidden(god_angel) then --arkaden
+    elseif u == BossTable[BOSS_ARKADEN].unit and not ChaosMode and IsUnitHidden(god_angel) then --arkaden
         SetUnitAnimation(god_angel, "birth")
         ShowUnit(god_angel, true)
         DoTransmissionBasicsXYBJ(GetUnitTypeId(god_angel), GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(god_angel), GetUnitY(god_angel), nil, "Angel", "Halt! Before proceeding you must bring me the 3 keys to unlock the seal and face the gods in their domain.", 7.5)
 
     --zeknen
-    elseif u == gg_unit_O01A_0372 then
+    elseif u == zeknen then
         DeadGods = 0
-        DoTransmissionBasicsXYBJ(BossID[BOSS_LIFE], GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(Boss[BOSS_LIFE]), GetUnitY(Boss[BOSS_LIFE]), nil, "Goddess of Life", "You are foolish to challenge us in our realm. Prepare yourself.", 7.5)
+        DoTransmissionBasicsXYBJ(BossTable[BOSS_LIFE].id, GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), GetUnitX(BossTable[BOSS_LIFE].unit), GetUnitY(BossTable[BOSS_LIFE].unit), nil, "Goddess of Life", "You are foolish to challenge us in our realm. Prepare yourself.", 7.5)
 
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_HATE]), GetUnitY(Boss[BOSS_HATE])))
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_HATE]), GetUnitY(Boss[BOSS_HATE])))
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_HATE]), GetUnitY(Boss[BOSS_HATE])))
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_LOVE]), GetUnitY(Boss[BOSS_LOVE])))
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_LOVE]), GetUnitY(Boss[BOSS_LOVE])))
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_LOVE]), GetUnitY(Boss[BOSS_LOVE])))
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_KNOWLEDGE]), GetUnitY(Boss[BOSS_KNOWLEDGE])))
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_KNOWLEDGE]), GetUnitY(Boss[BOSS_KNOWLEDGE])))
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_KNOWLEDGE]), GetUnitY(Boss[BOSS_KNOWLEDGE])))
-        ShowUnit(Boss[BOSS_HATE], true)
-        ShowUnit(Boss[BOSS_LOVE], true)
-        ShowUnit(Boss[BOSS_KNOWLEDGE], true)
-        PauseUnit(Boss[BOSS_HATE], true)
-        PauseUnit(Boss[BOSS_LOVE], true)
-        PauseUnit(Boss[BOSS_KNOWLEDGE], true)
-        UnitAddAbility(Boss[BOSS_HATE], FourCC('Avul'))
-        UnitAddAbility(Boss[BOSS_LOVE], FourCC('Avul'))
-        UnitAddAbility(Boss[BOSS_KNOWLEDGE], FourCC('Avul'))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(BossTable[BOSS_HATE].unit), GetUnitY(BossTable[BOSS_HATE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(BossTable[BOSS_HATE].unit), GetUnitY(BossTable[BOSS_HATE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(BossTable[BOSS_HATE].unit), GetUnitY(BossTable[BOSS_HATE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(BossTable[BOSS_LOVE].unit), GetUnitY(BossTable[BOSS_LOVE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(BossTable[BOSS_LOVE].unit), GetUnitY(BossTable[BOSS_LOVE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(BossTable[BOSS_LOVE].unit), GetUnitY(BossTable[BOSS_LOVE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(BossTable[BOSS_KNOWLEDGE].unit), GetUnitY(BossTable[BOSS_KNOWLEDGE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(BossTable[BOSS_KNOWLEDGE].unit), GetUnitY(BossTable[BOSS_KNOWLEDGE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(BossTable[BOSS_KNOWLEDGE].unit), GetUnitY(BossTable[BOSS_KNOWLEDGE].unit)))
+        ShowUnit(BossTable[BOSS_HATE].unit, true)
+        ShowUnit(BossTable[BOSS_LOVE].unit, true)
+        ShowUnit(BossTable[BOSS_KNOWLEDGE].unit, true)
+        PauseUnit(BossTable[BOSS_HATE].unit, true)
+        PauseUnit(BossTable[BOSS_LOVE].unit, true)
+        PauseUnit(BossTable[BOSS_KNOWLEDGE].unit, true)
+        UnitAddAbility(BossTable[BOSS_HATE].unit, FourCC('Avul'))
+        UnitAddAbility(BossTable[BOSS_LOVE].unit, FourCC('Avul'))
+        UnitAddAbility(BossTable[BOSS_KNOWLEDGE].unit, FourCC('Avul'))
         TimerQueue:callDelayed(7., SpawnGods)
 
     --evil shopkeeper
@@ -749,9 +716,9 @@ function onDeath()
     --Homes
     --========================
 
-    if u == mybase[pid] then
+    if u == PlayerBase[pid] then
         if u2 ~= nil then
-            if GetPlayerId(p2) > 7 then
+            if GetPlayerId(p2) > PLAYER_CAP then
                 DisplayTimedTextToForce(FORCE_PLAYING, 45, User[pid - 1].nameColored .. "'s base was destroyed by " .. GetUnitName(u2) .. ".")
             else
                 DisplayTimedTextToForce(FORCE_PLAYING, 45, User[pid - 1].nameColored .. "'s base was destroyed by " .. GetPlayerName(p2) .. ".")
@@ -760,16 +727,16 @@ function onDeath()
             DisplayTimedTextToForce(FORCE_PLAYING, 45, User[pid - 1].nameColored .. "'s base has been destroyed.")
         end
 
-        urhome[pid] = 0
-        mybase[pid] = nil
+        BaseID[pid] = 0
+        PlayerBase[pid] = nil
         if destroyBaseFlag[pid] then
             destroyBaseFlag[pid] = false
         else
             DisplayTextToPlayer(p, 0, 0, "|cffff0000You must build another base within 2 minutes or be defeated. If you are defeated you will lose your character and be unable to save. If you think you are unable to build another base for some reason, then save now.")
-            pt = TimerList[pid]:add()
+            local pt = TimerList[pid]:add()
             pt.tag = FourCC('bdie')
 
-            pt.timer:callDelayed(120., BaseDead, pt)
+            pt.timer:callDelayed(120., BaseDeath, pt)
             DestroyTimerDialog(Timer_Window_TUD[pid])
             Timer_Window_TUD[pid] = CreateTimerDialog(pt.timer.timer)
             TimerDialogSetTitle(Timer_Window_TUD[pid], "Defeat In")
@@ -778,15 +745,16 @@ function onDeath()
                 TimerDialogDisplay(Timer_Window_TUD[pid], true)
             end
         end
+
+        local ug = CreateGroup()
         GroupEnumUnitsOfPlayer(ug, p, Condition(FilterNotHero))
 
-        while true do
-            target = FirstOfGroup(ug)
-            if target == nil then break end
-            GroupRemoveUnit(ug, target)
+        for target in each(ug) do
             SetUnitExploded(target, true)
             KillUnit(target)
         end
+
+        DestroyGroup(ug)
 
         --reset unit limits
         workerCount[pid] = 0
@@ -801,7 +769,6 @@ function onDeath()
         SetPlayerTechResearched(p, FourCC('R017'), 1)
 
         ExperienceControl(pid)
-
 
     --========================
     --Other
@@ -881,7 +848,7 @@ function onDeath()
 
         --town paladin
         if u2 == gg_unit_H01T_0259 then
-            pt = TimerList[0]:get('pala', u)
+            local pt = TimerList[0]:get('pala', u)
 
             if pt then
                 pt.dur = 0.
@@ -892,25 +859,20 @@ function onDeath()
     --Enemy Respawns
     --========================
 
-    elseif IsBoss(uid) ~= -1 and p == pboss and IsUnitIllusion(u) == false then
-        i = 0
-        while not (BossID[i] == uid or BossID[i] == uid or i > BOSS_TOTAL) do
-            i = i + 1
-        end
-
+    elseif index ~= -1 and p == pboss and IsUnitIllusion(u) == false then
         --add up player boss damage
-        i2 = 0
+        local damage = 0
         U = User.first
         while U do
-            i2 = i2 + BossDamage[BOSS_TOTAL * i + U.id]
+            damage = damage + BossDamage[#BossTable * index + U.id]
             U = U.next
         end
 
         U = User.first
         --print percentage contribution
         while U do
-            if BossDamage[BOSS_TOTAL * i + U.id] >= 1. then
-                DisplayTimedTextToForce(FORCE_PLAYING, 20., U.nameColored .. " contributed |cffffcc00" .. R2S(BossDamage[BOSS_TOTAL * i + U.id] * 100. / math.max(i2 * 1., 1.)) .. "%|r damage to " .. GetUnitName(u) .. ".")
+            if BossDamage[#BossTable * index + U.id] >= 1. then
+                DisplayTimedTextToForce(FORCE_PLAYING, 20., U.nameColored .. " contributed |cffffcc00" .. R2S(BossDamage[#BossTable * index + U.id] * 100. / math.max(damage * 1., 1.)) .. "\x25|r damage to " .. GetUnitName(u) .. ".")
             end
             U = U.next
         end
@@ -919,14 +881,10 @@ function onDeath()
         BossHandler(uid)
 
         --reset boss damage recorded
-        i2 = 0
-        while i2 <= PLAYER_CAP do
-            BossDamage[BOSS_TOTAL * i + i2] = 0
-            i2 = i2 + 1
-        end
+        BossDamage = __jarray(0)
 
     elseif IsCreep(u) and spawnflag then --Creep Respawn
-        pt = TimerList[PLAYER_NEUTRAL_AGGRESSIVE]:add()
+        local pt = TimerList[PLAYER_NEUTRAL_AGGRESSIVE]:add()
         pt.x = x
         pt.y = y
         pt.agi = 0
@@ -938,11 +896,11 @@ function onDeath()
         TimerQueue:callDelayed(30.0, RemoveUnit, u)
     end
 
-    DestroyGroup(ug)
+    return false
 end
 
-    local death         = CreateTrigger() ---@type trigger 
-    local u      = User.first ---@type User 
+    local death = CreateTrigger() ---@type trigger 
+    local u = User.first ---@type User 
 
     while u do
         TriggerRegisterPlayerUnitEvent(death, u.player, EVENT_PLAYER_UNIT_DEATH, nil)
@@ -954,8 +912,7 @@ end
 
     TriggerRegisterPlayerUnitEvent(death, pfoe, EVENT_PLAYER_UNIT_DEATH, nil)
 
-    TriggerAddAction(death, onDeath)
-
+    TriggerAddCondition(death, Condition(OnDeath))
 end)
 
 if Debug then Debug.endFile() end

@@ -4,7 +4,7 @@ OnInit.global("CodeGen", function()
 
     SaveData = {} ---@type table
 
-    local ALPHABET        = "!#$%&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}`" ---@type string 
+    local ALPHABET        = "!#$\x25&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}`" ---@type string 
     local BASE ---@type integer 
     local CHAR=__jarray("") ---@type string[] 
     local MAXVALUE         = 7 ---@type integer 
@@ -179,8 +179,8 @@ OnInit.global("CodeGen", function()
         return out
     end
 
-        local b         = StringLength(ALPHABET) ---@type integer 
-        local m         = MAXVALUE ---@type integer 
+        local b = StringLength(ALPHABET) ---@type integer 
+        local m = MAXVALUE ---@type integer 
 
         for i = 1, MAXVALUE - 1 do
             CHAR[i] = SubString(ALPHABET, i, i + 1)

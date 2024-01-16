@@ -3,9 +3,9 @@ if Debug then Debug.beginFile 'PVP' end
 OnInit.final("PVP", function(require)
     require 'Users'
 
-    Arena={} ---@type group[] 
-    ArenaQueue=__jarray(0) ---@type integer[] 
-    ArenaMax         = 3 ---@type integer 
+    Arena       = {} ---@type group[] 
+    ArenaQueue  = __jarray(0) ---@type integer[] 
+    ArenaMax    = 3 ---@type integer 
 
 ---@type fun(pid: integer)
 function ArenaUnpause(pid)
@@ -25,9 +25,6 @@ function DuelCountdown(pid, tpid, time)
         SoundHandler("Sound\\Interface\\GameFound.wav", false, Player(tpid - 1), nil)
         DisplayTextToPlayer(Player(pid - 1), 0, 0, "FIGHT!")
         DisplayTextToPlayer(Player(tpid - 1), 0, 0, "FIGHT!")
-
-        RemoveSavedInteger(MiscHash, 0, GetHandleId(t))
-        RemoveSavedInteger(MiscHash, 1, GetHandleId(t))
     else
         --tick sound
         SoundHandler("Sound\\Interface\\BattleNetTick.wav", false, Player(pid - 1), nil)
@@ -47,14 +44,14 @@ end
 ---@param arena integer
 ---@param cam rect
 function SetupDuel(a, b, spawn1, spawn2, face, face2, arena, cam)
-    local pid         = GetPlayerId(GetOwningPlayer(a)) + 1 ---@type integer 
-    local tpid         = GetPlayerId(GetOwningPlayer(b)) + 1 ---@type integer 
-    local x      = GetRectCenterX(spawn1) ---@type number 
-    local y      = GetRectCenterY(spawn1) ---@type number 
-    local x2      = GetRectCenterX(spawn2) ---@type number 
-    local y2      = GetRectCenterY(spawn2) ---@type number 
-    local p        = GetOwningPlayer(a) ---@type player 
-    local p2        = GetOwningPlayer(b) ---@type player 
+    local pid  = GetPlayerId(GetOwningPlayer(a)) + 1 ---@type integer 
+    local tpid = GetPlayerId(GetOwningPlayer(b)) + 1 ---@type integer 
+    local x    = GetRectCenterX(spawn1) ---@type number 
+    local y    = GetRectCenterY(spawn1) ---@type number 
+    local x2   = GetRectCenterX(spawn2) ---@type number 
+    local y2   = GetRectCenterY(spawn2) ---@type number 
+    local p    = GetOwningPlayer(a) ---@type player 
+    local p2   = GetOwningPlayer(b) ---@type player 
 
     ArenaQueue[pid] = 0
     ArenaQueue[tpid] = 0
@@ -140,11 +137,11 @@ end
 ---@param u2 unit
 ---@param arena integer
 function ArenaDeath(u, u2, arena)
-    local U      = User.first ---@type User 
-    local p        = GetOwningPlayer(u) ---@type player 
-    local p2        = GetOwningPlayer(u2) ---@type player 
-    local pid         = GetPlayerId(p) + 1 ---@type integer 
-    local tpid         = GetPlayerId(p2) + 1 ---@type integer 
+    local U    = User.first ---@type User 
+    local p    = GetOwningPlayer(u) ---@type player 
+    local p2   = GetOwningPlayer(u2) ---@type player 
+    local pid  = GetPlayerId(p) + 1 ---@type integer 
+    local tpid = GetPlayerId(p2) + 1 ---@type integer 
 
     ---FFA
     if arena ~= 0 then
@@ -219,15 +216,15 @@ function CountArenaQueue(arena)
 end
 
 function EnterPVP()
-    local pid         = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-    local dw              = DialogWindow[pid] ---@type DialogWindow 
-    local index         = dw:getClickedIndex(GetClickedButton()) ---@type integer 
-    local tpid         = FirstOfArena(index, pid) ---@type integer 
-    local num         = 0 ---@type integer 
-    local x      = 0. ---@type number 
-    local y      = 0. ---@type number 
-    local U      = User.first ---@type User 
-    local p        = Player(pid - 1) ---@type player 
+    local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+    local dw    = DialogWindow[pid] ---@type DialogWindow 
+    local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
+    local tpid  = FirstOfArena(index, pid) ---@type integer 
+    local num   = 0 ---@type integer 
+    local x     = 0. ---@type number 
+    local y     = 0. ---@type number 
+    local U     = User.first ---@type User 
+    local p     = Player(pid - 1) ---@type player 
 
     if index ~= -1 then
         tpid = FirstOfArena(index, pid)

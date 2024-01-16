@@ -5,9 +5,14 @@ OnInit.final("Keyboard", function(require)
     require 'Variables'
     require 'Items'
 
+    function Arrow_Key()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+
+        panCounter[pid] = panCounter[pid] + 1
+    end
+
     function Tab_Down()
-        local pid         = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-        local i         = 0 ---@type integer 
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
         local itm ---@type Item 
 
         if altModifier[pid] then
@@ -15,15 +20,16 @@ OnInit.final("Keyboard", function(require)
 
             UpdateSpellTooltips(pid)
 
-            while i <= 5 do
-
+            for i = 0, 5 do
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     itm = Item[UnitItemInSlot(GetMainSelectedUnitEx(), i)]
 
-                    BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
+                    if itm then
+                        if itm.tooltip then
+                            BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
+                        end
+                    end
                 end
-
-                i = i + 1
             end
         end
     end
@@ -75,8 +81,8 @@ OnInit.final("Keyboard", function(require)
     end
 
     function W_Down()
-        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-        local pt = TimerList[pid]:get(FROZENORB.id, Hero[pid]) ---@class PlayerTimer 
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1
+        local pt = TimerList[pid]:get(FROZENORB.id, Hero[pid])
 
         --shatter frozen orb early
         if pt then
@@ -91,23 +97,28 @@ OnInit.final("Keyboard", function(require)
             SetUnitVertexColor(pt.source, 255, 255, 255, 255)
             ToggleCommandCard(pt.source, true)
             UnitRemoveAbility(pt.source, FourCC('Avul'))
-            Unit[pt.source]:attack(true)
+            Unit[pt.source].attack = true
 
             pt:destroy()
         end
     end
 
-        local altDown         = CreateTrigger() ---@type trigger 
-        local altUp         = CreateTrigger() ---@type trigger 
-        local wDown         = CreateTrigger() ---@type trigger 
-        local tabDown         = CreateTrigger() ---@type trigger 
-        local u      = User.first ---@type User 
+        local altDown = CreateTrigger() ---@type trigger 
+        local altUp   = CreateTrigger() ---@type trigger 
+        local wDown   = CreateTrigger() ---@type trigger 
+        local tabDown = CreateTrigger() ---@type trigger 
+        local arrow   = CreateTrigger() ---@type trigger 
+        local u       = User.first ---@type User 
 
         while u do
             BlzTriggerRegisterPlayerKeyEvent(altDown, u.player, OSKEY_LALT, 4, true)
             BlzTriggerRegisterPlayerKeyEvent(altUp, u.player, OSKEY_LALT, 0, false)
             BlzTriggerRegisterPlayerKeyEvent(wDown, u.player, OSKEY_W, 0, true)
             BlzTriggerRegisterPlayerKeyEvent(tabDown, u.player, OSKEY_TAB, 0, true)
+            BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_LEFT, 0, false)
+            BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_RIGHT, 0, false)
+            BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_UP, 0, false)
+            BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_DOWN, 0, false)
             u = u.next
         end
 
@@ -115,6 +126,7 @@ OnInit.final("Keyboard", function(require)
         TriggerAddCondition(altUp, Filter(Alt_Up))
         TriggerAddCondition(wDown, Filter(W_Down))
         TriggerAddCondition(tabDown, Filter(Tab_Down))
+        TriggerAddCondition(arrow, Filter(Arrow_Key))
 
 end)
 

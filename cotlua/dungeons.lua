@@ -1,50 +1,89 @@
 if Debug then Debug.beginFile 'Dungeons' end
 
 OnInit.final("Dungeons", function(require)
-        require 'Helper'
-        require 'Variables'
+    require 'Helper'
+    require 'Variables'
 
-        DungeonTable = {} ---@type table 
-        QUEUE_DUNGEON         = 0 ---@type integer 
-        QUEUE_GROUP       = CreateForce() ---@type force 
-        QUEUE_X      = 0. ---@type number 
-        QUEUE_Y      = 0. ---@type number 
-        QUEUE_LEVEL         = 0 ---@type integer 
-        QUEUE_READY=__jarray(false) ---@type boolean[] 
+    DungeonTable  = {} ---@type table 
+    QUEUE_DUNGEON = 0 ---@type integer 
+    QUEUE_GROUP   = {} ---@type player[]
+    QUEUE_X       = 0. ---@type number 
+    QUEUE_Y       = 0. ---@type number 
+    QUEUE_LEVEL   = 0 ---@type integer 
+    QUEUE_READY   = __jarray(false) ---@type boolean[] 
 
-        NAGA_FLOOR         = 0 ---@type integer 
-        NAGA_TIMER       = CreateTimer() ---@type timer 
-        NAGA_TIMER_DISPLAY             = CreateTimerDialog(NAGA_TIMER) ---@type timerdialog 
-        NAGA_ENEMIES       = CreateGroup()
-        nagatp      = nil ---@type unit 
-        nagachest      = nil ---@type unit 
-        nagaboss      = nil ---@type unit 
-        nagawaterstrikecd         = false ---@type boolean 
-        timerflag         = false ---@type boolean 
+    NAGA_FLOOR         = 0 ---@type integer 
+    NAGA_TIMER         = CreateTimer() ---@type timer 
+    NAGA_TIMER_DISPLAY = CreateTimerDialog(NAGA_TIMER) ---@type timerdialog 
+    NAGA_ENEMIES       = CreateGroup()
+    nagatp             = nil ---@type unit 
+    nagachest          = nil ---@type unit 
+    nagaboss           = nil ---@type unit 
+    nagawaterstrikecd  = false ---@type boolean 
+    timerflag          = false ---@type boolean 
 
-        NAGA_GROUP       = CreateForce() ---@type force 
-        AZAZOTH_GROUP       = CreateForce() ---@type force 
+    NAGA_GROUP      = {} ---@type player[]
+    AZAZOTH_GROUP   = {} ---@type player[]
 
-        DUNGEON_AZAZOTH         = FourCC('I08T') ---@type integer 
-        DUNGEON_NAGA         = FourCC('I0JU') ---@type integer 
+    DUNGEON_AZAZOTH = FourCC('I08T') ---@type integer 
+    DUNGEON_NAGA    = FourCC('I0JU') ---@type integer 
 
-        DUNGEON_LEVEL         = 0 ---@type integer 
-        DUNGEON_QUEUE         = 1 ---@type integer 
-        DUNGEON_GROUP         = 2 ---@type integer 
-        DUNGEON_NAME         = 3 ---@type integer 
-        DUNGEON_QUEUE_LOC         = 4 ---@type integer 
-        DUNGEON_ENTRANCE_LOC         = 5 ---@type integer 
-        DUNGEON_PLAYER_COUNT         = 6 ---@type integer 
-        DUNGEON_VISION         = 7 ---@type integer 
+    DUNGEON_LEVEL        = 0 ---@type integer 
+    DUNGEON_QUEUE        = 1 ---@type integer 
+    DUNGEON_GROUP        = 2 ---@type integer 
+    DUNGEON_NAME         = 3 ---@type integer 
+    DUNGEON_QUEUE_LOC    = 4 ---@type integer 
+    DUNGEON_ENTRANCE_LOC = 5 ---@type integer 
+    DUNGEON_PLAYER_COUNT = 6 ---@type integer 
+    DUNGEON_VISION       = 7 ---@type integer 
 
+    ---@param pid integer
+    function NagaWaygate(pid)
+        local ug = CreateGroup()
 
-    ---@param id integer
-    ---@param x number
-    ---@param y number
-    ---@param facing number
-    ---@param dmgr integer
-    ---@param g group
-    ---@return unit
+        GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon_Reward, Condition(ischar))
+
+        if BlzGroupGetSize(ug) == 0 then
+            TimerQueue:callDelayed(2.5, RemoveUnit, nagachest)
+            if NAGA_FLOOR == 1 then
+                BlackMask(NAGA_GROUP, 2, 2)
+                DungeonMove(NAGA_GROUP, -20000, -4600, 2, gg_rct_Naga_Dungeon_Vision)
+                TimerQueue:callDelayed(2., RemoveUnit, nagatp)
+                NagaSpawnFloor(NAGA_FLOOR + 1)
+            elseif NAGA_FLOOR == 2 then
+                BlackMask(NAGA_GROUP, 2, 2)
+                DungeonMove(NAGA_GROUP, -24192, -10500, 2, gg_rct_Naga_Dungeon_Boss_Vision)
+                TimerQueue:callDelayed(2., RemoveUnit, nagatp)
+                NagaSpawnFloor(NAGA_FLOOR + 1)
+            elseif NAGA_FLOOR == 3 then --exit
+                if TableHas(NAGA_GROUP, Player(pid - 1)) then
+                    TableRemove(NAGA_GROUP, Player(pid - 1))
+                    ShowUnit(HeroGrave[pid], true)
+                    SetUnitPosition(HeroGrave[pid], -260, 100)
+                    ShowUnit(HeroGrave[pid], false)
+                    SetUnitXBounded(Hero[pid], -260)
+                    SetUnitYBounded(Hero[pid], 100)
+                    SetCameraBoundsRectForPlayerEx(Player(pid - 1), gg_rct_Main_Map_Vision)
+                    PanCameraToTimedForPlayer(Player(pid - 1), -260, 100, 0)
+
+                    --bind token on leave
+                    GetItemFromPlayer(pid, FourCC('I0NN')).owner = Player(pid - 1)
+                end
+
+                if #NAGA_GROUP <= 0 then
+                    TimerQueue:callDelayed(2., RemoveUnit, nagatp)
+
+                    for target in each(NAGA_ENEMIES) do
+                        RemoveUnit(target)
+                    end
+                end
+            end
+        end
+
+        DestroyGroup(ug)
+    end
+
+    ---@type fun(id: integer, x: number, y: number, facing: number, dmgr: integer, g: group):unit
     function DungeonCreateUnit(id, x, y, facing, dmgr, g)
         bj_lastCreatedUnit = CreateUnit(pfoe, id, x, y, facing)
         GroupAddUnit(g, bj_lastCreatedUnit)
@@ -52,58 +91,48 @@ OnInit.final("Dungeons", function(require)
         return bj_lastCreatedUnit
     end
 
-    ---@type fun(f: force, cam: rect, x: number, y: number)
-    function DungeonMoveExpire()
-        local U      = User.first ---@type User 
-
-        while U do
-            if IsPlayerInForce(U.player, f) then
-                ShowUnit(HeroGrave[U.id], true)
-                SetUnitPosition(HeroGrave[U.id], x, y)
-                ShowUnit(HeroGrave[U.id], false)
-                SetUnitXBounded(Hero[U.id], x)
-                SetUnitYBounded(Hero[U.id], y)
-                SetCameraBoundsRectForPlayerEx(U.player, cam)
-                PanCameraToTimedForPlayer(U.player, x, y, 0)
-            end
-
-            U = U.next
+    ---@type fun(tbl: table, cam: rect, x: number, y: number)
+    local function DungeonMoveExpire()
+        for i = 1, #tbl do
+            local pid = GetPlayerId(tbl[i]) + 1
+            ShowUnit(HeroGrave[pid], true)
+            SetUnitPosition(HeroGrave[pid], x, y)
+            ShowUnit(HeroGrave[pid], false)
+            SetUnitXBounded(Hero[pid], x)
+            SetUnitYBounded(Hero[pid], y)
+            SetCameraBoundsRectForPlayerEx(tbl[i], cam)
+            PanCameraToTimedForPlayer(tbl[i], x, y, 0)
         end
     end
 
-    ---@type fun(f: force, x: number, y:number, delay: number, cam: rect)
-    function DungeonMove(f, x, y, delay, cam)
-        TimerQueue:callDelayed(delay, DungeonMoveExpire, f, cam, x, y)
+    ---@type fun(tbl: table, x: number, y:number, delay: number, cam: rect)
+    function DungeonMove(tbl, x, y, delay, cam)
+        TimerQueue:callDelayed(delay, DungeonMoveExpire, tbl, cam, x, y)
     end
 
     --naga dungeon
 
     function NagaReward()
-        local U      = User.first ---@type User 
-        local pcount         = DungeonTable[DUNGEON_NAGA][DUNGEON_PLAYER_COUNT] ---@type integer 
-        local plat         = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
+        local pcount      = DungeonTable[DUNGEON_NAGA][DUNGEON_PLAYER_COUNT] ---@type integer 
+        local plat        = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
         local arc         = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
-        local crystal         = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
+        local crystal     = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
 
-        DisplayTimedTextToForce(NAGA_GROUP, 7.5, "|cffffcc00You have been rewarded:|r|n|cffe3e2e2" .. (plat) .. " Platinum|r|n|cff66FF66" .. (arc) .. " Arcadite|r|n|cff6969FF" .. (crystal) .. " Crystals|r")
+        DisplayTimedTextToTable(NAGA_GROUP, 7.5, "|cffffcc00You have been rewarded:|r|n|cffe3e2e2" .. (plat) .. " Platinum|r|n|cff66FF66" .. (arc) .. " Arcadite|r|n|cff6969FF" .. (crystal) .. " Crystals|r")
 
-        while U do
-            if IsPlayerInForce(U.player, NAGA_GROUP) then
-                AddCurrency(U.id, PLATINUM, plat)
-                AddCurrency(U.id, ARCADITE, arc)
-                AddCurrency(U.id, CRYSTAL, crystal)
-                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", GetUnitX(Hero[U.id]), GetUnitY(Hero[U.id])))
-            end
-
-            U = U.next
+        for i = 1, #NAGA_GROUP do
+            local pid = GetPlayerId(NAGA_GROUP[i]) + 1
+            AddCurrency(pid, PLATINUM, plat)
+            AddCurrency(pid, ARCADITE, arc)
+            AddCurrency(pid, CRYSTAL, crystal)
+            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", GetUnitX(Hero[pid]), GetUnitY(Hero[pid])))
         end
-
     end
 
     function NAGA_TIMER_END()
         TimerDialogDisplay(NAGA_TIMER_DISPLAY, false)
         timerflag = true
-        DisplayTextToForce(NAGA_GROUP, "Special token is no longer available.")
+        DisplayTextToTable(NAGA_GROUP, "Prestige token will no longer drop.")
     end
 
     ---@param floor integer
@@ -134,35 +163,23 @@ OnInit.final("Dungeons", function(require)
         end
     end
 
-    ---@param source unit
-    ---@param dmg number
-    ---@param x number
-    ---@param y number
-    ---@param aoe number
-    ---@param filter boolexpr
+    ---@type fun(source: unit, dmg: number, x: number, y: number, aoe: number, filter: boolexpr)
     function NagaAutoAttack(source, dmg, x, y, aoe, filter)
-        local ug       = CreateGroup()
+        local ug = CreateGroup()
 
         GroupEnumUnitsInRange(ug, x, y, aoe, filter)
 
-        local target = FirstOfGroup(ug)
-        while target do
-            GroupRemoveUnit(ug, target)
+        for target in each(ug) do
             UnitDamageTarget(source, target, dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-            target = FirstOfGroup(ug)
         end
 
         DestroyGroup(ug)
     end
 
-    ---@param amount number
-    ---@param source unit
-    ---@param target unit
-    ---@param damageType damagetype
-    ---@return number
+    ---@type fun(amount: number, source: unit, target: unit, damageType: damagetype): number
     function DungeonOnDamage(amount, source, target, damageType)
-        local uid         = GetUnitTypeId(source) ---@type integer 
-        local tuid         = GetUnitTypeId(target) ---@type integer 
+        local uid = GetUnitTypeId(source) ---@type integer 
+        local tuid = GetUnitTypeId(target) ---@type integer 
 
         --target
         if tuid == FourCC('n01L') then --naga defender
@@ -239,7 +256,7 @@ OnInit.final("Dungeons", function(require)
         local U      = User.first ---@type User 
 
         while U do
-            if IsPlayerInForce(U.player, QUEUE_GROUP) and QUEUE_READY[U.id] then
+            if TableHas(QUEUE_GROUP, U.player) and QUEUE_READY[U.id] then
                 MoveHeroLoc(U.id, DungeonTable[QUEUE_DUNGEON][DUNGEON_ENTRANCE_LOC])
                 ForceAddPlayer(DungeonTable[QUEUE_DUNGEON][DUNGEON_GROUP], U.player)
                 SetCameraBoundsRectForPlayerEx(U.player, DungeonTable[QUEUE_DUNGEON][DUNGEON_VISION])
@@ -249,7 +266,7 @@ OnInit.final("Dungeons", function(require)
                 --dungeon disables items?
                 DisableItems(U.id)
 
-                ForceRemovePlayer(QUEUE_GROUP, U.player)
+                TableRemove(QUEUE_GROUP, U.player)
             end
 
             QUEUE_READY[U.id] = false
@@ -275,7 +292,7 @@ OnInit.final("Dungeons", function(require)
         local allReady         = true ---@type boolean 
 
         while U do
-            if not QUEUE_READY[U.id] and IsPlayerInForce(U.player, QUEUE_GROUP) then
+            if not QUEUE_READY[U.id] and TableHas(QUEUE_GROUP, U.player) then
                 allReady = false
             end
             U = U.next
@@ -288,7 +305,7 @@ OnInit.final("Dungeons", function(require)
 
             TimerQueue:callDelayed(2., DungeonStarter)
         else
-            DisplayTextToForce(QUEUE_GROUP, "Not all players are ready to start the dungeon!")
+            DisplayTextToTable(QUEUE_GROUP, "Not all players are ready to start the dungeon!")
         end
     end
 
@@ -304,7 +321,7 @@ OnInit.final("Dungeons", function(require)
                 QUEUE_LEVEL = DungeonTable[id][DUNGEON_LEVEL]
                 QUEUE_DUNGEON = id
 
-                ForceClear(QUEUE_GROUP)
+                QUEUE_GROUP = {}
                 MultiboardSetTitleText(QUEUE_BOARD, DungeonTable[id][DUNGEON_NAME])
             elseif QUEUE_DUNGEON == id then
                 ReadyCheck(id)
@@ -333,7 +350,6 @@ OnInit.final("Dungeons", function(require)
     DungeonTable[DUNGEON_NAGA][DUNGEON_QUEUE_LOC] = Location(-12363., -1185.)
     DungeonTable[DUNGEON_NAGA][DUNGEON_ENTRANCE_LOC] = Location(-20000., -4600.)
     DungeonTable[DUNGEON_NAGA][DUNGEON_VISION] = gg_rct_Naga_Dungeon_Vision
-
 end)
 
 if Debug then Debug.endFile() end

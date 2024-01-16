@@ -4,43 +4,42 @@ OnInit.final("Damage", function(require)
     require 'Users'
     require 'Variables'
     require 'Helper'
+    require 'UnitIndex'
 
-    UNIT_TARGET         = 10000 ---@type integer 
-    THREAT_CAP         = 4000 ---@type integer 
-    BeforeArmor         = CreateTrigger() ---@type trigger 
+    THREAT_CAP  = 4000 ---@type integer 
 
-    HeroInvul=__jarray(false) ---@type boolean[] 
-    HeartBlood=__jarray(0) ---@type integer[] 
-    BossDamage=__jarray(0) ---@type integer[] 
-    ignoreflag=__jarray(0) ---@type integer[] 
+    HeroInvul  =__jarray(false) ---@type boolean[] 
+    HeartBlood =__jarray(0) ---@type integer[] 
+    BossDamage =__jarray(0) ---@type integer[] 
+    ignoreflag =__jarray(0) ---@type integer[] 
 
-    DUMMY_TIMER       = CreateTimer() ---@type timer 
+    DUMMY_TIMER = CreateTimer() ---@type timer 
 
-    DUMMY_TOTAL_PHYSICAL      = 0. ---@type number 
-    DUMMY_TOTAL_MAGIC      = 0. ---@type number 
-    DUMMY_TOTAL      = 0. ---@type number 
-    DUMMY_LAST      = 0. ---@type number 
-    DUMMY_DPS      = 0. ---@type number 
-    DUMMY_DPS_PEAK      = 0. ---@type number 
-    DUMMY_STORAGE         = CircularArrayList.create() ---@type CircularArrayList 
+    DUMMY_TOTAL_PHYSICAL = 0. ---@type number 
+    DUMMY_TOTAL_MAGIC    = 0. ---@type number 
+    DUMMY_TOTAL          = 0. ---@type number 
+    DUMMY_LAST           = 0. ---@type number 
+    DUMMY_DPS            = 0. ---@type number 
+    DUMMY_DPS_PEAK       = 0. ---@type number 
+    DUMMY_STORAGE        = CircularArrayList.create() ---@type CircularArrayList 
 
-    ATTACK_CHAOS         = 5 ---@type integer 
-    ARMOR_CHAOS         = 6 ---@type integer 
-    ARMOR_CHAOS_BOSS         = 7 ---@type integer 
+    ATTACK_CHAOS     = 5 ---@type integer 
+    ARMOR_CHAOS      = 6 ---@type integer 
+    ARMOR_CHAOS_BOSS = 7 ---@type integer 
 
-    PHYSICAL            = DAMAGE_TYPE_NORMAL ---@type damagetype 
-    MAGIC            = DAMAGE_TYPE_MAGIC ---@type damagetype 
-    PURE            = DAMAGE_TYPE_DIVINE ---@type damagetype 
+    PHYSICAL = DAMAGE_TYPE_NORMAL ---@type damagetype 
+    MAGIC    = DAMAGE_TYPE_MAGIC ---@type damagetype 
+    PURE     = DAMAGE_TYPE_DIVINE ---@type damagetype 
 
 ---@return boolean
 function AcquireTarget()
-    local target      = GetEventTargetUnit() ---@type unit 
-    local source      = GetTriggerUnit() ---@type unit 
+    local target = GetEventTargetUnit() ---@type unit 
+    local source = GetTriggerUnit() ---@type unit 
 
     if GetUnitTypeId(source) == DUMMY then
         BlzSetUnitWeaponBooleanField(source, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
     elseif GetPlayerController(GetOwningPlayer(source)) ~= MAP_CONTROL_USER then
-        Threat[source][UNIT_TARGET] = AcquireProximity(source, target, 800.)
+        Threat[source].target = AcquireProximity(source, target, 800.)
         TimerQueue:callDelayed(FPS_32, SwitchAggro, target)
     end
 
@@ -94,9 +93,9 @@ end
 
 ---@type fun(dmg: number, source: unit, target: unit):number
 function ReduceArmorCalc(dmg, source, target)
-    local armor      = BlzGetUnitArmor(target) ---@type number 
-    local pid         = GetPlayerId(GetOwningPlayer(source)) + 1 ---@type integer 
-    local newarmor      = armor ---@type number 
+    local armor    = BlzGetUnitArmor(target) ---@type number 
+    local pid      = GetPlayerId(GetOwningPlayer(source)) + 1 ---@type integer 
+    local newarmor = armor ---@type number 
 
     if RampageBuff:has(source, source) then --rampage
         newarmor = (math.max(0, armor - armor * (5 * GetUnitAbilityLevel(Hero[pid], RAMPAGE.id)) * 0.01))
@@ -175,6 +174,11 @@ function OnDamage()
     local crit        = 0. ---@type number 
     local u           = nil ---@type unit 
     local b           = nil ---@type Buff 
+
+    --prevents 0 damage events from applying debuffs
+    if source == nil or target == nil then
+        return false
+    end
 
     --TODO force unknown damage to magic damage?
     if damageType ~= PHYSICAL and damageType ~= MAGIC and damageType ~= PURE then
@@ -530,7 +534,7 @@ function OnDamage()
                     UnitDamageTarget(source, target, HOLYBASH.dmg(pid) * BOOST[pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
                     saviorBashCount[pid] = 0
 
-                    local pt = TimerList[pid]:get(source, nil, LIGHTSEAL.id)
+                    local pt = TimerList[pid]:get(LIGHTSEAL.id, source)
 
                     --light seal augment
                     if pt then
@@ -639,9 +643,6 @@ function OnDamage()
                     BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\PASBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
                 end
 
-                InfernalStrikeBuff:get(source, source):dispel()
-                MagneticStrikeBuff:get(source, source):dispel()
-
                 --disable casting at 0 charges
                 if BodyOfFireCharges[pid] <= 0 then
                     UnitDisableAbility(source, INFERNALSTRIKE.id, true)
@@ -662,6 +663,7 @@ function OnDamage()
                 end
 
                 if InfernalStrikeBuff:has(source, source) then
+                    InfernalStrikeBuff:dispel(source, source)
                     amount = 0.00
 
                     ignoreflag[pid] = 1
@@ -699,9 +701,11 @@ function OnDamage()
                     DestroyEffect(AddSpecialEffect("war3mapImported\\Lava_Slam.mdx", GetUnitX(target), GetUnitY(target)))
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(target), GetUnitY(target)))
 
-                    --6% max heal
+                    --6 percent max heal
                     HP(source, BlzGetUnitMaxHP(source) * 0.01 * IMinBJ(6, i))
                 elseif MagneticStrikeBuff:has(source, source) then
+                    MagneticStrikeBuff:dispel(source, source)
+
                     local ug = CreateGroup()
                     MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), 250. * LBOOST[pid], Condition(FilterEnemy))
 
@@ -726,7 +730,7 @@ function OnDamage()
                 BlzStartUnitAbilityCooldown(Hero[pid], ARCANEBOLTS.id, math.max(0.0001, BlzGetUnitAbilityCooldownRemaining(Hero[pid], ARCANEBOLTS.id) - 3.))
             end
 
-            local pt = TimerList[pid]:get(Hero[pid], nil, ARCANESHIFT.id)
+            local pt = TimerList[pid]:get(ARCANESHIFT.id, Hero[pid])
 
             if pt then
                 pt.cd = pt.cd - 3
@@ -832,33 +836,33 @@ function OnDamage()
     if source ~= target then
         --magic damage events >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         if damageType == MAGIC then
-            --creeps -30%
+            --creeps -30 percent
             if GetUnitAbilityLevel(target, FourCC('A04A')) > 0 then
                 amount = amount * 0.7
             end
 
-            --protected existence -33.33%
+            --protected existence -33.33 percent
             if ProtectedExistenceBuff:has(nil, target) then
                 amount = amount * 0.66
             end
 
-            --astral shield -66.66%
+            --astral shield -66.66 percent
             if AstralShieldBuff:has(nil, target) then
                 amount = amount * 0.33
             end
 
-            --hellfire shield (bosses) -50%
+            --hellfire shield (bosses) -50 percent
             if IsEnemy(tpid) and HasItemType(target, FourCC('I03Y')) then
                 amount = amount * 0.5
             end
 
-            --meat golem magic resist -(25-30)%
+            --meat golem magic resist -(25-30) percent
             if tuid == SUMMON_GOLEM and golemDevourStacks[tpid] > 0 then
                 amount = amount * (0.75 - golemDevourStacks[tpid] * 0.1)
             end
 
-            --hardmode multiplier +100%
-            if IsEnemy(pid) and HardMode > 0 then
+            --hardmode multiplier +100 percent
+            if IsEnemy(pid) and HARD_MODE > 0 then
                 amount = amount * 2.
             end
 
@@ -867,14 +871,16 @@ function OnDamage()
                 amount = amount * OVERLOAD.mult(pid)
             end
 
-            --warrior intimidating shout limit break -40%
-            if IntimidatingShoutDebuff:has(nil, source) then
-                if BlzBitAnd(limitBreak[IntimidatingShoutDebuff(IntimidatingShoutDebuff:get(nil, source)).pid], 0x4) > 0 then
+            --warrior intimidating shout limit break -40 percent
+            b = IntimidatingShoutDebuff:get(nil, source)
+
+            if b then
+                if limitBreak[b.pid] & 0x4 > 0 then
                     amount = amount * 0.6
                 end
             end
 
-            --oblivion guard magnetic strike +25%
+            --oblivion guard magnetic strike +25 percent
             if MagneticStrikeDebuff:has(nil, target) then
                 amount = amount * 1.25
             end
@@ -887,7 +893,7 @@ function OnDamage()
             amount = 0.00
             ParryBuff:get(target, target).playSound()
 
-            if BlzBitAnd(limitBreak[pid], 0x1) > 0 then
+            if limitBreak[pid] & 0x1 > 0 then
                 UnitDamageTarget(target, source, PARRY.dmg(pid) * 2., true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
             else
                 UnitDamageTarget(target, source, PARRY.dmg(pid), true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
@@ -900,7 +906,7 @@ function OnDamage()
         --intense focus azazoth bow
         amount = amount * (1. + IntenseFocus[pid] * 0.01)
 
-        --magnetic stance -(50-30)%
+        --magnetic stance -(50-30) percent
         if GetUnitAbilityLevel(source, FourCC('Bmag')) > 0 then
             amount = amount * (0.45 + 0.05 * GetUnitAbilityLevel(source, FourCC('Bmag')))
         end
@@ -915,7 +921,7 @@ function OnDamage()
             amount = amount * (1 + 0.04 * GetUnitAbilityLevel(target, FourCC('A04P')))
         end
 
-        --provoke 30%
+        --provoke 30 percent
         if GetUnitAbilityLevel(source, FourCC('B02B')) > 0 and IsUnitType(target, UNIT_TYPE_HERO) == true then
             amount = amount * 0.75
         end
@@ -976,21 +982,9 @@ function OnDamage()
                         threat = threat + IMaxBJ(1, 100 - R2I(UnitDistance(target, source) * 0.12)) --~40 as melee, ~250 at 700 range
                         Threat[target][source] = threat
 
-                        if threat >= THREAT_CAP then
-                            if Threat[target][UNIT_TARGET] == source then
-                                Threat[target] = __jarray(0)
-                            else --switch target
-                                local dummy = GetDummy(GetUnitX(target), GetUnitY(target), 0, 0, 1.5)
-                                BlzSetUnitSkin(dummy, FourCC('h00N'))
-                                if GetLocalPlayer() == Player(pid - 1) then
-                                    BlzSetUnitSkin(dummy, FourCC('h01O'))
-                                end
-                                SetUnitScale(dummy, 2.5, 2.5, 2.5)
-                                SetUnitFlyHeight(dummy, 250.00, 0.)
-                                SetUnitAnimation(dummy, "birth")
-                                TimerQueue:callDelayed(1.5, SwitchAggro, target)
-                            end
-                            Threat[target][UNIT_TARGET] = source
+                        --switch target
+                        if threat >= THREAT_CAP and Threat[target].target ~= source and Threat[target]["switching"] == 0 then
+                            ChangeAggro(target, source)
                         end
                     end
                 end
@@ -1004,11 +998,11 @@ function OnDamage()
 
         --main hero damage dealt
         if source == Hero[pid] then
-            if DealtDmgBase[pid] > 0 and damageType == PHYSICAL then
-                amount = amount * DealtDmgBase[pid]
+            if damageType == PHYSICAL then
+                amount = amount * HeroStats[HeroID[pid]].phys_damage
             end
 
-            --instill fear 15%
+            --instill fear 15 percent
             if GetUnitAbilityLevel(target, FourCC('B02U')) > 0 and target == InstillFear[pid] then
                 amount = amount * 1.15
             end
@@ -1031,7 +1025,7 @@ function OnDamage()
             end
         --damage resist modifiers for non main heroes
         else
-            --sand storm +20%
+            --sand storm +20 percent
             if GetUnitAbilityLevel(target, FourCC('B002')) > 0 then
                 amount = amount * 1.2
             end
@@ -1042,7 +1036,7 @@ function OnDamage()
     end of multipliers <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     ]]
 
-    --/mystic mana shield
+    --mystic mana shield
     if GetUnitAbilityLevel(target, FourCC('A062')) > 0 then
         dmg = GetUnitState(target, UNIT_STATE_MANA) - CalcAfterReductions(amount, source, target, damageType) / 3.
 
@@ -1186,7 +1180,7 @@ function OnDamage()
     end
 
     --player hero + summons
-    if source == Hero[pid] or IsUnitInGroup(source, SummonGroup) then
+    if source == Hero[pid] or TableHas(SummonGroup, source) then
         if GetUnitLevel(target) >= 170 and IsUnitEnemy(target, GetOwningPlayer(source)) and HasItemType(Hero[pid], FourCC('I04Q')) then --demon heart
             HeartBlood[pid] = HeartBlood[pid] + 1
             UpdateItemTooltips(pid)
@@ -1215,7 +1209,7 @@ function OnDamage()
         end
 
         --summons
-        if IsUnitInGroup(target, SummonGroup) then
+        if TableHas(SummonGroup, target) then
             amount = 0.00
             SummonExpire(target)
         end
@@ -1225,7 +1219,7 @@ function OnDamage()
 
         if b then
             BlzSetEventDamage(0.00)
-            b:dispel()
+            b:remove()
         end
 
         --gaia armor
@@ -1272,22 +1266,21 @@ function OnDamage()
 end
 
     local U = User.first ---@type User 
+    local beforearmor = CreateTrigger()
 
     TriggerAddCondition(ACQUIRE_TRIGGER, Filter(AcquireTarget))
 
     while U do
-        TriggerRegisterPlayerUnitEvent(BeforeArmor, U.player, EVENT_PLAYER_UNIT_DAMAGING, nil)
+        TriggerRegisterPlayerUnitEvent(beforearmor, U.player, EVENT_PLAYER_UNIT_DAMAGING, nil)
         U = U.next
     end
 
-    TriggerRegisterPlayerUnitEvent(BeforeArmor, Player(PLAYER_TOWN), EVENT_PLAYER_UNIT_DAMAGING, nil)
-    TriggerRegisterPlayerUnitEvent(BeforeArmor, pboss, EVENT_PLAYER_UNIT_DAMAGING, nil)
-    TriggerRegisterPlayerUnitEvent(BeforeArmor, Player(PLAYER_NEUTRAL_PASSIVE), EVENT_PLAYER_UNIT_DAMAGING, nil)
-    TriggerRegisterPlayerUnitEvent(BeforeArmor, pfoe, EVENT_PLAYER_UNIT_DAMAGING, nil)
+    TriggerRegisterPlayerUnitEvent(beforearmor, Player(PLAYER_TOWN), EVENT_PLAYER_UNIT_DAMAGING, nil)
+    TriggerRegisterPlayerUnitEvent(beforearmor, pboss, EVENT_PLAYER_UNIT_DAMAGING, nil)
+    TriggerRegisterPlayerUnitEvent(beforearmor, Player(PLAYER_NEUTRAL_PASSIVE), EVENT_PLAYER_UNIT_DAMAGING, nil)
+    TriggerRegisterPlayerUnitEvent(beforearmor, pfoe, EVENT_PLAYER_UNIT_DAMAGING, nil)
 
-    --before reductions
-    TriggerAddCondition(BeforeArmor, Filter(OnDamage))
-
+    TriggerAddCondition(beforearmor, Condition(OnDamage))
 end)
 
 if Debug then Debug.endFile() end

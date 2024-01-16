@@ -32,15 +32,14 @@ function EventSetup(pid)
     local ondrop         = CreateTrigger() ---@type trigger 
     local useitem         = CreateTrigger() ---@type trigger 
     local onsell         = CreateTrigger() ---@type trigger 
-    local onpawn         = CreateTrigger() ---@type trigger 
-    local u      = User.first ---@type User 
     local i         = pid - 1 ---@type integer 
     local i2         = 0 ---@type integer 
     local p        = Player(pid - 1) ---@type player 
 
     --make user
     if not User[p] then
-        User[i] = User.create()
+        User[i] = {}
+        setmetatable(User[i], { __index = User })
         User[i].player = p
         User[i].id = i + 1
         User[i].isPlaying = true
@@ -57,8 +56,11 @@ function EventSetup(pid)
             User[i].prev = nil
         else
             User[i].prev = User[User.AmountPlaying - 1]
+            User[i].prev.next = User[i]
             User[i].next = nil
         end
+
+        User.AmountPlaying = User.AmountPlaying + 1
 
         TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_LEAVE)
         TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_DEFEAT)
@@ -147,14 +149,13 @@ function EventSetup(pid)
     TriggerRegisterUnitEvent(onpickup, Hero[pid], EVENT_UNIT_PICKUP_ITEM)
     TriggerRegisterUnitEvent(ondrop, Hero[pid], EVENT_UNIT_DROP_ITEM)
     TriggerRegisterUnitEvent(useitem, Hero[pid], EVENT_UNIT_USE_ITEM)
-    TriggerRegisterUnitEvent(onpawn, Hero[pid], EVENT_UNIT_PAWN_ITEM)
+    TriggerRegisterUnitEvent(onsell, Hero[pid], EVENT_UNIT_PAWN_ITEM)
 
-    TriggerAddCondition(onpickup, Condition(ItemFilter))
+    TriggerAddCondition(onpickup, Condition(PickupFilter))
     TriggerAddAction(onpickup, onPickup)
     TriggerAddAction(ondrop, onDrop)
     TriggerAddAction(useitem, onUse)
-    TriggerAddAction(onsell, onSell)
-    TriggerAddCondition(onpawn, onPawned)
+    TriggerAddCondition(onsell, onSell)
 end
 
 function PreloadItemSearch()
@@ -186,11 +187,9 @@ end
 
 ---@param id integer
 function WipeItemStats(id)
-    local i         = 1 ---@type integer 
-
-    while i <= 30 do
-
+    for i = 1, 30 do
         ItemData[id][i] = 0
+        ItemData[id][i + BOUNDS_OFFSET] = 0
         ItemData[id][i + BOUNDS_OFFSET * 2] = 0
         ItemData[id][i + BOUNDS_OFFSET * 3] = 0
         ItemData[id][i + BOUNDS_OFFSET * 4] = 0
@@ -198,8 +197,6 @@ function WipeItemStats(id)
         ItemData[id][i + BOUNDS_OFFSET * 6] = 0
         ItemData[id][i * ABILITY_OFFSET] = 0
         ItemData[id][i * ABILITY_OFFSET .. "abil"] = nil
-
-        i = i + 1
     end
 end
 
@@ -287,7 +284,7 @@ function FindItem(search, pid)
     while i <= 8191 do
 
         id = CUSTOM_ITEM_OFFSET + i
-        itemCode = Id2String(id)
+        itemCode = IntToFourCC(id)
         name = GetObjectName(id)
         if name ~= "Default string" and name ~= "" and SEARCHABLE[i] then
             if StringContainsString(search, name) then
@@ -388,8 +385,6 @@ function DevCommands()
         FindItem(SubString(message, 4, StringLength(message)), pid)
     elseif SubString(message,0,4)== "-gi " then
         PlayerAddItemById(pid, FourCC(SubString(message, 4, StringLength(message))))
-    elseif (message == "-pfall") or (message == "-allpf") then
-        HERO_PROF[pid] = 0x3ff
     elseif (SubString(message, 0, 5) == "-hero") then
         i = S2I(SubString(message, 8, StringLength(message)))
         i2 = SAVE_UNIT_TYPE[S2I(SubString(message, 6, 8))]
@@ -400,8 +395,9 @@ function DevCommands()
 
             Hero[i] = CreateUnitAtLoc(Player(i - 1), i2, TownCenter, 0)
             HeroID[i] = GetUnitTypeId(Hero[i])
-            CharacterSetup(i, false)
+            Profile[i] = Profile.create(i)
             EventSetup(i)
+            CharacterSetup(i, false)
         end
 
     elseif (SubString(message, 0, 13) == "-sharecontrol") then
@@ -426,7 +422,6 @@ function DevCommands()
         PingMinimap(GetUnitX(gg_unit_n01F_0576), GetUnitY(gg_unit_n01F_0576), 3)
     elseif (SubString(message, 0, 11) == "-setweather") then
         WEATHER_OVERRIDE = S2I(SubString(message, 12, StringLength(message)))
-        UnitRemoveAbility(WeatherUnit, WeatherTable[CURRENT_WEATHER][WEATHER_ABIL])
         WeatherPeriodic()
     elseif (message== "-noborders") then
         if GetLocalPlayer() == currentPlayer then
@@ -477,11 +472,8 @@ function DevCommands()
     elseif (SubString(message, 0, 13) == "-setfirestorm") then
         firestormRate = S2I(SubString(message, 14, StringLength(message)))
     elseif (message == "-horde") then
-        i = 0
-
-        while i <= 39 do
+        for _ = 0, 39 do
             CreateUnitAtLoc(pfoe, FourCC('n07R'), GetUnitLoc(Hero[pid]), GetRandomReal(0,359))
-            i = i + 1
         end
     elseif (message == "-kill") then
         UnitDamageTarget(Hero[pid], PlayerSelectedUnit[pid], BlzGetUnitMaxHP(PlayerSelectedUnit[pid]) * 2., true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
@@ -517,15 +509,21 @@ function DevCommands()
         SetPrestigeEffects(pid)
         UpdatePrestigeTooltips()
     elseif SubString(message,0,6) == "-wells" then
-        i = 1
-        while i <= 4 do
+        for i = 0, 4 do
             PingMinimap(GetUnitX(well[i]), GetUnitY(well[i]), 1)
-            i = i + 1
         end
     elseif message == "-createwell" then
         CreateWell()
     elseif SubString(message,0,8) == "-killall" then
-        KillEverythingLol()
+        local ug = CreateGroup()
+
+        GroupEnumUnitsInRect(ug, WorldBounds.rect, nil)
+
+        for target in each(ug) do
+            KillUnit(target)
+        end
+
+    DestroyGroup(ug)
     elseif SubString(message,0,6) == "-print" then
         BJDebugMsg((StringHash(SubString(message,7, StringLength(message)))))
     elseif SubString(message,0,7) == "-printc" then
@@ -612,12 +610,8 @@ function DevCommands()
         SetUnitPosition(PlayerSelectedUnit[pid], MouseX[pid], MouseY[pid])
     elseif message == "-coloxp" then
         Colosseum_XP[pid] = 1.3
-    elseif message == "-debugmsg" then
-        if EXTRA_DEBUG then
-            EXTRA_DEBUG = false
-        else
-            EXTRA_DEBUG = true
-        end
+    elseif message == "-extradebug" then
+        EXTRA_DEBUG = not EXTRA_DEBUG
     elseif message == "-currentorder" then
         DEBUGMSG((GetUnitCurrentOrder(PlayerSelectedUnit[pid])))
         DEBUGMSG(OrderId2String(GetUnitCurrentOrder(PlayerSelectedUnit[pid])))
@@ -641,13 +635,6 @@ function DevCommands()
         DEBUGMSG(R2S(GetUnitX(PlayerSelectedUnit[pid])) .. " " .. R2S(GetUnitY(PlayerSelectedUnit[pid])))
     elseif message == "-prestigehack" then
         Profile[pid].hero.prestige = 2
-    elseif message == "-quickshit" then
-        SetHeroLevel(PlayerSelectedUnit[pid], 400, false)
-        TimePlayed[pid] = 625
-        SetHeroStat(PlayerSelectedUnit[pid], MainStat(PlayerSelectedUnit[pid]), 123456)
-        PlayerAddItemById(pid, FourCC('I06H'))
-        PlayerAddItemById(pid, FourCC('I0G2'))
-        PlayerAddItemById(pid, FourCC('I0D4'))
     elseif SubString(message, 0, 4) == "-dmg" then
         BlzSetUnitBaseDamage(PlayerSelectedUnit[pid], S2I(SubString(message, 5, StringLength(message))), 0)
     elseif SubString(message, 0, 5) == "-gocd" then
@@ -655,7 +642,7 @@ function DevCommands()
     elseif SubString(message, 0, 7) == "-skills" then
         DEBUGMSG(BlzGetAbilityStringLevelField(BlzGetUnitAbilityByIndex(Hero[pid], S2I(SubString(message, 8, StringLength(message)))), ABILITY_SLF_TOOLTIP_NORMAL, 0))
         DEBUGMSG(BlzGetAbilityStringField(BlzGetUnitAbilityByIndex(Hero[pid], S2I(SubString(message, 8, StringLength(message)))), ABILITY_SF_NAME))
-        DEBUGMSG(Id2String(BlzGetAbilityId(BlzGetUnitAbilityByIndex(Hero[pid], S2I(SubString(message, 8, StringLength(message)))))))
+        DEBUGMSG(IntToFourCC(BlzGetAbilityId(BlzGetUnitAbilityByIndex(Hero[pid], S2I(SubString(message, 8, StringLength(message)))))))
     elseif SubString(message, 0, 7) == "-encode" then
         DEBUGMSG(Encode(S2I(SubString(message, 8, StringLength(message)))))
     elseif SubString(message, 0, 9) == "-makeitem" then
@@ -709,13 +696,17 @@ function DevCommands()
         DEBUGMSG(R2S(GetUnitX(Hero[pid])))
         DEBUGMSG(R2S(GetUnitY(Hero[pid])))
     elseif message == "-afk?" then
-        if panCounter[pid] < 75 or moveCounter[pid] < 1000 or selectCounter[pid] < 20 then
+        DEBUGMSG("Screen pan count: " .. panCounter[pid])
+        DEBUGMSG("Cursor move count: " .. moveCounter[pid])
+        DEBUGMSG("Click count: " .. clickCounter[pid])
+
+        if panCounter[pid] < 50 or moveCounter[pid] < 5000 or clickCounter[pid] < 200 then
             DEBUGMSG("Yes")
         else
             DEBUGMSG("No")
         end
     elseif SubString(message, 0, 8) == "-setskin" then
-        CosmeticTable[User[currentPlayer].name][S2I(SubString(message, 9, 11)) + DONATOR_SKIN_OFFSET] = S2I(SubString(message, 12, 14))
+        CosmeticTable[User[currentPlayer].name][S2I(SubString(message, 9, 11))] = S2I(SubString(message, 12, 14))
     elseif SubString(message, 0, 8) == "-setaura" then
         CosmeticTable[User[currentPlayer].name][S2I(SubString(message, 9, 11)) + DONATOR_AURA_OFFSET] = S2I(SubString(message, 12, 14))
     elseif SubString(message, 0, 8) == "-id2char" then
@@ -724,23 +715,17 @@ function DevCommands()
         UnitAddAbility(PlayerSelectedUnit[pid], FourCC(SubString(message, 11, StringLength(message))))
     elseif SubString(message, 0, 12) == "-removespell" then
         UnitRemoveAbility(PlayerSelectedUnit[pid], FourCC(SubString(message, 13, StringLength(message))))
-    elseif SubString(message, 0, 9) == "-addpoint" then
-        STK_UpdateUnitTalentPoints(1, Hero[pid], S2I(SubString(message, 10, StringLength(message))))
-    elseif message == "-mathtest" then
-        DEBUGMSG((R2I(-5.5)))
-        DEBUGMSG((R2I(5.5)))
-
-        DEBUGMSG((R2I(-5.75)))
-        DEBUGMSG((R2I(5.25)))
     elseif message == "-restock" then
         ShopkeeperMove()
+    elseif message == "-host" then
+        DEBUGMSG("The host is " .. User[Player(DetectHost())].nameColored)
     end
 end
 
     local devcmd = CreateTrigger() ---@type trigger 
     local search = CreateTrigger() ---@type trigger 
 
-    SAVE_LOAD_VERSION = POWERSOF2[30]
+    SAVE_LOAD_VERSION = 2 ^ 30
     MAP_NAME = "CoT Nevermore BETA"
 
     for i = 0, 6 do

@@ -4,9 +4,10 @@ OnInit.final("UnitIndex", function(require)
     require 'TimerQueue'
     require 'WorldBounds'
 
-    DETECT_LEAVE_ABILITY         = FourCC('uDex') ---@type integer 
+    DETECT_LEAVE_ABILITY = FourCC('uDex') ---@type integer 
 
     ---@class Unit
+    ---@field pid integer
     ---@field unit unit
     ---@field create function
     ---@field list Unit[]
@@ -14,51 +15,41 @@ OnInit.final("UnitIndex", function(require)
     Unit = {}
     do
         local thistype = Unit
-        thistype.unit                 = nil ---@type unit 
-        thistype.pid                  = 0 ---@type integer 
-        thistype.attackCount          = 0 ---@type integer 
-        thistype.casting              = false ---@type boolean 
-        thistype.canAttack            = true ---@type boolean 
         thistype.list = {}
-
-        -- metatable to handle indices (Unit[unit])
-        local mt = {
-            __index = function(tbl, key)
-                if rawget(tbl, key) then
-                    return rawget(tbl, key)
-                else
-                    local new = __jarray(0)
-                    rawset(tbl, key, new)
-                    return new
-                end
-            end
-        }
-
-        -- Set metatable for the Unit table
-        setmetatable(thistype, mt)
 
         ---@type fun(u: unit):Unit
         function thistype.create(u)
-            local self = {
-                pid = GetPlayerId(GetOwningPlayer(u)) + 1,
-                unit = u,
-                canAttack = true,
-                casting = false,
-                attackCount = 0
-            }
+            local self = {}
 
-            table.insert(thistype.list, self)
-            setmetatable(self, { __index = Unit })
+            self.pid = GetPlayerId(GetOwningPlayer(u)) + 1
+            self.unit = u
+            self.attackCount = 0
+            self.casting = false
+            self.canAttack = true
+
+            Unit[u] = self
+            thistype.list[#thistype.list + 1] = self
+
+            setmetatable(self, { __index = Unit, __newindex = function(tbl, key, val)
+                if key == "attack" then --method operator for .attack
+                    tbl.canAttack = val
+
+                    if not autoAttackDisabled[tbl.pid] then
+                        BlzSetUnitWeaponBooleanField(tbl.unit, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, val)
+                    end
+                end
+                rawset(tbl, key, val)
+            end})
 
             return self
         end
 
         function thistype:destroy()
-            thistype[self] = nil
-
             for i, v in ipairs(thistype.list) do
                 if v == self then
-                    thistype.list[i] = nil
+                    thistype.list[i] = thistype.list[#thistype.list]
+                    thistype.list[#thistype.list] = nil
+                    break
                 end
             end
 
@@ -73,14 +64,6 @@ OnInit.final("UnitIndex", function(require)
             end
         end
 
-        function thistype:attack(b)
-            self.canAttack = b
-
-            if not autoAttackDisabled[self.pid] then
-                BlzSetUnitWeaponBooleanField(self.unit, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, b)
-            end
-        end
-
         function thistype:castTime(dur)
             self.casting = true
             PauseUnit(self.unit, true)
@@ -89,26 +72,28 @@ OnInit.final("UnitIndex", function(require)
         end
     end
 
-    ---@param u unit
-    ---@return unit
+    ---@type fun(u: unit): unit?
     function GetUnitTarget(u)
-        return Threat[u][UNIT_TARGET]
+        if Threat[u].target == 0 then
+            return nil
+        else
+            return Threat[u].target
+        end
     end
 
-    ---@param whichUnit unit
-    function UnitDeindex(whichUnit)
-        if Unit[whichUnit] then
+    ---@type fun(u: unit)
+    function UnitDeindex(u)
+        if Unit[u] then
             if LIBRARY_dev then
                 if EXTRA_DEBUG then
-                    DisplayTimedTextToForce(FORCE_PLAYING, 30., "UNREG " .. GetUnitName(whichUnit))
+                    DisplayTimedTextToForce(FORCE_PLAYING, 30., "UNREG " .. GetUnitName(u))
                 end
             end
 
-            if Threat[whichUnit] then
-                Threat[whichUnit] = nil
-            end
+            TableRemove(SummonGroup, u)
 
-            Unit[whichUnit]:destroy()
+            Threat[u] = nil
+            Unit[u]:destroy()
         end
     end
 
@@ -116,7 +101,7 @@ OnInit.final("UnitIndex", function(require)
     local function IndexUnit()
         local u = GetFilterUnit()
 
-        if u and GetUnitTypeId(u) ~= DUMMY then
+        if u and GetUnitTypeId(u) ~= DUMMY and not Unit[u] then
             UnitAddAbility(u, DETECT_LEAVE_ABILITY)
             UnitMakeAbilityPermanent(u, true, DETECT_LEAVE_ABILITY)
 
@@ -135,10 +120,10 @@ OnInit.final("UnitIndex", function(require)
     end
 
     local ug = CreateGroup()
+    local onEnter = CreateTrigger()
 
-    GroupEnumUnitsOfPlayer(ug, pboss, Filter(IndexUnit)) --index preplaced bosses
     GroupEnumUnitsOfPlayer(ug, Player(PLAYER_NEUTRAL_AGGRESSIVE), Filter(IndexUnit)) --punching bags
-    TriggerRegisterEnterRegion(CreateTrigger(), WorldBounds.worldRegion, Filter(IndexUnit))
+    TriggerRegisterEnterRegion(onEnter, WorldBounds.region, Filter(IndexUnit))
 
     DestroyGroup(ug)
 end)

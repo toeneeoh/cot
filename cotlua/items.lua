@@ -4,8 +4,7 @@ OnInit.final("Items", function(require)
     require 'Users'
     require 'Variables'
 
-    ItemDrops = {}
-    Rates = {}
+    Rates = __jarray(0)
 
     BuffMovespeed=__jarray(0) ---@type integer[] 
     ItemMovespeed=__jarray(0) ---@type integer[] 
@@ -21,12 +20,14 @@ OnInit.final("Items", function(require)
     TrainerSpawn         = 0 ---@type integer 
     TrainerSpawnChaos         = 0 ---@type integer 
     hordequest         = false ---@type boolean 
-    dropflag=__jarray(false) ---@type boolean[] 
+    ITEM_DROP_FLAG = __jarray(false) ---@type boolean[] 
     ItemsDisabled=__jarray(false) ---@type boolean[] 
 
     MAX_ITEM_COUNT = 100
     ADJUST_RATE = 0.05 --percent
     DISCOUNT_RATE = 0.25 ---@type number 
+
+    ItemDrops = array2d(0)
 
     ---@class Item
     ---@field obj item
@@ -45,8 +46,6 @@ OnInit.final("Items", function(require)
     ---@field calcStat function
     ---@field equip function
     ---@field unequip function
-    ---@field toDud function
-    ---@field toItem function
     ---@field update function
     ---@field encode function
     ---@field encode_id function
@@ -55,16 +54,26 @@ OnInit.final("Items", function(require)
     ---@field expire function
     ---@field onDeath function
     ---@field name string
+    ---@field restricted boolean
     ---@field create function
     ---@field destroy function
+    ---@field owner unit
     Item = {}
     do
         local thistype = Item
         thistype.eval = Condition(thistype.onDeath)
 
+        -- Create a metatable for assignments
+        setmetatable(Item, { __newindex = function(tbl, key, value)
+            if key == "restricted" then
+                tbl:restrict(value)
+            end
+            rawset(tbl, key, value)
+        end})
+
         ---@type fun(itm: item, expire: number?):Item
         function thistype.create(itm, expire)
-            local self = { ---@type Item
+            local self = {
                 obj = itm,
                 id = GetItemTypeId(itm),
                 level = 0,
@@ -90,7 +99,7 @@ OnInit.final("Items", function(require)
 
             --determine if saveable (misc category yields 7 instead of ITEM_TYPE_MISCELLANEOUS 's value of 6)
             if (GetHandleId(GetItemType(self.obj)) == 7 or GetItemType(self.obj) == ITEM_TYPE_PERMANENT) and self.id > CUSTOM_ITEM_OFFSET then
-                SaveInteger(SAVE_TABLE, KEY_ITEMS, self.id, self.id - CUSTOM_ITEM_OFFSET)
+                SAVE_TABLE.KEY_ITEMS[self.id] = self.id - CUSTOM_ITEM_OFFSET
             end
 
             TriggerRegisterDeathEvent(self.trig, self.obj)
@@ -120,18 +129,25 @@ OnInit.final("Items", function(require)
             return self
         end
 
+        --Adjusts name in tooltip if an item is useable or not
+        ---@type fun(flag: boolean)
+        function thistype:restrict(flag)
+            if flag then
+                BlzSetItemName(self.obj, self:name() .. "\n|cffFFCC00You are too low level to use this item!|r")
+            else
+                BlzSetItemName(self.obj, self:name())
+                --for backpack auras and useable abilities
+                ItemAddSpellDelayed(self)
+            end
+        end
+
+        --Generates a proper name string
         ---@type fun():string
         function thistype:name()
-            local s = ""
+            local s = GetObjectName(self.id)
 
             if self.level > 0 then
-                s = s .. LEVEL_PREFIX[self.level] .. " "
-            end
-
-            s = s .. GetObjectName(self.id)
-
-            if ModuloInteger(IMaxBJ(self.level - 1, 0),4) ~= 0 then
-                s = s .. " +" .. ModuloInteger(IMaxBJ(self.level - 1, 0),4)
+                s = LEVEL_PREFIX[self.level] .. " " .. s .. " +" .. self.level
             end
 
             return s
@@ -260,7 +276,7 @@ OnInit.final("Items", function(require)
 
             --profiency warning
             if GetUnitLevel(self.holder) < 15 and mod < 1 then
-                DisplayTimedTextToPlayer(self.owner, 0, 0, 10, "You lack the proficiency (-pf) to use this item, it will only give 75% of most stats.\n|cffFF0000You will stop getting this warning at level 15.|r")
+                DisplayTimedTextToPlayer(self.owner, 0, 0, 10, "You lack the proficiency (-pf) to use this item, it will only give 75\x25 of most stats.\n|cffFF0000You will stop getting this warning at level 15.|r")
             end
         end
 
@@ -302,50 +318,6 @@ OnInit.final("Items", function(require)
             end
 
             BlzSetUnitAttackCooldown(self.holder, BlzGetUnitAttackCooldown(self.holder, 0) * (1. + self:calcStat(ITEM_BASE_ATTACK_SPEED, 0) * 0.01), 0)
-        end
-
-        function thistype:toDud()
-            local held      = self.holder ---@type unit 
-
-            self:charge(GetItemCharges(self.obj))
-
-            DestroyTrigger(self.trig)
-            RemoveItem(self.obj)
-
-            self.obj = CreateItem(FourCC('iDud'), GetUnitX(self.holder), GetUnitY(self.holder))
-            SetItemUserData(self.obj, self)
-            UnitAddItem(held, self.obj)
-
-            --reapply death event
-            self.trig = CreateTrigger()
-            TriggerRegisterDeathEvent(self.trig, self.obj)
-            TriggerAddCondition(self.trig, thistype.eval)
-
-            self:update()
-        end
-
-        function thistype:toItem()
-            local slot         = GetItemSlot(self.obj, self.holder) ---@type integer 
-            local held      = self.holder ---@type unit 
-
-            DestroyTrigger(self.trig)
-            RemoveItem(self.obj)
-
-            self.obj = CreateItem(self.id, self.x, self.y)
-            SetItemUserData(self.obj, self)
-            self:charge(self.charges)
-
-            if held ~= nil then
-                UnitAddItem(held, self.obj)
-                UnitDropItemSlot(held, self.obj, slot)
-            end
-
-            --reapply death event
-            self.trig = CreateTrigger()
-            TriggerRegisterDeathEvent(self.trig, self.obj)
-            TriggerAddCondition(self.trig, thistype.eval)
-
-            self:update()
         end
 
         function thistype:update()
@@ -417,7 +389,7 @@ OnInit.final("Items", function(require)
                                 --stat has variance
                                 if ItemData[self.id][index + BOUNDS_OFFSET] ~= 0 then
                                     if index == ITEM_CRIT_CHANCE then
-                                        alt_new = alt_new .. "|n + |cffffcc00" .. lower .. "-" .. upper .. "% " .. self:calcStat(index + 1, 1) .. "-" .. self:calcStat(index + 1, 2) .. "x|r |cffffcc00Critical Strike|r"
+                                        alt_new = alt_new .. "|n + |cffffcc00" .. lower .. "-" .. upper .. "\x25 " .. self:calcStat(index + 1, 1) .. "-" .. self:calcStat(index + 1, 2) .. "x|r |cffffcc00Critical Strike|r"
                                     elseif index == ITEM_CRIT_DAMAGE then
                                     elseif index == ITEM_ABILITY or index == ITEM_ABILITY2 then
                                         alt_new = alt_new .. "|n" .. ParseItemAbilityTooltip(self, index, value, lower, upper)
@@ -428,7 +400,7 @@ OnInit.final("Items", function(require)
                                     count = count + 1
                                 else
                                     if index == ITEM_CRIT_CHANCE then
-                                        alt_new = alt_new .. "|n + |cffffcc00" .. valuestr .. "% " .. self:calcStat(index + 1, 0) .. "x|r |cffffcc00Critical Strike|r"
+                                        alt_new = alt_new .. "|n + |cffffcc00" .. valuestr .. "\x25 " .. self:calcStat(index + 1, 0) .. "x|r |cffffcc00Critical Strike|r"
                                     elseif index == ITEM_CRIT_DAMAGE then
                                     elseif index == ITEM_ABILITY or index == ITEM_ABILITY2 then
                                         alt_new = alt_new .. "|n" .. ParseItemAbilityTooltip(self, index, value, 0, 0)
@@ -439,7 +411,7 @@ OnInit.final("Items", function(require)
 
                                 --normal tooltip
                                 if index == ITEM_CRIT_CHANCE then
-                                    s_new = s_new .. "|n + |cffffcc00" .. valuestr .. "% "
+                                    s_new = s_new .. "|n + |cffffcc00" .. valuestr .. "\x25 "
                                 elseif index == ITEM_CRIT_DAMAGE then
                                     s_new = s_new .. valuestr .. STAT_NAME[index]
                                 elseif index == ITEM_ABILITY or index == ITEM_ABILITY2 then
@@ -489,24 +461,24 @@ OnInit.final("Items", function(require)
 
         ---@type fun(id: integer):Item
         function thistype.decode_id(id)
-            local itemid         = id & (POWERSOF2[13] - 1) ---@type integer 
-            local shift         = 13 ---@type integer 
+            local itemid = id & (2 ^ 13 - 1) ---@type integer 
+            local shift = 13 ---@type integer 
 
             if id == 0 then
                 return nil
             end
 
-            --call DEBUGMSG(Id2String(CUSTOM_ITEM_OFFSET + itemid))
+            --call DEBUGMSG(IntToFourCC(CUSTOM_ITEM_OFFSET + itemid))
             --call DEBUGMSG(GetObjectName(CUSTOM_ITEM_OFFSET + itemid))
 
             local itm = thistype.create(CreateItem(CUSTOM_ITEM_OFFSET + itemid, 30000., 30000.))
-            itm.level = BlzBitAnd(id, POWERSOF2[shift + 5] + POWERSOF2[shift + 4] + POWERSOF2[shift + 3] + POWERSOF2[shift + 2] + POWERSOF2[shift + 1] + POWERSOF2[shift]) // POWERSOF2[shift]
+            itm.level = BlzBitAnd(id, 2 ^ (shift + 5) + 2 ^ (shift + 4) + 2 ^ (shift + 3) + 2 ^ (shift + 2) + 2 ^ (shift + 1) + 2 ^ (shift)) // 2 ^ (shift)
 
             for i = 0, 1 do
                 shift = shift + 6
 
-                if id >= POWERSOF2[shift] then
-                    itm.quality[i] = BlzBitAnd(id, POWERSOF2[shift + 5] + POWERSOF2[shift + 4] + POWERSOF2[shift + 3] + POWERSOF2[shift + 2] + POWERSOF2[shift + 1] + POWERSOF2[shift]) / POWERSOF2[shift]
+                if id >= 2 ^ (shift) then
+                    itm.quality[i] = BlzBitAnd(id, 2 ^ (shift + 5) + 2 ^ (shift + 4) + 2 ^ (shift + 3) + 2 ^ (shift + 2) + 2 ^ (shift + 1) + 2 ^ (shift)) / 2 ^ (shift)
                 end
             end
 
@@ -518,7 +490,7 @@ OnInit.final("Items", function(require)
             local id = 0
 
             for i = 2, 6 do
-                id = id + self.quality[i] * POWERSOF2[(i - 2) * 6]
+                id = id + self.quality[i] * 2 ^ ((i - 2) * 6)
             end
 
             return id
@@ -532,10 +504,10 @@ OnInit.final("Items", function(require)
                 return 0
             end
 
-            id = id + self.level * POWERSOF2[13 + i * 6]
+            id = id + self.level * 2 ^ (13 + i * 6)
 
             for i = 0, 1 do
-                id = id + self.quality[i] * POWERSOF2[13 + (i + 1) * 6]
+                id = id + self.quality[i] * 2 ^ (13 + (i + 1) * 6)
             end
 
             return id
@@ -576,6 +548,10 @@ OnInit.final("Items", function(require)
         end
     end
 
+    ---@class DropTable
+    ---@field adjustRate function
+    ---@field getType function
+    ---@field pickItem function
     DropTable = {}
     do
         local thistype = DropTable
@@ -594,9 +570,9 @@ OnInit.final("Items", function(require)
 
             for i = 0, max - 1 do
                 if ItemDrops[id][i] == ItemDrops[id][index] then
-                    ItemDrops[id][i .. "%"] = ItemDrops[id][i .. "%"] - adjust
+                    ItemDrops[id][i .. "\x25"] = ItemDrops[id][i .. "\x25"] - adjust
                 else
-                    ItemDrops[id][i .. "%"] = ItemDrops[id][i .. "%"] + balance
+                    ItemDrops[id][i .. "\x25"] = ItemDrops[id][i .. "\x25"] + balance
                 end
             end
         end
@@ -609,7 +585,7 @@ OnInit.final("Items", function(require)
             local i = GetRandomInt(0, max)
 
             while true do
-                if GetRandomReal(0., 1.) < ItemDrops[id][i .. "%"] then
+                if GetRandomReal(0., 1.) < ItemDrops[id][i .. "\x25"] then
                     adjustRate(id, i)
                     break
                 end
@@ -741,12 +717,11 @@ OnInit.final("Items", function(require)
             ItemDrops[id][MAX_ITEM_COUNT] = (max + 1)
 
             for i = 0, max do
-                ItemDrops[id][i .. "%"] = 1. / (max + 1)
+                ItemDrops[id][i .. "\x25"] = 1. / (max + 1)
             end
         end
 
         local id = 69 --destructable
-        ItemDrops[id] = {}
         ItemDrops[id][0] = FourCC('I00O')
         ItemDrops[id][1] = FourCC('I00Q')
         ItemDrops[id][2] = FourCC('I00R')
@@ -773,14 +748,12 @@ OnInit.final("Items", function(require)
 
         --evil shopkeeper
         id = FourCC('n01F')
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I045') --bloodstained cloak
 
         setupRates(id, 0)
 
         id = FourCC('nits') --troll
-        ItemDrops[id] = {}
         Rates[id] = 40
         ItemDrops[id][0] = FourCC('I01Z') --claws of lightning
         ItemDrops[id][1] = FourCC('I01F') --iron broadsword
@@ -812,7 +785,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 25)
 
         id = FourCC('ntks') --tuskarr
-        ItemDrops[id] = {}
         Rates[id] = 40
         ItemDrops[id][0] = FourCC('I01Z')
         ItemDrops[id][1] = FourCC('I01X')
@@ -839,7 +811,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 20)
 
         id = FourCC('nnwr') --spider
-        ItemDrops[id] = {}
         Rates[id] = 35
         ItemDrops[id][0] = FourCC('I03A')
         ItemDrops[id][1] = FourCC('I03W')
@@ -862,7 +833,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 16)
 
         id = FourCC('nfpu') --ursa
-        ItemDrops[id] = {}
         Rates[id] = 30
         ItemDrops[id][0] = FourCC('I028')
         ItemDrops[id][1] = FourCC('I00D')
@@ -877,7 +847,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 8)
 
         id = FourCC('nplg') --polar bear
-        ItemDrops[id] = {}
         Rates[id] = 30
         ItemDrops[id][0] = FourCC('I035') --plate
         ItemDrops[id][1] = FourCC('I0FO') --leather
@@ -886,14 +855,12 @@ OnInit.final("Items", function(require)
         setupRates(id, 2)
 
         id = FourCC('nmdr') --dire mammoth
-        ItemDrops[id] = {}
         Rates[id] = 30
         ItemDrops[id][0] = FourCC('I0FQ') --fullplate
 
         setupRates(id, 0)
 
         id = FourCC('n01G') -- ogre tauren
-        ItemDrops[id] = {}
         Rates[id] = 25
         ItemDrops[id][0] = FourCC('I02L')
         ItemDrops[id][1] = FourCC('I08I')
@@ -910,7 +877,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 10)
 
         id = FourCC('nubw') --unbroken
-        ItemDrops[id] = {}
         Rates[id] = 25
         ItemDrops[id][0] = FourCC('I0FS')
         ItemDrops[id][1] = FourCC('I0FR')
@@ -921,7 +887,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 4)
 
         id = FourCC('nvdl') -- hellfire hellhound
-        ItemDrops[id] = {}
         Rates[id] = 25
         ItemDrops[id][0] = FourCC('I00Z')
         ItemDrops[id][1] = FourCC('I00S')
@@ -933,7 +898,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 5)
 
         id = FourCC('n024') -- centaur
-        ItemDrops[id] = {}
         Rates[id] = 25
         ItemDrops[id][0] = FourCC('I06J')
         ItemDrops[id][1] = FourCC('I06I')
@@ -944,7 +908,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 4)
 
         id = FourCC('n01M') -- magnataur forgotten one
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I01Q')
         ItemDrops[id][1] = FourCC('I01N')
@@ -954,7 +917,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 3)
 
         id = FourCC('n02P') -- frost dragon frost drake
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I056')
         ItemDrops[id][1] = FourCC('I04X')
@@ -963,7 +925,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 2)
 
         id = FourCC('n099') -- frost elder dragon
-        ItemDrops[id] = {}
         Rates[id] = 40
         ItemDrops[id][0] = FourCC('I056')
         ItemDrops[id][1] = FourCC('I04X')
@@ -972,7 +933,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 2)
 
         id = FourCC('n02L') -- devourers
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I02W')
         ItemDrops[id][1] = FourCC('I00W')
@@ -987,7 +947,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 8)
 
         id = FourCC('nplb') -- giant bear
-        ItemDrops[id] = {}
         Rates[id] = 40
         ItemDrops[id][0] = FourCC('I0MC')
         ItemDrops[id][1] = FourCC('I0MD')
@@ -996,7 +955,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 2)
 
         id = FourCC('n01H') -- ancient hydra
-        ItemDrops[id] = {}
         Rates[id] = 25
         ItemDrops[id][0] = FourCC('I07N')
         ItemDrops[id][1] = FourCC('I044')
@@ -1004,7 +962,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 1)
 
         id = FourCC('n034') --demons
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I073')
         ItemDrops[id][1] = FourCC('I075')
@@ -1019,7 +976,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 8)
 
         id = FourCC('n03A') --horror
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I07K')
         ItemDrops[id][1] = FourCC('I05D')
@@ -1036,7 +992,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 10)
 
         id = FourCC('n03F') --despair
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I05P')
         ItemDrops[id][1] = FourCC('I087')
@@ -1053,7 +1008,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 10)
 
         id = FourCC('n08N') --abyssal
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I06C')
         ItemDrops[id][1] = FourCC('I06B')
@@ -1068,7 +1022,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 8)
 
         id = FourCC('n031') --void
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I04Y')
         ItemDrops[id][1] = FourCC('I08C')
@@ -1087,7 +1040,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 12)
 
         id = FourCC('n020') --nightmare
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I09S')
         ItemDrops[id][1] = FourCC('I0AB')
@@ -1103,7 +1055,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 9)
 
         id = FourCC('n03D') --hell
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I097')
         ItemDrops[id][1] = FourCC('I05H')
@@ -1119,7 +1070,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 9)
 
         id = FourCC('n03J') --existence
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I09Y')
         ItemDrops[id][1] = FourCC('I09U')
@@ -1135,7 +1085,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 9)
 
         id = FourCC('n03M') --astral
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I0AL')
         ItemDrops[id][1] = FourCC('I0AN')
@@ -1150,7 +1099,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 8)
 
         id = FourCC('n026') --plainswalker
-        ItemDrops[id] = {}
         Rates[id] = 20
         ItemDrops[id][0] = FourCC('I0AY')
         ItemDrops[id][1] = FourCC('I0B0')
@@ -1165,75 +1113,64 @@ OnInit.final("Items", function(require)
         setupRates(id, 8)
 
         id = FourCC('H01T') --town paladin
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I01Y')
 
         setupRates(id, 0)
 
         id = FourCC('n02U') -- nerubian
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I01E')
 
         setupRates(id, 0)
 
         id = FourCC('n03L') -- king of ogres
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I02M')
 
         setupRates(id, 0)
 
         id = FourCC('O019') -- pinky
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I02Y')
 
         setupRates(id, 0)
 
         id = FourCC('H043') -- bryan
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I02X')
 
         setupRates(id, 0)
 
         id = FourCC('N01N') -- kroresh
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I04B')
 
         setupRates(id, 0)
 
         id = FourCC('O01A') -- zeknen
-        ItemDrops[id] = {}
         Rates[id] = 100
         --no items
 
         id = FourCC('N00M') -- forest corruption
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I07J')
 
         setupRates(id, 0)
 
         id = FourCC('O00T') -- ice troll
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I03Z')
 
         setupRates(id, 0)
 
         id = FourCC('n02H') -- yeti
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I05R')
 
         setupRates(id, 0)
 
         id = FourCC('H02H') -- paladin
-        ItemDrops[id] = {}
         Rates[id] = 80
         ItemDrops[id][0] = FourCC('I0F9')
         ItemDrops[id][1] = FourCC('I03P')
@@ -1243,7 +1180,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 3)
 
         id = FourCC('O002') -- minotaur
-        ItemDrops[id] = {}
         Rates[id] = 70
         ItemDrops[id][0] = FourCC('I03T')
         ItemDrops[id][1] = FourCC('I0FW')
@@ -1254,7 +1190,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 4)
 
         id = FourCC('H020') -- lady vashj
-        ItemDrops[id] = {}
         Rates[id] = 70
         ItemDrops[id][0] = FourCC('I09F') -- sea wards
         ItemDrops[id][1] = FourCC('I09L') -- serpent hide boots
@@ -1262,7 +1197,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 1)
 
         id = FourCC('H01V') -- dwarven
-        ItemDrops[id] = {}
         Rates[id] = 70
         ItemDrops[id][0] = FourCC('I079')
         ItemDrops[id][1] = FourCC('I07B')
@@ -1271,7 +1205,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 2)
 
         id = FourCC('H040') -- death knight
-        ItemDrops[id] = {}
         Rates[id] = 80
         ItemDrops[id][0] = FourCC('I02O')
         ItemDrops[id][1] = FourCC('I029')
@@ -1281,7 +1214,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 3)
 
         id = FourCC('U00G') -- tri fire
-        ItemDrops[id] = {}
         Rates[id] = 70
         ItemDrops[id][0] = FourCC('I0FA')
         ItemDrops[id][1] = FourCC('I0FU')
@@ -1291,7 +1223,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 3)
 
         id = FourCC('H045') -- mystic
-        ItemDrops[id] = {}
         Rates[id] = 70
         ItemDrops[id][0] = FourCC('I03U')
         ItemDrops[id][1] = FourCC('I0F3')
@@ -1300,7 +1231,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 2)
 
         id = FourCC('O01B') -- dragoon
-        ItemDrops[id] = {}
         Rates[id] = 70
         ItemDrops[id][0] = FourCC('I0EX')
         ItemDrops[id][1] = FourCC('I0EY')
@@ -1310,35 +1240,30 @@ OnInit.final("Items", function(require)
         setupRates(id, 3)
 
         id = FourCC('E00B') -- goddess of hate
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I02Z') --aura of hate
 
         setupRates(id, 0)
 
         id = FourCC('E00D') -- goddess of love
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I030') --aura of love
 
         setupRates(id, 0)
 
         id = FourCC('E00C') -- goddess of knowledge
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I031') --aura of knowledge
 
         setupRates(id, 0)
 
         id = FourCC('H04Q') -- goddess of life
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I04I') --aura of life
 
         setupRates(id, 0)
 
         id = FourCC('H00O') -- arkaden
-        ItemDrops[id] = {}
         Rates[id] = 80
         ItemDrops[id][0] = FourCC('I02O')
         ItemDrops[id][1] = FourCC('I02C')
@@ -1348,14 +1273,12 @@ OnInit.final("Items", function(require)
         setupRates(id, 3)
 
         id = FourCC('N038') -- demon prince
-        ItemDrops[id] = {}
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I04Q') --heart
 
         setupRates(id, 0)
 
         id = FourCC('N017') -- absolute horror
-        ItemDrops[id] = {}
         Rates[id] = 85
         ItemDrops[id][0] = FourCC('I0N7')
         ItemDrops[id][1] = FourCC('I0N8')
@@ -1364,7 +1287,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 2)
 
         id = FourCC('O02B') -- slaughter
-        ItemDrops[id] = {}
         Rates[id] = 85
         ItemDrops[id][0] = FourCC('I0AE')
         ItemDrops[id][1] = FourCC('I04F')
@@ -1375,7 +1297,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 4)
 
         id = FourCC('O02H') -- dark soul
-        ItemDrops[id] = {}
         Rates[id] = 70
         ItemDrops[id][0] = FourCC('I05A')
         ItemDrops[id][1] = FourCC('I0AH')
@@ -1385,7 +1306,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 3)
 
         id = FourCC('O02I') -- satan
-        ItemDrops[id] = {}
         Rates[id] = 65
         ItemDrops[id][0] = FourCC('I0BX')
         ItemDrops[id][1] = FourCC('I05J')
@@ -1393,7 +1313,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 1)
 
         id = FourCC('O02K') -- thanatos
-        ItemDrops[id] = {}
         Rates[id] = 65
         ItemDrops[id][0] = FourCC('I04E')
         ItemDrops[id][1] = FourCC('I0MR')
@@ -1401,7 +1320,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 1)
 
         id = FourCC('H04R') -- legion
-        ItemDrops[id] = {}
         Rates[id] = 60
         ItemDrops[id][0] = FourCC('I0B5')
         ItemDrops[id][1] = FourCC('I0B7')
@@ -1417,7 +1335,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 9)
 
         id = FourCC('O02M') -- existence
-        ItemDrops[id] = {}
         Rates[id] = 60
         ItemDrops[id][0] = FourCC('I018')
         ItemDrops[id][1] = FourCC('I0BY')
@@ -1425,7 +1342,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 1)
 
         id = FourCC('O03G') -- Xallarath
-        ItemDrops[id] = {}
         Rates[id] = 30
         ItemDrops[id][0] = FourCC('I0OB')
         ItemDrops[id][1] = FourCC('I0O1')
@@ -1434,7 +1350,6 @@ OnInit.final("Items", function(require)
         setupRates(id, 2)
 
         id = FourCC('O02T') -- azazoth
-        ItemDrops[id] = {}
         Rates[id] = 60
         ItemDrops[id][0] = FourCC('I0BS')
         ItemDrops[id][1] = FourCC('I0BV')
@@ -1477,18 +1392,21 @@ function RechargeItem()
     return false
 end
 
----@param pid integer
----@param itm Item
----@param percentage number
-function RechargeDialog(pid, itm, percentage)
-    local message        = GetObjectName(itm.id) ---@type string 
-    local playerGold         = GetCurrency(pid, GOLD) ---@type integer 
-    local playerLumber         = GetCurrency(pid, LUMBER) ---@type integer 
-    local goldCost      = ItemData[itm.id][ITEM_COST] * 100 * percentage + playerGold * percentage ---@type number 
-    local lumberCost      = ItemData[itm.id][ITEM_COST] * 100 * percentage + playerLumber * percentage ---@type number 
-    local platCost      = GetCurrency(pid, PLATINUM) * percentage ---@type number 
+---@type fun(pid: integer, itm: Item)
+function RechargeDialog(pid, itm)
+    local percentage = 0.01
+    if Hardcore[pid] then
+        percentage = 0.03
+    end
+
+    local message      = GetObjectName(itm.id) ---@type string 
+    local playerGold   = GetCurrency(pid, GOLD) ---@type integer 
+    local playerLumber = GetCurrency(pid, LUMBER) ---@type integer 
+    local goldCost     = ItemData[itm.id][ITEM_COST] * 100 * percentage + playerGold * percentage ---@type number 
+    local lumberCost   = ItemData[itm.id][ITEM_COST] * 100 * percentage + playerLumber * percentage ---@type number 
+    local platCost     = GetCurrency(pid, PLATINUM) * percentage ---@type number 
     local arcCost      = GetCurrency(pid, ARCADITE) * percentage ---@type number 
-    local dw              = DialogWindow.create(pid, "", RechargeItem) ---@type DialogWindow 
+    local dw           = DialogWindow.create(pid, "", RechargeItem) ---@type DialogWindow 
 
     goldCost = goldCost + (platCost - R2I(platCost)) * 1000000
     lumberCost = lumberCost + (arcCost - R2I(arcCost)) * 1000000
@@ -1520,8 +1438,8 @@ function OnDropUpdate(itm)
     itm.x = GetItemX(itm.obj)
     itm.y = GetItemY(itm.obj)
 
-    if IsItemDud(itm) and (IsItemOwned(itm.obj) == false) and (IsItemVisible(itm.obj) == true) then
-        itm:toItem()
+    if itm.restricted and (IsItemOwned(itm.obj) == false) and (IsItemVisible(itm.obj) == true) then
+        itm.restricted = false
     end
 end
 
@@ -1529,15 +1447,15 @@ end
 ---@param itemid integer
 function KillQuestHandler(pid, itemid)
     local index         = KillQuest[itemid][0] ---@type integer 
-    local min         = KillQuest[index][KILLQUEST_MIN] ---@type integer 
-    local max         = KillQuest[index][KILLQUEST_MAX] ---@type integer 
-    local goal         = KillQuest[index][KILLQUEST_GOAL] ---@type integer 
-    local playercount         = 0 ---@type integer 
-    local U      = User.first ---@type User 
-    local p        = Player(pid - 1) ---@type player 
-    local avg         = R2I((max + min) * 0.5) ---@type integer 
-    local x ---@type number 
-    local y ---@type number 
+    local min           = KillQuest[index][KILLQUEST_MIN] ---@type integer 
+    local max           = KillQuest[index][KILLQUEST_MAX] ---@type integer 
+    local goal          = KillQuest[index][KILLQUEST_GOAL] ---@type integer 
+    local playercount   = 0 ---@type integer 
+    local U             = User.first ---@type User 
+    local p             = Player(pid - 1) ---@type player 
+    local avg           = R2I((max + min) * 0.5) ---@type integer 
+    local x             = 0.
+    local y             = 0.
     local myregion      = nil ---@type rect 
 
     if GetUnitLevel(Hero[pid]) < min then
@@ -1553,12 +1471,10 @@ function KillQuestHandler(pid, itemid)
         KillQuest[index][KILLQUEST_STATUS] = 1
         DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00QUEST:|r Kill " .. (goal) .. " " .. KillQuest[index][KILLQUEST_NAME] .. " for a reward.")
         PingMinimap(GetRectCenterX(KillQuest[index][KILLQUEST_REGION]), GetRectCenterY(KillQuest[index][KILLQUEST_REGION]), 5)
-    --Reward
+    --Completion
     elseif KillQuest[index][KILLQUEST_STATUS] == 2 then
         while U do
-            pid = GetPlayerId(U.player) + 1
-
-            if HeroID[pid] > 0 and GetUnitLevel(Hero[pid]) >= min and GetUnitLevel(Hero[pid]) <= max then
+            if HeroID[U.id] > 0 and GetUnitLevel(Hero[U.id]) >= min and GetUnitLevel(Hero[U.id]) <= max then
                 playercount = playercount + 1
             end
 
@@ -1568,14 +1484,12 @@ function KillQuestHandler(pid, itemid)
         U = User.first
 
         while U do
-            pid = GetPlayerId(U.player) + 1
-
-            if GetHeroLevel(Hero[pid]) >= min and GetHeroLevel(Hero[pid]) <= max then
+            if GetHeroLevel(Hero[U.id]) >= min and GetHeroLevel(Hero[U.id]) <= max then
                 DisplayTimedTextToPlayer(U.player, 0, 0, 10, "|c00c0c0c0" .. KillQuest[index][KILLQUEST_NAME] .. " quest completed!|r")
                 local GOLD = RewardGold[avg] * goal / (0.5 + playercount * 0.5)
                 AwardGold(U.id, GOLD, true)
-                local XP = math.max(100, math.floor(Experience_Table[avg] * XP_Rate[pid] * goal / 1800.))
-                AwardXP(pid, XP)
+                local XP = math.max(100, math.floor(Experience_Table[avg] * XP_Rate[U.id] * goal / 1800.))
+                AwardXP(U.id, XP)
             end
 
             U = U.next
@@ -1586,50 +1500,43 @@ function KillQuestHandler(pid, itemid)
         KillQuest[index][KILLQUEST_COUNT] = 0
         KillQuest[index][KILLQUEST_GOAL] = IMinBJ(goal + 3, 100)
 
-        --increase max spawns by up to 50 based on last unit killed
-        if (KillQuest[index][KILLQUEST_GOAL]) < 100 and ModuloInteger(KillQuest[index][KILLQUEST_GOAL],2) == 0 then
+        --increase max spawns based on last unit killed (until max goal of 100 is reached)
+        if (KillQuest[index][KILLQUEST_GOAL]) < 100 and ModuloInteger(KillQuest[index][KILLQUEST_GOAL], 2) == 0 then
             myregion = SelectGroupedRegion(UnitData[KillQuest[index][KILLQUEST_LAST]][UNITDATA_SPAWN])
             repeat
                 x = GetRandomReal(GetRectMinX(myregion), GetRectMaxX(myregion))
                 y = GetRandomReal(GetRectMinY(myregion), GetRectMaxY(myregion))
             until IsTerrainWalkable(x, y)
             CreateUnit(pfoe, KillQuest[index][KILLQUEST_LAST], x, y, GetRandomInt(0, 359))
+            DisplayTimedTextToForce(FORCE_PLAYING, 20., "An additional " + GetObjectName(KillQuest[index][KILLQUEST_LAST]) + " has spawned in the area.")
         end
     end
 end
 
----@param u unit
----@param itm item
----@param limit integer
+---@type fun(u: unit, itm: item, limit: integer)
 function StackItem(u, itm, limit)
-    local pid         = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
-    local i         = 0 ---@type integer 
-    local i2         = 0 ---@type integer 
-    local slot         = GetItemSlot(itm, u) ---@type integer 
-    local itm2 ---@type Item 
+    local pid    = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
+    local slot   = GetItemSlot(itm, u) ---@type integer 
 
-    if u == Backpack[pid] then
-        i2 = 6
-    end
+    local offset = (u == Backpack[pid]) and 6 or 0
 
-    while i <= 5 do
-            itm2 = Profile[pid].hero.items[i + i2]
+    for i = 0, 5 do
+        local itm2 = Profile[pid].hero.items[i + offset]
 
-            if itm2.obj ~= itm and itm2.id == GetItemTypeId(itm) and itm2.charges < limit then
-                itm2:charge(itm2.charges + 1)
-                Profile[pid].hero.items[slot + i2] = nil
-                Item[itm]:destroy()
-                break
-            end
-        i = i + 1
+        if itm2.obj ~= itm and itm2.id == GetItemTypeId(itm) and itm2.charges < limit then
+            itm2:charge(itm2.charges + 1)
+            Profile[pid].hero.items[slot + offset] = nil
+            Item[itm]:destroy()
+            break
+        end
     end
 end
 
 ---@return boolean
 function RewardItem()
-    local pid         = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-    local dw              = DialogWindow[pid] ---@type DialogWindow 
-    local index         = dw:getClickedIndex(GetClickedButton()) ---@type integer 
+    local pid    = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+    local dw     = DialogWindow[pid] ---@type DialogWindow 
+    local index  = dw:getClickedIndex(GetClickedButton()) ---@type integer 
 
     if index ~= -1 then
         PlayerAddItemById(pid, dw.data[index])
@@ -1802,37 +1709,35 @@ function UpgradeItem()
 end
 
 ---@return boolean
-function ItemFilter()
+function PickupFilter()
     local u      = GetTriggerUnit() ---@type unit 
-    local p        = GetOwningPlayer(u) ---@type player 
-    local pid         = GetPlayerId(p) + 1 ---@type integer 
-    local itm      = Item[GetManipulatedItem()] ---@type Item 
-    local req         = ItemData[itm.id][ITEM_LEVEL_REQUIREMENT] ---@type integer 
-    local i         = GetItemSlot(itm.obj, u) ---@type integer 
+    local p      = GetOwningPlayer(u) ---@type player 
+    local pid    = GetPlayerId(p) + 1 ---@type integer 
+    local itm    = Item[GetManipulatedItem()] ---@type Item 
+    local lvlreq = ItemData[itm.id][ITEM_LEVEL_REQUIREMENT] ---@type integer 
+    local slot   = GetItemSlot(itm.obj, u)
 
     itm.holder = u
 
     --bind drop
-    if IsItemBound(itm, pid) and (LoadInteger(SAVE_TABLE, KEY_ITEMS, itm.id) > 0 or IsBindItem(itm.id)) then
-        dropflag[pid] = true
+    if IsItemBound(itm, pid) and (SAVE_TABLE.KEY_ITEMS[itm.id] or IsBindItem(itm.id)) then
+        ITEM_DROP_FLAG[pid] = true
         DisplayTimedTextToPlayer(p, 0, 0, 30, "This item is bound to " .. User[itm.owner].nameColored .. ".")
     else
         if itm.holder == Hero[pid] then --hero
-            --level drop
-            if req > GetHeroLevel(itm.holder) then
-                dropflag[pid] = true
-                DisplayTimedTextToPlayer(p, 0, 0, 15., "This item requires at least level |c00FF5555" .. (req) .. "|r to equip.")
+            --level requirements
+            if lvlreq > GetHeroLevel(itm.holder) then
+                ITEM_DROP_FLAG[pid] = true
+                DisplayTimedTextToPlayer(p, 0, 0, 15., "This item requires at least level |c00FF5555" .. (lvlreq) .. "|r to equip.")
 
-            --restriction drop
-            elseif IsItemRestricted(itm) then
-                dropflag[pid] = true
+            --item limit restrictions
+            elseif IsItemLimited(itm) then
+                ITEM_DROP_FLAG[pid] = true
             end
 
-            --bind / dud pickup
-            if dropflag[pid] == false then
-                if IsItemDud(itm) then
-                    itm:toItem()
-                elseif LoadInteger(SAVE_TABLE, KEY_ITEMS, itm.id) > 0 or IsBindItem(itm.id) then
+            --bind on pickup
+            if ITEM_DROP_FLAG[pid] == false then
+                if SAVE_TABLE.KEY_ITEMS[itm.id] or IsBindItem(itm.id) then
                     itm.owner = p
                 end
             end
@@ -1840,31 +1745,33 @@ function ItemFilter()
             UpdateManaCosts(pid)
 
         elseif itm.holder == Backpack[pid] then --backpack
-            i = i + 6 --item slot
-
-            if IsItemDud(itm) == false and req > GetHeroLevel(Hero[pid]) + 20 then
-                dropflag[pid] = true
-                DisplayTimedTextToPlayer(p, 0, 0, 15., "This item requires at least level |c00FF5555" .. (req - 20) .. "|r to pick up.")
-            --make dud
-            elseif IsItemDud(itm) == false and req > GetHeroLevel(Hero[pid]) then
-                itm:toDud()
+            --level requirements
+            if lvlreq > GetHeroLevel(Hero[pid]) + 20 then
+                ITEM_DROP_FLAG[pid] = true
+                DisplayTimedTextToPlayer(p, 0, 0, 15., "This item requires at least level |c00FF5555" .. (lvlreq - 20) .. "|r to pick up.")
+                itm.restricted = true
+            elseif lvlreq > GetHeroLevel(Hero[pid]) then
+                itm.restricted = true
             end
 
             BackpackLimit(itm.holder)
+
+            slot = slot + 6
         end
     end
 
-    if dropflag[pid] then
+    if ITEM_DROP_FLAG[pid] then
         UnitRemoveItem(itm.holder, itm.obj)
     elseif BlzGetItemBooleanField(itm.obj, ITEM_BF_USE_AUTOMATICALLY_WHEN_ACQUIRED) == false then
-        Profile[pid].hero.items[i] = itm
+        Profile[pid].hero.items[slot] = itm
     end
 
     return true
 end
 
+--event handler function for selling items
 ---@return boolean
-function onPawned()
+function onSell()
     local itm      = GetManipulatedItem() ---@type item 
 
     Item[itm]:destroy()
@@ -1872,12 +1779,13 @@ function onPawned()
     return false
 end
 
-function onSell()
+--event handler function for buying items
+function onBuy()
     local u      = GetTriggerUnit() ---@type unit 
     local b      = GetBuyingUnit() ---@type unit 
-    local pid         = GetPlayerId(GetOwningPlayer(b)) + 1 ---@type integer 
-    local myItem      = GetSoldItem() ---@type item 
-    local itm      = Item.create(myItem) ---@type Item 
+    local pid    = GetPlayerId(GetOwningPlayer(b)) + 1 ---@type integer 
+    local myItem = GetSoldItem() ---@type item 
+    local itm    = Item.create(myItem) ---@type Item 
 
     itm.owner = Player(pid - 1)
 
@@ -1888,13 +1796,13 @@ function onSell()
     end
 end
 
+--event handler function for using items
 function onUse()
     local u      = GetTriggerUnit() ---@type unit 
-    local itm      = GetManipulatedItem() ---@type item 
-    local p        = GetOwningPlayer(u) ---@type player 
-    local itemid         = GetItemTypeId(itm) ---@type integer 
-    local pid        = GetPlayerId(p) + 1 ---@type integer 
-    local t ---@type timer 
+    local itm    = GetManipulatedItem() ---@type item 
+    local p      = GetOwningPlayer(u) ---@type player 
+    local itemid = GetItemTypeId(itm) ---@type integer 
+    local pid    = GetPlayerId(p) + 1 ---@type integer 
 
     if u == Hero[pid] then --Potions (Hero)
         if itemid == FourCC('I0BJ') then
@@ -1920,12 +1828,13 @@ function onUse()
     end
 end
 
+--event handler function for dropping items
 function onDrop()
     local u      = GetTriggerUnit() ---@type unit 
-    local myItem      = GetManipulatedItem() ---@type item 
-    local itm      = Item[myItem] ---@type Item 
-    local pid         = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
-    local slot         = GetItemSlot(myItem, u) ---@type integer 
+    local myItem = GetManipulatedItem() ---@type item 
+    local itm    = Item[myItem] ---@type Item 
+    local pid    = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
+    local slot   = GetItemSlot(myItem, u) ---@type integer 
 
     if slot >= 0 then --safety
         BlzFrameSetVisible(INVENTORYBACKDROP[slot], false)
@@ -1938,7 +1847,7 @@ function onDrop()
         Profile[pid].hero.items[slot] = nil
     end
 
-    if not IsItemDud(itm) and u == Hero[pid] and dropflag[pid] == false then
+    if not itm.restricted and u == Hero[pid] and ITEM_DROP_FLAG[pid] == false then
         itm:unequip()
     end
 
@@ -1947,6 +1856,7 @@ function onDrop()
     itm.holder = nil
 end
 
+--event handler function for picking up items
 function onPickup()
     local u = GetTriggerUnit() ---@type unit 
     local itm = GetManipulatedItem() ---@type item? 
@@ -1967,21 +1877,23 @@ function onPickup()
     --Quests
     --========================
 
-    if KillQuest[itemid] and GetItemType(itm) == ITEM_TYPE_CAMPAIGN then --Kill Quest
+    --kill quests
+    if KillQuest[itemid] and GetItemType(itm) == ITEM_TYPE_CAMPAIGN then
         FlashQuestDialogButton()
         KillQuestHandler(pid, itemid)
-    elseif itemid == FourCC('I0OV') then --Gossip
+    --shopkeeper gossip
+    elseif itemid == FourCC('I0OV') then
         x = GetUnitX(gg_unit_n01F_0576)
         y = GetUnitY(gg_unit_n01F_0576)
 
-        if x > GetRectMaxX(gg_rct_Main_Map) then --in tavern
+        if x > MAIN_MAP.maxX then --in tavern
             DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Evil Shopkeeper's Brother:|r I don't know where he is.")
         else
-            if x < GetRectCenterX(gg_rct_Main_Map) and y > GetRectCenterY(gg_rct_Main_Map) then
+            if x < MAIN_MAP.centerX and y > MAIN_MAP.centerY then
                 ShopkeeperDirection[0] = "|cffffcc00North West|r"
-            elseif x > GetRectCenterX(gg_rct_Main_Map) and y > GetRectCenterY(gg_rct_Main_Map) then
+            elseif x > MAIN_MAP.centerX and y > MAIN_MAP.centerY then
                 ShopkeeperDirection[0] = "|cffffcc00North East|r"
-            elseif x < GetRectCenterX(gg_rct_Main_Map) and y < GetRectCenterY(gg_rct_Main_Map) then
+            elseif x < MAIN_MAP.centerX and y < MAIN_MAP.centerY then
                 ShopkeeperDirection[0] = "|cffffcc00South West|r"
             else
                 ShopkeeperDirection[0] = "|cffffcc00South East|r"
@@ -2000,7 +1912,8 @@ function onPickup()
 
             DisplayTextToForce(FORCE_PLAYING, ShopkeeperDirection[GetRandomInt(1, 10)])
         end
-    elseif itemid == FourCC('I08L') then --Evil Shopkeeper
+    --shopkeeper quest
+    elseif itemid == FourCC('I08L') then
         if IsQuestDiscovered(Evil_Shopkeeper_Quest_1) == false then
             if GetUnitLevel(Hero[pid]) >= 50 then
                 QuestSetDiscovered(Evil_Shopkeeper_Quest_1, true)
@@ -2009,7 +1922,8 @@ function onPickup()
                 DisplayTextToPlayer(p, 0, 0, "You must be at least level 50 to begin this quest.")
             end
         end
-    elseif itemid == FourCC('I00L') then --The Horde
+    --the horde quest
+    elseif itemid == FourCC('I00L') then
         if GetUnitLevel(Hero[pid]) >= 100 then
             if IsQuestDiscovered(Defeat_The_Horde_Quest) == false then
                 DestroyEffect(TalkToMe20)
@@ -2019,8 +1933,8 @@ function onPickup()
                 PingMinimap(15645, -12309, 4)
 
                 --orc setup
-                SetUnitPosition(gg_unit_N01N_0050, 14665, -15352)
-                UnitAddAbility(gg_unit_N01N_0050, FourCC('Avul'))
+                SetUnitPosition(kroresh, 14665, -15352)
+                UnitAddAbility(kroresh, FourCC('Avul'))
 
                 --bottom side
                 IssuePointOrder(CreateUnit(pboss, FourCC('o01I'), 12687, -15414, 45), "patrol", 668, -2146)
@@ -2078,8 +1992,8 @@ function onPickup()
         end
 
     elseif itemid == FourCC('I0JO') and ChaosMode == false then --god portal
-        if god_portal ~= nil and IsPlayerInForce(p, AZAZOTH_GROUP) == false then
-            ForceAddPlayer(AZAZOTH_GROUP, p)
+        if god_portal ~= nil and TableHas(AZAZOTH_GROUP, p) == false then
+            TableRemove(AZAZOTH_GROUP, p)
 
             BlzSetUnitFacingEx(Hero[pid], 45)
             SetUnitPosition(Hero[pid], GetRectCenterX(gg_rct_GodsEntrance), GetRectCenterY(gg_rct_GodsEntrance))
@@ -2091,7 +2005,7 @@ function onPickup()
                 GodsEnterFlag = true
                 DisplayTextToForce(FORCE_PLAYING, "This is your last chance to -flee.")
 
-                DoTransmissionBasicsXYBJ(GetUnitTypeId(gg_unit_O01A_0372), GetPlayerColor(pboss), GetUnitX(gg_unit_O01A_0372), GetUnitY(gg_unit_O01A_0372), nil, "Zeknen", "Explain yourself or be struck down from this heaven!", 10)
+                DoTransmissionBasicsXYBJ(GetUnitTypeId(zeknen), GetPlayerColor(pboss), GetUnitX(zeknen), GetUnitY(zeknen), nil, "Zeknen", "Explain yourself or be struck down from this heaven!", 10)
                 TimerQueue:callDelayed(10., ZeknenExpire)
             end
         end
@@ -2111,7 +2025,7 @@ function onPickup()
         donated[pid] = true
         donation = donation - donationrate
         DisplayTextToPlayer(p, 0, 0, "|c00408080The Goddesses bestow their blessings.")
-        DisplayTextToForce(FORCE_PLAYING, "Reduced bad weather chance: " .. (R2I((1 - donation) * 100)) .. "%")
+        DisplayTextToForce(FORCE_PLAYING, "Reduced bad weather chance: " .. (R2I((1 - donation) * 100)) .. "\x25")
     elseif itemid == FourCC('I0M9') then --prestige
         if HasItemType(Hero[pid], FourCC('I0NN')) then
             if GetUnitLevel(Hero[pid]) >= 400 then
@@ -2189,7 +2103,8 @@ function onPickup()
 
             dw:display()
         end
-    elseif itemid == FourCC('I100') then --upgrade item
+    --upgrade (boss) items
+    elseif itemid == FourCC('I100') then
         local dw = DialogWindow.create(pid, "Choose an item to upgrade.", UpgradeItem) ---@type DialogWindow
 
         index = 0
@@ -2205,8 +2120,8 @@ function onPickup()
         end
 
         dw:display()
-
-    elseif itemid == FourCC('I01R') then --salvage item
+    --salvage (boss) items
+    elseif itemid == FourCC('I01R') then
         local dw = DialogWindow.create(pid, "Choose an item to salvage.", SalvageItem) ---@type DialogWindow
 
         index = 0
@@ -2222,73 +2137,74 @@ function onPickup()
         end
 
         dw:display()
-    elseif itemid == FourCC('I04G') then --item based conversions
+    --currency exchange
+    elseif itemid == FourCC('I04G') then
         if GetCurrency(pid, GOLD) >= 1000000 then
             AddCurrency(pid, PLATINUM, 1)
             AddCurrency(pid, GOLD, -1000000)
-            Plat_Effect(p)
-            DisplayTimedTextToPlayer(p,0,0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
+            ConversionEffect(pid)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
         else
-            DisplayTimedTextToPlayer(p,0,0, 30, "|cffee0000You do not have a million gold to convert.")
+            DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffee0000You do not have a million gold to convert.")
         end
     elseif itemid == FourCC('I04H') then
         if GetCurrency(pid, LUMBER) >= 1000000 then
             AddCurrency(pid, ARCADITE, 1)
             AddCurrency(pid, LUMBER, -1000000)
-            Plat_Effect(p)
-            DisplayTimedTextToPlayer(p,0,0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
+            ConversionEffect(pid)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
         else
-            DisplayTimedTextToPlayer(p,0,0, 30, "|cffee0000You do not have a million lumber to convert.")
+            DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffee0000You do not have a million lumber to convert.")
         end
     elseif itemid == FourCC('I054') then
         if GetCurrency(pid, ARCADITE) >0 then
-            Plat_Effect(p)
+            ConversionEffect(pid)
             AddCurrency(pid, PLATINUM, 1)
             AddCurrency(pid, ARCADITE, -1)
             AddCurrency(pid, GOLD, 200000)
-            DisplayTimedTextToPlayer(p,0,0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
-            DisplayTimedTextToPlayer(p,0,0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
         else
-            DisplayTimedTextToPlayer(p,0,0, 20, "|cff990000Unable to convert; not enough Arcadite Lumber.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Arcadite Lumber.")
         end
     elseif itemid == FourCC('I053') then
         if GetCurrency(pid, PLATINUM) > 0 then
-            Plat_Effect(p)
+            ConversionEffect(pid)
             AddCurrency(pid, PLATINUM, -1)
             AddCurrency(pid, ARCADITE, 1)
-            DisplayTimedTextToPlayer(p,0,0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
-            DisplayTimedTextToPlayer(p,0,0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
         else
             AddCurrency(pid, GOLD, 350000)
-            DisplayTimedTextToPlayer(p,0,0, 20, "|cff990000Unable to convert; not enough Platinum Coins.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Platinum Coins.")
         end
     elseif itemid == FourCC('I0PA') then
         if GetCurrency(pid, PLATINUM) >= 4 then
-            Plat_Effect(p)
+            ConversionEffect(pid)
             AddCurrency(pid, PLATINUM, -4)
             AddCurrency(pid, ARCADITE, 3)
-            DisplayTimedTextToPlayer(p,0,0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
-            DisplayTimedTextToPlayer(p,0,0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
         else
-            DisplayTimedTextToPlayer(p,0,0, 20, "|cff990000Unable to convert; due to insufficient Platinum Coins.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; due to insufficient Platinum Coins.")
         end
     elseif itemid == FourCC('I051') then
         if GetCurrency(pid, ARCADITE) > 0 then
-            Plat_Effect(p)
+            ConversionEffect(pid)
             AddCurrency(pid, ARCADITE, -1)
             AddCurrency(pid, LUMBER, 1000000)
-            DisplayTimedTextToPlayer(p,0,0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
         else
-            DisplayTimedTextToPlayer(p,0,0, 20, "|cff990000Unable to convert; not enough Arcadite Lumber.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Arcadite Lumber.")
         end
     elseif itemid == FourCC('I052') then
         if GetCurrency(pid, PLATINUM) >0 then
-            Plat_Effect(p)
+            ConversionEffect(pid)
             AddCurrency(pid, PLATINUM, -1)
             AddCurrency(pid, GOLD, 1000000)
-            DisplayTimedTextToPlayer(p,0,0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
         else
-            DisplayTimedTextToPlayer(p,0,0, 20, "|cff990000Unable to convert; not enough Platinum Coins.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Platinum Coins.")
         end
     elseif itemid == FourCC('I03R') then
         if GetCurrency(pid, LUMBER) >= 25000 then
@@ -2296,7 +2212,7 @@ function onPickup()
             AddCurrency(pid, LUMBER, -25000)
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", u, "origin"))
         else
-            DisplayTimedTextToPlayer(p,0,0, 20, "You need at least 25,000 lumber to buy this.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 25,000 lumber to buy this.")
         end
     elseif itemid == FourCC('I05C') then
         if GetCurrency(pid, GOLD) >= 32000 then
@@ -2304,47 +2220,52 @@ function onPickup()
             AddCurrency(pid, GOLD, -32000)
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", u, "origin"))
         else
-            DisplayTimedTextToPlayer(p,0,0, 20, "You need at least 32,000 gold to buy this.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 32,000 gold to buy this.")
         end
-    elseif itemid == FourCC('I05S') then --prestige token
+    --prestige token
+    elseif itemid == FourCC('I05S') then
         if GetHeroLevel(Hero[pid]) < 400 then
-            DisplayTimedTextToPlayer(p,0,0, 20, "You need level 400 to buy this.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need level 400 to buy this.")
         else
             if GetCurrency(pid, CRYSTAL) >= 2500 then
                 AddCurrency(pid, CRYSTAL, -2500)
                 PlayerAddItemById(pid, FourCC('I0NN'))
             else
-                DisplayTimedTextToPlayer(p,0,0, 20, "You need 2500 crystals to buy this.")
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 2500 crystals to buy this.")
             end
         end
-    elseif itemid == FourCC('I0ME') then --crystal to gold / platinum
+    --crystal to gold / platinum
+    elseif itemid == FourCC('I0ME') then
         if GetCurrency(pid, CRYSTAL) >= 1 then
             AddCurrency(pid, CRYSTAL, -1)
             AddCurrency(pid, GOLD, 500000)
         else
-            DisplayTimedTextToPlayer(p,0,0, 20, "You need at least 1 crystal to buy this.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 1 crystal to buy this.")
         end
-    elseif itemid == FourCC('I0MF') then --platinum to crystal
+    --platinum to crystal
+    elseif itemid == FourCC('I0MF') then
         if GetCurrency(pid, PLATINUM) >= 3 then
             AddCurrency(pid, PLATINUM, -3)
             AddCurrency(pid, CRYSTAL, 1)
-            DisplayTimedTextToPlayer(p,0,0, 20, CrystalTag + (GetCurrency(pid, CRYSTAL)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, CrystalTag + (GetCurrency(pid, CRYSTAL)))
         else
-            DisplayTimedTextToPlayer(p,0,0, 20, "You need at least 3 platinum to buy this.")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 3 platinum to buy this.")
         end
+    --chaos bases
     elseif itemid == FourCC('I05T') then --Satans Abode
         if GetUnitLevel(Hero[pid]) < 250 then
-            DisplayTimedTextToPlayer(p,0,0, 15, "This item requires level 250 to use.")
+            DisplayTimedTextToPlayer(p, 0, 0, 15, "This item requires level 250 to use.")
         else
             BuyHome(u, 2, 1, FourCC('I001'))
         end
     elseif itemid == FourCC('I069') then --Demon Nation
         if GetUnitLevel(Hero[pid]) < 280 then
-            DisplayTimedTextToPlayer(p,0,0, 15, "This item requires level 280 to use.")
+            DisplayTimedTextToPlayer(p, 0, 0, 15, "This item requires level 280 to use.")
         else
             BuyHome(u, 4, 2, FourCC('I068'))
         end
-    elseif itemid == FourCC('I0JS') then --Recharge Reincarnation
+    --recharge reincarnation
+    elseif itemid == FourCC('I0JS') then
         itm2 = GetResurrectionItem(pid, true)
 
         if itm2 and GetItemCharges(itm2.obj) >= MAX_REINCARNATION_CHARGES then
@@ -2354,13 +2275,9 @@ function onPickup()
         if itm2 == nil then
             DisplayTimedTextToPlayer(p, 0, 0, 15, "You have no item to recharge!")
         elseif TimerGetRemaining(rezretimer[pid]) > 1 then
-            DisplayTimedTextToPlayer(p,0,0,15, (R2I(TimerGetRemaining(rezretimer[pid]))) .. " seconds until you can recharge your " .. GetItemName(itm2.obj))
+            DisplayTimedTextToPlayer(p, 0, 0,15, (R2I(TimerGetRemaining(rezretimer[pid]))) .. " seconds until you can recharge your " .. GetItemName(itm2.obj))
         else
-            if Hardcore[pid] then
-                RechargeDialog(pid, itm2, 0.03)
-            else
-                RechargeDialog(pid, itm2, 0.01)
-            end
+            RechargeDialog(pid, itm2)
         end
 
     --========================
@@ -2385,7 +2302,7 @@ function onPickup()
                 if index == 0  then break end
                 Item.create(CreateItem(index, 30000., 30000.), 0.01) --load item data
 
-                if BlzBitAnd(PROF[ItemData[index][ITEM_TYPE]], HERO_PROF[pid]) ~= 0 then
+                if HasProficiency(pid, PROF[ItemData[index][ITEM_TYPE]]) then
                     dw.data[dw.ButtonCount] = index
                     dw:addButton(GetObjectName(index) .. " [" .. TYPE_NAME[ItemData[index][ITEM_TYPE]] .. "]")
                 end
@@ -2430,7 +2347,7 @@ function onPickup()
 
     elseif itemid == FourCC('I0EV') or itemid == FourCC('I0EU') or itemid == FourCC('I0ET') or itemid == FourCC('I0ES') or itemid == FourCC('I0ER') or itemid == FourCC('I0EQ') or itemid == FourCC('I0EP') or itemid == FourCC('I0EO') then
         if ColoPlayerCount > 0 then
-            DisplayTimedTextToPlayer(p,0,0, 5.00, "Colloseum is occupied!")
+            DisplayTimedTextToPlayer(p, 0, 0, 5.00, "Colloseum is occupied!")
         else
             local ug = CreateGroup()
             GroupEnumUnitsInRect(ug, gg_rct_Colloseum_Enter, Condition(ischar))
@@ -2469,7 +2386,7 @@ function onPickup()
                 if BlzGroupGetSize(ug) > 1 then
                     index = 2
                 else
-                    DisplayTextToPlayer(p,0,0, "Atleast 2 players is required to play team survival.")
+                    DisplayTextToPlayer(p, 0, 0, "Atleast 2 players is required to play team survival.")
                 end
             end
 
@@ -2721,47 +2638,50 @@ function onPickup()
         dw:addButton("Ice Cavern [Duel]")
 
         dw:display()
-    elseif itm2 and not IsItemDud(itm2) then
-        if u == Hero[pid] and dropflag[pid] == false then --heroes
-            itm2:equip()
-            if GetLocalPlayer() == p then
-                BlzFrameSetTexture(INVENTORYBACKDROP[GetEmptySlot(u)], SPRITE_RARITY[itm2.level], 0, true)
+    --item is present in inventory
+    elseif itm2 then
+        if not itm2.restricted then
+            if u == Hero[pid] and ITEM_DROP_FLAG[pid] == false then --heroes
+                itm2:equip()
+                if GetLocalPlayer() == p then
+                    BlzFrameSetTexture(INVENTORYBACKDROP[GetEmptySlot(u)], SPRITE_RARITY[itm2.level], 0, true)
+                end
             end
-        end
 
-        --add spells and refresh (required for each equip)
-        TimerQueue:callDelayed(0., ItemAddSpellDelayed, itm2)
+            --add item spells after a delay (required for each equip)
+            TimerQueue:callDelayed(0., ItemAddSpellDelayed, itm2)
+        end
     end
 
-    dropflag[pid] = false
+    ITEM_DROP_FLAG[pid] = false
 end
 
-    local onpickup         = CreateTrigger() ---@type trigger 
-    local ondrop         = CreateTrigger() ---@type trigger 
-    local useitem         = CreateTrigger() ---@type trigger 
-    local onsell         = CreateTrigger() ---@type trigger 
-    local onpawn         = CreateTrigger() ---@type trigger 
-    local u      = User.first ---@type User 
+    local onpickup  = CreateTrigger() ---@type trigger 
+    local ondrop    = CreateTrigger() ---@type trigger 
+    local useitem   = CreateTrigger() ---@type trigger 
+    local onbuy     = CreateTrigger() ---@type trigger 
+    local onsell    = CreateTrigger() ---@type trigger 
+    local u         = User.first ---@type User 
 
     while u do
         rezretimer[u.id] = CreateTimer()
         TriggerRegisterPlayerUnitEvent(onpickup, u.player, EVENT_PLAYER_UNIT_PICKUP_ITEM, nil)
         TriggerRegisterPlayerUnitEvent(ondrop, u.player, EVENT_PLAYER_UNIT_DROP_ITEM, nil)
         TriggerRegisterPlayerUnitEvent(useitem, u.player, EVENT_PLAYER_UNIT_USE_ITEM, nil)
-        TriggerRegisterPlayerUnitEvent(onpawn, u.player, EVENT_PLAYER_UNIT_PAWN_ITEM, nil)
+        TriggerRegisterPlayerUnitEvent(onsell, u.player, EVENT_PLAYER_UNIT_PAWN_ITEM, nil)
         u = u.next
     end
 
     --TODO ashenvat
     --TriggerRegisterUnitEvent(ondrop, ASHEN_VAT, EVENT_UNIT_DROP_ITEM)
-    TriggerRegisterPlayerUnitEvent(onsell, Player(PLAYER_NEUTRAL_PASSIVE), EVENT_PLAYER_UNIT_SELL_ITEM, nil)
+    TriggerRegisterPlayerUnitEvent(onbuy, Player(PLAYER_NEUTRAL_PASSIVE), EVENT_PLAYER_UNIT_SELL_ITEM, nil)
 
-    TriggerAddCondition(onpickup, Condition(ItemFilter))
+    TriggerAddCondition(onpickup, Condition(PickupFilter))
     TriggerAddAction(onpickup, onPickup)
     TriggerAddAction(ondrop, onDrop)
     TriggerAddAction(useitem, onUse)
-    TriggerAddAction(onsell, onSell)
-    TriggerAddCondition(onpawn, Condition(onPawned))
+    TriggerAddAction(onbuy, onBuy)
+    TriggerAddCondition(onsell, Condition(onSell))
 end)
 
 if Debug then Debug.endFile() end
