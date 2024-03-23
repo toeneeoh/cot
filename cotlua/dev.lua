@@ -1,65 +1,574 @@
+--[[
+    dev.lua
+
+    A module used for debugging and testing.
+]]
+
 if Debug then Debug.beginFile 'Dev' end
 
 OnInit.final("Dev", function(require)
     require 'Variables'
     require 'Users'
+    require 'Helper'
 
-    SEARCH_DIALOG={} ---@type dialog[] 
-    SEARCH_RESULTS=__jarray("") ---@type string[] 
-    SEARCH_NEXT={} ---@type button[] 
-    SEARCH_PAGE=__jarray(0) ---@type integer[] 
-    BUDDHA_MODE=__jarray(false) ---@type boolean[] 
-    EXTRA_DEBUG         = false ---@type boolean 
-    nocd=__jarray(false) ---@type boolean[] 
-    nocost=__jarray(false) ---@type boolean[] 
-    SEARCHABLE=__jarray(false) ---@type boolean[] 
+    EXTRA_DEBUG    = false ---@type boolean 
+    BUDDHA_MODE    =__jarray(false) ---@type boolean[] 
+    nocd           =__jarray(false) ---@type boolean[] 
+    nocost         =__jarray(false) ---@type boolean[] 
+    SEARCHABLE     =__jarray(false) ---@type boolean[] 
 
-    COUNT_DEBUG         = false ---@type boolean 
-    DEBUG_COUNT         = 0 ---@type integer 
-    WEATHER_OVERRIDE         = 0 ---@type integer 
+    DEBUG_COUNT      = 0 ---@type integer 
+    WEATHER_OVERRIDE = 0 ---@type integer 
+
+    HELP_TABLE = {
+        ["nocd"] = "Toggles spell and item cooldowns off",
+        ["cd"] = "Toggles spell and item cooldowns on",
+        ["nocost"] = "Toggles spell and item mana costs off",
+        ["cost"] = "Toggles spell and item mana costs on",
+        ["sight"] = "Sets your hero's sight radius to #. usage: -sight [0-1800]",
+        ["dummycount"] = "Prints the number of dummies in the dummy pool",
+        ["vision"] = "Reveals the whole map",
+        ["novision"] = "Reenables fog of war",
+        ["sp"] = "Set the amount of platinum you have to #. usage: -sp [#]",
+        ["sa"] = "Set the amount of arcadite you have to #. usage: -sp [#]",
+        ["sc"] = "Set the amount of crystals you have to #. usage: -sp [#]",
+        ["lvl"] = "Set the selected hero's level to #. usage: -lvl [1-400]",
+        ["str"] = "Set the selected hero's strength to #. usage: -str [#]",
+        ["agi"] = "Set the selected hero's agility to #. usage: -agi [#]",
+        ["int"] = "Set the selected hero's intelligence to #. usage: -int [#]",
+        ["g"] = "Set the amount of gold you have to #. usage: -g [#]",
+        ["l"] = "Set the amount of lumber you have to #. usage: -l [#]",
+        ["day"] = "Set the time of day to morning.",
+        ["night"] = "Set the time of day to midnight.",
+        ["si"] = "Search for an item by name. usage: -si [Azazoth]",
+        ["gi"] = "Give the selected unit an item by id #. usage: -gi [#]",
+        ["hero"] = "Spawns an allied hero with player id # and hero type #. usage: -hero [#] [#]. Potentially buggy",
+        ["enterchaos"] = "Triggers the transition into chaos",
+        ["shopkeeper"] = "Pings the location of the evil shopkeeper",
+        ["setweather"] = "Randomly changes the weather with no second argument or changes it to id #. usage: -setweather [#]",
+        ["noborders"] = "Allows you to view the entire map",
+        ["fastrespawn"] = "Toggles 5 second boss respawn time on/off",
+        ["heal"] = "Fully restores the health and mana of the selected unit.",
+        ["colo"] = "Sets the current number of players inside the colosseum. Potentially buggy",
+        ["hp"] = "Sets the maximum health of the selected unit. usage: -hp [#]",
+        ["armor"] = "Sets the armor of the selected unit. usage: -armor [#]",
+        ["armortype"] = "Sets the armor type of the selected unit. usage: -armortype [0-7]",
+        ["boost"] = "Toggles the spellboost +/-20% variance on/off",
+        ["hurt"] = "Damages the selected unit by a percent #. usage: hurt [1-100]",
+        ["buddha"] = "Prevents your hero from dying",
+        ["tp"] = "Teleports the selected unit to your cursor's position.",
+        ["dmg"] = "Sets the base damage of the selected unit to #. usage: -dmg [#]",
+
+        --started skipping some
+        ["setprestige"] = "Set the prestige level of a hero type # to level #. usage: -setprestige [#] [#]",
+
+        ["shadowstep"] = "Forces legion / death knight to cast shadow step / death march.",
+
+        ["anim"] = "Plays the animation of the selected unit by id #. usage: -anim [#] (usually 0-10, depends on number of animations)",
+
+        ["itemlevel"] = "Sets the level of the item in your hero's first slot to #. usage: -itemlevel [#]",
+        ["maxlevel"] = "Sets the level of the item in your hero's first slot to its maximum.",
+        ["itemset"] = "Sets the formula of the item in your hero's first slot. usage: -itemset [tier 1][damage 5|10=2>2%150@2][spellboost*5]. see -help syntax for more item formula info.",
+        ["itemformula"] = "Prints the current formula of the item in your hero's first slot.",
+        ["restock"] = "Moves the evil shopkeeper to a random location and refreshes his stock.",
+
+        ["syntax"] = [[[tier #] - tier name (0-24)|n[req #] - level requirement
+[upg #] - max number of item upgrades for enhancer
+[type #] - proficiency (0-all, 1-plate, 2-fullplate, 3-leather, 4-cloth, 5-shield, 6-heavy, 7-sword, 8-dagger, 9-bow, 10-staff)
+[limit #] - multiple item restriction (1 - can only have one, 2+ special error messages)
+[cost #] - upgrade item price
+other keywords: armor, str, agi, int, regen, damage, spellboost, cd (crit damage), cc (crit chance), health, mana, dr, mr, ms, evasion, bat, gold
+
+modifiers:
+* - stat is fixed per level // for stuff like spellboost and damage resist that has linear scaling
+| - value range
+= - flat scaling per level
+> - flat scaling per rarity
+% - percent scaling per level (default is 100%) // this one is ignorable
+@ - unlocks at specified level
+# - ability id"]]
+    }
+
+    --lookup table
+    DEV_CMDS = {
+        ["nocd"] = function(p, pid, args)
+            nocd[pid] = true
+        end,
+        ["cd"] = function(p, pid, args)
+            nocd[pid] = false
+        end,
+        ["nocost"] = function(p, pid, args)
+            nocost[pid] = true
+        end,
+        ["cost"] = function(p, pid, args)
+            nocost[pid] = false
+        end,
+        ["sight"] = function(p, pid, args)
+            local r = 400.
+
+            if args[2] then
+                r = S2I(args[2])
+            end
+
+            BlzSetUnitRealField(Hero[pid], UNIT_RF_SIGHT_RADIUS, r)
+        end,
+        ["dummycount"] = function(p, pid, args)
+            print(DUMMY_COUNT)
+        end,
+        ["vision"] = function(p, pid, args)
+            FogMaskEnable(false)
+            FogEnable(false)
+        end,
+        ["novision"] = function(p, pid, args)
+            FogMaskEnable(true)
+            FogEnable(true)
+        end,
+        ["sp"] = function(p, pid, args)
+            SetCurrency(pid, PLATINUM, S2I(args[2]))
+        end,
+        ["sa"] = function(p, pid, args)
+            SetCurrency(pid, ARCADITE, S2I(args[2]))
+        end,
+        ["sc"] = function(p, pid, args)
+            SetCurrency(pid, CRYSTAL, S2I(args[2]))
+        end,
+        ["lvl"] = function(p, pid, args)
+            if GetHeroLevel(PlayerSelectedUnit[pid]) > S2I(args[2]) then
+                UnitStripHeroLevel(PlayerSelectedUnit[pid], GetHeroLevel(PlayerSelectedUnit[pid]) - S2I(args[2]))
+            else
+                SetHeroLevel(PlayerSelectedUnit[pid], S2I(args[2]), false)
+            end
+        end,
+        ["str"] = function(p, pid, args)
+            SetHeroStr(PlayerSelectedUnit[pid], S2I(args[2]), true)
+        end,
+        ["agi"] = function(p, pid, args)
+            SetHeroAgi(PlayerSelectedUnit[pid], S2I(args[2]), true)
+        end,
+        ["int"] = function(p, pid, args)
+            SetHeroInt(PlayerSelectedUnit[pid], S2I(args[2]), true)
+        end,
+        ["g"] = function(p, pid, args)
+            SetCurrency(pid, GOLD, S2I(args[2]))
+        end,
+        ["l"] = function(p, pid, args)
+            SetCurrency(pid, LUMBER, S2I(args[2]))
+        end,
+        ["day"] = function(p, pid, args)
+            SetTimeOfDay(5.95)
+        end,
+        ["night"] = function(p, pid, args)
+            SetTimeOfDay(17.49)
+        end,
+        ["si"] = function(p, pid, args)
+            if args[2] then
+                FindItem(args[2], pid)
+            end
+        end,
+        ["gi"] = function(p, pid, args)
+            if args[2] then
+                local itm = PlayerAddItemById(pid, FourCC(args[2]))
+                itm:lvl(IMaxBJ(0, ItemData[itm.id][ITEM_UPGRADE_MAX] - ITEM_MAX_LEVEL_VARIANCE))
+            end
+        end,
+        ["hero"] = function(p, pid, args)
+            local id = S2I(args[2])
+            local type = SAVE_UNIT_TYPE[S2I(args[3])]
+
+            if id <= PLAYER_CAP and GetPlayerSlotState(Player(id - 1)) ~= PLAYER_SLOT_STATE_PLAYING and type and type ~= 0 then
+                RemoveUnit(Hero[id])
+                RemoveUnit(HeroGrave[id])
+
+                Hero[id] = CreateUnitAtLoc(Player(id - 1), type, TownCenter, 0)
+                HeroID[id] = GetUnitTypeId(Hero[id])
+                Profile[id] = Profile.create(id)
+                EventSetup(id)
+                CharacterSetup(id, false)
+            end
+        end,
+        ["sharecontrol"] = function(p, pid, args)
+            SetPlayerAlliance(Player(S2I(args[2]) - 1), p, ALLIANCE_SHARED_CONTROL, true)
+        end,
+        ["enterchaos"] = function(p, pid, args)
+            OpenGodsPortal()
+            power_crystal = CreateUnitAtLoc(pfoe, FourCC('h04S'), Location(30000, -30000), bj_UNIT_FACING)
+            UnitApplyTimedLife(power_crystal, FourCC('BTLF'), 1.)
+        end,
+        ["settime"] = function(p, pid, args)
+            TimePlayed[pid] = S2I(args[2])
+        end,
+        ["punchingbags"] = function(p, pid, args)
+            local max = S2I(args[2])
+
+            for i = 0, S2I(args[2]) do
+                local r = bj_PI * 2 * i / max
+                CreateUnit(pfoe, FourCC('h02D'), GetUnitX(Hero[pid]) + Cos(r) * 30 * i / max, GetUnitY(Hero[pid]) + Sin(r) * 30 * i / max, 270.)
+            end
+        end,
+        ["shopkeeper"] = function(p, pid, args)
+            PingMinimap(GetUnitX(evilshopkeeper), GetUnitY(evilshopkeeper), 3)
+        end,
+        ["setweather"] = function(p, pid, args)
+            WEATHER_OVERRIDE = S2I(args[2])
+            WeatherPeriodic()
+        end,
+        ["noborders"] = function(p, pid, args)
+            if GetLocalPlayer() == p then
+                SetCameraField(CAMERA_FIELD_ROTATION, 90., 0)
+                SetCameraBounds(WorldBounds.minX, WorldBounds.minY, WorldBounds.minX, WorldBounds.maxY, WorldBounds.maxX, WorldBounds.maxY, WorldBounds.maxX, WorldBounds.minY)
+            end
+        end,
+        ["displayhint"] = function(p, pid, args)
+            DisplayHint()
+        end,
+        ["fastrespawn"] = function(p, pid, args)
+            if RESPAWN_DEBUG then
+                print("5 second boss respawn disabled!")
+            else
+                print("5 second boss respawn enabled!")
+            end
+
+            RESPAWN_DEBUG = not RESPAWN_DEBUG
+        end,
+        ["pause"] = function(p, pid, args)
+            PauseUnit(Hero[pid], true)
+        end,
+        ["unpause"] = function(p, pid, args)
+            PauseUnit(Hero[pid], false)
+        end,
+        ["setfirestorm"] = function(p, pid, args)
+            firestormRate = S2I(args[2])
+        end,
+        ["horde"] = function(p, pid, args)
+            for _ = 0, 39 do
+                CreateUnitAtLoc(pfoe, FourCC('n07R'), GetUnitLoc(Hero[pid]), GetRandomReal(0, 359))
+            end
+        end,
+        ["kill"] = function(p, pid, args)
+            DamageTarget(Hero[pid], PlayerSelectedUnit[pid], BlzGetUnitMaxHP(PlayerSelectedUnit[pid]) * 2., ATTACK_TYPE_NORMAL, PURE, "Kill")
+        end,
+        ["ally"] = function(p, pid, args)
+            CreateUnit(p, FourCC(args[2]), GetUnitX(Hero[pid]), GetUnitY(Hero[pid]) - 300., GetRandomReal(0, 359))
+        end,
+        ["setowner"] = function(p, pid, args)
+            SetUnitOwner(PlayerSelectedUnit[pid], Player(S2I(args[2])), true)
+        end,
+        ["enemy"] = function(p, pid, args)
+            CreateUnit(pfoe, FourCC(args[2]), GetUnitX(Hero[pid]), GetUnitY(Hero[pid]) - 300., GetRandomReal(0, 359))
+        end,
+        ["donation"] = function(p, pid, args)
+            print("weather rate: " .. R2S(donation))
+        end,
+        ["afktest"] = function(p, pid, args)
+            AFKClock()
+        end,
+        ["help"] = function(p, pid, args)
+            local text = ""
+
+            if HELP_TABLE[args[2]] then
+                text = HELP_TABLE[args[2]]
+            else
+                for key, _ in pairs(DEV_CMDS) do
+                    text = text .. "-" .. key .. " "
+                end
+            end
+
+            DisplayTextToPlayer(p, 0, text:len() ^ 0.05 - 0.8, text)
+        end,
+        ["setprestige"] = function(p, pid, args)
+            PrestigeTable[pid][S2I(args[2])] = S2I(args[3])
+            SetPrestigeEffects(pid)
+            UpdatePrestigeTooltips()
+        end,
+        ["wells"] = function(p, pid, args)
+            for i = 0, 4 do
+                PingMinimap(GetUnitX(well[i]), GetUnitY(well[i]), 1)
+            end
+        end,
+        ["createwell"] = function(p, pid, args)
+            CreateWell()
+        end,
+        ["killall"] = function(p, pid, args)
+            local ug = CreateGroup()
+
+            GroupEnumUnitsInRect(ug, WorldBounds.rect, nil)
+
+            for target in each(ug) do
+                KillUnit(target)
+            end
+
+            DestroyGroup(ug)
+        end,
+        ["print"] = function(p, pid, args)
+            print(StringHash(args[2]))
+        end,
+        ["printc"] = function(p, pid, args)
+            print(FourCC(args[2]))
+        end,
+        ["test"] = function(p, pid, args)
+            SetCurrency(pid, GOLD, 9999999)
+            SetCurrency(pid, LUMBER, 9999999)
+            SetCurrency(pid, PLATINUM, 9999)
+            SetCurrency(pid, ARCADITE, 9999)
+            SetCurrency(pid, CRYSTAL, 9999)
+            SetHeroLevel(Hero[pid], 400, false)
+            PlayerAddItemById(pid, FourCC('I0M8'))
+            FogMaskEnable(false)
+            FogEnable(false)
+            ExperienceControl(pid)
+        end,
+        ["heal"] = function(p, pid, args)
+            SetWidgetLife(PlayerSelectedUnit[pid], BlzGetUnitMaxHP(PlayerSelectedUnit[pid]))
+            SetUnitState(PlayerSelectedUnit[pid], UNIT_STATE_MANA, BlzGetUnitMaxMana(PlayerSelectedUnit[pid]))
+        end,
+        ["yeah"] = function(p, pid, args)
+            print((StringHash(GetLocalizedString("TRIGSTR_001"))))
+        end,
+        ["invul"] = function(p, pid, args)
+            if GetUnitAbilityLevel(PlayerSelectedUnit[pid], FourCC('Avul')) > 0 then
+                UnitRemoveAbility(PlayerSelectedUnit[pid], FourCC('Avul'))
+            else
+                UnitAddAbility(PlayerSelectedUnit[pid], FourCC('Avul'))
+            end
+        end,
+        ["colo"] = function(p, pid, args)
+            ColoPlayerCount = S2I(args[2])
+        end,
+        ["hp"] = function(p, pid, args)
+            SetWidgetLife(PlayerSelectedUnit[pid], S2I(args[2]))
+            BlzSetUnitMaxHP(PlayerSelectedUnit[pid], S2I(args[2]))
+        end,
+        ["armor"] = function(p, pid, args)
+            BlzSetUnitArmor(PlayerSelectedUnit[pid], S2I(args[2]))
+        end,
+        ["armortype"] = function(p, pid, args)
+            BlzSetUnitIntegerField(PlayerSelectedUnit[pid], UNIT_IF_DEFENSE_TYPE, S2I(args[2]))
+        end,
+        ["boost"] = function(p, pid, args)
+            if BOOST_OFF then
+                DisplayTextToPlayer(p, 0, 0, "Boost enabled.")
+                BOOST_OFF = false
+            else
+                DisplayTextToPlayer(p, 0, 0, "Boost disabled.")
+                BOOST_OFF = true
+            end
+        end,
+        ["hurt"] = function(p, pid, args)
+            SetWidgetLife(PlayerSelectedUnit[pid], GetWidgetLife(PlayerSelectedUnit[pid]) - BlzGetUnitMaxHP(PlayerSelectedUnit[pid]) * 0.01 * S2I(args[2]))
+        end,
+        ["buddha"] = function(p, pid, args)
+            if BUDDHA_MODE[pid] then
+                DisplayTextToPlayer(p, 0, 0, "Buddha disabled.")
+                BUDDHA_MODE[pid] = false
+            else
+                DisplayTextToPlayer(p, 0, 0, "Buddha enabled.")
+                BUDDHA_MODE[pid] = true
+            end
+        end,
+        ["votekicktest"] = function(p, pid, args)
+            votekickPlayer = pid
+            ResetVote()
+            VOTING_TYPE = 2
+
+            local U = User.first
+            while U do
+                if GetLocalPlayer() == U.player then
+                    BlzFrameSetVisible(votingBG, true)
+                end
+                U = U.next
+            end
+        end,
+        ["saveall"] = function(p, pid, args)
+            local U = User.first
+            while U do
+                ActionSave(U.player)
+                U = U.next
+            end
+        end,
+        ["tp"] = function(p, pid, args)
+            SetUnitPosition(PlayerSelectedUnit[pid], MouseX[pid], MouseY[pid])
+        end,
+        ["coloxp"] = function(p, pid, args)
+            Colosseum_XP[pid] = 1.3
+            DisplayTextToPlayer(p, 0, 0, "Set colosseum xp multiplier to 1.3")
+        end,
+        ["extradebug"] = function(p, pid, args)
+            EXTRA_DEBUG = not EXTRA_DEBUG
+        end,
+        ["currentorder"] = function(p, pid, args)
+            print((GetUnitCurrentOrder(PlayerSelectedUnit[pid])))
+            print(OrderId2String(GetUnitCurrentOrder(PlayerSelectedUnit[pid])))
+        end,
+        ["currenttarget"] = function(p, pid, args)
+            local target = GetUnitTarget(PlayerSelectedUnit[pid])
+
+            print((target and GetUnitName(target)) or "no target")
+        end,
+        ["dmg"] = function(p, pid, args)
+            BlzSetUnitBaseDamage(PlayerSelectedUnit[pid], S2I(args[2]), 0)
+        end,
+        ["getitemabilstring"] = function(p, pid, args)
+            print((ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][ITEM_ABILITY * ABILITY_OFFSET .. "abil"]))
+        end,
+        ["getitemdata"] = function(p, pid, args)
+            print((ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][S2I(args[2])]))
+        end,
+        ["itemdata"] = function(p, pid, args)
+            SetItemUserData(UnitItemInSlot(Hero[pid], 0), S2I(args[2]))
+        end,
+        ["anim"] = function(p, pid, args)
+            SetUnitAnimationByIndex(PlayerSelectedUnit[pid], S2I(args[2]))
+        end,
+        ["shadowstep"] = function(p, pid, args)
+            ShadowStepExpire()
+        end,
+        ["rotate"] = function(p, pid, args)
+            BlzSetUnitFacingEx(PlayerSelectedUnit[pid], S2R(args[2]))
+        end,
+        ["position"] = function(p, pid, args)
+            print(R2S(GetUnitX(PlayerSelectedUnit[pid])) .. " " .. R2S(GetUnitY(PlayerSelectedUnit[pid])))
+        end,
+        ["prestigehack"] = function(p, pid, args)
+            Profile[pid].hero.prestige = 2
+        end,
+        ["skills"] = function(p, pid, args)
+            print(BlzGetAbilityStringLevelField(BlzGetUnitAbilityByIndex(Hero[pid], S2I(args[2])), ABILITY_SLF_TOOLTIP_NORMAL, 0))
+            print(BlzGetAbilityStringField(BlzGetUnitAbilityByIndex(Hero[pid], S2I(args[2])), ABILITY_SF_NAME))
+            print(IntToFourCC(BlzGetAbilityId(BlzGetUnitAbilityByIndex(Hero[pid], S2I(args[2])))))
+        end,
+        ["encode"] = function(p, pid, args)
+            print(Encode(S2I(args[2])))
+        end,
+        ["makeitem"] = function(p, pid, args)
+            Item.create(CreateItem(FourCC('I0OX'), 0, 0))
+        end,
+        ["FourCC"] = function(p, pid, args)
+            print(FourCC(args[2]))
+        end,
+        ["itemlevel"] = function(p, pid, args)
+            Item[UnitItemInSlot(Hero[pid], 0)]:lvl(S2I(args[2]))
+        end,
+        ["maxlevel"] = function(p, pid, args)
+            Item[UnitItemInSlot(Hero[pid], 0)]:lvl(ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][ITEM_UPGRADE_MAX])
+        end,
+        ["itemset"] = function(p, pid, args)
+            Item[UnitItemInSlot(Hero[pid], 0)]:unequip()
+            WipeItemStats(GetItemTypeId(UnitItemInSlot(Hero[pid], 0)))
+            local text = ""
+            for i = 2, #args do
+                text = text .. args[i] .. " "
+            end
+            ParseItemTooltip(UnitItemInSlot(Hero[pid], 0), text)
+            Item[UnitItemInSlot(Hero[pid], 0)]:update()
+            Item[UnitItemInSlot(Hero[pid], 0)]:equip()
+        end,
+        ["itemprint"] = function(p, pid, args)
+            print(BlzGetItemExtendedTooltip(UnitItemInSlot(Hero[pid], 0)))
+        end,
+        ["itemformula"] = function(p, pid, args)
+            print(ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][ITEM_TOOLTIP])
+        end,
+        ["mode"] = function(p, pid, args)
+            print(GetLocalizedString("ASSET_MODE"))
+        end,
+        ["ablev"] = function(p, pid, args)
+            print(GetUnitAbilityLevel(Hero[pid], FourCC(args[2])))
+        end,
+        ["shunpo"] = function(p, pid, args)
+            ShowUnit(PlayerSelectedUnit[pid], false)
+            ShowUnit(PlayerSelectedUnit[pid], true)
+        end,
+        ["pathable"] = function(p, pid, args)
+            if IsTerrainWalkable(MouseX[pid], MouseY[pid]) then
+                print("yeah")
+            end
+        end,
+        ["heropos"] = function(p, pid, args)
+            print(R2S(GetUnitX(Hero[pid])))
+            print(R2S(GetUnitY(Hero[pid])))
+        end,
+        ["afk?"] = function(p, pid, args)
+            print("Screen pan count: " .. panCounter[pid])
+            print("Cursor move count: " .. moveCounter[pid])
+            print("Click count: " .. clickCounter[pid])
+
+            if panCounter[pid] < 50 or moveCounter[pid] < 5000 or clickCounter[pid] < 200 then
+                print("Yes")
+            else
+                print("No")
+            end
+        end,
+        ["setskin"] = function(p, pid, args)
+            CosmeticTable[User[p].name][S2I(args[2])] = S2I(args[3])
+        end,
+        ["setaura"] = function(p, pid, args)
+            CosmeticTable[User[p].name][S2I(args[2]) + DONATOR_AURA_OFFSET] = S2I(args[3])
+        end,
+        ["id2char"] = function(p, pid, args)
+            print(GetObjectName(SAVE_UNIT_TYPE[S2I(args[2])]))
+        end,
+        ["addspell"] = function(p, pid, args)
+            UnitAddAbility(PlayerSelectedUnit[pid], FourCC(args[2]))
+        end,
+        ["removespell"] = function(p, pid, args)
+            UnitRemoveAbility(PlayerSelectedUnit[pid], FourCC(args[2]))
+        end,
+        ["restock"] = function(p, pid, args)
+            ShopkeeperMove()
+        end,
+        ["host"] = function(p, pid, args)
+            local host = User[Player(DetectHost())]
+
+            if host then
+                print("The host is " .. host.nameColored)
+            end
+        end,
+        ["removetest"] = function(p, pid, args)
+            awesome_unit = CreateUnit(Player(0), FourCC('h00F'), 0, 0, 0)
+            print(type(awesome_unit))
+            RemoveUnit(awesome_unit)
+            print(type(awesome_unit))
+        end,
+        ["keys"] = function(p, pid, args)
+            for index = 8,255 do
+                local trigger = CreateTrigger()
+                TriggerAddAction(trigger, function()
+                    print("OsKey:",index, "meta",BlzGetTriggerPlayerMetaKey())
+                end)
+                local key = ConvertOsKeyType(index)
+                for metaKey = 0,15,1 do
+                    BlzTriggerRegisterPlayerKeyEvent(trigger, p, key, metaKey, true)
+                    BlzTriggerRegisterPlayerKeyEvent(trigger, p, key, metaKey, false)
+                end
+            end
+        end,
+    }
 
 ---@param pid integer
 function EventSetup(pid)
-    local spell         = CreateTrigger() ---@type trigger 
-    local cast         = CreateTrigger() ---@type trigger 
-    local finish         = CreateTrigger() ---@type trigger 
-    local learn         = CreateTrigger() ---@type trigger 
-    local channel         = CreateTrigger() ---@type trigger 
-    local death         = CreateTrigger() ---@type trigger 
-    local attacked         = CreateTrigger() ---@type trigger 
-    local beforearmor         = CreateTrigger() ---@type trigger 
-    local onpickup         = CreateTrigger() ---@type trigger 
-    local ondrop         = CreateTrigger() ---@type trigger 
-    local useitem         = CreateTrigger() ---@type trigger 
-    local onsell         = CreateTrigger() ---@type trigger 
-    local i         = pid - 1 ---@type integer 
-    local i2         = 0 ---@type integer 
-    local p        = Player(pid - 1) ---@type player 
+    local i  = pid - 1 ---@type integer 
+    local i2 = 0 ---@type integer 
+    local p  = Player(pid - 1) ---@type player 
 
     --make user
     if not User[p] then
-        User[i] = {}
-        setmetatable(User[i], { __index = User })
-        User[i].player = p
-        User[i].id = i + 1
-        User[i].isPlaying = true
-        User[i].color = GetPlayerColor(p)
-        User[i].name = GetPlayerName(p)
-        User[i].hex = OriginalHex[i]
-        User[i].nameColored = User[i].hex .. User[i].name .. "|r"
+        User[p] = {}
+        setmetatable(User[p], { __index = User })
+        User[p].player = p
+        User[p].id = i + 1
+        User[p].isPlaying = true
+        User[p].color = GetPlayerColor(p)
+        User[p].name = GetPlayerName(p)
+        User[p].hex = OriginalHex[i]
+        User[p].nameColored = User[p].hex .. User[p].name .. "|r"
 
-        User.last = User[i]
+        User.last = User[p]
 
-        if not User.first then
-            User.first = User[i]
-            User[i].next = nil
-            User[i].prev = nil
-        else
-            User[i].prev = User[User.AmountPlaying - 1]
-            User[i].prev.next = User[i]
-            User[i].next = nil
-        end
+        User[p].prev = User[User.AmountPlaying - 1]
+        User[p].prev.next = User[p]
+        User[p].next = nil
 
+        User[User.AmountPlaying] = User[p]
         User.AmountPlaying = User.AmountPlaying + 1
 
         TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_LEAVE)
@@ -67,6 +576,16 @@ function EventSetup(pid)
 
         ForceAddPlayer(FORCE_PLAYING, p)
     end
+
+    local index = User.AmountPlaying
+    MULTIBOARD.MAIN:addRows(1)
+    MULTIBOARD.MAIN:get(index, 1).text = {0.02, 0, 0.09, MULTIBOARD.ICON_SIZE}
+    MULTIBOARD.MAIN:get(index, 2).icon = {0.11, 0, MULTIBOARD.ICON_SIZE, MULTIBOARD.ICON_SIZE}
+    MULTIBOARD.MAIN:get(index, 3).icon = {0.13, 0, MULTIBOARD.ICON_SIZE, MULTIBOARD.ICON_SIZE}
+    MULTIBOARD.MAIN:get(index, 4).text = {0.15, 0, 0.08, MULTIBOARD.ICON_SIZE}
+    MULTIBOARD.MAIN:get(index, 5).text = {0.23, 0, 0.03, MULTIBOARD.ICON_SIZE}
+    MULTIBOARD.MAIN:get(index, 6).text = {0.26, 0, 0.03, MULTIBOARD.ICON_SIZE}
+    MULTIBOARD.MAIN:refresh()
 
     --alliance setup
     SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), Player(pid - 1), bj_ALLIANCE_ALLIED)
@@ -101,6 +620,11 @@ function EventSetup(pid)
     end
 
     --spell setup
+    local spell   = CreateTrigger()
+    local cast    = CreateTrigger()
+    local finish  = CreateTrigger()
+    local learn   = CreateTrigger()
+    local channel = CreateTrigger()
     SetPlayerAbilityAvailable(Player(pid - 1), DETECT_LEAVE_ABILITY, false)
     SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0JV'), false) --elementalist setup
     SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0JX'), false)
@@ -131,45 +655,64 @@ function EventSetup(pid)
     TriggerAddCondition(channel, Filter(OnChannel))
 
     --death setup
+    local death = CreateTrigger()
     TriggerRegisterUnitEvent(death, Hero[pid], EVENT_UNIT_DEATH)
 
-    TriggerAddAction(death, onDeath)
+    TriggerAddAction(death, OnDeath)
 
     --attack setup
+    local attacked = CreateTrigger()
     TriggerRegisterUnitEvent(attacked, Hero[pid], EVENT_UNIT_ATTACKED)
 
-    TriggerAddCondition(attacked, OnAttack)
+    TriggerAddCondition(attacked, Filter(OnAttack))
 
     --damage setup
+    local beforearmor = CreateTrigger()
     TriggerRegisterUnitEvent(beforearmor, Hero[pid], EVENT_UNIT_DAMAGING)
 
     TriggerAddCondition(beforearmor, Filter(OnDamage))
 
     --item setup
+    local onpickup = CreateTrigger()
+    local ondrop   = CreateTrigger()
+    local useitem  = CreateTrigger()
+    local onsell   = CreateTrigger()
     TriggerRegisterUnitEvent(onpickup, Hero[pid], EVENT_UNIT_PICKUP_ITEM)
     TriggerRegisterUnitEvent(ondrop, Hero[pid], EVENT_UNIT_DROP_ITEM)
     TriggerRegisterUnitEvent(useitem, Hero[pid], EVENT_UNIT_USE_ITEM)
     TriggerRegisterUnitEvent(onsell, Hero[pid], EVENT_UNIT_PAWN_ITEM)
 
+    --order setup
+    local ordertarget = CreateTrigger()
+    TriggerRegisterPlayerUnitEvent(pointOrder, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, nil)
+    TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, nil)
+    TriggerRegisterPlayerUnitEvent(pointOrder, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_ORDER, nil)
+
+    TriggerAddAction(pointOrder, OnOrder)
+    TriggerAddAction(ordertarget, OnTargetOrder)
+
     TriggerAddCondition(onpickup, Condition(PickupFilter))
     TriggerAddAction(onpickup, onPickup)
     TriggerAddAction(ondrop, onDrop)
     TriggerAddAction(useitem, onUse)
-    TriggerAddCondition(onsell, onSell)
+    TriggerAddCondition(onsell, Condition(onSell))
 end
 
 function PreloadItemSearch()
-    local count         = 0 ---@type integer 
+    local count = 0 ---@type integer 
     local itm ---@type item 
 
     --searchable items
     --I000 to I0zz (3844~ items)
     for i = 0, 19018 do
-        itm = CreateItem(CUSTOM_ITEM_OFFSET + i, 30000., 30000.)
-        if itm ~= nil and GetItemType(itm) ~= ITEM_TYPE_POWERUP and GetItemType(itm) ~= ITEM_TYPE_CAMPAIGN then
-            SEARCHABLE[i] = true
+        if GetObjectName(CUSTOM_ITEM_OFFSET + i) ~= "Default string" then
+            itm = CreateItem(CUSTOM_ITEM_OFFSET + i, 30000., 30000.)
+            if GetItemType(itm) ~= ITEM_TYPE_POWERUP and GetItemType(itm) ~= ITEM_TYPE_CAMPAIGN then
+                SEARCHABLE[i] = true
+            end
+            SetWidgetLife(itm, 1.)
+            RemoveItem(itm)
         end
-        RemoveItem(itm)
 
         count = count + 1
 
@@ -189,555 +732,102 @@ end
 function WipeItemStats(id)
     for i = 1, 30 do
         ItemData[id][i] = 0
-        ItemData[id][i + BOUNDS_OFFSET] = 0
-        ItemData[id][i + BOUNDS_OFFSET * 2] = 0
-        ItemData[id][i + BOUNDS_OFFSET * 3] = 0
-        ItemData[id][i + BOUNDS_OFFSET * 4] = 0
-        ItemData[id][i + BOUNDS_OFFSET * 5] = 0
-        ItemData[id][i + BOUNDS_OFFSET * 6] = 0
+        ItemData[id][i .. "range"] = 0
+        ItemData[id][i .. "fpl"] = 0
+        ItemData[id][i .. "fpr"] = 0
+        ItemData[id][i .. "percent"] = 0
+        ItemData[id][i .. "unlock"] = 0
+        ItemData[id][i .. "fixed"] = 0
         ItemData[id][i * ABILITY_OFFSET] = 0
         ItemData[id][i * ABILITY_OFFSET .. "abil"] = nil
     end
 end
 
----@param search string
----@param source string
----@return boolean
-function StringContainsString(search, source)
-    local i ---@type integer 
-    local sL ---@type integer 
-    local sS ---@type integer 
+function SearchPage()
+    local p   = GetTriggerPlayer() ---@type player 
+    local pid = GetPlayerId(p) + 1 ---@type integer 
+    local dw    = DialogWindow[pid] ---@type DialogWindow 
+    local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
 
-    if StringLength(search) > StringLength(source) then
-        return false
-    end
+    if index ~= -1 then
+        local itm = PlayerAddItemById(pid, dw.data[index])
+        itm:lvl(IMaxBJ(0, ItemData[itm.id][ITEM_UPGRADE_MAX] - ITEM_MAX_LEVEL_VARIANCE))
 
-    i = 0
-    sL = StringLength(search)
-    sS = StringLength(source)
-    search = StringCase(search,false)
-    source = StringCase(source,false)
-
-    while not (i + sL > sS) do
-            if search == SubString(source,i,i + sL) then
-                return true
-            end
-        i = i + 1
+        dw:destroy()
     end
 
     return false
 end
 
----@param pid integer
-function ClearSearch(pid)
-    local i         = 0 ---@type integer 
-
-    while i <= 799 do
-
-        SEARCH_RESULTS[pid * 800 + i] = ""
-
-        i = i + 1
-    end
-end
-
-function SearchPage()
-    local b        = GetClickedButton() ---@type button 
-    local p        = GetTriggerPlayer() ---@type player 
-    local pid         = GetPlayerId(p) + 1 ---@type integer 
-    local i         = 0 ---@type integer 
-
-    DialogClear(SEARCH_DIALOG[pid])
-
-    if b == SEARCH_NEXT[pid] then
-        while not (i > 8 or SEARCH_RESULTS[pid * 800 + SEARCH_PAGE[pid]] == "") do
-            SEARCH_NEXT[pid * 800 + SEARCH_PAGE[pid]] = DialogAddButton(SEARCH_DIALOG[pid], SEARCH_RESULTS[pid * 800 + SEARCH_PAGE[pid]], 0)
-            SEARCH_PAGE[pid] = SEARCH_PAGE[pid] + 1
-            i = i + 1
-        end
-        if SEARCH_RESULTS[pid * 800 + SEARCH_PAGE[pid]] ~= "" then
-            SEARCH_NEXT[pid] = DialogAddButton(SEARCH_DIALOG[pid], "Next page", 0)
-        end
-
-        DialogDisplay(p, SEARCH_DIALOG[pid], true)
-    else --give item
-        while not (b == SEARCH_NEXT[pid * 800 + SEARCH_PAGE[pid] - i] or i > 10) do
-            i = i + 1
-        end
-        PlayerAddItemById(pid, FourCC(SubString(SEARCH_RESULTS[pid * 800 + SEARCH_PAGE[pid] - i], 0, 4)))
-    end
-end
-
 ---@param search string
 ---@param pid integer
 function FindItem(search, pid)
-    local itemCode        = "" ---@type string 
-    local i         = 0 ---@type integer 
-    local id         = 0 ---@type integer 
-    local name        = "" ---@type string 
-    local p        = Player(pid - 1) ---@type player 
-    local count         = 0 ---@type integer 
+    local itemCode = "" ---@type string 
+    local id       = 0 ---@type integer 
+    local name     = "" ---@type string 
+    local count    = 0 ---@type integer 
+    local dw = DialogWindow.create(pid, "", SearchPage)
 
-    SEARCH_PAGE[pid] = 0
-    ClearSearch(pid)
-    DialogClear(SEARCH_DIALOG[pid])
-
-    while i <= 8191 do
-
+    --searchable items
+    --I000 to I0zz (3844~ items)
+    for i = 0, 19018 do
         id = CUSTOM_ITEM_OFFSET + i
         itemCode = IntToFourCC(id)
         name = GetObjectName(id)
-        if name ~= "Default string" and name ~= "" and SEARCHABLE[i] then
-            if StringContainsString(search, name) then
-                SEARCH_RESULTS[pid * 800 + count] = itemCode .. " - " .. name
-                count = count + 1
+        if name ~= "" and SEARCHABLE[i] then
+            if string.find(name:lower(), search:lower()) then
+                dw:addButton(itemCode .. " - " .. name, id)
             end
         end
-        if count > 99 then
+
+        if dw.ButtonCount >= DialogWindow.BUTTON_MAX then
             break
         end
 
-        i = i + 1
+        count = count + 1
+
+        --ignore non word/digit characters
+        if count == 10 then
+            i = i + 7
+        elseif count == 36 then
+            i = i + 6
+        elseif count == 62 then
+            i = i + 181
+            count = 0
+        end
     end
 
-    i = 0
-    while not (i > 8 or i > count - 1) do
-        SEARCH_NEXT[pid * 800 + i] = DialogAddButton(SEARCH_DIALOG[pid], SEARCH_RESULTS[pid * 800 + i], 0)
-        SEARCH_PAGE[pid] = SEARCH_PAGE[pid] + 1
-        i = i + 1
-    end
-
-    if count > i then
-        SEARCH_NEXT[pid] = DialogAddButton(SEARCH_DIALOG[pid], "Next page", 0)
-    end
-
-    if count > 0 then
-        DialogDisplay(p, SEARCH_DIALOG[pid], true)
-    end
+    dw:display()
 end
 
 function DevCommands()
-    local currentPlayer        = GetTriggerPlayer() ---@type player 
-    local pid         = GetPlayerId(currentPlayer) + 1 ---@type integer 
-    local message        = GetEventPlayerChatString() ---@type string 
-    local i         = 0 ---@type integer 
-    local i2         = 0 ---@type integer 
-    local r      = 0 ---@type number 
-    local U      = User.first ---@type User 
-    local itm ---@type item 
+    local p    = GetTriggerPlayer() ---@type player 
+    local pid  = GetPlayerId(p) + 1 ---@type integer 
+    local args = {}
 
-    if (message == "-nocd") then
-        nocd[pid] = true
-    elseif message == "-cd" or message == "-cdon" then
-        nocd[pid] = false
-    elseif message == "-vampire" then
-        BlzSetUnitRealField(Hero[pid], UNIT_RF_SIGHT_RADIUS, 400.)
-        while i <= 7 do
-            if Player(i) ~= currentPlayer then
-                SetPlayerAlliance(currentPlayer, Player(i), ALLIANCE_SHARED_VISION, false)
-                SetPlayerAlliance(Player(i), currentPlayer, ALLIANCE_SHARED_VISION, false)
-            end
+    --propogate args table
+    for arg in GetEventPlayerChatString():gmatch("\x25S+") do
+        args[#args + 1] = arg
+    end
 
-            i = i + 1
-        end
-    elseif message == "-dummytest" then
-        GetDummy(0, 0, 0, 0, DUMMY_RECYCLE_TIME)
-        DEBUGMSG(DUMMY_COUNT)
-
-    elseif(message == "-nocost") then
-        nocost[pid] = true
-    elseif message == "-cost" or message == "-coston" then
-        nocost[pid] = false
-    elseif (message == "-vision") then
-        FogMaskEnable(false)
-        FogEnable(false)
-    elseif (message == "-novision") then
-        FogMaskEnable(true)
-        FogEnable(true)
-    elseif SubString(message,0,3)== "-sp" then
-        SetCurrency(pid, PLATINUM, S2I(SubString(message, 4, StringLength(message))))
-    elseif SubString(message,0,3)== "-sa" and SubString(message,3,5) ~= "ve" then
-        SetCurrency(pid, ARCADITE, S2I(SubString(message, 4, StringLength(message))))
-    elseif SubString(message,0,3)== "-sc" then
-        SetCurrency(pid, CRYSTAL, S2I(SubString(message, 4, StringLength(message))))
-    elseif SubString(message,0,5)== "-lvl " then
-        if GetHeroLevel(PlayerSelectedUnit[pid]) > S2I(SubString(message, 5, 8)) then
-            UnitStripHeroLevel(PlayerSelectedUnit[pid], GetHeroLevel(PlayerSelectedUnit[pid]) - S2I(SubString(message, 5, 8)))
-        else
-            SetHeroLevel(PlayerSelectedUnit[pid], S2I(SubString(message, 5, 8)),false)
-        end
-    elseif SubString(message,0,5)== "-str " then
-        SetHeroStr(PlayerSelectedUnit[pid], S2I(SubString(GetEventPlayerChatString(), 5, 13)),true)
-    elseif SubString(message,0,5)== "-agi " then
-        SetHeroAgi(PlayerSelectedUnit[pid], S2I(SubString(GetEventPlayerChatString(), 5, 13)),true)
-    elseif SubString(message,0,5)== "-int " then
-        SetHeroInt(PlayerSelectedUnit[pid], S2I(SubString(GetEventPlayerChatString(), 5, 13)),true)
-    elseif SubString(message,0,3)== "-g " then
-        AddCurrency(pid, GOLD, S2I(SubString(GetEventPlayerChatString(), 3, 10)))
-    elseif SubString(message,0,3)== "-l " then
-        AddCurrency(pid, LUMBER, S2I(SubString(GetEventPlayerChatString(), 3, 10)))
-    elseif (message == "-day") then
-        SetTimeOfDay(5.95)
-    elseif (message == "-night") then
-        SetTimeOfDay(17.49)
-    elseif (message == "-cycle") then
-        SetTimeOfDayScale(50)
-    elseif SubString(message,0,4)== "-si " then
-        FindItem(SubString(message, 4, StringLength(message)), pid)
-    elseif SubString(message,0,4)== "-gi " then
-        PlayerAddItemById(pid, FourCC(SubString(message, 4, StringLength(message))))
-    elseif (SubString(message, 0, 5) == "-hero") then
-        i = S2I(SubString(message, 8, StringLength(message)))
-        i2 = SAVE_UNIT_TYPE[S2I(SubString(message, 6, 8))]
-
-        if GetPlayerSlotState(Player(i - 1)) ~= PLAYER_SLOT_STATE_PLAYING and i2 ~= 0 then
-            RemoveUnit(Hero[i])
-            RemoveUnit(HeroGrave[i])
-
-            Hero[i] = CreateUnitAtLoc(Player(i - 1), i2, TownCenter, 0)
-            HeroID[i] = GetUnitTypeId(Hero[i])
-            Profile[i] = Profile.create(i)
-            EventSetup(i)
-            CharacterSetup(i, false)
-        end
-
-    elseif (SubString(message, 0, 13) == "-sharecontrol") then
-        SetPlayerAlliance(Player(S2I(SubString(message, 14, StringLength(message))) - 1), currentPlayer, ALLIANCE_SHARED_CONTROL, true)
-    elseif (message == "-enterchaos") then
-        OpenGodsPortal()
-        power_crystal = CreateUnitAtLoc(pfoe, FourCC('h04S'), Location(30000, -30000), bj_UNIT_FACING)
-        UnitApplyTimedLife(power_crystal, FourCC('BTLF'), 1.)
-    elseif (SubString(message, 0, 8) == "-settime") then
-        i = S2I(SubString(message, 9, 19))
-
-        TimePlayed[pid] = i
-    elseif (SubString(message, 0, 13) == "-punchingbags") then
-        i2 = S2I(SubString(message, 14, StringLength(message)))
-
-        while i ~= i2 do
-            i = i + 1
-            r = bj_PI * 2 * i / i2
-            CreateUnit(pfoe, FourCC('h02D'), GetUnitX(Hero[pid]) + Cos(r) * 30 * i / i2, GetUnitY(Hero[pid]) + Sin(r) * 30 * i / i2, 270.)
-        end
-    elseif (SubString(message, 0, 11) == "-shopkeeper") then
-        PingMinimap(GetUnitX(gg_unit_n01F_0576), GetUnitY(gg_unit_n01F_0576), 3)
-    elseif (SubString(message, 0, 11) == "-setweather") then
-        WEATHER_OVERRIDE = S2I(SubString(message, 12, StringLength(message)))
-        WeatherPeriodic()
-    elseif (message== "-noborders") then
-        if GetLocalPlayer() == currentPlayer then
-            SetCameraField(CAMERA_FIELD_ROTATION, 90., 0)
-            SetCameraBounds(WorldBounds.minX, WorldBounds.minY, WorldBounds.minX, WorldBounds.maxY, WorldBounds.maxX, WorldBounds.maxY, WorldBounds.maxX, WorldBounds.minY)
-        end
-    elseif (SubString(message,0,6) == "-chelp") then
-        DisplayTextToPlayer(currentPlayer, 0, 0, [[
-        -caoa (angle of attack) 250-330
-        -cfow (field of view) 70-120
-        -cfarz 5000-10000
-        -croll 0-360
-        -crot (rotation) 0-360
-        -cdist (distance) 1000-10000
-        -czoff (z offset) 0-10000
-        -deletefloatingtext")
-        ]])
-    elseif (SubString(message,0,5) == "-caoa") then
-        SetCameraField(CAMERA_FIELD_ANGLE_OF_ATTACK, S2R(SubString(message, 6, StringLength(message))), 0)
-    elseif (SubString(message,0,5) == "-cfow") then
-        SetCameraField(CAMERA_FIELD_FIELD_OF_VIEW, S2R(SubString(message, 6, StringLength(message))), 0)
-    elseif (SubString(message,0,6) == "-cfarz") then
-        SetCameraField(CAMERA_FIELD_FARZ, S2R(SubString(message, 7, StringLength(message))), 0)
-    elseif (SubString(message,0,6) == "-croll") then
-        SetCameraField(CAMERA_FIELD_ROLL, S2R(SubString(message, 7, StringLength(message))), 0)
-    elseif (SubString(message,0,5) == "-crot") then
-        SetCameraField(CAMERA_FIELD_ROTATION, S2R(SubString(message, 6, StringLength(message))), 0)
-    elseif (SubString(message,0,6) == "-cdist") then
-        SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, S2R(SubString(message, 7, StringLength(message))), 0)
-    elseif (SubString(message,0,6) == "-czoff") then
-        SetCameraField(CAMERA_FIELD_ZOFFSET, S2R(SubString(message, 7, StringLength(message))), 0)
-    elseif (message == "-deletefloatingtext") then
-        DestroyTextTag(GetLastCreatedTextTag())
-        DestroyTextTag(ColoText)
-        DestroyTextTag(StruggleText)
-    elseif (message == "-displayhint") then
-        DisplayHint()
-    elseif (message == "-hackrespawn") then
-        RESPAWN_DEBUG = true
-    elseif (message == "-pause") then
-        PauseUnit(Hero[pid], true)
-    elseif (message == "-unpause") then
-        PauseUnit(Hero[pid], false)
-    elseif (message == "-evasion") then
-        UnitAddAbility(Hero[pid], FourCC('A0JH'))
-    elseif (message == "-noevasion") then
-        UnitRemoveAbility(Hero[pid], FourCC('A0JH'))
-    elseif (SubString(message, 0, 13) == "-setfirestorm") then
-        firestormRate = S2I(SubString(message, 14, StringLength(message)))
-    elseif (message == "-horde") then
-        for _ = 0, 39 do
-            CreateUnitAtLoc(pfoe, FourCC('n07R'), GetUnitLoc(Hero[pid]), GetRandomReal(0,359))
-        end
-    elseif (message == "-kill") then
-        UnitDamageTarget(Hero[pid], PlayerSelectedUnit[pid], BlzGetUnitMaxHP(PlayerSelectedUnit[pid]) * 2., true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
-    elseif (SubString(message, 0, 5) == "-ally") then
-        CreateUnit(currentPlayer, FourCC(SubString(message,6,10)), GetUnitX(Hero[pid]), GetUnitY(Hero[pid]) - 300., GetRandomReal(0,359))
-    elseif (SubString(message, 0, 9) == "-setowner") then
-        SetUnitOwner(PlayerSelectedUnit[pid], Player(S2I(SubString(message, 10, StringLength(message)))), true)
-    elseif (SubString(message, 0, 6) == "-enemy") then
-        CreateUnit(pfoe, FourCC(SubString(message,7,11)), GetUnitX(Hero[pid]), GetUnitY(Hero[pid]) - 300., GetRandomReal(0,359))
-    elseif (message == "-donation") then
-        BJDebugMsg("weather rate: " .. R2S(donation))
-    elseif (message == "-afktest") then
-        AFKClock()
-    elseif SubString(message,0,5) == "-help" then
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-str / -agi / -int # - Sets stat to #")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-lvl # - Sets hero level to #")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-g / -l # - Sets gold or lumber to #")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-vision / -novision - toggles map vision")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-sp # -sets platcoin to #")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-sa # -sets arclumber to #")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-sc # -sets crystals to #")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-gi - give item, spawns based on 4 character rawcode, eg. I0M8")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-si - search item id by name")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-day / -night")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-cycle - makes time really fast")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-enterchaos - starts chaos mode")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-noborders (removes camera borders so you can see outside the map)")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-setweather #[1 - " .. WEATHER_MAX .. "]")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-cd / -nocd toggles cooldowns")
-        DisplayTextToPlayer(currentPlayer, 0, 0, "-pfall / -allpf gives full proficiencies")
-    elseif SubString(message,0,12) == "-setprestige" then
-        PrestigeTable[pid][S2I(SubString(message, 13, 15))] = S2I(SubString(message, 15, 17))
-        SetPrestigeEffects(pid)
-        UpdatePrestigeTooltips()
-    elseif SubString(message,0,6) == "-wells" then
-        for i = 0, 4 do
-            PingMinimap(GetUnitX(well[i]), GetUnitY(well[i]), 1)
-        end
-    elseif message == "-createwell" then
-        CreateWell()
-    elseif SubString(message,0,8) == "-killall" then
-        local ug = CreateGroup()
-
-        GroupEnumUnitsInRect(ug, WorldBounds.rect, nil)
-
-        for target in each(ug) do
-            KillUnit(target)
-        end
-
-    DestroyGroup(ug)
-    elseif SubString(message,0,6) == "-print" then
-        BJDebugMsg((StringHash(SubString(message,7, StringLength(message)))))
-    elseif SubString(message,0,7) == "-printc" then
-        BJDebugMsg((FourCC(SubString(message,8, StringLength(message)))))
-    elseif SubString(message,0,11) == "-createhero" then
-        Hero[2] = CreateUnit(Player(1), FourCC('H029'), 0, 0 ,0)
-        Hero[3] = CreateUnit(Player(2), FourCC('E00G'), 0, 0 ,0)
-        HeroID[2] = GetUnitTypeId(Hero[2])
-        HeroID[3] = GetUnitTypeId(Hero[3])
-        SetHeroLevel(Hero[2], 25, false)
-        SetUnitState(Hero[2], UNIT_STATE_LIFE, GetUnitState(Hero[2], UNIT_STATE_LIFE) - 250)
-    elseif SubString(message,0,5) == "-test" then
-        SetPlayerState(currentPlayer, PLAYER_STATE_RESOURCE_GOLD, 1000000)
-        SetPlayerState(currentPlayer, PLAYER_STATE_RESOURCE_LUMBER, 1000000)
-        SetHeroLevel(Hero[pid], 150, false)
-        PlayerAddItemById(pid, FourCC('I0M8'))
-        FogMaskEnable(false)
-        FogEnable(false)
-        ExperienceControl(pid)
-    elseif SubString(message,0,5) == "-heal" then
-        SetWidgetLife(PlayerSelectedUnit[pid], BlzGetUnitMaxHP(PlayerSelectedUnit[pid]))
-        SetUnitState(PlayerSelectedUnit[pid], UNIT_STATE_MANA, BlzGetUnitMaxMana(PlayerSelectedUnit[pid]))
-    elseif SubString(message,0,5) == "-yeah" then
-        BJDebugMsg((StringHash(GetLocalizedString("TRIGSTR_001"))))
-    elseif SubString(message,0,6) == "-invul" then
-        if GetUnitAbilityLevel(PlayerSelectedUnit[pid], FourCC('Avul')) > 0 then
-            UnitRemoveAbility(PlayerSelectedUnit[pid], FourCC('Avul'))
-        else
-            UnitAddAbility(PlayerSelectedUnit[pid], FourCC('Avul'))
-        end
-    elseif SubString(message,0,10) == "-dropitems" then
-        while not (i > S2I(SubString(message, 11,13))) do
-            Item.create(ChooseRandomItem(GetRandomInt(1, 7)), GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 600.)
-            i = i + 1
-        end
-    elseif SubString(message,0,6) == "-colo " then
-        ColoPlayerCount = S2I(SubString(message, 6, StringLength(message)))
-    elseif SubString(message,0 ,3) == "-hp" then
-        SetWidgetLife(PlayerSelectedUnit[pid], S2I(SubString(message, 4, StringLength(message))))
-        BlzSetUnitMaxHP(PlayerSelectedUnit[pid], S2I(SubString(message, 4, StringLength(message))))
-    elseif SubString(message, 0, 6) == "-armor" then
-        BlzSetUnitArmor(PlayerSelectedUnit[pid], S2I(SubString(message, 7, StringLength(message))))
-    elseif SubString(message, 0, 5) == "-type" then
-        BlzSetUnitIntegerField(PlayerSelectedUnit[pid], UNIT_IF_DEFENSE_TYPE, S2I(SubString(message, 6, StringLength(message))))
-    elseif message == "-boost" then
-        if BOOST_OFF then
-            DisplayTextToPlayer(currentPlayer, 0, 0, "Boost enabled.")
-            BOOST_OFF = false
-        else
-            DisplayTextToPlayer(currentPlayer, 0, 0, "Boost disabled.")
-            BOOST_OFF = true
-        end
-    elseif SubString(message, 0, 5) == "-hurt" then
-        SetWidgetLife(PlayerSelectedUnit[pid], GetWidgetLife(PlayerSelectedUnit[pid]) - BlzGetUnitMaxHP(PlayerSelectedUnit[pid]) * 0.01 * S2I(SubString(message, 6, StringLength(message))))
-    elseif message == "-buddha" then
-        if BUDDHA_MODE[pid] then
-            DisplayTextToPlayer(currentPlayer, 0, 0, "Buddha disabled.")
-            BUDDHA_MODE[pid] = false
-        else
-            DisplayTextToPlayer(currentPlayer, 0, 0, "Buddha enabled.")
-            BUDDHA_MODE[pid] = true
-        end
-    elseif message == "-votekicktest" then
-        votekickPlayer = pid
-        ResetVote()
-        VOTING_TYPE = 2
-
-        while U do
-
-            if GetLocalPlayer() == U.player then
-                BlzFrameSetVisible(votingBG, true)
-            end
-
-            U = U.next
-        end
-    elseif message =="-saveall" then
-        while U do
-
-            ActionSave(U.player)
-
-            U = U.next
-        end
-    elseif message == "-tp" then
-        SetUnitPosition(PlayerSelectedUnit[pid], MouseX[pid], MouseY[pid])
-    elseif message == "-coloxp" then
-        Colosseum_XP[pid] = 1.3
-    elseif message == "-extradebug" then
-        EXTRA_DEBUG = not EXTRA_DEBUG
-    elseif message == "-currentorder" then
-        DEBUGMSG((GetUnitCurrentOrder(PlayerSelectedUnit[pid])))
-        DEBUGMSG(OrderId2String(GetUnitCurrentOrder(PlayerSelectedUnit[pid])))
-    elseif message == "-currenttarget" then
-        DEBUGMSG(GetUnitName(GetUnitTarget(PlayerSelectedUnit[pid])))
-    elseif message == "-dmg" then
-        BlzSetUnitBaseDamage(PlayerSelectedUnit[pid], S2I(SubString(message, 5, StringLength(message))), 0)
-    elseif SubString(message, 0, 12) == "-getitemdata" then
-        DEBUGMSG((ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][S2I(SubString(message, 13, StringLength(message)))]))
-    elseif SubString(message, 0, 9) == "-itemdata" then
-        SetItemUserData(UnitItemInSlot(Hero[pid], 0), S2I(SubString(message, 10, StringLength(message))))
-    elseif SubString(message, 0, 10) == "-animation" then
-        SetUnitAnimationByIndex(PlayerSelectedUnit[pid], S2I(SubString(message, 11, StringLength(message))))
-    elseif message == "-shadowstep" then
-        ShadowStepExpire()
-    elseif message == "-hasabil" and GetUnitAbilityLevel(Hero[pid], FourCC('A00D')) > 0 then
-        DEBUGMSG("Yes!")
-    elseif SubString(message, 0, 7) == "-rotate" then
-        BlzSetUnitFacingEx(PlayerSelectedUnit[pid], S2R(SubString(message, 8, StringLength(message))))
-    elseif message == "-position" then
-        DEBUGMSG(R2S(GetUnitX(PlayerSelectedUnit[pid])) .. " " .. R2S(GetUnitY(PlayerSelectedUnit[pid])))
-    elseif message == "-prestigehack" then
-        Profile[pid].hero.prestige = 2
-    elseif SubString(message, 0, 4) == "-dmg" then
-        BlzSetUnitBaseDamage(PlayerSelectedUnit[pid], S2I(SubString(message, 5, StringLength(message))), 0)
-    elseif SubString(message, 0, 5) == "-gocd" then
-        BlzStartUnitAbilityCooldown(Hero[pid], FourCC('A07R'), 5.)
-    elseif SubString(message, 0, 7) == "-skills" then
-        DEBUGMSG(BlzGetAbilityStringLevelField(BlzGetUnitAbilityByIndex(Hero[pid], S2I(SubString(message, 8, StringLength(message)))), ABILITY_SLF_TOOLTIP_NORMAL, 0))
-        DEBUGMSG(BlzGetAbilityStringField(BlzGetUnitAbilityByIndex(Hero[pid], S2I(SubString(message, 8, StringLength(message)))), ABILITY_SF_NAME))
-        DEBUGMSG(IntToFourCC(BlzGetAbilityId(BlzGetUnitAbilityByIndex(Hero[pid], S2I(SubString(message, 8, StringLength(message)))))))
-    elseif SubString(message, 0, 7) == "-encode" then
-        DEBUGMSG(Encode(S2I(SubString(message, 8, StringLength(message)))))
-    elseif SubString(message, 0, 9) == "-makeitem" then
-        Item.create(CreateItem(FourCC('I0OX'), 0, 0))
-    elseif SubString(message, 0, 12) == "-handlecount" then
-        HandleCount()
-    elseif SubString(message, 0, 11) == "-countdebug" then
-        if COUNT_DEBUG then
-            COUNT_DEBUG = false
-            DEBUGMSG("Stop counting debug!")
-        else
-            DEBUGMSG("Count debug!")
-            COUNT_DEBUG = true
-        end
-    elseif SubString(message, 0, 10) == "-FourCC" then
-        DEBUGMSG((FourCC(SubString(message, 11, StringLength(message)))))
-    elseif SubString(message, 0, 10) == "-itemlevel" then
-        Item[UnitItemInSlot(Hero[pid], 0)]:lvl(S2I(SubString(message, 11, StringLength(message))))
-    elseif SubString(message, 0, 9) == "-maxlevel" then
-        Item[UnitItemInSlot(Hero[pid], 0)]:lvl(ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][ITEM_UPGRADE_MAX])
-    elseif SubString(message, 0, 8) == "-itemset" then
-        Item[UnitItemInSlot(Hero[pid], 0)]:unequip()
-        WipeItemStats(GetItemTypeId(UnitItemInSlot(Hero[pid], 0)))
-        ParseItemTooltip(UnitItemInSlot(Hero[pid], 0), SubString(message, 9, StringLength(message)))
-        Item[UnitItemInSlot(Hero[pid], 0)]:update()
-        Item[UnitItemInSlot(Hero[pid], 0)]:equip()
-    elseif SubString(message, 0, 10) == "-itemprint" then
-        DEBUGMSG(BlzGetItemExtendedTooltip(UnitItemInSlot(Hero[pid], 0)))
-    elseif SubString(message, 0, 12) == "-itemformula" then
-        DEBUGMSG(ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][ITEM_TOOLTIP])
-    elseif SubString(message, 0, 5) == "-mode" then
-        DEBUGMSG(GetLocalizedString("IS_HD"))
-    elseif SubString(message, 0, 6) == "-ablev" then
-        DEBUGMSG((GetUnitAbilityLevel(Hero[pid], FourCC(SubString(message, 7, StringLength(message))))))
-    elseif SubString(message, 0, 11) == "-shieldtest" then
-        bj_lastCreatedEffect = AddSpecialEffect("war3mapImported\\HPbar.mdx", GetUnitX(Hero[pid]), GetUnitY(Hero[pid]))
-        TimerQueue:callDelayed(5., DestroyEffect, bj_lastCreatedEffect)
-        BlzSetSpecialEffectScale(bj_lastCreatedEffect, 1.5)
-        BlzSetSpecialEffectColorByPlayer(bj_lastCreatedEffect, Player(2))
-        BlzSetSpecialEffectZ(bj_lastCreatedEffect, BlzGetUnitZ(Hero[pid]) + S2R(SubString(message, 12, StringLength(message))))
-    elseif SubString(message, 0, 7) == "-shunpo" then
-        ShowUnit(PlayerSelectedUnit[pid], false)
-        ShowUnit(PlayerSelectedUnit[pid], true)
-    elseif SubString(message, 0, 9) == "-pathable" then
-        if IsTerrainWalkable(MouseX[pid], MouseY[pid]) then
-            DEBUGMSG("yeah")
-        end
-    elseif SubString(message, 0, 7) == "-wander" then
-        WanderingGuys()
-    elseif message == "-heropos" then
-        DEBUGMSG(R2S(GetUnitX(Hero[pid])))
-        DEBUGMSG(R2S(GetUnitY(Hero[pid])))
-    elseif message == "-afk?" then
-        DEBUGMSG("Screen pan count: " .. panCounter[pid])
-        DEBUGMSG("Cursor move count: " .. moveCounter[pid])
-        DEBUGMSG("Click count: " .. clickCounter[pid])
-
-        if panCounter[pid] < 50 or moveCounter[pid] < 5000 or clickCounter[pid] < 200 then
-            DEBUGMSG("Yes")
-        else
-            DEBUGMSG("No")
-        end
-    elseif SubString(message, 0, 8) == "-setskin" then
-        CosmeticTable[User[currentPlayer].name][S2I(SubString(message, 9, 11))] = S2I(SubString(message, 12, 14))
-    elseif SubString(message, 0, 8) == "-setaura" then
-        CosmeticTable[User[currentPlayer].name][S2I(SubString(message, 9, 11)) + DONATOR_AURA_OFFSET] = S2I(SubString(message, 12, 14))
-    elseif SubString(message, 0, 8) == "-id2char" then
-        DEBUGMSG(GetObjectName(SAVE_UNIT_TYPE[S2I(SubString(message, 9, StringLength(message)))]))
-    elseif SubString(message, 0, 10) == "-givespell" then
-        UnitAddAbility(PlayerSelectedUnit[pid], FourCC(SubString(message, 11, StringLength(message))))
-    elseif SubString(message, 0, 12) == "-removespell" then
-        UnitRemoveAbility(PlayerSelectedUnit[pid], FourCC(SubString(message, 13, StringLength(message))))
-    elseif message == "-restock" then
-        ShopkeeperMove()
-    elseif message == "-host" then
-        DEBUGMSG("The host is " .. User[Player(DetectHost())].nameColored)
+    if DEV_CMDS[args[1]:sub(2)] then
+        DEV_CMDS[args[1]:sub(2)](p, pid, args)
     end
 end
 
-    local devcmd = CreateTrigger() ---@type trigger 
-    local search = CreateTrigger() ---@type trigger 
+    local devcmd = CreateTrigger()
 
+    DEV_ENABLED = true
     SAVE_LOAD_VERSION = 2 ^ 30
     MAP_NAME = "CoT Nevermore BETA"
 
-    for i = 0, 6 do
+    for i = 0, PLAYER_CAP do
         TriggerRegisterPlayerChatEvent(devcmd, Player(i), "-", false)
-        SEARCH_DIALOG[i] = DialogCreate()
-        TriggerRegisterDialogEvent(search, SEARCH_DIALOG[i])
     end
 
     TimerQueue:callDelayed(0., PreloadItemSearch)
 
     TriggerAddAction(devcmd, DevCommands)
-    TriggerAddAction(search, SearchPage)
 end)
 
 if Debug then Debug.endFile() end
