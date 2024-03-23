@@ -4044,6 +4044,23 @@ function UpdateItemTooltips(pid)
         BlzSetItemDescription(itm.obj, itm.tooltip)
         BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
     end
+
+    --update 6 visible item slot tooltips
+    local modifier = altModifier[pid]
+
+    if GetLocalPlayer() == Player(pid - 1) then
+        for i = 0, 5 do
+            local itm = Profile[pid].hero.items[i]
+
+            if itm then
+                if modifier and itm.alt_tooltip then
+                    BlzSetItemExtendedTooltip(itm.obj, itm.alt_tooltip)
+                elseif itm.tooltip then
+                    BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
+                end
+            end
+        end
+    end
 end
 
 function UpdatePrestigeTooltips()
