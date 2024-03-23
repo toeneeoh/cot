@@ -1,3 +1,11 @@
+--[[
+    keyboard.lua
+
+    A module that handles keyboard events outside of text boxes
+
+    Future considerations: Custom hotkey system for spells and other GUI
+]]
+
 if Debug then Debug.beginFile 'Keyboard' end
 
 OnInit.final("Keyboard", function(require)
@@ -5,13 +13,39 @@ OnInit.final("Keyboard", function(require)
     require 'Variables'
     require 'Items'
 
-    function Arrow_Key()
+    local function Forward_Slash()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+
+        MULTIBOARD.next(pid)
+
+        return false
+    end
+
+    local function Period()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+
+        MULTIBOARD.minimize(pid)
+
+        return false
+    end
+
+    local function F5_Key()
+        return false
+    end
+
+    local function Arrow_Key()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
         panCounter[pid] = panCounter[pid] + 1
+
+        return false
     end
 
-    function Tab_Down()
+    local function Escape()
+        return false
+    end
+
+    local function Tab_Down()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
         local itm ---@type Item 
 
@@ -24,63 +58,43 @@ OnInit.final("Keyboard", function(require)
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     itm = Item[UnitItemInSlot(GetMainSelectedUnitEx(), i)]
 
-                    if itm then
-                        if itm.tooltip then
-                            BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
-                        end
+                    if itm and itm.tooltip then
+                        BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
                     end
                 end
             end
         end
+
+        return false
     end
 
-    function Alt_Down()
+    local function Alt_Down()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-        local itm ---@type Item 
 
         if not altModifier[pid] then
             altModifier[pid] = true
 
             UpdateSpellTooltips(pid)
-
-            for i = 0, 5 do
-                if GetLocalPlayer() == GetTriggerPlayer() then
-                    itm = Item[UnitItemInSlot(GetMainSelectedUnitEx(), i)]
-
-                    if itm then
-                        if itm.alt_tooltip then
-                            BlzSetItemExtendedTooltip(itm.obj, itm.alt_tooltip)
-                        end
-                    end
-                end
-            end
+            UpdateItemTooltips(pid)
         end
+
+        return false
     end
 
-    function Alt_Up()
+    local function Alt_Up()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-        local itm ---@type Item 
 
         if altModifier[pid] then
             altModifier[pid] = false
 
             UpdateSpellTooltips(pid)
-
-            for i = 0, 5 do
-                if GetLocalPlayer() == GetTriggerPlayer() then
-                    itm = Item[UnitItemInSlot(GetMainSelectedUnitEx(), i)]
-
-                    if itm then
-                        if itm.tooltip then
-                            BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
-                        end
-                    end
-                end
-            end
+            UpdateItemTooltips(pid)
         end
+
+        return false
     end
 
-    function W_Down()
+    local function W_Down()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1
         local pt = TimerList[pid]:get(FROZENORB.id, Hero[pid])
 
@@ -93,21 +107,20 @@ OnInit.final("Keyboard", function(require)
         pt = TimerList[pid]:get(HIDDENGUISE.id)
 
         if pt then
-            Item.create(UnitAddItemById(pt.source, FourCC('I0OW')))
-            SetUnitVertexColor(pt.source, 255, 255, 255, 255)
-            ToggleCommandCard(pt.source, true)
-            UnitRemoveAbility(pt.source, FourCC('Avul'))
-            Unit[pt.source].attack = true
-
-            pt:destroy()
+            HIDDENGUISE.expire(pt)
         end
+
+        return false
     end
 
-        local altDown = CreateTrigger() ---@type trigger 
-        local altUp   = CreateTrigger() ---@type trigger 
-        local wDown   = CreateTrigger() ---@type trigger 
-        local tabDown = CreateTrigger() ---@type trigger 
-        local arrow   = CreateTrigger() ---@type trigger 
+        local altDown = CreateTrigger()
+        local altUp   = CreateTrigger()
+        local wDown   = CreateTrigger()
+        local tabDown = CreateTrigger()
+        local arrow   = CreateTrigger()
+        local esc     = CreateTrigger()
+        local forwardslash = CreateTrigger()
+        local period = CreateTrigger()
         local u       = User.first ---@type User 
 
         while u do
@@ -119,6 +132,9 @@ OnInit.final("Keyboard", function(require)
             BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_RIGHT, 0, false)
             BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_UP, 0, false)
             BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_DOWN, 0, false)
+            BlzTriggerRegisterPlayerKeyEvent(esc, u.player, OSKEY_ESCAPE, 0, false)
+            BlzTriggerRegisterPlayerKeyEvent(forwardslash, u.player, OSKEY_OEM_2, 0, false)
+            BlzTriggerRegisterPlayerKeyEvent(period, u.player, OSKEY_OEM_PERIOD, 0, false)
             u = u.next
         end
 
@@ -127,7 +143,9 @@ OnInit.final("Keyboard", function(require)
         TriggerAddCondition(wDown, Filter(W_Down))
         TriggerAddCondition(tabDown, Filter(Tab_Down))
         TriggerAddCondition(arrow, Filter(Arrow_Key))
-
+        TriggerAddCondition(esc, Filter(Escape))
+        TriggerAddCondition(forwardslash, Filter(Forward_Slash))
+        TriggerAddCondition(period, Filter(Period))
 end)
 
 if Debug then Debug.endFile() end
