@@ -1,3 +1,12 @@
+--[[
+    codegen.lua
+
+    Credits: Original JASS by TriggerHappy
+
+    This module provides functions to encode a table of integers into one string of characters that may be decoded and loaded in future games.
+    Used for save / load functionality in playerdata.lua
+]]
+
 if Debug then Debug.beginFile 'CodeGen' end
 
 OnInit.global("CodeGen", function()
@@ -37,7 +46,7 @@ OnInit.global("CodeGen", function()
 
     ---@param s string
     ---@return integer
-    function StrPos(s)
+    local function StrPos(s)
         local i         = 0 ---@type integer 
         while i < BASE do
             if s == SubString(ALPHABET, i, i + 1) then
@@ -63,7 +72,7 @@ OnInit.global("CodeGen", function()
 
     ---@param in_ string
     ---@return integer
-    function StringChecksum(in_)
+    local function StringChecksum(in_)
         local i         = 0 ---@type integer 
         local l         = StringLength(in_) ---@type integer 
         local t         = 0 ---@type integer 
@@ -77,29 +86,18 @@ OnInit.global("CodeGen", function()
     end
 
     -- yeeahh descriptive variables
-    ---@param str string
-    ---@param p player
-    ---@return boolean
+    ---@type fun(str: string, p: player): boolean
     function Load(str, p)
-        local tmp        = "" ---@type string 
-        local c          = "" ---@type string 
-        local x          = 0 ---@type integer 
-        local i          = 1 ---@type integer 
-        local l          = 0 ---@type integer 
-        local j          = 1 ---@type integer 
-        local f          = 0 ---@type integer 
-        local b          = true ---@type boolean 
-        local pid         = GetPlayerId(p) + 1 ---@type integer 
+        local pid = GetPlayerId(p) + 1 ---@type integer 
 
         VALID = false
 
-        while i <= 3 do
+        for i = 1, 3 do
             if (Decode(SubString(str, 0, i)) == StringChecksum(SubString(str, i, 999))) then
                 VALID = true
                 str = SubString(str, i, 999)
-                i = 4
+                break
             end
-            i = i + 1
         end
 
         if (not VALID) then
@@ -107,31 +105,30 @@ OnInit.global("CodeGen", function()
             return VALID
         end
 
-        i = 0
-        l = StringLength(str)
+        local l = StringLength(str)
+        local c = Encode(StringChecksum(GetPlayerName(p)))
+        local i = StringLength(c)
 
-        c = Encode(StringChecksum(GetPlayerName(p)))
-        i = StringLength(c)
         if (c ~= SubString(str, l - i, i)) then
             VALID = false
             ERROR = "Invalid code"
             return VALID
         end
-        l = l - i
 
+        l = l - i
         i = 0
+        local data = {}
 
         while i < l do
-            tmp = SubString(str, i, i + 1)
-
-            b = true
-            f = 0
-            j = 1
+            local tmp = SubString(str, i, i + 1)
+            local b = true
+            local f = 0
+            local j = 1
 
             while not (f >= (MAXVALUE)) do
                 if (tmp == CHAR[f]) then
                     j = f + 2
-                    table.insert(SaveData[pid], Decode(SubString(str, i + 1, i + (j))))
+                    data[#data + 1] = Decode(SubString(str, i + 1, i + (j)))
                     b = false
                     f = MAXVALUE
                 end
@@ -139,38 +136,35 @@ OnInit.global("CodeGen", function()
             end
 
             if (b) then
-                table.insert(SaveData[pid], Decode(tmp))
+                data[#data + 1] = Decode(tmp)
             end
 
             i = i + j
-            x = x + 1
         end
 
+        SaveData[pid] = data
         VALID = true
 
         return VALID
     end
 
-    ---@param pid integer
-    ---@return string
-    function Compile(pid)
-        local j          = 0 ---@type integer 
-        local out        = "" ---@type string 
-        local x          = "" ---@type string 
-        local p        = Player(pid - 1) ---@type player 
+    ---@type fun(pid: integer, data: table): string
+    function Compile(pid, data)
+        local j   = 0 ---@type integer 
+        local out = "" ---@type string 
+        local x   = "" ---@type string 
+        local p   = Player(pid - 1) ---@type player 
 
-        for _, v in ipairs(SaveData[pid]) do
+        for _, v in ipairs(data) do
             x = Encode(v)
             j = StringLength(x)
 
             if (j > 1) then
-                out = out + CHAR[j - 1]
+                out = out .. CHAR[j - 1]
             end
 
-            out = out + x
+            out = out .. x
         end
-
-        SaveData[pid] = nil
 
         out = out .. Encode(StringChecksum(GetPlayerName(p)))
 
@@ -186,7 +180,7 @@ OnInit.global("CodeGen", function()
             CHAR[i] = SubString(ALPHABET, i, i + 1)
         end
 
-        ALPHABET = SubString(ALPHABET, 0, 1) .. SubString(ALPHABET, m .. 1, b)
+        ALPHABET = SubString(ALPHABET, 0, 1) .. SubString(ALPHABET, m + 1, b)
         BASE = b - m
 end)
 
