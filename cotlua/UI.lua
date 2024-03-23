@@ -1,43 +1,14 @@
+--[[
+    UI.lua
+
+    A library that modifies the base game's UI and creates extra UI for use elsewhere.
+]]
+
 if Debug then Debug.beginFile 'UI' end
 
 OnInit.final("UI", function(require)
     require 'HeroSelect'
-
-    local function LimitBreakButton(index, abil, path)
-        _G["LimitBreakButtonFunc" .. index] = function()
-            local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-
-            if limitBreak[pid] & 2 ^ (tonumber(index) - 1) == 0 and limitBreakPoints[pid] > 0 then
-                limitBreak[pid] = limitBreak[pid] | 2 ^ (tonumber(index) - 1)
-                limitBreakPoints[pid] = limitBreakPoints[pid] - 1
-
-                if GetLocalPlayer() == GetTriggerPlayer() then
-                    if limitBreakPoints[pid] <= 0 then
-                        BlzFrameSetVisible(LimitBreakBackdrop, false)
-                    end
-                    BlzSetAbilityIcon(_G[abil].id, "ReplaceableTextures\\CommandButtons\\BTN" .. path .. ".blp")
-                end
-
-                if _G[abil] == WINDSCAR then
-                    local a = BlzGetUnitAbility(Hero[pid], _G[abil].id)
-                    BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 0, 0)
-                    BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 1, 0)
-                    BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 2, 0)
-                    BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 3, 0)
-                    BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 4, 0)
-                end
-            end
-
-            BlzFrameSetEnable(_G["LimitBreakButton" .. index], false)
-            BlzFrameSetEnable(_G["LimitBreakButton" .. index], true)
-        end
-    end
-
-    LimitBreakButton("1", "PARRY", "ParryLimitBreak")
-    LimitBreakButton("2", "SPINDASH", "SpinDashLimitBreak")
-    LimitBreakButton("3", "INTIMIDATINGSHOUT", "IntimidatingShoutLimitBreak")
-    LimitBreakButton("4", "WINDSCAR", "WindScarLimitBreak")
-    LimitBreakButton("5", "ADAPTIVESTRIKE", "AdaptiveStrikeLimitBreak")
+    require 'Commands'
 
     local function onclick()
         if GetTriggerPlayer() == GetLocalPlayer() then
@@ -61,7 +32,7 @@ OnInit.final("UI", function(require)
         end
     end
 
-    local t         = CreateTrigger() ---@type trigger 
+    local t         = CreateTrigger()
     local leftTreeAlignment      = 0.07 ---@type number 
     local middleTreeAlignment      = 0.31 ---@type number 
     local rightTreeAlignment      = 0.5 ---@type number 
@@ -207,17 +178,16 @@ OnInit.final("UI", function(require)
     BlzFrameSetTextAlignment(shieldText, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_CENTER)
     BlzFrameSetVisible(shieldBackdrop, false)
 
-    afkTextBG = BlzCreateFrameByType("BACKDROP", "afkTextBG", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
-    BlzFrameSetPoint(afkTextBG, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0, - 0.41)
-    BlzFrameSetTexture(afkTextBG, "war3mapImported\\afkUI_3.dds", 0, true)
-    BlzFrameSetSize(afkTextBG, 0.13, 0.05)
-    BlzFrameSetVisible(afkTextBG, false)
+    AFK_FRAME_BG = BlzCreateFrame("Leaderboard", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), 0, 0)
+    AFK_FRAME = BlzCreateFrameByType("TEXT", "", AFK_FRAME_BG, "", 0)
+    BlzFrameSetText(AFK_FRAME, "")
+    BlzFrameSetTextAlignment(AFK_FRAME, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_CENTER)
+    BlzFrameSetPoint(AFK_FRAME, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_CENTER, 0, 0)
+    BlzFrameSetFont(AFK_FRAME, "Fonts\\blizzardglobal-v5_4.ttf", 0.06, 0)
 
-    afkText = BlzCreateFrameByType("TEXT", "afkText", afkTextBG, "CText_18", 0)
-    BlzFrameSetText(afkText, "")
-    BlzFrameSetTextAlignment(afkText, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_CENTER)
-    BlzFrameSetAllPoints(afkText, afkTextBG)
-    BlzFrameSetFont(afkText, "Fonts\\frizqt__.ttf", 0.034, 0)
+    BlzFrameSetPoint(AFK_FRAME_BG, FRAMEPOINT_TOPLEFT, AFK_FRAME, FRAMEPOINT_TOPLEFT, -0.04, 0.03)
+    BlzFrameSetPoint(AFK_FRAME_BG, FRAMEPOINT_BOTTOMRIGHT, AFK_FRAME, FRAMEPOINT_BOTTOMRIGHT, 0.04, -0.03)
+    BlzFrameSetVisible(AFK_FRAME_BG, false)
 
     dummyFrame = BlzCreateFrameByType("BACKDROP", "dummyFrame", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
     BlzFrameSetPoint(dummyFrame, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0.30, -0.37)
@@ -323,12 +293,14 @@ OnInit.final("UI", function(require)
     platText = BlzCreateFrameByType("TEXT", "platText", imageTest, "CText_18", 0)
     BlzFrameSetPoint(platText, FRAMEPOINT_TOP, imageTest, FRAMEPOINT_TOP, - 0.0625, - 0.028)
     BlzFrameSetFont(platText, "Fonts\\frizqt__.ttf", 0.035, 0)
+    BlzFrameSetText(platText, "0")
 
     --create arcadite text
     arcText = BlzCreateFrameByType("TEXT", "arcText", imageTest, "CText_18", 0)
     BlzFrameSetTextAlignment(arcText, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
     BlzFrameSetPoint(arcText, FRAMEPOINT_TOP, imageTest, FRAMEPOINT_TOP, 0.0775, - 0.028)
     BlzFrameSetFont(arcText, "Fonts\\frizqt__.ttf", 0.035, 0)
+    BlzFrameSetText(arcText, "0")
 
     --Upkeep
     fh = BlzGetFrameByName("ResourceBarUpkeepText", 0)
@@ -391,55 +363,140 @@ OnInit.final("UI", function(require)
     BlzFrameSetVisible(questButton, false)
     BlzFrameSetVisible(allyButton, false)
 
-    --limit break upgrade UI
-    LimitBreakBackdrop = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
-    BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_TOPLEFT, 0.61 - 0.0434, 0.212)
-    BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_BOTTOMRIGHT, 0.795, 0.158)
+    do
+        --limit break upgrade UI
+        local function LimitBreakButton(index, abil, path)
+            _G["LimitBreakButtonFunc" .. index] = function()
+                local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-    local function limit_break_buttons(index, x, x2, path)
-        _G["LimitBreakButton" .. index] = BlzCreateFrameByType("GLUEBUTTON", "lb$index$", LimitBreakBackdrop, "ScoreScreenTabButtonTemplate", 0)
-        BlzFrameSetAbsPoint(_G["LimitBreakButton" .. index], FRAMEPOINT_TOPLEFT, x, 0.205000)
-        BlzFrameSetAbsPoint(_G["LimitBreakButton" .. index], FRAMEPOINT_BOTTOMRIGHT, x2, 0.165000)
-        _G["LimitBreakBackdrop" .. index] = BlzCreateFrameByType("BACKDROP", "lbb" .. index, _G["LimitBreakButton" .. index], "", 0)
-        BlzFrameSetAllPoints(_G["LimitBreakBackdrop" .. index], _G["LimitBreakButton" .. index])
-        BlzFrameSetTexture(_G["LimitBreakBackdrop" .. index], "ReplaceableTextures\\CommandButtons\\BTN" .. path .. ".blp", 0, true)
+                if limitBreak[pid] & 2 ^ (tonumber(index) - 1) == 0 and limitBreakPoints[pid] > 0 then
+                    limitBreak[pid] = limitBreak[pid] | 2 ^ (tonumber(index) - 1)
+                    limitBreakPoints[pid] = limitBreakPoints[pid] - 1
 
-        _G["TriggerLimitBreakButton" .. index] = CreateTrigger()
-        BlzTriggerRegisterFrameEvent(_G["TriggerLimitBreakButton" .. index], _G["LimitBreakButton" .. index], FRAMEEVENT_CONTROL_CLICK)
-        TriggerAddAction(_G["TriggerLimitBreakButton" .. index], _G["LimitBreakButtonFunc" .. index])
+                    if GetLocalPlayer() == GetTriggerPlayer() then
+                        if limitBreakPoints[pid] <= 0 then
+                            BlzFrameSetVisible(LimitBreakBackdrop, false)
+                        end
+                        BlzSetAbilityIcon(_G[abil].id, "ReplaceableTextures\\CommandButtons\\BTN" .. path .. ".blp")
+                    end
+
+                    if _G[abil] == WINDSCAR then
+                        local a = BlzGetUnitAbility(Hero[pid], _G[abil].id)
+                        BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 0, 0)
+                        BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 1, 0)
+                        BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 2, 0)
+                        BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 3, 0)
+                        BlzSetAbilityIntegerLevelField(a, ABILITY_ILF_TARGET_TYPE, 4, 0)
+                    end
+                end
+
+                BlzFrameSetEnable(_G["LimitBreakButton" .. index], false)
+                BlzFrameSetEnable(_G["LimitBreakButton" .. index], true)
+            end
+        end
+
+        LimitBreakButton("1", "PARRY", "ParryLimitBreak")
+        LimitBreakButton("2", "SPINDASH", "SpinDashLimitBreak")
+        LimitBreakButton("3", "INTIMIDATINGSHOUT", "IntimidatingShoutLimitBreak")
+        LimitBreakButton("4", "WINDSCAR", "WindScarLimitBreak")
+        LimitBreakButton("5", "ADAPTIVESTRIKE", "AdaptiveStrikeLimitBreak")
+
+        LimitBreakBackdrop = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
+        BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_TOPLEFT, 0.61 - 0.0434, 0.212)
+        BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_BOTTOMRIGHT, 0.795, 0.158)
+
+        local function limit_break_buttons(index, x, x2, path)
+            _G["LimitBreakButton" .. index] = BlzCreateFrameByType("GLUEBUTTON", "lb$index$", LimitBreakBackdrop, "ScoreScreenTabButtonTemplate", 0)
+            BlzFrameSetAbsPoint(_G["LimitBreakButton" .. index], FRAMEPOINT_TOPLEFT, x, 0.205000)
+            BlzFrameSetAbsPoint(_G["LimitBreakButton" .. index], FRAMEPOINT_BOTTOMRIGHT, x2, 0.165000)
+            _G["LimitBreakBackdrop" .. index] = BlzCreateFrameByType("BACKDROP", "lbb" .. index, _G["LimitBreakButton" .. index], "", 0)
+            BlzFrameSetAllPoints(_G["LimitBreakBackdrop" .. index], _G["LimitBreakButton" .. index])
+            BlzFrameSetTexture(_G["LimitBreakBackdrop" .. index], "ReplaceableTextures\\CommandButtons\\BTN" .. path .. ".blp", 0, true)
+
+            _G["TriggerLimitBreakButton" .. index] = CreateTrigger()
+            BlzTriggerRegisterFrameEvent(_G["TriggerLimitBreakButton" .. index], _G["LimitBreakButton" .. index], FRAMEEVENT_CONTROL_CLICK)
+            TriggerAddAction(_G["TriggerLimitBreakButton" .. index], _G["LimitBreakButtonFunc" .. index])
+        end
+
+        limit_break_buttons("1", 0.574000, 0.614000, "ParryLimitBreak")
+        limit_break_buttons("2", 0.617400, 0.657400, "SpinDashLimitBreak")
+        limit_break_buttons("3", 0.660810, 0.700810, "IntimidatingShoutLimitBreak")
+        limit_break_buttons("4", 0.704530, 0.744530, "WindScarLimitBreak")
+        limit_break_buttons("5", 0.747900, 0.787900, "AdaptiveStrikeLimitBreak")
+
+        --limit break hover tooltips
+        local function limit_break_tooltips(index, text)
+            _G["LimitBreakToolBox" .. index] = BlzCreateFrame("ListBoxWar3", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
+            _G["LimitBreakToolText" .. index] = BlzCreateFrameByType("TEXT", "StandardInfoTextTemplate", _G["LimitBreakToolBox" .. index], "StandardInfoTextTemplate", 0)
+
+            BlzFrameSetTooltip(_G["LimitBreakButton" .. index], _G["LimitBreakToolBox" .. index])
+
+            BlzFrameSetPoint(_G["LimitBreakToolBox" .. index], FRAMEPOINT_TOPLEFT, LimitBreakBackdrop, FRAMEPOINT_CENTER, -0.095, 0.12)
+            BlzFrameSetSize(_G["LimitBreakToolBox" .. index], 0.22, 0.09)
+
+            BlzFrameClearAllPoints(_G["LimitBreakToolText" .. index])
+            BlzFrameSetPoint(_G["LimitBreakToolText" .. index], FRAMEPOINT_CENTER, _G["LimitBreakToolBox" .. index], FRAMEPOINT_CENTER, 0, 0)
+            BlzFrameSetSize(_G["LimitBreakToolText" .. index], 0.15, 0.06)
+            BlzFrameSetText(_G["LimitBreakToolText" .. index], text)
+
+            BlzFrameSetVisible(_G["LimitBreakToolBox" .. index], false)
+        end
+
+        limit_break_tooltips("1", "|cffffcc00Parry|r|n|nDamage is doubled and immunity window is extended to |cffffcc001|r second.")
+        limit_break_tooltips("2", "|cffffcc00Spin Dash|r|n|nDamage is quadrupled and enemies struck have their attack speed slowed by |cffffcc0025\x25|r for |cffffcc002|r seconds.")
+        limit_break_tooltips("3", "|cffffcc00Intimidating Shout|r|n|nAlso reduces the spell damage of enemies by |cffffcc0040\x25|r.")
+        limit_break_tooltips("4", "|cffffcc00Wind Scar|r|n|nWind projectiles instead orbit around you for |cffffcc003|r seconds.")
+        limit_break_tooltips("5", "|cffffcc00Adaptive Strike|r|n|nPassive cooldown reset chance increased to |cffffcc0050\x25|r.|nNow automatically casts after using a skill when available.")
+
+        BlzFrameSetVisible(LimitBreakBackdrop, false)
     end
 
-    limit_break_buttons("1", 0.574000, 0.614000, "ParryLimitBreak")
-    limit_break_buttons("2", 0.617400, 0.657400, "SpinDashLimitBreak")
-    limit_break_buttons("3", 0.660810, 0.700810, "IntimidatingShoutLimitBreak")
-    limit_break_buttons("4", 0.704530, 0.744530, "WindScarLimitBreak")
-    limit_break_buttons("5", 0.747900, 0.787900, "AdaptiveStrikeLimitBreak")
+    --punching bag UI
+    do
+        PUNCHING_BAG_VALUES = {}
 
-    --limit break hover tooltips
-    local function limit_break_tooltips(index, text)
-        _G["LimitBreakToolBox" .. index] = BlzCreateFrame("ListBoxWar3", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
-        _G["LimitBreakToolText" .. index] = BlzCreateFrameByType("TEXT", "StandardInfoTextTemplate", _G["LimitBreakToolBox" .. index], "StandardInfoTextTemplate", 0)
+        PUNCHING_BAG_UI = BlzCreateFrame("ListBoxWar3", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
+        BlzFrameSetPoint(PUNCHING_BAG_UI, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_CENTER, -0.29, -0.09)
+        BlzFrameSetSize(PUNCHING_BAG_UI, 0.095, 0.085)
 
-        BlzFrameSetTooltip(_G["LimitBreakButton" .. index], _G["LimitBreakToolBox" .. index])
+        PUNCHING_BAG_BUTTON_1 = BlzCreateFrameByType("GLUEBUTTON", "", PUNCHING_BAG_UI, "ScoreScreenTabButtonTemplate", 0)
+        BlzFrameSetPoint(PUNCHING_BAG_BUTTON_1, FRAMEPOINT_BOTTOMLEFT, PUNCHING_BAG_UI, FRAMEPOINT_BOTTOMLEFT, 0.015, 0.015)
+        BlzFrameSetSize(PUNCHING_BAG_BUTTON_1, 0.0325, 0.0325)
+        PUNCHING_BAG_BUTTON_1_BG = BlzCreateFrameByType("BACKDROP", "", PUNCHING_BAG_BUTTON_1, "", 0)
+        BlzFrameSetAllPoints(PUNCHING_BAG_BUTTON_1_BG, PUNCHING_BAG_BUTTON_1)
+        BlzFrameSetTexture(PUNCHING_BAG_BUTTON_1_BG, "war3mapImported\\prechaosarmor.blp", 0, true)
 
-        BlzFrameSetPoint(_G["LimitBreakToolBox" .. index], FRAMEPOINT_TOPLEFT, LimitBreakBackdrop, FRAMEPOINT_CENTER, -0.095, 0.12)
-        BlzFrameSetSize(_G["LimitBreakToolBox" .. index], 0.22, 0.09)
+        PUNCHING_BAG_BUTTON_2 = BlzCreateFrameByType("GLUEBUTTON", "", PUNCHING_BAG_UI, "ScoreScreenTabButtonTemplate", 0)
+        BlzFrameSetPoint(PUNCHING_BAG_BUTTON_2, FRAMEPOINT_TOPLEFT, PUNCHING_BAG_BUTTON_1, FRAMEPOINT_TOPRIGHT, 0, 0)
+        BlzFrameSetSize(PUNCHING_BAG_BUTTON_2, 0.0325, 0.0325)
+        PUNCHING_BAG_BUTTON_2_BG = BlzCreateFrameByType("BACKDROP", "", PUNCHING_BAG_BUTTON_2, "", 0)
+        BlzFrameSetAllPoints(PUNCHING_BAG_BUTTON_2_BG, PUNCHING_BAG_BUTTON_2)
+        BlzFrameSetTexture(PUNCHING_BAG_BUTTON_2_BG, "war3mapImported\\chaosarmor.blp", 0, true)
 
-        BlzFrameClearAllPoints(_G["LimitBreakToolText" .. index])
-        BlzFrameSetPoint(_G["LimitBreakToolText" .. index], FRAMEPOINT_CENTER, _G["LimitBreakToolBox" .. index], FRAMEPOINT_CENTER, 0, 0)
-        BlzFrameSetSize(_G["LimitBreakToolText" .. index], 0.15, 0.06)
-        BlzFrameSetText(_G["LimitBreakToolText" .. index], text)
+        PUNCHING_BAG_EDIT = BlzCreateFrame("EscMenuEditBoxTemplate", PUNCHING_BAG_UI, 0, 0)
+        BlzFrameSetPoint(PUNCHING_BAG_EDIT, FRAMEPOINT_TOPLEFT, PUNCHING_BAG_UI, FRAMEPOINT_TOPLEFT, 0.01, -0.01)
+        BlzFrameSetSize(PUNCHING_BAG_EDIT, 0.075, 0.025)
+        BlzFrameSetTextSizeLimit(PUNCHING_BAG_EDIT, 6)
 
-        BlzFrameSetVisible(_G["LimitBreakToolBox" .. index], false)
+        local function TEXT_CHANGED()
+            local number = MathClamp((tonumber(BlzGetTriggerFrameText()) or 0), -500, 100000)
+            PUNCHING_BAG_VALUES[GetPlayerId(GetTriggerPlayer()) + 1] = number
+            BlzSetUnitArmor(PUNCHING_BAG, PUNCHING_BAG_VALUES[GetPlayerId(GetTriggerPlayer()) + 1])
+        end
+
+        local editText = CreateTrigger()
+        TriggerAddAction(editText, TEXT_CHANGED)
+        BlzTriggerRegisterFrameEvent(editText, PUNCHING_BAG_EDIT, FRAMEEVENT_EDITBOX_TEXT_CHANGED)
+
+        local function BUTTON_CLICK()
+            BlzSetUnitIntegerField(PUNCHING_BAG, UNIT_IF_DEFENSE_TYPE, (BlzGetTriggerFrame() == PUNCHING_BAG_BUTTON_2 and 6) or 0)
+        end
+
+        local buttonClick = CreateTrigger()
+        TriggerAddAction(buttonClick, BUTTON_CLICK)
+        BlzTriggerRegisterFrameEvent(buttonClick, PUNCHING_BAG_BUTTON_1, FRAMEEVENT_CONTROL_CLICK)
+        BlzTriggerRegisterFrameEvent(buttonClick, PUNCHING_BAG_BUTTON_2, FRAMEEVENT_CONTROL_CLICK)
     end
-
-    limit_break_tooltips("1", "|cffffcc00Parry|r|n|nDamage is doubled and immunity window is extended to |cffffcc001|r second.")
-    limit_break_tooltips("2", "|cffffcc00Spin Dash|r|n|nDamage is quadrupled and enemies struck have their attack speed slowed by |cffffcc0025\x25|r for |cffffcc002|r seconds.")
-    limit_break_tooltips("3", "|cffffcc00Intimidating Shout|r|n|nAlso reduces the spell damage of enemies by |cffffcc0040\x25|r.")
-    limit_break_tooltips("4", "|cffffcc00Wind Scar|r|n|nWind projectiles instead orbit around you for |cffffcc003|r seconds.")
-    limit_break_tooltips("5", "|cffffcc00Adaptive Strike|r|n|nPassive cooldown reset chance increased to |cffffcc0050\x25|r.|nNow automatically casts after using a skill when available.")
-
-    BlzFrameSetVisible(LimitBreakBackdrop, false)
 end)
 
 if Debug then Debug.endFile() end
