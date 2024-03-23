@@ -1,3 +1,9 @@
+--[[
+    mapsetup.lua
+
+    A library that executes any necessary map initialization after players have loaded in.
+]]
+
 if Debug then Debug.beginFile 'MapSetup' end
 
 OnInit.final("MapSetup", function(require)
@@ -26,54 +32,12 @@ OnInit.final("MapSetup", function(require)
     DisplayTimedTextToForce(FORCE_PLAYING, 600.0, "\nType |c006969ff-new profile|r if you are completely new\nor |c00ff7f00-load|r if you want to load your hero or start a new one.")
     DisplayTimedTextToForce(FORCE_PLAYING, 15.00, "Please read the Quests Menu for updates.")
 
-    --create multiboards
-    QUEUE_BOARD = CreateMultiboard()
-    MULTI_BOARD = CreateMultiboard()
-    MultiboardSetRowCount(MULTI_BOARD, User.AmountPlaying + 1)
-    MultiboardSetColumnCount(MULTI_BOARD, 6)
-    MultiboardSetTitleText(MULTI_BOARD, "Curse of Time RPG: |cff9966ffNevermore|r")
-    MultiboardSetTitleTextColor(MULTI_BOARD, 180, 180, 180, 255)
-
-    local mbitem = MultiboardGetItem(MULTI_BOARD, 0, 0)
-    MultiboardSetItemValue(mbitem, "Player")
-    MultiboardSetItemStyle(mbitem, true, false)
-    MultiboardSetItemValueColor(mbitem, 255, 204, 0, 255)
-    MultiboardSetItemWidth(mbitem, 0.1)
-    MultiboardReleaseItem(mbitem)
-    mbitem = MultiboardGetItem(MULTI_BOARD, 0, 1)
-    MultiboardSetItemStyle(mbitem, false, false)
-    MultiboardSetItemWidth(mbitem, 0.015)
-    MultiboardReleaseItem(mbitem)
-    mbitem = MultiboardGetItem(MULTI_BOARD, 0, 2)
-    MultiboardSetItemStyle(mbitem, false, false)
-    MultiboardSetItemWidth(mbitem, 0.015)
-    MultiboardReleaseItem(mbitem)
-    mbitem = MultiboardGetItem(MULTI_BOARD, 0, 3)
-    MultiboardSetItemValue(mbitem, "Hero")
-    MultiboardSetItemStyle(mbitem, true, false)
-    MultiboardSetItemValueColor(mbitem, 255, 204, 0, 255)
-    MultiboardSetItemWidth(mbitem, 0.1)
-    MultiboardReleaseItem(mbitem)
-    mbitem = MultiboardGetItem(MULTI_BOARD, 0, 4)
-    MultiboardSetItemValue(mbitem, "LVL")
-    MultiboardSetItemStyle(mbitem, true, false)
-    MultiboardSetItemValueColor(mbitem, 255, 204, 0, 255)
-    MultiboardSetItemWidth(mbitem, 0.03)
-    MultiboardReleaseItem(mbitem)
-    mbitem = MultiboardGetItem(MULTI_BOARD, 0, 5)
-    MultiboardSetItemValue(mbitem, "HP")
-    MultiboardSetItemStyle(mbitem, true, false)
-    MultiboardSetItemValueColor(mbitem, 255, 204, 0, 255)
-    MultiboardSetItemWidth(mbitem, 0.03)
-    MultiboardReleaseItem(mbitem)
-
-    local i = 1
-
     --ally enemies and bosses
     SetPlayerAllianceStateBJ(pboss, pfoe, bj_ALLIANCE_ALLIED)
     SetPlayerAllianceStateBJ(pfoe, pboss, bj_ALLIANCE_ALLIED)
 
     --player loop
+    local pos = 1
     local u = User.first
     while u do
         --alliances / research / food state
@@ -105,42 +69,10 @@ OnInit.final("MapSetup", function(require)
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Arena2, false, false))
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Arena3, false, false))
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Gods_Vision, false, false))
+        FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Training_Prechaos, false, false))
+        FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Training_Chaos, false, false))
 
-        --player multiboard tuples
-        MB_SPOT[u.id] = i
-
-        mbitem = MultiboardGetItem(MULTI_BOARD, i, 0)
-        MultiboardSetItemValue(mbitem, u.nameColored)
-        MultiboardSetItemStyle(mbitem, true, false)
-        MultiboardSetItemWidth(mbitem, 0.1)
-        MultiboardReleaseItem(mbitem)
-
-        mbitem = MultiboardGetItem(MULTI_BOARD, i, 1)
-        MultiboardSetItemStyle(mbitem, false, false)
-        MultiboardSetItemWidth(mbitem, 0.015)
-        MultiboardReleaseItem(mbitem)
-
-        mbitem = MultiboardGetItem(MULTI_BOARD, i, 2)
-        MultiboardSetItemStyle(mbitem, false, false)
-        MultiboardSetItemWidth(mbitem, 0.015)
-        MultiboardReleaseItem(mbitem)
-
-        mbitem = MultiboardGetItem(MULTI_BOARD, i, 3)
-        MultiboardSetItemStyle(mbitem, true, false)
-        MultiboardSetItemWidth(mbitem, 0.1)
-        MultiboardReleaseItem(mbitem)
-
-        mbitem = MultiboardGetItem(MULTI_BOARD, i, 4)
-        MultiboardSetItemStyle(mbitem, true, false)
-        MultiboardSetItemWidth(mbitem, 0.03)
-        MultiboardReleaseItem(mbitem)
-
-        mbitem = MultiboardGetItem(MULTI_BOARD, i, 5)
-        MultiboardSetItemStyle(mbitem, true, false)
-        MultiboardSetItemWidth(mbitem, 0.03)
-        MultiboardReleaseItem(mbitem)
-
-        i = i + 1
+        pos = pos + 1
         u = u.next
     end
 
@@ -172,12 +104,7 @@ OnInit.final("MapSetup", function(require)
     --disable neutral building default marketplace behavior
     PauseTimer(bj_stockUpdateTimer)
     DestroyTimer(bj_stockUpdateTimer)
-    bj_stockUpdateTimer = nil
     DisableTrigger(bj_stockItemPurchased)
-
-    --display multiboard and grab frame
-    MultiboardDisplay(MULTI_BOARD, true)
-    MultiBoard = BlzGetFrameByName("Multiboard", 0)
 
     i = 0
     -- give these frames a handleId
