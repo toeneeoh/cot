@@ -1,3 +1,10 @@
+--[[
+    shop.lua
+
+    Used in tandem with shopcomponent.lua to define shop UI and any shop related
+    functions.
+]]
+
 if Debug then Debug.beginFile 'Shop' end
 
 OnInit.final("Shop", function(require)
@@ -21,23 +28,25 @@ OnInit.final("Shop", function(require)
         local ROWS                           = 4 ---@type integer 
         local COLUMNS                        = 10 ---@type integer 
         local DETAILED_ROWS                  = 4 ---@type integer 
-        local DETAILED_COLUMNS               = 5 ---@type integer 
+        local DETAILED_COLUMNS               = 4 ---@type integer 
         local CLOSE_ICON                     = "ReplaceableTextures\\CommandButtons\\BTNCancel.blp" ---@type string 
         local CLEAR_ICON                     = "ReplaceableTextures\\CommandButtons\\BTNCancel.blp" ---@type string 
-        local HELP_ICON                      = "UI\\Widgets\\EscMenu\\Human\\quest-unknown.blp" ---@type string 
         local LOGIC_ICON                     = "ReplaceableTextures\\CommandButtons\\BTNMagicalSentry.blp" ---@type string 
-        local UNDO_ICON                      = "ReplaceableTextures\\CommandButtons\\BTNReplay-Loop.blp" ---@type string 
-        local DISMANTLE_ICON                 = "UI\\Feedback\\Resources\\ResourceUpkeep.blp" ---@type string 
+        local SORT_LEVEL_ICON                = "ReplaceableTextures\\CommandButtons\\BTNHelmutPurple.blp" ---@type string 
+        local SORT_CRAFTABLE_ICON            = "ReplaceableTextures\\CommandButtons\\BTNBasicStruct.blp" ---@type string 
+        --local HELP_ICON                      = "UI\\Widgets\\EscMenu\\Human\\quest-unknown.blp" ---@type string 
+        --local UNDO_ICON                      = "ReplaceableTextures\\CommandButtons\\BTNReplay-Loop.blp" ---@type string 
+        --local DISMANTLE_ICON                 = "UI\\Feedback\\Resources\\ResourceUpkeep.blp" ---@type string 
 
-        -- Buyer Panel - Nope
+        -- Buyer Panel
         local BUYER_WIDTH                    = 0.234 ---@type number 
         local BUYER_HEIGHT                   = 0.0398 * 4 ---@type number 
-        local BUYER_SIZE                     = 0. ---@type number 
-        local BUYER_GAP                      = 0. ---@type number 
-        local BUYER_SHIFT_BUTTON_SIZE        = 0. ---@type number 
         local BUYER_COUNT                    = 0 ---@type integer 
-        local BUYER_RIGHT                    = "ReplaceableTextures\\CommandButtons\\BTNReplay-SpeedDown.blp" ---@type string 
-        local BUYER_LEFT                     = "ReplaceableTextures\\CommandButtons\\BTNReplay-SpeedUp.blp" ---@type string 
+        --local BUYER_SIZE                     = 0. ---@type number 
+        --local BUYER_GAP                      = 0. ---@type number 
+        --local BUYER_SHIFT_BUTTON_SIZE        = 0. ---@type number 
+        --local BUYER_RIGHT                    = "ReplaceableTextures\\CommandButtons\\BTNReplay-SpeedDown.blp" ---@type string 
+        --local BUYER_LEFT                     = "ReplaceableTextures\\CommandButtons\\BTNReplay-SpeedUp.blp" ---@type string 
 
         -- Inventory Panel
         local INVENTORY_WIDTH                = 0.1981 ---@type number 
@@ -75,6 +84,8 @@ OnInit.final("Shop", function(require)
         local CATEGORY_GAP                   = 0.00225 ---@type number 
 
         -- Item slots
+        local INITIAL_X_OFFSET               = 0.04
+        local INITIAL_Y_OFFSET               = 0.03
         local SLOT_WIDTH                     = 0.0375 ---@type number 
         local SLOT_HEIGHT                    = 0.0375 ---@type number 
         local ITEM_SIZE                      = 0.0375 ---@type number 
@@ -82,9 +93,8 @@ OnInit.final("Shop", function(require)
         local COST_WIDTH                     = 0.06 ---@type number 
         local COST_HEIGHT                    = 0.005 ---@type number 
         local COST_SCALE                     = 0.7 ---@type number 
-        local COST_GAP                       = 0.0135 ---@type number 
-        local COSTICON_GAP                   = 0.009 ---@type number 
-        local SLOT_GAP_X                     = 0.015 ---@type number 
+        local COST_GAP                   = 0.009 ---@type number 
+        local SLOT_GAP_X                     = 0.0145 ---@type number 
         local SLOT_GAP_Y                     = 0.038 ---@type number 
         local COMPONENT_GAP                  = SLOT_WIDTH * 0.61 ---@type number 
 
@@ -108,15 +118,28 @@ OnInit.final("Shop", function(require)
         local SUCCESS_SOUND                  = "Abilities\\Spells\\Other\\Transmute\\AlchemistTransmuteDeath1.wav" ---@type string 
         local ERROR_SOUND                    = "Sound\\Interface\\Error.wav" ---@type string 
 
-        -- Dont touch
-        local table = {} ---@type ShopSlot[][]
-
+        -- Main storage table
+        local table = array2d(0) ---@type any[][]
 
     --[[ ----------------------------------------------------------------------------------------- ]]
     --[[                                          API                                              ]]
     --[[ ----------------------------------------------------------------------------------------- ]]
-    ---@param id integer
-    ---@return boolean
+    ---@type fun(pid: integer, itm: ShopItem): boolean
+    function IsCraftable(pid, itm)
+        local componentCount = itm:components()
+
+        for k = 0, componentCount do
+            local component = itm.component[k]
+
+            if PlayerCountItemType(pid, component) < itm:count(component) then
+                return false
+            end
+        end
+
+        return componentCount > 0
+    end
+
+    ---@type fun(id: integer): boolean
     function IsBuyable(id)
         local i         = 0 ---@type integer 
         local buyable         = false ---@type boolean 
@@ -187,7 +210,7 @@ OnInit.final("Shop", function(require)
     ---@field hasType function
     ---@field countType function
     ---@field components function
-    ---@field component table
+    ---@field component integer[]
     ---@field count function
     ---@field get function
     ---@field unit table
@@ -198,7 +221,7 @@ OnInit.final("Shop", function(require)
     ShopItem = {}
     do
         local thistype = ShopItem
-        thistype.trigger  = CreateTrigger() ---@type trigger 
+        thistype.trigger  = CreateTrigger()
         thistype.player   = Player(bj_PLAYER_NEUTRAL_EXTRA) ---@type player 
         thistype.unit     = {} ---@type table
 
@@ -216,7 +239,7 @@ OnInit.final("Shop", function(require)
             return self.componentCount
         end
 
-        ---@type fun(id: integer):integer
+        ---@type fun(self: ShopItem, id: integer):integer
         function thistype:count(id)
             return self.counter[id]
         end
@@ -284,17 +307,17 @@ OnInit.final("Shop", function(require)
             RemoveItem(GetEnumItem())
         end
 
-        ---@type fun(u: unit, id: integer): boolean
+        ---@type fun(self: ShopItem, u: unit, id: integer): boolean
         function thistype:hasType(u, id)
             return ShopItem.unit[GetHandleId(u)][id] > 0
         end
 
-        ---@type fun(u: unit, id: integer): integer
+        ---@type fun(self: ShopItem, u: unit, id: integer): integer
         function thistype:countType(u, id)
             return ShopItem.unit[GetHandleId(u)][id]
         end
 
-        ---@type fun(id: integer, category: integer): ShopItem
+        ---@type fun(id: integer, category: integer): ShopItem | 0
         function thistype.create(id, category)
             if ShopItem.itempool[id] ~= 0 then
                 local self = ShopItem.itempool[id]
@@ -316,21 +339,14 @@ OnInit.final("Shop", function(require)
                     self.name = GetItemName(itm.obj)
                     self.icon = BlzGetItemIconPath(itm.obj)
                     self.tooltip = itm.alt_tooltip
-                    self.charges = GetItemCharges(itm.obj)
+                    self.charges = math.min(1, GetItemCharges(itm.obj))
                     self.recharge = -1
                     self.relation = __jarray(0)
                     self.currency = __jarray(0)
                     self.counter = __jarray(0)
                     self.component = {}
 
-                    if self.charges == 0 then
-                        self.charges = 1
-                    end
-
                     for i = 0, CURRENCY_COUNT - 1 do
-                        if not ItemPrices[id] then
-                            ItemPrices[id] = __jarray(0)
-                        end
                         self.currency[i] = ItemPrices[id][i]
                     end
 
@@ -357,8 +373,8 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onDrop()
-            local u         = GetHandleId(GetManipulatingUnit()) ---@type integer 
-            local i         = GetItemTypeId(GetManipulatedItem()) ---@type integer 
+            local u = GetHandleId(GetManipulatingUnit()) ---@type integer 
+            local i = GetItemTypeId(GetManipulatedItem()) ---@type integer 
 
             if not ShopItem.unit[u] then
                 ShopItem.unit[u] = __jarray(0)
@@ -400,16 +416,6 @@ OnInit.final("Shop", function(require)
     do
         local thistype = Slot
         thistype.isVisible=nil ---@type boolean 
-        thistype.xPos=nil ---@type number 
-        thistype.yPos=nil ---@type number 
-
-        thistype.parent=nil ---@type framehandle 
-        thistype.slot=nil ---@type framehandle 
-        thistype.costicon={} ---@type framehandle[] [CURRENCY_COUNT]
-        thistype.cost={} ---@type framehandle[] [CURRENCY_COUNT]
-
-        thistype.item=nil ---@type ShopItem 
-        thistype.button=nil ---@type Button 
 
         function thistype:x(newX)
             if newX then
@@ -520,13 +526,6 @@ OnInit.final("Shop", function(require)
     ShopSlot = {}
     do
         local thistype = ShopSlot
-        thistype.shop=nil ---@type Shop 
-        thistype.next=nil ---@type Slot 
-        thistype.prev=nil ---@type Slot 
-        thistype.right=nil ---@type Slot 
-        thistype.left=nil ---@type Slot 
-        thistype.row=nil ---@type integer 
-        thistype.column=nil ---@type integer 
 
         function thistype:refresh()
             for i = 0, CURRENCY_COUNT - 1 do
@@ -554,12 +553,12 @@ OnInit.final("Shop", function(require)
             self = nil
         end
 
-        ---@type fun(row: integer, column: integer)
+        ---@type fun(self: ShopSlot, row: integer, column: integer)
         function thistype:move(row, column)
             self.row = row
             self.column = column
-            self:x(0.030000 + ((SLOT_WIDTH + SLOT_GAP_X) * column))
-            self:y(- (0.030000 + ((SLOT_HEIGHT + SLOT_GAP_Y) * row)))
+            self:x(INITIAL_X_OFFSET + ((SLOT_WIDTH + SLOT_GAP_X) * column))
+            self:y(- (INITIAL_Y_OFFSET + ((SLOT_HEIGHT + SLOT_GAP_Y) * row)))
 
             self:update()
         end
@@ -578,15 +577,11 @@ OnInit.final("Shop", function(require)
 
         ---@type fun(S: Shop, i: ShopItem, row: integer, column: integer):ShopSlot
         function thistype.create(S, i, row, column)
-            local self = Slot.create(S.main, i, ITEM_SIZE, ITEM_SIZE, 0.030000 + ((SLOT_WIDTH + SLOT_GAP_X) * column), - (0.030000 + ((SLOT_HEIGHT + SLOT_GAP_Y) * row)), FRAMEPOINT_TOPLEFT, false) ---@type ShopSlot
+            local self = Slot.create(S.main, i, ITEM_SIZE, ITEM_SIZE, INITIAL_X_OFFSET + ((SLOT_WIDTH + SLOT_GAP_X) * column), - (INITIAL_Y_OFFSET + ((SLOT_HEIGHT + SLOT_GAP_Y) * row)), FRAMEPOINT_TOPLEFT, false) ---@type ShopSlot
 
             --inherit from both Slot and ShopSlot
             setmetatable(self, { __index = function(tbl, key)
-                if rawget(tbl, key) then
-                    return rawget(tbl, key)
-                else
-                    return rawget(Slot, key) or rawget(ShopSlot, key)
-                end
+                return rawget(Slot, key) or rawget(ShopSlot, key)
             end})
 
             self.shop = S
@@ -596,11 +591,12 @@ OnInit.final("Shop", function(require)
             self.left = nil
             self.row = row
             self.column = column
+            self.costicon = {}
+            self.cost = {}
             self:onClick(thistype.onClicked)
             self:onScroll(thistype.onScrolled)
             self:onDoubleClick(thistype.onDoubleClicked)
             self:onRightClick(thistype.onRightClicked)
-            table[GetHandleId(self.button.frame)] = __jarray(0)
             table[GetHandleId(self.button.frame)][0] = self
 
             --currencies
@@ -608,12 +604,13 @@ OnInit.final("Shop", function(require)
             for k = 0, CURRENCY_COUNT - 1 do
                 self.costicon[k] = BlzCreateFrameByType("BACKDROP", "", self.slot, "", 0)
                 self.cost[k] = BlzCreateFrameByType("TEXT", "", self.slot, "", 0)
-                BlzFrameSetPoint(self.costicon[k], FRAMEPOINT_TOPLEFT, self.slot, FRAMEPOINT_TOPLEFT, 0., - 0.04 - j * COSTICON_GAP)
+                BlzFrameSetText(self.cost[k], "") --TODO?
+                BlzFrameSetPoint(self.costicon[k], FRAMEPOINT_TOPLEFT, self.slot, FRAMEPOINT_TOPLEFT, 0., - 0.04 - j * COST_GAP)
                 BlzFrameSetSize(self.costicon[k], GOLD_SIZE, GOLD_SIZE)
                 BlzFrameSetTexture(self.costicon[k], CURRENCY_ICON[k], 0, true)
                 --call BlzFrameSetEnable(costicon[k], false)
 
-                BlzFrameSetPoint(self.cost[k], FRAMEPOINT_TOPLEFT, self.slot, FRAMEPOINT_TOPLEFT, 0., - 0.06 - j * COST_GAP)
+                BlzFrameSetPoint(self.cost[k], FRAMEPOINT_TOPLEFT, self.costicon[k], FRAMEPOINT_TOPRIGHT, -0.013, -0.004)
                 BlzFrameSetSize(self.cost[k], COST_WIDTH, COST_HEIGHT)
                 --call BlzFrameSetEnable(cost[k], false)
                 BlzFrameSetScale(self.cost[k], COST_SCALE)
@@ -647,7 +644,10 @@ OnInit.final("Shop", function(require)
         function thistype.onScrolled()
             local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type ShopSlot
 
-            if self then
+            if self ~= 0 then
+                BlzFrameSetEnable(BlzGetTriggerFrame(), false)
+                BlzFrameSetEnable(BlzGetTriggerFrame(), true)
+
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     self.shop:scroll(BlzGetTriggerFrameValue() < 0)
                 end
@@ -659,7 +659,7 @@ OnInit.final("Shop", function(require)
             local frame = BlzGetTriggerFrame() ---@type framehandle 
             local self = table[GetHandleId(frame)][0] ---@type ShopSlot
 
-            if self then
+            if self ~= 0 then
                 BlzFrameSetEnable(frame, false)
                 BlzFrameSetEnable(frame, true)
 
@@ -670,7 +670,7 @@ OnInit.final("Shop", function(require)
         function thistype.onDoubleClicked()
             local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type ShopSlot
 
-            if self then
+            if self ~= 0 then
                 if self.shop:buy(self.item, GetTriggerPlayer()) then
                     if GetLocalPlayer() == GetTriggerPlayer() then
                         self.button:play(SPRITE_MODEL, SPRITE_SCALE, 0)
@@ -682,7 +682,7 @@ OnInit.final("Shop", function(require)
         function thistype.onRightClicked()
             local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type ShopSlot
 
-            if self then
+            if self ~= 0 then
                 if self.shop:buy(item, GetTriggerPlayer()) then
                     if GetLocalPlayer() == GetTriggerPlayer() then
                         self.button:play(SPRITE_MODEL, SPRITE_SCALE, 0)
@@ -711,32 +711,27 @@ OnInit.final("Shop", function(require)
     ---@field create function
     ---@field destroy function
     ---@field count integer[]
+    ---@field frame framehandle
+    ---@field topSeparator framehandle
+    ---@field bottomSeparator framehandle
+    ---@field usedIn framehandle
+    ---@field horizontalRight framehandle
+    ---@field horizontalLeft framehandle
+    ---@field verticalMain framehandle
+    ---@field verticalCenter framehandle
+    ---@field verticalLeft1 framehandle
+    ---@field verticalLeft2 framehandle
+    ---@field verticalRight1 framehandle
+    ---@field verticalRight2 framehandle
+    ---@field tooltip framehandle
+    ---@field scrollFrame framehandle
     Detail = {}
     do
         local thistype = Detail
-        thistype.trigger         = CreateTrigger() ---@type trigger 
+        thistype.trigger = CreateTrigger()
 
         thistype.isVisible=nil ---@type boolean 
-
-        thistype.shop=nil ---@type Shop 
         thistype.used=array2d(0) ---@type table 
-        thistype.close=nil ---@type Button 
-        thistype.left=nil ---@type Button 
-        thistype.right=nil ---@type Button 
-        thistype.frame=nil ---@type framehandle 
-        thistype.tooltip=nil ---@type framehandle 
-        thistype.topSeparator=nil ---@type framehandle 
-        thistype.bottomSeparator=nil ---@type framehandle 
-        thistype.usedIn=nil ---@type framehandle 
-        thistype.scrollFrame=nil ---@type framehandle 
-        thistype.horizontalRight=nil ---@type framehandle 
-        thistype.horizontalLeft=nil ---@type framehandle 
-        thistype.verticalMain=nil ---@type framehandle 
-        thistype.verticalCenter=nil ---@type framehandle 
-        thistype.verticalLeft1=nil ---@type framehandle 
-        thistype.verticalLeft2=nil ---@type framehandle 
-        thistype.verticalRight1=nil ---@type framehandle 
-        thistype.verticalRight2=nil ---@type framehandle 
         thistype.count = __jarray(0)
 
         function thistype:visible(visibility)
@@ -753,16 +748,16 @@ OnInit.final("Shop", function(require)
             local i         = 0 ---@type integer 
 
             while u do
-                    table[GetHandleId(self.main[u.id - 1].button.frame)] = nil
+                    table[GetHandleId(self.main[u.id - 1].button.frame)] = __jarray(0)
                     self.main[u.id - 1]:destroy()
 
                     i = 0
                     while i ~= INVENTORY_COUNT do
-                        table[GetHandleId(components[u.id - 1][i].button.frame)] = nil
+                        table[GetHandleId(components[u.id - 1][i].button.frame)] = __jarray(0)
                         self.components[u.id - 1][i]:destroy()
 
                         if i < DETAIL_USED_COUNT then
-                            table[GetHandleId(button[u.id - 1][i].frame)] = nil
+                            table[GetHandleId(button[u.id - 1][i].frame)] = __jarray(0)
                             self.button[u.id - 1][i]:destroy()
                         end
 
@@ -865,7 +860,7 @@ OnInit.final("Shop", function(require)
                             self.used[id][j] = self.used[id][j - 1]
 
                             if GetLocalPlayer() == p then
-                                self.button[id][j]:icon(used[id][j].icon)
+                                self.button[id][j]:icon(self.used[id][j].icon)
                                 self.button[id][j].tooltip:text(self.used[id][j].tooltip)
                                 self.button[id][j].tooltip:name(self.used[id][j].name)
                                 self.button[id][j].tooltip:icon(self.used[id][j].icon)
@@ -958,7 +953,7 @@ OnInit.final("Shop", function(require)
                 self.main[id].item = i
                 self.main[id].button:icon(i.icon)
                 self.main[id].button.tooltip:text(i.tooltip)
-                self.main[id].button.name = i.name
+                self.main[id].button.tooltip:name(i.name)
                 self.main[id].button.tooltip:icon(i.icon)
                 self.main[id].button:available(self.shop:has(i.id))
 
@@ -1069,10 +1064,6 @@ OnInit.final("Shop", function(require)
             self.right:icon(USED_RIGHT)
             self.right:onClick(thistype.onClick)
             self.right.tooltip:text("Scroll Right")
-            table[GetHandleId(self.close.frame)] = __jarray(0)
-            table[GetHandleId(self.left.frame)] = __jarray(0)
-            table[GetHandleId(self.right.frame)] = __jarray(0)
-            table[GetHandleId(self.scrollFrame)] = __jarray(0)
             table[GetHandleId(self.close.frame)][0] = self
             table[GetHandleId(self.left.frame)][0] = self
             table[GetHandleId(self.right.frame)][0] = self
@@ -1090,7 +1081,7 @@ OnInit.final("Shop", function(require)
             BlzFrameSetSize(self.topSeparator, 0.252, 0.001)
             BlzFrameSetSize(self.bottomSeparator, 0.252, 0.001)
             BlzFrameSetSize(self.usedIn, 0.04, 0.012)
-            BlzFrameSetSize(self.tooltip, 0.31, 0.16)
+            BlzFrameSetSize(self.tooltip, 0.31, 0.145)
             BlzFrameSetText(self.tooltip, "")
             BlzFrameSetText(self.usedIn, "|cffFFCC00Used in|r")
             BlzFrameSetEnable(self.usedIn, false)
@@ -1108,7 +1099,6 @@ OnInit.final("Shop", function(require)
                 self.main[u.id - 1]:onRightClick(thistype.onRightClick)
                 self.main[u.id - 1]:onDoubleClick(thistype.onDoubleClick)
 
-                table[GetHandleId(self.main[u.id - 1].button.frame)] = __jarray(0)
                 table[GetHandleId(self.main[u.id - 1].button.frame)][0] = self
 
                 self.components[u.id - 1] = {}
@@ -1119,7 +1109,6 @@ OnInit.final("Shop", function(require)
                     self.components[u.id - 1][j]:onRightClick(thistype.onRightClick)
                     self.components[u.id - 1][j]:onDoubleClick(thistype.onDoubleClick)
 
-                    table[GetHandleId(self.components[u.id - 1][j].button.frame)] = __jarray(0)
                     table[GetHandleId(self.components[u.id - 1][j].button.frame)][0] = self
                 end
 
@@ -1131,7 +1120,6 @@ OnInit.final("Shop", function(require)
                     self.button[u.id - 1][j]:onScroll(thistype.onScroll)
                     self.button[u.id - 1][j]:onRightClick(thistype.onRightClick)
                     self.button[u.id - 1][j].tooltip:point(FRAMEPOINT_BOTTOMRIGHT)
-                    table[GetHandleId(self.button[u.id - 1][j].frame)] = __jarray(0)
                     table[GetHandleId(self.button[u.id - 1][j].frame)][0] = self
                     table[GetHandleId(self.button[u.id - 1][j].frame)][1] = j
                 end
@@ -1147,7 +1135,7 @@ OnInit.final("Shop", function(require)
         function thistype.onScroll()
             local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Detail
 
-            if self then
+            if self ~= 0 then
                 self:shift(BlzGetTriggerFrameValue() < 0, GetTriggerPlayer())
             end
         end
@@ -1160,7 +1148,7 @@ OnInit.final("Shop", function(require)
             local id = GetPlayerId(GetTriggerPlayer()) ---@type integer 
             local found = false ---@type boolean 
 
-            if self then
+            if self ~= 0 then
                 BlzFrameSetEnable(frame, false)
                 BlzFrameSetEnable(frame, true)
 
@@ -1200,7 +1188,7 @@ OnInit.final("Shop", function(require)
             local id         = GetPlayerId(p) ---@type integer 
             local found         = false ---@type boolean 
 
-            if self then
+            if self ~= 0 then
                 if frame == self.main[id].button.frame then
                     if self.shop:buy(self.main[id].item, p) then
                         if GetLocalPlayer() == p then
@@ -1241,7 +1229,7 @@ OnInit.final("Shop", function(require)
             local id         = GetPlayerId(p) ---@type integer 
             local found         = false ---@type boolean 
 
-            if self then
+            if self ~= 0 then
                 if frame == self.main[id].button.frame then
                     if self.shop:buy(self.main[id].item, p) then
                         if GetLocalPlayer() == p then
@@ -1277,6 +1265,7 @@ OnInit.final("Shop", function(require)
     end
 
     ---@class Inventory
+    ---@field shop Shop
     ---@field button Button[][]
     ---@field item ShopItem[][]
     ---@field frame framehandle
@@ -1314,7 +1303,7 @@ OnInit.final("Shop", function(require)
                     j = 0
 
                     while j ~= INVENTORY_COUNT do
-                            table[GetHandleId(self.button[i][j].frame)] = nil
+                            table[GetHandleId(self.button[i][j].frame)] = __jarray(0)
                             self.button[i][j]:destroy()
                         j = j + 1
                     end
@@ -1412,7 +1401,6 @@ OnInit.final("Shop", function(require)
                     self.button[u.id - 1][j]:onDoubleClick(thistype.onDoubleClick)
                     self.button[u.id - 1][j]:onRightClick(thistype.onRightClick)
                     self.button[u.id - 1][j]:visible(false)
-                    table[GetHandleId(self.button[u.id - 1][j].frame)] = __jarray(0)
                     table[GetHandleId(self.button[u.id - 1][j].frame)][0] = self
                     table[GetHandleId(self.button[u.id - 1][j].frame)][1] = j
 
@@ -1435,15 +1423,14 @@ OnInit.final("Shop", function(require)
             local self      = table[GetHandleId(frame)][0] ---@type Inventory
             local i         = table[GetHandleId(frame)][1] ---@type integer 
             local id        = GetPlayerId(GetTriggerPlayer()) ---@type integer 
-            local s ---@type ShopItem 
 
-            if self then
+            if self ~= 0 then
                 self.selected[id] = i
 
-                s = ShopItem.get(Profile[id + 1].hero.items[i])
+                local s = ShopItem.get(Profile[id + 1].hero.items[i].id)
 
                 if s ~= 0 then
-                    shop:detail(s, GetTriggerPlayer())
+                    self.shop:detail(s, GetTriggerPlayer())
                 end
             end
         end
@@ -1474,7 +1461,7 @@ OnInit.final("Shop", function(require)
     do
         local thistype = Buyer
         thistype.current={} ---@type table
-        thistype.trigger         = CreateTrigger() ---@type trigger 
+        thistype.trigger         = CreateTrigger()
 
         thistype.isVisible=nil ---@type boolean 
 
@@ -1491,7 +1478,7 @@ OnInit.final("Shop", function(require)
         thistype.frame=nil ---@type framehandle 
         thistype.scrollFrame=nil ---@type framehandle 
 
-        ---@type fun(visibility: boolean):boolean
+        ---@type fun(self: Buyer, visibility: boolean):boolean
         function thistype:visible(visibility)
             if visibility ~= nil then
                 self.isVisible = visibility
@@ -1562,7 +1549,6 @@ OnInit.final("Shop", function(require)
             self.frame = BlzCreateFrame("EscMenuBackdrop", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
             self.scrollFrame = BlzCreateFrameByType("BUTTON", "", self.frame, "", 0)
             self.inventory = Inventory.create(self.shop, self.frame)
-            table[GetHandleId(self.scrollFrame)] = __jarray(0)
             table[GetHandleId(self.scrollFrame)][0] = self
 
             BlzFrameSetPoint(self.frame, FRAMEPOINT_TOP, shop.base, FRAMEPOINT_BOTTOM, 0.42, 0.1605)
@@ -1575,7 +1561,7 @@ OnInit.final("Shop", function(require)
         function thistype.onScroll()
             local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Buyer
 
-            if self then
+            if self ~= 0 then
                 self:shift(BlzGetTriggerFrameValue() < 0, GetTriggerPlayer())
             end
         end
@@ -1586,7 +1572,7 @@ OnInit.final("Shop", function(require)
             local i = table[GetHandleId(frame)][1] ---@type integer 
             local id = GetPlayerId(GetTriggerPlayer()) ---@type integer 
 
-            if self then
+            if self ~= 0 then
                 if frame == self.left.frame then
                     self:shift(false, GetTriggerPlayer())
                 elseif frame == self.right.frame then
@@ -1661,7 +1647,7 @@ OnInit.final("Shop", function(require)
 
         function thistype:destroy()
             while not (self.count == -1) do
-                    table[GetHandleId(self.button[self.count].frame)] = nil
+                    table[GetHandleId(self.button[self.count].frame)] = __jarray(0)
                     self.button[self.count] = nil
                 self.count = self.count - 1
             end
@@ -1684,7 +1670,7 @@ OnInit.final("Shop", function(require)
             self.shop:filter(self.active, self.andLogic)
         end
 
-        ---@type fun(icon: string, description: string):integer
+        ---@type fun(self: Category, icon: string, description: string):integer
         function thistype:add(icon, description)
             if self.count < CATEGORY_COUNT then
                 self.count = self.count + 1
@@ -1694,13 +1680,12 @@ OnInit.final("Shop", function(require)
                 self.button[self.count]:enabled(false)
                 self.button[self.count]:onClick(thistype.onClick)
                 self.button[self.count].tooltip:text(description)
-                table[GetHandleId(self.button[self.count].frame)] = __jarray(0)
                 table[GetHandleId(self.button[self.count].frame)][0] = self
                 table[GetHandleId(self.button[self.count].frame)][1] = self.count
 
                 return self.value[self.count]
             else
-                BJDebugMsg("Maximum number of categories reached.")
+                print("Maximum number of categories reached.")
             end
 
             return 0
@@ -1727,7 +1712,7 @@ OnInit.final("Shop", function(require)
             local self          = table[GetHandleId(frame)][0] ---@type Category
             local i         = table[GetHandleId(frame)][1] ---@type integer 
 
-            if self then
+            if self ~= 0 then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     self.button[i]:enabled(not self.button[i].isEnabled)
 
@@ -1765,6 +1750,7 @@ OnInit.final("Shop", function(require)
     ---@field buy function
     ---@field category Category
     ---@field scroll function
+    ---@field rows integer
     ---@field columns integer
     ---@field details Detail
     ---@field leftPanel framehandle
@@ -1772,6 +1758,10 @@ OnInit.final("Shop", function(require)
     ---@field has function
     ---@field filter function
     ---@field logic Button
+    ---@field levelreqButton Button
+    ---@field levelsort boolean
+    ---@field craftableButton Button
+    ---@field craftablesort boolean
     ---@field clearCategory Button
     ---@field canScroll boolean[]
     ---@field timer timer[]
@@ -1780,52 +1770,28 @@ OnInit.final("Shop", function(require)
     ---@field group group[]
     ---@field trigger trigger
     ---@field search trigger
+    ---@field lastClicked Button[]
+    ---@field edit framehandle
+    ---@field sliderFrame framehandle
+    ---@field sliderTrigger trigger
+    ---@field sliderValue number
     Shop = {}
     do
         local thistype = Shop
-        thistype.trigger         = CreateTrigger() ---@type trigger 
-        thistype.search         = CreateTrigger() ---@type trigger 
-        thistype.keyPress         = CreateTrigger() ---@type trigger 
-        thistype.escPressed         = CreateTrigger() ---@type trigger 
+        thistype.search       = CreateTrigger()
+        thistype.keyPress     = CreateTrigger()
+        thistype.escPressed   = CreateTrigger()
         thistype.update       = CreateTimer() ---@type timer 
-        thistype.count         = -1 ---@type integer 
+        thistype.count        = -1 ---@type integer 
         thistype.success=nil ---@type sound 
         thistype.error=nil ---@type sound 
         thistype.noGold={} ---@type sound[] 
-        thistype.group={} ---@type group[] 
         thistype.timer={} ---@type timer[] 
         thistype.canScroll=__jarray(false) ---@type boolean[] 
         thistype.tag=__jarray(false) ---@type boolean[] 
         thistype.current={} ---@type unit[] 
-
         thistype.isVisible=nil ---@type boolean 
-
-        thistype.base=nil ---@type framehandle 
-        thistype.main=nil ---@type framehandle 
-        thistype.edit=nil ---@type framehandle 
-        thistype.leftPanel=nil ---@type framehandle 
-        thistype.rightPanel=nil ---@type framehandle 
-        thistype.category=nil ---@type Category 
-        thistype.details=nil ---@type Detail 
-        thistype.buyer=nil ---@type Buyer 
-        thistype.close=nil ---@type Button 
-        thistype.break_=nil ---@type Button 
-        thistype.revert=nil ---@type Button 
-        thistype.logic=nil ---@type Button 
-        thistype.clearCategory=nil ---@type Button 
-        thistype.first=nil ---@type ShopSlot 
-        thistype.last=nil ---@type ShopSlot 
-        thistype.head=nil ---@type ShopSlot 
-        thistype.tail=nil ---@type ShopSlot 
-        thistype.id=nil ---@type integer 
-        thistype.index=nil ---@type integer 
-        thistype.size=nil ---@type integer 
-        thistype.rows=nil ---@type integer 
-        thistype.columns=nil ---@type integer 
-        thistype.detailed=nil ---@type boolean 
         thistype.aoe=1000 ---@type number 
-        thistype.tax=nil ---@type number 
-        thistype.lastClicked={} ---@type table 
         thistype.stock={} ---@type table 
 
         ---@param id integer
@@ -1839,7 +1805,7 @@ OnInit.final("Shop", function(require)
             ShopSlot.refresh(slot)
         end
 
-        ---@type fun(visibility: boolean):boolean
+        ---@type fun(self: Shop, visibility: boolean):boolean
         function thistype:visible(visibility)
             if visibility ~= nil then
                 self.isVisible = visibility
@@ -1867,15 +1833,11 @@ OnInit.final("Shop", function(require)
                 slot = slot.next
             end
 
-            table[self.id] = nil
-            table[self] = nil
             shoppool[self] = nil
             BlzDestroyFrame(self.rightPanel)
             BlzDestroyFrame(self.leftPanel)
             BlzDestroyFrame(self.main)
             BlzDestroyFrame(self.base)
-            self.break_:destroy()
-            self.revert:destroy()
             self.category:destroy()
             self.details:destroy()
             self.buyer:destroy()
@@ -1917,7 +1879,6 @@ OnInit.final("Shop", function(require)
                                     --currency loop
                                     l = 0
                                     while l ~= CURRENCY_COUNT do
-
                                         cost[l] = cost[l] - ItemPrices[component.id][l]
 
                                         l = l + 1
@@ -1944,11 +1905,13 @@ OnInit.final("Shop", function(require)
 
                     --special cases
                     --demon prince heart
-                    if component.id == FourCC('I04Q') then
-                        canBuy = HeartBlood[id + 1] >= 2000
+                    if component ~= 0 then
+                        if component.id == FourCC('I04Q') then
+                            canBuy = HeartBlood[id + 1] >= 2000
 
-                        if canBuy and hasMoney then
-                            HeartBlood[id + 1] = 0
+                            if canBuy and hasMoney then
+                                HeartBlood[id + 1] = 0
+                            end
                         end
                     end
 
@@ -1978,16 +1941,22 @@ OnInit.final("Shop", function(require)
                                                 --call t.add(ShopItem.get(Profile[id + 1].hero.items[k].id))
                                                 l = Profile[id + 1].hero.items[k].charges
 
-                                                if l > 1 then
-                                                    Profile[id + 1].hero.items[k]:charge(Profile[id + 1].hero.items[k].charges - IMinBJ(l, counter[i.component[j]]))
-                                                    if Profile[id + 1].hero.items[k].charges <= 0 then
-                                                        Profile[id + 1].hero.items[k]:destroy()
-                                                        Profile[id + 1].hero.items[k] = nil
-                                                    end
-                                                else
-                                                    Profile[id + 1].hero.items[k]:destroy()
-                                                    Profile[id + 1].hero.items[k] = nil
+                                                for _ = 1, IMinBJ(l, counter[i.component[j]]) do
+                                                    Profile[id + 1].hero.items[k]:consumeCharge()
                                                 end
+
+                                                --
+                                                --if l > 1 then
+                                                --    Profile[id + 1].hero.items[k].charges = Profile[id + 1].hero.items[k].charges - IMinBJ(l, counter[i.component[j]])
+                                                --    if Profile[id + 1].hero.items[k].charges <= 0 then
+                                                --        Profile[id + 1].hero.items[k]:destroy()
+                                                --        Profile[id + 1].hero.items[k] = nil
+                                                --    end
+                                                --else
+                                                --    Profile[id + 1].hero.items[k]:destroy()
+                                                --    Profile[id + 1].hero.items[k] = nil
+                                                --end
+                                                --
                                                 counter[i.component[j]] = counter[i.component[j]] - l
                                                 break
                                             end
@@ -2039,7 +2008,7 @@ OnInit.final("Shop", function(require)
             return (canBuy and hasMoney)
         end
 
-        ---@type fun(down: boolean)
+        ---@type fun(self: Shop, down: boolean)
         function thistype:scroll(down)
             local slot = self.first
 
@@ -2062,16 +2031,23 @@ OnInit.final("Shop", function(require)
                         end
                     slot = slot.right ---@type ShopSlot
                 end
+
+                local adjust = (down and -1) or 1
+
+                self.sliderValue = self.sliderValue + adjust
+
+                BlzFrameSetValue(self.sliderFrame, self.sliderValue)
             end
         end
 
-        ---@param categories integer
-        ---@param andLogic boolean
+        ---@type fun(self: Shop, categories: integer, andLogic: boolean)
         function thistype:filter(categories, andLogic)
-            local slot          = shoppool[self][0] ---@type ShopSlot 
-            local text        = BlzFrameGetText(self.edit) ---@type string 
-            local process ---@type boolean 
-            local i         = -1 ---@type integer 
+            local slot  = shoppool[self][0] ---@type ShopSlot 
+            local text  = BlzFrameGetText(self.edit) ---@type string 
+            local i     = -1 ---@type integer 
+            local total = self.rows * self.columns
+            local pid   = GetPlayerId(GetLocalPlayer()) + 1
+            local process
 
             self.size = 0
             self.first = nil
@@ -2088,6 +2064,14 @@ OnInit.final("Shop", function(require)
 
                     if text ~= "" and text ~= nil then
                         process = process and thistype.find(StringCase(slot.item.name, false), StringCase(text, false))
+                    end
+
+                    if self.levelsort then
+                        process = process and (GetHeroLevel(Hero[pid]) >= ItemData[slot.item.id][ITEM_LEVEL_REQUIREMENT])
+                    end
+
+                    if self.craftablesort then
+                        process = process and (IsCraftable(pid, slot.item))
                     end
 
                     if process then
@@ -2109,6 +2093,27 @@ OnInit.final("Shop", function(require)
                         end
 
                         self.last = slot
+
+                        --TODO slider frame
+                        if self.size > total then
+                            BlzFrameSetVisible(self.sliderFrame, true)
+
+                            local max = 1 + math.ceil((self.size - total) / self.columns)
+
+                            BlzFrameSetMinMaxValue(self.sliderFrame, 1, max)
+                            self.sliderValue = max
+                            BlzFrameSetValue(self.sliderFrame, max)
+
+                            BlzFrameClearAllPoints(self.sliderFrame)
+
+                            if self.detailed == false then
+                                BlzFrameSetPoint(self.sliderFrame, FRAMEPOINT_TOPRIGHT, self.base, FRAMEPOINT_TOPRIGHT, -0.03, -0.03)
+                            else
+                                BlzFrameSetPoint(self.sliderFrame, FRAMEPOINT_TOPRIGHT, self.details.frame, FRAMEPOINT_TOPLEFT, -0.02, -0.03)
+                            end
+                        else
+                            BlzFrameSetVisible(self.sliderFrame, false)
+                        end
                     else
                         slot:visible(false)
                     end
@@ -2119,15 +2124,17 @@ OnInit.final("Shop", function(require)
         ---@param i ShopItem
         ---@param p player
         function thistype:select(i, p)
-            local id         = GetPlayerId(p) ---@type integer 
+            local id = GetPlayerId(p) ---@type integer 
 
             if i ~= 0 and GetLocalPlayer() == p then
                 if self.lastClicked[id] then
                     self.lastClicked[id]:display(nil, 0, 0, 0, nil, nil, 0, 0)
                 end
 
-                self.lastClicked[id] = table[self][i.id].button
-                self.lastClicked[id]:display(ITEM_HIGHLIGHT, HIGHLIGHT_WIDTH, HIGHLIGHT_HEIGHT, HIGHLIGHT_SCALE, FRAMEPOINT_BOTTOMLEFT, FRAMEPOINT_BOTTOMLEFT, HIGHLIGHT_XOFFSET, HIGHLIGHT_YOFFSET)
+                if table[self][i.id] ~= 0 then
+                    self.lastClicked[id] = table[self][i.id].button
+                    self.lastClicked[id]:display(ITEM_HIGHLIGHT, HIGHLIGHT_WIDTH, HIGHLIGHT_HEIGHT, HIGHLIGHT_SCALE, FRAMEPOINT_BOTTOMLEFT, FRAMEPOINT_BOTTOMLEFT, HIGHLIGHT_XOFFSET, HIGHLIGHT_YOFFSET)
+                end
             end
         end
 
@@ -2158,9 +2165,9 @@ OnInit.final("Shop", function(require)
             end
         end
 
-        ---@type fun(id: integer):boolean
+        ---@type fun(self: Shop, id: integer):boolean
         function thistype:has(id)
-            return table[self][id] ~= nil
+            return table[self][id] ~= 0
         end
 
         ---@type fun(source: string, target: string):boolean
@@ -2185,7 +2192,7 @@ OnInit.final("Shop", function(require)
         function thistype.addCategory(id, icon, description)
             local self = table[id][0] ---@type Shop
 
-            if self then
+            if self ~= 0 then
                 return self.category:add(icon, description)
             end
 
@@ -2197,10 +2204,7 @@ OnInit.final("Shop", function(require)
             local self = table[id][0] ---@type Shop
             local slot ---@type ShopSlot 
 
-            if self then
-                if not table[self] then
-                    table[self] = __jarray(0)
-                end
+            if self ~= 0 then
                 if table[self][itemId] == 0 then
                     local itm = ShopItem.create(itemId, categories) ---@type ShopItem
 
@@ -2229,11 +2233,24 @@ OnInit.final("Shop", function(require)
                         table[self][itemId] = slot
 
                         shoppool[self][self.index] = slot
+
+                        local total = COLUMNS * ROWS
+
+                        --TODO slider frame
+                        if self.size > total then
+                            BlzFrameSetVisible(self.sliderFrame, true)
+
+                            local max = 1 + math.ceil((self.size - total) / COLUMNS)
+
+                            BlzFrameSetMinMaxValue(self.sliderFrame, 1, max)
+                            self.sliderValue = max
+                            BlzFrameSetValue(self.sliderFrame, max)
+                        end
                     else
-                        BJDebugMsg("Invalid item code: " + string.pack(">I4", itemId))
+                        print("Invalid item code: " + string.pack(">I4", itemId))
                     end
                 else
-                    BJDebugMsg("The item " + GetObjectName(itemId) .. " is already registered for the shop " + GetObjectName(id))
+                    print("The item " + GetObjectName(itemId) .. " is already registered for the shop " + GetObjectName(id))
                 end
             end
         end
@@ -2241,18 +2258,13 @@ OnInit.final("Shop", function(require)
         ---@type fun(id: integer, aoe: number, returnRate: number):Shop
         function thistype.create(id, aoe, returnRate)
             local self
-            local u      = User.first ---@type User 
-
-            if not table[id] then
-                table[id] = __jarray(0)
-            end
+            local u = User.first ---@type User 
 
             if table[id][0] == 0 then
                 self = {}
                 setmetatable(self, { __index = thistype })
                 self.id = id
                 self.aoe = aoe
-                self.tax = returnRate
                 self.first = 0
                 self.last = 0
                 self.head = 0
@@ -2267,6 +2279,8 @@ OnInit.final("Shop", function(require)
                 self.main = BlzCreateFrameByType("BUTTON", "main", self.base, "", 0)
                 self.edit = BlzCreateFrame("EscMenuEditBoxTemplate", self.main, 0, 0)
                 self.leftPanel = BlzCreateFrame("EscMenuBackdrop", self.base, 0, 0)
+                self.sliderFrame = BlzCreateFrameByType("SLIDER", "", self.base, "QuestMainListScrollBar", 0)
+                self.sliderValue = 0
                 self.category = Category.create(self)
                 self.details = Detail.create(self)
                 self.buyer = Buyer.create(self)
@@ -2283,23 +2297,32 @@ OnInit.final("Shop", function(require)
                 self.logic:onClick(thistype.onLogic)
                 self.logic:enabled(false)
                 self.logic.tooltip:text("AND Logic")
+                self.levelreqButton = Button.create(self.leftPanel, TOOLBAR_BUTTON_SIZE, TOOLBAR_BUTTON_SIZE, 0.221, 0.015000, true)
+                self.levelreqButton:icon(SORT_LEVEL_ICON)
+                self.levelreqButton:onClick(thistype.onSortLevel)
+                self.levelreqButton:enabled(false)
+                self.levelreqButton.tooltip:text("Showing items of all levels")
+                self.levelsort = false
+                self.craftableButton = Button.create(self.leftPanel, TOOLBAR_BUTTON_SIZE, TOOLBAR_BUTTON_SIZE, 0.242, 0.015000, true)
+                self.craftableButton:icon(SORT_CRAFTABLE_ICON)
+                self.craftableButton:onClick(thistype.onCraftableSort)
+                self.craftableButton:enabled(false)
+                self.craftableButton.tooltip:text("Showing uncraftable items")
+                self.craftablesort = false
+                self.lastClicked = {}
                 table[id][0] = self
-                table[GetHandleId(self.main)] = __jarray(0)
                 table[GetHandleId(self.main)][0] = self
-                table[GetHandleId(self.close.frame)] = __jarray(0)
+                table[GetHandleId(self.sliderFrame)][0] = self
                 table[GetHandleId(self.close.frame)][0] = self
-                table[GetHandleId(self.clearCategory.frame)] = __jarray(0)
                 table[GetHandleId(self.clearCategory.frame)][0] = self
-                table[GetHandleId(self.logic.frame)] = __jarray(0)
                 table[GetHandleId(self.logic.frame)][0] = self
-                table[GetHandleId(self.edit)] = __jarray(0)
+                table[GetHandleId(self.levelreqButton.frame)][0] = self
+                table[GetHandleId(self.craftableButton.frame)][0] = self
                 table[GetHandleId(self.edit)][0] = self
 
                 while u do
                         self.timer[u.id - 1] = CreateTimer()
-                        self.group[u.id - 1] = CreateGroup()
                         self.canScroll[u.id - 1] = true
-                        table[GetHandleId(u.player)] = __jarray(0)
                         table[GetHandleId(u.player)][id] = self
                         table[GetHandleId(u.player)][self.count] = id
                     u = u.next
@@ -2315,13 +2338,60 @@ OnInit.final("Shop", function(require)
                 BlzFrameSetSize(self.leftPanel, SIDE_WIDTH, SIDE_HEIGHT)
                 BlzFrameSetPoint(self.rightPanel, FRAMEPOINT_TOPLEFT, self.base, FRAMEPOINT_TOPLEFT, (WIDTH - 0.027), 0.0000)
                 BlzFrameSetSize(self.rightPanel, SIDE_WIDTH, SIDE_HEIGHT)
+                self.trigger = CreateTrigger()
                 BlzTriggerRegisterFrameEvent(self.trigger, self.main, FRAMEEVENT_MOUSE_WHEEL)
+                TriggerAddCondition(self.trigger, Condition(thistype.onScrolled))
                 BlzTriggerRegisterFrameEvent(self.search, self.edit, FRAMEEVENT_EDITBOX_TEXT_CHANGED)
+
+                BlzFrameClearAllPoints(self.sliderFrame)
+                BlzFrameSetSize(self.sliderFrame, 0.012, HEIGHT - 0.065)
+                BlzFrameSetMinMaxValue(self.sliderFrame, 1, 2)
+                BlzFrameSetStepSize(self.sliderFrame, 1)
+                BlzFrameSetPoint(self.sliderFrame, FRAMEPOINT_TOPRIGHT, self.base, FRAMEPOINT_TOPRIGHT, -0.03, -0.03)
+                BlzFrameSetVisible(self.sliderFrame, false)
+                self.sliderTrigger = CreateTrigger()
+                BlzTriggerRegisterFrameEvent(self.sliderTrigger, self.sliderFrame, FRAMEEVENT_SLIDER_VALUE_CHANGED)
+                TriggerAddCondition(self.sliderTrigger, Condition(thistype.onSlider))
 
                 self:visible(false)
             end
 
             return self
+        end
+
+        function thistype.onSlider()
+            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+
+            if self ~= 0 then
+                if GetLocalPlayer() == GetTriggerPlayer() then
+                    local newvalue = BlzFrameGetValue(BlzGetTriggerFrame())
+                    local diff = self.sliderValue - newvalue
+                    local count = math.abs(diff)
+
+                    for _ = 1, count do
+                        self:scroll(diff > 0)
+                    end
+                end
+            end
+
+            return false
+        end
+
+        function thistype.onScrolled()
+            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+
+            if self ~= 0 then
+                BlzFrameSetEnable(BlzGetTriggerFrame(), false)
+                BlzFrameSetEnable(BlzGetTriggerFrame(), true)
+
+                if GetLocalPlayer() == GetTriggerPlayer() then
+                    local down = BlzGetTriggerFrameValue() < 0
+
+                    self:scroll(down)
+                end
+            end
+
+            return false
         end
 
         function thistype.onExpire()
@@ -2332,10 +2402,8 @@ OnInit.final("Shop", function(require)
             local u = User.first ---@type User 
 
             while u do
-                if table[GetUnitTypeId(thistype.current[u.id - 1])] then
-                    if table[GetUnitTypeId(thistype.current[u.id - 1])][0] then
-                        table[GetUnitTypeId(thistype.current[u.id - 1])][0].buyer:update(u.id - 1)
-                    end
+                if table[GetUnitTypeId(thistype.current[u.id - 1])][0] ~= 0 then
+                    table[GetUnitTypeId(thistype.current[u.id - 1])][0].buyer:update(u.id - 1)
                 end
                 u = u.next
             end
@@ -2344,17 +2412,61 @@ OnInit.final("Shop", function(require)
         function thistype.onSearch()
             local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
 
-            if self then
+            if self ~= 0 then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     self:filter(self.category.active, self.category.andLogic)
                 end
             end
         end
 
+        function thistype.onCraftableSort()
+            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+
+            if self ~= 0 then
+                if GetLocalPlayer() == GetTriggerPlayer() then
+                    self.craftableButton:enabled(not self.craftableButton.isEnabled)
+                    self.craftablesort = not self.craftablesort
+
+                    if self.craftablesort then
+                        self.craftableButton.tooltip:text("Hiding uncraftable items")
+                    else
+                        self.craftableButton.tooltip:text("Showing uncraftable items")
+                    end
+
+                    self:filter(self.category.active, self.category.andLogic)
+                end
+
+                BlzFrameSetEnable(self.craftableButton.frame, false)
+                BlzFrameSetEnable(self.craftableButton.frame, true)
+            end
+        end
+
+        function thistype.onSortLevel()
+            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+
+            if self ~= 0 then
+                if GetLocalPlayer() == GetTriggerPlayer() then
+                    self.levelreqButton:enabled(not self.levelreqButton.isEnabled)
+                    self.levelsort = not self.levelsort
+
+                    if self.levelsort then
+                        self.levelreqButton.tooltip:text("Hiding too high level items")
+                    else
+                        self.levelreqButton.tooltip:text("Showing items of all levels")
+                    end
+
+                    self:filter(self.category.active, self.category.andLogic)
+                end
+
+                BlzFrameSetEnable(self.levelreqButton.frame, false)
+                BlzFrameSetEnable(self.levelreqButton.frame, true)
+            end
+        end
+
         function thistype.onLogic()
             local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
 
-            if self then
+            if self ~= 0 then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     self.logic:enabled(not self.logic.isEnabled)
                     self.category.andLogic = not self.category.andLogic
@@ -2377,7 +2489,7 @@ OnInit.final("Shop", function(require)
             local frame = BlzGetTriggerFrame() ---@type framehandle 
             local self = table[GetHandleId(frame)][0] ---@type Shop
 
-            if self then
+            if self ~= 0 then
                 if frame == self.clearCategory.frame then
                     if GetLocalPlayer() == GetTriggerPlayer() then
                         self.category:clear()
@@ -2394,7 +2506,7 @@ OnInit.final("Shop", function(require)
             local p        = GetTriggerPlayer() ---@type player 
             local id         = GetPlayerId(p) ---@type integer 
 
-            if self then
+            if self ~= 0 then
                 if GetLocalPlayer() == p then
                     self:visible(false)
                 end
@@ -2407,7 +2519,7 @@ OnInit.final("Shop", function(require)
             local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
             local i = GetPlayerId(GetLocalPlayer()) ---@type integer 
 
-            if self then
+            if self ~= 0 then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     if self.canScroll[i] then
                         if SCROLL_DELAY > 0 then
@@ -2425,10 +2537,11 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onSelect()
-            if table[GetUnitTypeId(GetTriggerUnit())] then
-                local self = table[GetUnitTypeId(GetTriggerUnit())][0] ---@type Shop
-                local p        = GetTriggerPlayer() ---@type player 
-                local id         = GetPlayerId(p) ---@type integer 
+            local self = table[GetUnitTypeId(GetTriggerUnit())][0] ---@type Shop
+
+            if self ~= 0 then
+                local p = GetTriggerPlayer() ---@type player 
+                local id = GetPlayerId(p) ---@type integer 
 
                 if GetLocalPlayer() == p then
                     self:visible(GetTriggerEventId() == EVENT_PLAYER_UNIT_SELECTED)
@@ -2452,13 +2565,13 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onEsc()
-            local p        = GetTriggerPlayer() ---@type player 
-            local id         = GetPlayerId(p) ---@type integer 
+            local p = GetTriggerPlayer() ---@type player 
+            local id = GetPlayerId(p) ---@type integer 
 
             if table[GetUnitTypeId(thistype.current[id])] then
                 local self = table[GetUnitTypeId(thistype.current[id])][0]; ---@type Shop
 
-                if self then
+                if self ~= 0 then
                     if GetLocalPlayer() == p then
                         self:visible(false)
                     end
@@ -2502,7 +2615,6 @@ OnInit.final("Shop", function(require)
             i = i + 1
         end
 
-        BlzLoadTOCFile("Shop.toc")
         TimerStart(thistype.update, UPDATE_PERIOD, true, thistype.onPeriod)
         TriggerAddAction(thistype.trigger, thistype.onScroll)
         TriggerAddCondition(thistype.search, Condition(thistype.onSearch))
