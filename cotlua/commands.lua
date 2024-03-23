@@ -1,22 +1,25 @@
+--[[
+    commands.lua
+
+    A library to handle player chat commands with related functions.
+]]
+
 if Debug then Debug.beginFile 'Commands' end
 
 OnInit.final("Commands", function(require)
     require 'Users'
 
-    autosave            = __jarray(false) ---@type boolean[] 
-    VoteYay             = 0
-    VoteNay             = 0
-    autoAttackDisabled  = __jarray(false) ---@type boolean[] 
-    bossResMod          = 1.
-    destroyBaseFlag     = __jarray(false) ---@type boolean[] 
-    votekickPlayer      = 0
-    votekickingPlayer   = 0
+    autosave             = __jarray(false) ---@type boolean[] 
+    VoteYay              = 0
+    VoteNay              = 0
+    autoAttackDisabled   = __jarray(false) ---@type boolean[] 
+    fullItemStacking     = __jarray(true) ---@type boolean[] 
+    bossResMod           = 1.
+    destroyBaseFlag      = __jarray(false) ---@type boolean[] 
+    votekickPlayer       = 0
+    votekickingPlayer    = 0
 
-    ArcTag     = "|cff66FF66Arcadite Lumber|r: " ---@type string 
-    PlatTag    = "|cffccccccPlatinum Coins|r: " ---@type string 
-    CrystalTag = "|cff6969FFCrystals: |r" ---@type string 
-
-    VOTING_TYPE = 0 
+    VOTING_TYPE = 0
     I_VOTED     =__jarray(false) ---@type boolean[] 
 
 ---@return boolean
@@ -169,10 +172,10 @@ function StatsInfo(user, pid)
         pid = GetPlayerId(user) + 1
     end
 
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffFB4915Health: |r" .. RealToString(GetUnitState(Hero[pid],UNIT_STATE_LIFE)) .. " / " .. RealToString(BlzGetUnitMaxHP(Hero[pid])) .. " |cff6584edMana: |r" .. RealToString(GetUnitState(Hero[pid],UNIT_STATE_MANA)) .. " / " .. RealToString(GetUnitState(Hero[pid],UNIT_STATE_MAX_MANA)))
+    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffFB4915Health: |r" .. RealToString(GetWidgetLife(Hero[pid])) .. " / " .. RealToString(BlzGetUnitMaxHP(Hero[pid])) .. " |cff6584edMana: |r" .. RealToString(GetUnitState(Hero[pid],UNIT_STATE_MANA)) .. " / " .. RealToString(GetUnitState(Hero[pid],UNIT_STATE_MAX_MANA)))
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffff0b11Strength: |r" .. RealToString(GetHeroStr(Hero[pid], true)) .. "|cff00ff40 Agility: |r" .. RealToString(GetHeroAgi(Hero[pid], true)) .. "|cff0080ff Intelligence: |r" .. RealToString(GetHeroInt(Hero[pid], true)))
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff800040Regeneration: |r" .. RealToString(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) .. " health per second")
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff008080Evasion: |r" .. (TotalEvasion[pid]) .. "\x25")
+    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff008080Evasion: |r" .. IMinBJ(100, (Unit[Hero[pid]].evasion)) .. "\x25")
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffff8040Physical Damage Taken: |r" .. R2S(PhysicalTaken[pid] * 100) .. "\x25")
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff8000ffMagic Damage Taken: |r" .. R2S(MagicTaken[pid] * 100) .. "\x25")
     if ShieldCount[pid] > 0 and HeroID[pid] == HERO_ROYAL_GUARDIAN then
@@ -196,11 +199,11 @@ function ApplyHardmode()
 
     DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00The game is now in hard mode: bosses are stronger, respawn faster, and have increased drop rates.|r")
 
-    for i = 0, BOSS_TOTAL do
-        if UnitAlive(Boss[i]) then
-            SetHeroStr(Boss[i], GetHeroStr(Boss[i], true) * 2, true)
-            BlzSetUnitBaseDamage(Boss[i], BlzGetUnitBaseDamage(Boss[i], 0) * 2 + 1, 0)
-            SetWidgetLife(Boss[i], GetWidgetLife(Boss[i]) + BlzGetUnitMaxHP(Boss[i]) * 0.5) --heal
+    for i = BOSS_OFFSET, #BossTable do
+        if UnitAlive(BossTable[i].unit) then
+            SetHeroStr(BossTable[i].unit, GetHeroStr(BossTable[i].unit, true) * 2, true)
+            BlzSetUnitBaseDamage(BossTable[i].unit, BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 2 + 1, 0)
+            SetWidgetLife(BossTable[i].unit, GetWidgetLife(BossTable[i].unit) + BlzGetUnitMaxHP(BossTable[i].unit) * 0.5) --heal
         end
     end
 end
@@ -287,28 +290,28 @@ function Hardmode()
     TimerQueue:callDelayed(30., HardmodeVoteExpire)
 end
 
----@param currentPlayer player
-function FleeCommand(currentPlayer)
-    local pid = GetPlayerId(currentPlayer) + 1 ---@type integer 
+---@type fun(p: player)
+function FleeCommand(p)
+    local pid = GetPlayerId(p) + 1 ---@type integer 
     local U = User.first ---@type User 
 
     if InStruggle[pid] or InColo[pid] then
         Fleeing[pid] = true
-        DisplayTimedTextToPlayer(currentPlayer, 0, 0, 10, "You will escape once the current wave is complete.")
-    elseif IsPlayerInForce(currentPlayer, AZAZOTH_GROUP) then
-        if (not ChaosMode and DeadGods == 4) or (ChaosMode and not UnitAlive(Boss[BOSS_AZAZOTH])) then
-            ForceRemovePlayer(AZAZOTH_GROUP, currentPlayer)
+        DisplayTimedTextToPlayer(p, 0, 0, 10, "You will escape once the current wave is complete.")
+    elseif TableHas(AZAZOTH_GROUP, p) then
+        if (not CHAOS_MODE and DeadGods == 4) or (CHAOS_MODE and not UnitAlive(BossTable[BOSS_AZAZOTH].unit)) then
+            TableRemove(AZAZOTH_GROUP, p)
             MoveHeroLoc(pid, TownCenter)
-            SetCameraBoundsRectForPlayerEx(currentPlayer, gg_rct_Main_Map_Vision)
-            PanCameraToTimedLocForPlayer(currentPlayer, TownCenter, 0)
+            SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
+            PanCameraToTimedLocForPlayer(p, TownCenter, 0)
         else
-            DisplayTimedTextToPlayer(currentPlayer, 0, 0, 10, "You cannot escape.")
+            DisplayTimedTextToPlayer(p, 0, 0, 10, "You cannot escape.")
         end
     elseif IsUnitInGroup(Hero[pid], Arena[0]) then
         GroupRemoveUnit(Arena[0], Hero[pid])
         MoveHeroLoc(pid, TownCenter)
-        SetCameraBoundsRectForPlayerEx(currentPlayer, gg_rct_Main_Map_Vision)
-        PanCameraToTimedLocForPlayer(currentPlayer, TownCenter, 0)
+        SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
+        PanCameraToTimedLocForPlayer(p, TownCenter, 0)
         ArenaQueue[pid] = 0
 
         while U do
@@ -330,7 +333,7 @@ end
 ---@param p player
 function DisplayQuestProgress(p)
     local i = 0 ---@type integer 
-    local flag = (ChaosMode and 1) or 0
+    local flag = (CHAOS_MODE and 1) or 0
     local index = KillQuest[flag][i]
 
     while index ~= 0 do
@@ -441,26 +444,9 @@ function CustomCommands()
         reselect(Hero[pid])
         KillUnit(Hero[pid])
 
-    elseif (cmd == "-revive") or (cmd == "-rv") then
-        if IsUnitHidden(HeroGrave[pid]) == false or UnitAlive(Hero[pid]) then
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "Unable to revive because your hero isn't dead.")
-        else
-            TimerList[pid]:stopAllTimers(FourCC('dead'))
-            RevivePlayer(pid, GetLocationX(TownCenter), GetLocationY(TownCenter), 1, 1)
-            SetCameraBoundsRectForPlayerEx(p, MAIN_MAP.rect)
-            PanCameraToTimedLocForPlayer(p, TownCenter, 0)
-            DestroyTimerDialog(RTimerBox[pid])
-
-            ChargeNetworth(p, 0, 0.01, 50 * GetHeroLevel(Hero[pid]), "Revived instantly for")
-        end
-
     elseif (cmd == "-proficiency") or (cmd == "-pf") then
-        for i = 1, 10 do
-            if BlzBitAnd(HERO_PROF[pid], PROF[i]) == 0 then
-                DisplayTimedTextToPlayer(p, 0, 0, 30, TYPE_NAME[i] .. " - |cffFF0909X|r")
-            else
-                DisplayTimedTextToPlayer(p, 0, 0, 30, TYPE_NAME[i] .. " - |cff00ff33Y|r")
-            end
+        for i, _ in ipairs(PROF) do
+            DisplayTimedTextToPlayer(p, 0, 0, 30, TYPE_NAME[i] .. ((HasProficiency(pid, PROF[i]) and " - |cffFF0909Y|r") or " - |cff00ff33X|r"))
         end
 
     elseif (SubString(cmd,0,6) == "-stats") then
@@ -489,20 +475,25 @@ function CustomCommands()
     elseif (cmd == "-roll") then
         myRoll(pid)
 
-    elseif (cmd == "-estats") then
-        local atkspeed = 1. / BlzGetUnitAttackCooldown(PlayerSelectedUnit[pid], 0)
-        if IsUnitType(PlayerSelectedUnit[pid], UNIT_TYPE_HERO) then
-            atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(PlayerSelectedUnit[pid], true) + R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
-        else
-            atkspeed = atkspeed * (1 + IMinBJ(R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
-        end
+    elseif (cmd == "-estats") and PlayerSelectedUnit[pid] then
+        if Unit[PlayerSelectedUnit[pid]] then
+            local atkspeed = 1. / BlzGetUnitAttackCooldown(PlayerSelectedUnit[pid], 0)
+            if IsUnitType(PlayerSelectedUnit[pid], UNIT_TYPE_HERO) then
+                atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(PlayerSelectedUnit[pid], true) + R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
+            else
+                atkspeed = atkspeed * (1 + IMinBJ(R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
+            end
 
-        DisplayTimedTextToPlayer(p, 0, 0, 20, GetUnitName(PlayerSelectedUnit[pid]))
-        DisplayTimedTextToPlayer(p, 0, 0, 20, "Level: " .. (GetUnitLevel(PlayerSelectedUnit[pid])))
-        DisplayTimedTextToPlayer(p, 0, 0, 20, "Health: " .. RealToString(GetWidgetLife(PlayerSelectedUnit[pid]))+ " / " .. RealToString(BlzGetUnitMaxHP(PlayerSelectedUnit[pid])))
-        DisplayTimedTextToPlayer(p, 0, 0, 20, "|cffffcc00Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
-        DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff800040Regeneration: |r" .. R2S(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) .. " health per second")
-        DisplayTimedTextToPlayer(p, 0, 0, 20, "Movespeed: " .. RealToString(GetUnitMoveSpeed(PlayerSelectedUnit[pid])))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, GetUnitName(PlayerSelectedUnit[pid]))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "Level: " .. (GetUnitLevel(PlayerSelectedUnit[pid])))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "Health: " .. RealToString(GetWidgetLife(PlayerSelectedUnit[pid])) .. " / " .. RealToString(BlzGetUnitMaxHP(PlayerSelectedUnit[pid])))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cffffcc00Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff800040Regeneration: |r" .. R2S(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) .. " health per second")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff008080Evasion: |r" .. IMinBJ(100, (Unit[PlayerSelectedUnit[pid]].evasion)) .. "\x25")
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "Movespeed: " .. RealToString(GetUnitMoveSpeed(PlayerSelectedUnit[pid])))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "Please click a valid unit!")
+        end
 
     elseif (cmd == "-pcoins") then
         DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
@@ -588,7 +579,7 @@ function CustomCommands()
     elseif (cmd == "-flee") then
         FleeCommand(p)
 
-    elseif (SubString(cmd,0,4) == "-cam") then
+    elseif (SubString(cmd,0,4) == "-cam") and not selectingHero[pid] then
         local zoom = 0
 
         if SubString(cmd, StringLength(cmd) - 1, StringLength(cmd)) == "l" or SubString(cmd, StringLength(cmd) - 1, StringLength(cmd)) == "L" then
@@ -605,7 +596,7 @@ function CustomCommands()
 
     elseif (SubString(cmd,0,3) == "-aa") or SubString(cmd, 0, 11) == "-autoattack" then
         ToggleAutoAttack(pid)
-    elseif (SubString(cmd,0,3) == "-zm") then
+    elseif (SubString(cmd,0,3) == "-zm") and not selectingHero[pid] then
         SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, 2500, 0)
         Zoom[pid] = 2500
         if SubString(cmd, StringLength(cmd) - 1, StringLength(cmd)) == "l" or SubString(cmd, StringLength(cmd) - 1, StringLength(cmd)) == "L" then
@@ -678,7 +669,7 @@ function CustomCommands()
             DisplayTextToPlayer(p, 0, 0, "You cannot do this while dead!")
         elseif InCombat(Hero[pid]) then
             DisplayTextToPlayer(p, 0, 0, "You cannot do this while in combat!")
-        elseif isteleporting[pid] then
+        elseif IS_TELEPORTING[pid] then
             DisplayTextToPlayer(p, 0, 0, "You cannot do this while teleporting!")
         elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) or RectContainsCoords(gg_rct_Tavern, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) then
             ActionSaveForce(p, false)
@@ -688,7 +679,7 @@ function CustomCommands()
 
     elseif (cmd == "-cancel") and forceSaving[pid] then
         forceSaving[pid] = false
-        isteleporting[pid] = false
+        IS_TELEPORTING[pid] = false
         PauseUnit(Hero[pid], false)
         PauseUnit(Backpack[pid], false)
         if (GetLocalPlayer() == p) then
@@ -726,6 +717,7 @@ function CustomCommands()
 
     elseif (cmd == "-repick") then
         if Profile[pid] then
+            --TODO 30?
             if Profile[pid]:getSlotsUsed() >= 30 then
                 DisplayTimedTextToPlayer(p, 0, 0, 30.0, "You cannot save more than 30 heroes!")
             else
@@ -734,9 +726,6 @@ function CustomCommands()
         end
 
     elseif (SubString(cmd, 0, 9) == "-prestige") then
-        if GetLocalPlayer() == p then
-            MultiboardMinimize(MULTI_BOARD, true)
-        end
         PrestigeInfo(p, S2I(SubString(cmd, 10, 12)))
 
     elseif (cmd == "-pcoff") or (cmd == "-platinum converter off") then
@@ -777,18 +766,13 @@ function CustomCommands()
     elseif (cmd == "-q") or (cmd == "-quests") then
         DisplayQuestProgress(p)
 
-    elseif S2I(SubString(cmd, 1, 5)) > 999 then
-        if afkTextVisible[pid] then
-            if S2I(SubString(cmd, 1, 5)) == afkInt then
-                afkTextVisible[pid] = false
-                if GetLocalPlayer() == p then
-                    BlzFrameSetVisible(afkTextBG, false)
-                end
-                SoundHandler("Sound\\Interface\\GoodJob.wav", false, p, nil)
-            else
-                DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffff0000ERROR: Incorrect|r")
-            end
+    elseif cmd:sub(2, #cmd) == AFK_TEXT and afkTextVisible[pid] == true then
+        if GetLocalPlayer() == p then
+            BlzFrameSetVisible(AFK_FRAME_BG, false)
         end
+
+        afkTextVisible[pid] = false
+        SoundHandler("Sound\\Interface\\GoodJob.wav", false, p)
 
     elseif (cmd == "-nohints") or (cmd == "-hints") then
         if IsPlayerInForce(p, HINT_PLAYERS) then
