@@ -1,3 +1,18 @@
+--[[
+    spell.lua
+
+    An all encompassing lib to handle spell related events:
+        (EVENT_PLAYER_UNIT_SPELL_EFFECT,
+        EVENT_PLAYER_UNIT_SPELL_CAST,
+        EVENT_PLAYER_UNIT_SPELL_FINISH,
+        EVENT_PLAYER_HERO_SKILL,
+        EVENT_PLAYER_UNIT_SPELL_CHANNEL)
+    
+    Defines spell types that can be interfaced with in other files.
+
+    TODO: organize more spells into their own types and reduce global usage
+]]
+
 if Debug then Debug.beginFile 'Spells' end
 
 OnInit.final("Spells", function(require)
@@ -9,48 +24,43 @@ OnInit.final("Spells", function(require)
     SONG_PEACE              = FourCC('A09X') ---@type integer 
     SONG_FATIGUE            = FourCC('A00N') ---@type integer 
 
-    dPage                   =__jarray(0) ---@type integer[] 
-    DMG_NUMBERS             =__jarray(0) ---@type integer[] 
-    ResurrectionRevival     =__jarray(0) ---@type integer[] 
-    undyingRageAttackBonus  =__jarray(0) ---@type integer[] 
-    golemDevourStacks       =__jarray(0) ---@type integer[] 
-    destroyerDevourStacks   =__jarray(0) ---@type integer[] 
-    saviorBashCount         =__jarray(0) ---@type integer[] 
-    BardSong                =__jarray(0) ---@type integer[] 
-    BladeSpinCount          =__jarray(0) ---@type integer[] 
-    IntenseFocus            =__jarray(0) ---@type integer[] 
-    metaDamageBonus         =__jarray(0) ---@type integer[] 
-    masterElement           =__jarray(0) ---@type integer[] 
-    BodyOfFireCharges       =__jarray(0) ---@type integer[] 
-    lastCast                =__jarray(0) ---@type integer[] 
-    limitBreak              =__jarray(0) ---@type integer[] 
-    limitBreakPoints        =__jarray(0) ---@type integer[] 
+    DMG_NUMBERS             = __jarray(0) ---@type integer[] 
+    ResurrectionRevival     = __jarray(0) ---@type integer[] 
+    undyingRageAttackBonus  = __jarray(0) ---@type integer[] 
+    golemDevourStacks       = __jarray(0) ---@type integer[] 
+    destroyerDevourStacks   = __jarray(0) ---@type integer[] 
+    saviorBashCount         = __jarray(0) ---@type integer[] 
+    BardSong                = __jarray(0) ---@type integer[] 
+    BladeSpinCount          = __jarray(0) ---@type integer[] 
+    IntenseFocus            = __jarray(0) ---@type integer[] 
+    metaDamageBonus         = __jarray(0) ---@type integer[] 
+    masterElement           = __jarray(0) ---@type integer[] 
+    BodyOfFireCharges       = __jarray(0) ---@type integer[] 
+    lastCast                = __jarray(0) ---@type integer[] 
+    limitBreak              = __jarray(0) ---@type integer[] 
+    limitBreakPoints        = __jarray(0) ---@type integer[] 
     TOTAL_SKINS             = 0 ---@type integer 
 
-    BloodBank               =__jarray(0) ---@type number[] 
-    BardMelodyCost          =__jarray(0) ---@type number[] 
-    BorrowedLife            =__jarray(0) ---@type number[] 
+    BloodBank               = __jarray(0) ---@type number[] 
+    BardMelodyCost          = __jarray(0) ---@type number[] 
+    BorrowedLife            = __jarray(0) ---@type number[] 
 
-    isteleporting           =__jarray(false) ---@type boolean[] 
-    HiddenGuise             =__jarray(false) ---@type boolean[] 
-    sniperstance            =__jarray(false) ---@type boolean[] 
-    hero_panel_on           =__jarray(false) ---@type boolean[] 
-    aoteCD                  =__jarray(false) ---@type boolean[] 
-    ReincarnationRevival    =__jarray(false) ---@type boolean[] 
-    heliCD                  =__jarray(false) ---@type boolean[] 
-    destroyerSacrificeFlag  =__jarray(false) ---@type boolean[] 
-    magneticForceFlag       =__jarray(false) ---@type boolean[] 
-    PhantomSlashing         =__jarray(false) ---@type boolean[] 
-    InspireActive           =__jarray(false) ---@type boolean[] 
+    IS_TELEPORTING          = __jarray(false) ---@type boolean[] 
+    HiddenGuise             = __jarray(false) ---@type boolean[] 
+    sniperstance            = __jarray(false) ---@type boolean[] 
+    hero_panel_on           = __jarray(false) ---@type boolean[] 
+    gaiaArmorCD             = __jarray(0) ---@type integer[] 
+    ReincarnationRevival    = __jarray(false) ---@type boolean[] 
+    heliCD                  = __jarray(false) ---@type boolean[] 
+    destroyerSacrificeFlag  = __jarray(false) ---@type boolean[] 
+    magneticForceFlag       = __jarray(false) ---@type boolean[] 
+    PhantomSlashing         = __jarray(false) ---@type boolean[] 
 
-    FlightTarget    ={} ---@type location[] 
-    attargetpoint   ={} ---@type location[] 
-    lightningeffect ={} ---@type effect[] 
-    songeffect      ={} ---@type effect[] 
-    InstillFear     ={} ---@type unit[] 
+    lightningeffect = {} ---@type effect[] 
+    songeffect      = {} ---@type effect[] 
+    InstillFear     = {} ---@type unit[] 
 
-    INVALID_TARGET_MESSAGE        = "|cffff0000Cannot target there!|r" ---@type string 
-    STOOLTIP=__jarray("") ---@type string[] 
+    INVALID_TARGET_MESSAGE = "|cffff0000Cannot target there!|r" ---@type string 
 
     ---@class Spell
     ---@field id integer
@@ -67,10 +77,12 @@ OnInit.final("Spells", function(require)
     ---@field angle number
     ---@field update function
     ---@field onCast function
+    ---@field onLearn function
     ---@field values table
     ---@field value number[]
     ---@field create function
     ---@field destroy function
+    ---@field tag string
     Spell = {}
     do
         local thistype = Spell
@@ -91,7 +103,7 @@ OnInit.final("Spells", function(require)
             self = nil
         end
 
-        ---@type fun(pid: integer):Spell
+        ---@type fun(self: Spell, pid: integer): Spell
         function thistype:create(pid)
             local spell = {
                 pid = pid,
@@ -116,8 +128,9 @@ OnInit.final("Spells", function(require)
             return spell
         end
 
-        --Stub method
+        --Stub methods
         function thistype:onCast() end
+        function thistype:onLearn() end
     end
 
     --savior
@@ -145,7 +158,7 @@ OnInit.final("Spells", function(require)
             pt.x = self.targetX
             pt.y = self.targetY
             pt.source = self.caster
-            pt.target = GetDummy(pt.x, pt.y, 0, 0, pt.dur)
+            pt.target = Dummy.create(pt.x, pt.y, 0, 0, pt.dur).unit
             pt.aoe = self.aoe
             pt.tag = self.id
             pt.ug = CreateGroup()
@@ -201,7 +214,7 @@ OnInit.final("Spells", function(require)
                                 LightSealBuff:get(pt.source, pt.source):addStack(1)
                             end
                         end
-                        UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
                 end
                 pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
@@ -218,7 +231,7 @@ OnInit.final("Spells", function(require)
             local pt = TimerList[self.pid]:add()
 
             pt.angle = self.angle
-            pt.target = GetDummy(self.x, self.y, 0, 0, DUMMY_RECYCLE_TIME)
+            pt.target = Dummy.create(self.x, self.y, 0, 0).unit
             pt.source = self.caster
             pt.dur = 1000.
             pt.dmg = self.dmg * BOOST[self.pid]
@@ -245,7 +258,7 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.shield, thistype.dur}
 
         function thistype:onCast()
-            local pt = TimerList[pid]:get(LIGHTSEAL.id, self.caster)
+            local pt = TimerList[self.pid]:get(LIGHTSEAL.id, self.caster)
 
             --light seal augment
             if pt then
@@ -257,19 +270,16 @@ OnInit.final("Spells", function(require)
 
                 GroupAddUnit(pt.ug, self.caster)
 
-                local target = FirstOfGroup(pt.ug)
-                while target do
-                    GroupRemoveUnit(pt.ug, target)
-                    shield.add(target, thistype.shield(self.pid) * BOOST[self.pid], thistype.dur(self.pid))
-                    target = FirstOfGroup(pt.ug)
+                for target in each(pt.ug) do
+                    shield.add(target, self.shield * BOOST[self.pid], thistype.dur(self.pid))
                 end
             --normal cast
             else
                 if self.caster ~= self.target and self.target ~= nil then
-                    shield.add(self.target, thistype.shield(self.pid) * BOOST[self.pid], thistype.dur(self.pid))
+                    shield.add(self.target, self.shield * BOOST[self.pid], thistype.dur(self.pid))
                 end
 
-                shield.add(self.caster, thistype.shield(self.pid) * BOOST[self.pid], thistype.dur(self.pid))
+                shield.add(self.caster, self.shield * BOOST[self.pid], thistype.dur(self.pid))
             end
 
 
@@ -284,6 +294,7 @@ OnInit.final("Spells", function(require)
     do
         local thistype = HOLYBASH
         thistype.id = FourCC('A0GG') ---@type integer 
+
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return ablev * (GetHeroStr(Hero[pid], true) + (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + BlzGetUnitBaseDamage(Hero[pid], 0)) * .4) end ---@return number
         thistype.aoe = 600. ---@type number
         thistype.heal = function(pid) return 25 + 0.5 * GetHeroStr(Hero[pid], true) end ---@return number
@@ -298,31 +309,31 @@ OnInit.final("Spells", function(require)
         local thistype = THUNDERCLAP
         thistype.id = FourCC("A0AT") ---@type integer 
 
-        thistype.dmg = function(pid) return 0.25 * (ablev + 1) * (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + GetHeroStr(Hero[pid], true) + BlzGetUnitBaseDamage(Hero[pid], 0)) end ---@return number
+        thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 0.25 * (ablev + 1) * (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + GetHeroStr(Hero[pid], true) + BlzGetUnitBaseDamage(Hero[pid], 0)) end ---@return number
         thistype.aoe = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (200. + 50 * ablev) end ---@return number
         thistype.values = {thistype.dmg, thistype.aoe}
 
         function thistype:onCast()
             local pt = TimerList[self.pid]:get(LIGHTSEAL.id, self.caster)
             local ug = CreateGroup()
+            local aoe, x, y = 0., 0., 0.
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
             if pt then
-                GroupEnumUnitsInRangeEx(self.pid, ug, pt.x, pt.y, pt.aoe, Condition(FilterEnemy))
                 LightSealBuff:add(self.caster, self.caster):duration(20.)
+                x = pt.x
+                y = pt.y
+                aoe = pt.aoe
+                GroupEnumUnitsInRangeEx(self.pid, ug, x, y, aoe, Condition(FilterEnemy))
             end
 
             for target in each(ug) do
                 SaviorThunderClap:add(self.caster, target):duration(5.)
-                if pt ~= 0 and IsUnitInRangeXY(target, pt.x, pt.y, pt.aoe) then
-                    if IsUnitType(target, UNIT_TYPE_HERO) == true then
-                        LightSealBuff:get(self.caster, self.caster):addStack(5)
-                    else
-                        LightSealBuff:get(self.caster, self.caster):addStack(1)
-                    end
+                if IsUnitInRangeXY(target, x, y, aoe) then
+                    LightSealBuff:get(self.caster, self.caster):addStack((IsUnitType(target, UNIT_TYPE_HERO) == true and 5) or 1)
                 end
-                UnitDamageTarget(self.caster, target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                DamageTarget(self.caster, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
 
             Taunt(self.caster, self.pid, 800., true, 2000, 2000)
@@ -358,9 +369,9 @@ OnInit.final("Spells", function(require)
             b.armor = self.armor
             b.pid = self.pid
             b = b:check(self.caster, self.caster)
-            b.duration = self.dur * LBOOST[self.pid]
+            b:duration(self.dur * LBOOST[self.pid])
 
-            HP(self.caster, self.heal * LBOOST[self.pid])
+            HP(self.caster, self.caster, self.heal * LBOOST[self.pid], thistype.tag)
 
             DestroyEffect(AddSpecialEffectTarget("war3mapImported\\HolyAwakening.mdx", self.caster, "origin"))
 
@@ -371,11 +382,8 @@ OnInit.final("Spells", function(require)
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, 500 * LBOOST[self.pid], Condition(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                UnitDamageTarget(self.caster, target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                target = FirstOfGroup(ug)
+            for target in each(ug) do
+                DamageTarget(self.caster, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
 
             DestroyGroup(ug)
@@ -394,7 +402,7 @@ OnInit.final("Spells", function(require)
         ---@type fun(pid: integer):number
         thistype.crit = function(pid)
             local id   = 0 ---@type integer 
-            local crit = 2. + GetHeroLevel(Hero[pid]) / 50 ---@type number 
+            local crit = 2. + GetHeroLevel(Hero[pid]) // 50 ---@type number 
 
             for i = 1, 5 do
                 id = GetItemTypeId(UnitItemInSlot(Hero[pid], i))
@@ -453,43 +461,6 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.dmg, thistype.cd}
 
         ---@type fun(pt: PlayerTimer)
-        function thistype.rocketPeriodic(pt)
-            pt.dur = pt.dur - 45
-
-            if pt.dur > 0. then
-                local ug = CreateGroup()
-
-                MakeGroupInRange(pt.pid, ug, GetUnitX(pt.target), GetUnitY(pt.target), pt.aoe, Condition(FilterEnemy))
-                SetUnitXBounded(pt.target, GetUnitX(pt.target) + 45 * Cos(bj_DEGTORAD * pt.angle))
-                SetUnitYBounded(pt.target, GetUnitY(pt.target) + 45 * Sin(bj_DEGTORAD * pt.angle))
-                BlzSetUnitFacingEx(pt.target, pt.angle)
-
-                if BlzGroupGetSize(ug) > 0 then
-                    --boom
-                    DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\GyroCopter\\GyroCopterMissile.mdl", GetUnitX(pt.target), GetUnitY(pt.target)))
-                    MakeGroupInRange(pt.pid, ug, GetUnitX(pt.target), GetUnitY(pt.target), 150. * LBOOST[pt.pid], Condition(FilterEnemy))
-
-                    local target = FirstOfGroup(ug)
-                    while target do
-                        GroupRemoveUnit(ug, target)
-                        UnitDamageTarget(Hero[pt.pid], target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                        target = FirstOfGroup(ug)
-                    end
-
-                    RecycleDummy(pt.target)
-                    pt:destroy()
-
-                    DestroyGroup(ug)
-                else
-                    pt.timer:callDelayed(FPS_32, thistype.rocketPeriodic, pt)
-                end
-            else
-                RecycleDummy(pt.target)
-                pt:destroy()
-            end
-        end
-
-        ---@type fun(pt: PlayerTimer)
         function thistype.periodic(pt)
             pt.dur = pt.dur - 50.
 
@@ -510,25 +481,45 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt
             SoundHandler("Units\\Human\\SteamTank\\SteamTankAttack1.flac", true, Player(self.pid - 1), self.caster)
 
             for i = 0, 2 do
-                pt = TimerList[self.pid]:add()
-                pt.target = GetDummy(self.x, self.y, 0, 0, 0)
-                pt.aoe = 100. --hit range
-                pt.dur = 700.
-                pt.angle = (bj_RADTODEG * self.angle + (10. * i - 10.))
-                pt.dmg = self.dmg * BOOST[self.pid]
-                BlzSetUnitFacingEx(pt.target, pt.angle)
-                BlzSetUnitSkin(pt.target, FourCC('h01C'))
-                SetUnitFlyHeight(pt.target, 75., 0.)
-                SetUnitScalePercent(pt.target, 100.00, 100.00, 100.00)
-                pt.timer:callDelayed(FPS_32, thistype.rocketPeriodic, pt)
+                local angle = self.angle + 0.175 * i - 0.175
+                local missile = Missiles:create(self.x, self.y, 20., self.x + 700. * Cos(angle), self.y + 700. * Sin(angle), 0.) ---@type Missiles
+                missile:model("Abilities\\Weapons\\GyroCopter\\GyroCopterMissile.mdl")
+                missile:scale(1.1)
+                missile:speed(1500)
+                missile.source = self.caster
+                missile.owner = Player(self.pid - 1)
+                missile:vision(400)
+                missile.collision = 90
+                missile.damage = self.dmg * BOOST[self.pid]
+
+                missile.onHit = function(enemy)
+                    if IsUnitEnemy(enemy, missile.owner) then
+                        local ug = CreateGroup()
+                        local pid = GetPlayerId(missile.owner) + 1
+
+                        DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\GyroCopter\\GyroCopterMissile.mdl", missile.x, missile.y))
+                        MakeGroupInRange(pid, ug, missile.x, missile.y, 150. * LBOOST[pid], Condition(FilterEnemy))
+
+                        for target in each(ug) do
+                            DamageTarget(missile.source, target, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, TRIROCKET.tag)
+                        end
+
+                        DestroyGroup(ug)
+
+                        return true
+                    end
+
+                    return false
+                end
+
+                missile:launch()
             end
 
             --movement
-            pt = TimerList[self.pid]:add()
+            local pt = TimerList[self.pid]:add()
             pt.dur = 250.
             pt.angle = (bj_RADTODEG * self.angle - 180)
             pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
@@ -564,30 +555,27 @@ OnInit.final("Spells", function(require)
             local newangle = (180. - RAbsBJ(RAbsBJ(self.angle - GetUnitFacing(self.caster)) - 180.)) * 0.5
             self.angle = bj_DEGTORAD * (self.angle + GetRandomReal(-(newangle), newangle))
 
-            local dummy = GetDummy(self.x + 1500. * Cos(self.angle), self.y + 1500. * Sin(self.angle), 0, 0, 1.5)
+            local dummy = Dummy.create(self.x + 1500. * Cos(self.angle), self.y + 1500. * Sin(self.angle), 0, 0, 1.5).unit
             SetUnitOwner(dummy, Player(self.pid - 1), true)
             UnitRemoveAbility(dummy, FourCC('Avul'))
             UnitRemoveAbility(dummy, FourCC('Aloc'))
-            local target = GetDummy(self.x, self.y, FourCC('A05J'), 1, 1.5)
+            local target = Dummy.create(self.x, self.y, FourCC('A05J'), 1, 1.5).unit
             SetUnitOwner(target, Player(self.pid - 1), false)
             BlzSetUnitFacingEx(target, bj_RADTODEG * self.angle)
             UnitDisableAbility(target, FourCC('Amov'), true)
             InstantAttack(target, dummy)
-            SoundHandler("war3mapImported\\xm1014-3.wav", false, Player(self.pid - 1), nil)
+            SoundHandler("war3mapImported\\xm1014-3.wav", false, Player(self.pid - 1))
 
             local ug = CreateGroup()
 
             for _ = 1, 30 do
                 MakeGroupInRange(self.pid, ug, self.x, self.y, 150. * LBOOST[self.pid], Condition(FilterEnemy))
 
-                target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     if SingleShotDebuff:has(self.caster, target) == false then
-                        UnitDamageTarget(self.caster, target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(self.caster, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
                     SingleShotDebuff:add(self.caster, target):duration(3.)
-                    target = FirstOfGroup(ug)
                 end
 
                 self.x = self.x + 50 * Cos(self.angle)
@@ -612,7 +600,7 @@ OnInit.final("Spells", function(require)
 
         ---@type fun(pt: PlayerTimer)
         function thistype.rocketPeriodic(pt)
-            local target = GetDummy(GetUnitX(helicopter[pt.pid]), GetUnitY(helicopter[pt.pid]), FourCC('A04F'), 1, DUMMY_RECYCLE_TIME) ---@type unit 
+            local target = Dummy.create(GetUnitX(helicopter[pt.pid]), GetUnitY(helicopter[pt.pid]), FourCC('A04F'), 1) ---@type unit .unit
 
             pt.dur = pt.dur - 1
             pt.timer:callDelayed(0.7, thistype.rocketPeriodic, pt)
@@ -627,12 +615,9 @@ OnInit.final("Spells", function(require)
                 DestroyEffect(AddSpecialEffect("war3mapImported\\NewMassiveEX.mdx", pt.x, pt.y))
                 MakeGroupInRange(pt.pid, ug, pt.x, pt.y, 400. * heliboost[pt.pid], Condition(FilterEnemy))
 
-                target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     StunUnit(pt.pid, target, 4.)
-                    UnitDamageTarget(Hero[pt.pid], target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(ug)
+                    DamageTarget(Hero[pt.pid], target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
                 DestroyGroup(ug)
@@ -648,12 +633,9 @@ OnInit.final("Spells", function(require)
 
             MakeGroupInRange(pt.pid, ug, x, y, pt.aoe, Condition(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 StunUnit(pt.pid, target, 3.)
-                UnitDamageTarget(Hero[pt.pid], target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                target = FirstOfGroup(ug)
+                DamageTarget(Hero[pt.pid], target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
 
             SetUnitAnimation(pt.target, "death")
@@ -695,7 +677,7 @@ OnInit.final("Spells", function(require)
 
                 pt.timer:callDelayed(0.7, thistype.rocketPeriodic, pt)
             else
-                pt.target = GetDummy(self.x, self.y, 0, 0, 5.)
+                pt.target = Dummy.create(self.x, self.y, 0, 0, 5.).unit
                 pt.angle = self.angle
                 pt.dist = DistanceCoords(self.x, self.y, self.targetX, self.targetY) + 25.
                 pt.range = pt.dist
@@ -741,7 +723,6 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local target = nil ---@type unit 
             local ug = CreateGroup()
             local hit = {}
 
@@ -753,14 +734,11 @@ OnInit.final("Spells", function(require)
                     DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", self.x, self.y))
                     MakeGroupInRange(self.pid, ug, self.x, self.y, 150. * LBOOST[self.pid], Condition(FilterEnemy))
 
-                    target = FirstOfGroup(ug)
-                    while target do
-                        GroupRemoveUnit(ug, target)
+                    for target in each(ug) do
                         if not hit[target] then
-                            UnitDamageTarget(self.caster, target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                            DamageTarget(self.caster, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                             hit[target] = target
                         end
-                        target = FirstOfGroup(ug)
                     end
                 end
             end
@@ -842,11 +820,8 @@ OnInit.final("Spells", function(require)
                         DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x - 100, y - 100))
                         MakeGroupInRange(pt.pid, ug, x, y, pt.aoe, Condition(FilterEnemy))
 
-                        local target = FirstOfGroup(ug)
-                        while target do
-                            GroupRemoveUnit(ug, target)
-                            UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                            target = FirstOfGroup(ug)
+                        for target in each(ug) do
+                            DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                         end
                     end
 
@@ -871,7 +846,7 @@ OnInit.final("Spells", function(require)
 
             pt.angle = self.angle
             pt.source = self.caster
-            pt.target = GetDummy(self.x, self.y, 0, 0, DUMMY_RECYCLE_TIME)
+            pt.target = Dummy.create(self.x, self.y, 0, 0).unit
             pt.speed = 35.
             pt.x = self.x + pt.dur * Cos(pt.angle)
             pt.y = self.y + pt.dur * Sin(pt.angle)
@@ -915,20 +890,17 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(pt.pid, ug, pt.x, pt.y, thistype.aoe(pt.pid) * LBOOST[pt.pid], Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdl", GetUnitX(target), GetUnitY(target)))
-                    UnitDamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(ug)
+                    DamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
+
+                DestroyGroup(ug)
 
                 pt.timer:callDelayed(1., thistype.periodic, pt)
             else
                 pt:destroy()
             end
-
-            DestroyGroup(ug)
         end
 
         function thistype:onCast()
@@ -967,22 +939,18 @@ OnInit.final("Spells", function(require)
 
             if UnitAlive(Hero[pt.pid]) and pt.dur >= 0 then
                 local ug = CreateGroup()
-                local target = nil
 
                 MakeGroupInRange(pt.pid, ug, GetUnitX(Hero[pt.pid]), GetUnitY(Hero[pt.pid]), thistype.aoe * LBOOST[pt.pid], Condition(FilterEnemy))
 
                 if GetRandomInt(0, 99) < thistype.chance * LBOOST[pt.pid] and BlzGroupGetSize(ug) > 0 then
-                    target = BlzGroupUnitAt(ug, GetRandomInt(0, BlzGroupGetSize(ug) - 1))
-                    DummyCastTarget(GetOwningPlayer(Hero[pt.pid]), target, FourCC('A09S'), 1, GetUnitX(Hero[pt.pid]), GetUnitY(Hero[pt.pid]), "forkedlightning")
-                    UnitDamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    local enemy = BlzGroupUnitAt(ug, GetRandomInt(0, BlzGroupGetSize(ug) - 1))
+                    Dummy.create(GetUnitX(Hero[pt.pid]), GetUnitY(Hero[pt.pid]), FourCC('A09S'), 1):cast(Player(pt.pid - 1), "forkedlightning", enemy)
+                    DamageTarget(Hero[pt.pid], enemy, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
-                target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", target, "origin"))
-                    UnitDamageTarget(Hero[pt.pid], target, thistype.dot(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(ug)
+                    DamageTarget(Hero[pt.pid], target, thistype.dot(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
                 DestroyGroup(ug)
@@ -1033,7 +1001,7 @@ OnInit.final("Spells", function(require)
                     SetUnitXBounded(Hero[pt.pid], GetUnitX(target) + 60. * Cos(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
                     SetUnitYBounded(Hero[pt.pid], GetUnitY(target) + 60. * Sin(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
                     BlzSetUnitFacingEx(Hero[pt.pid], GetUnitFacing(target))
-                    UnitDamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Blink\\BlinkHero[pt.pid].mdl", Hero[pt.pid], "chest"))
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", target, "chest"))
                 else
@@ -1062,7 +1030,7 @@ OnInit.final("Spells", function(require)
             SetUnitXBounded(self.caster, GetUnitX(self.target) + 60. * Cos(bj_DEGTORAD * (GetUnitFacing(self.target) - 180.)))
             SetUnitYBounded(self.caster, GetUnitY(self.target) + 60. * Sin(bj_DEGTORAD * (GetUnitFacing(self.target) - 180.)))
             BlzSetUnitFacingEx(self.caster, GetUnitFacing(self.target))
-            UnitDamageTarget(self.caster, self.target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(self.caster, self.target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Blink\\Blinkcaster.mdl", self.caster, "chest"))
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", self.target, "chest"))
 
@@ -1111,20 +1079,20 @@ OnInit.final("Spells", function(require)
                         BlzSetSpecialEffectZ(sfx, BlzGetLocalSpecialEffectZ(sfx) + 300.)
                         DestroyEffect(sfx)
                     end
-                until BlzGroupGetSize(ug) > 0 or dist >= thistype.range(pt.pid)
+                until BlzGroupGetSize(ug) > 0 or dist >= thistype.range
 
                 --laser shot
-                local dummy = GetDummy(x, y, 0, 0, DUMMY_RECYCLE_TIME)
+                local dummy = Dummy.create(x, y, 0, 0).unit
                 SetUnitOwner(dummy, Player(pt.pid - 1), false)
                 SetUnitFlyHeight(dummy, 135., 0.)
                 UnitRemoveAbility(dummy, FourCC('Avul'))
                 UnitRemoveAbility(dummy, FourCC('Aloc'))
-                local target = GetDummy(GetUnitX(pt.target), GetUnitY(pt.target), FourCC('A010'), 1, DUMMY_RECYCLE_TIME)
-                SetUnitFlyHeight(target, 135., 0.)
-                SetUnitOwner(target, Player(pt.pid - 1), false)
-                BlzSetUnitFacingEx(target, bj_RADTODEG * pt.angle)
-                UnitDisableAbility(target, FourCC('Amov'), true)
-                InstantAttack(target, dummy)
+                local dummy2 = Dummy.create(GetUnitX(pt.target), GetUnitY(pt.target), FourCC('A010'), 1).unit
+                SetUnitFlyHeight(dummy2, 135., 0.)
+                SetUnitOwner(dummy2, Player(pt.pid - 1), false)
+                BlzSetUnitFacingEx(dummy2, bj_RADTODEG * pt.angle)
+                UnitDisableAbility(dummy2, FourCC('Amov'), true)
+                InstantAttack(dummy2, dummy)
 
                 SetUnitScale(pt.target, 1., 1., 1.)
                 SetUnitAnimation(pt.target, "death")
@@ -1140,11 +1108,8 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(pt.pid, ug, x, y, thistype.aoe, Condition(FilterEnemy))
 
-                target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, u)
-                    UnitDamageTarget(pt.source, u, thistype.dmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(ug)
+                for target in each(ug) do
+                    DamageTarget(pt.source, target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
                 DestroyGroup(ug)
@@ -1163,7 +1128,7 @@ OnInit.final("Spells", function(require)
 
             pt.angle = self.angle
             pt.source = self.caster
-            pt.target = GetDummy(self.x + 65. * Cos(pt.angle), self.y + 65. * Sin(pt.angle), 0, 0, DUMMY_RECYCLE_TIME)
+            pt.target = Dummy.create(self.x + 65. * Cos(pt.angle), self.y + 65. * Sin(pt.angle), 0, 0).unit
             pt.dur = 4.
 
             BlzSetUnitSkin(pt.target, FourCC('h072'))
@@ -1186,7 +1151,7 @@ OnInit.final("Spells", function(require)
         thistype.id = FourCC("A0QQ") ---@type integer 
 
         thistype.chance = 5.
-        thistype.mult = function(pid) return 12 + R2I(GetHeroLevel(Hero[pid]) / 50.) * 3. end ---@return number
+        thistype.mult = function(pid) return 12 + GetHeroLevel(Hero[pid]) // 50 * 3. end ---@return number
         thistype.crit = function(pid, unitangle, target) ---@return number
             local chance = thistype.chance
 
@@ -1210,6 +1175,7 @@ OnInit.final("Spells", function(require)
     do
         local thistype = DEATHSTRIKE
         thistype.id = FourCC("A0QV") ---@type integer 
+
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroAgi(Hero[pid], true) * (0.5 + 0.5 * ablev) end ---@return number
         thistype.dur = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 0.6 * ablev end ---@return number
         thistype.values = {thistype.dmg, thistype.dur}
@@ -1241,7 +1207,7 @@ OnInit.final("Spells", function(require)
             end
 
             DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Coup de Grace.mdx", self.target, "origin"))
-            UnitDamageTarget(self.caster, self.target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(self.caster, self.target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             TimerQueue:callDelayed(0., IssueTargetOrder, self.caster, "smart", self.target)
 
             local pt = TimerList[self.pid]:add()
@@ -1251,6 +1217,7 @@ OnInit.final("Spells", function(require)
     end
 
     ---@class HIDDENGUISE : Spell
+    ---@field expire function
     HIDDENGUISE = {}
     do
         local thistype = HIDDENGUISE
@@ -1258,17 +1225,12 @@ OnInit.final("Spells", function(require)
 
         ---@type fun(pt: PlayerTimer)
         function thistype.expire(pt)
-            pt.time = pt.time + FPS_32
-
-            if pt.time >= pt.dur then
-                Item.create(UnitAddItemById(pt.source, FourCC('I0OW')))
-                SetUnitVertexColor(pt.source, 255, 255, 255, 255)
-                ToggleCommandCard(pt.source, true)
-                UnitRemoveAbility(pt.source, FourCC('Avul'))
-                Unit[pt.source].attack = true
-
-                pt:destroy()
-            end
+            PlayerAddItemById(pt.pid, FourCC('I0OW'))
+            SetUnitVertexColor(pt.source, 255, 255, 255, 255)
+            ToggleCommandCard(pt.source, true)
+            UnitRemoveAbility(pt.source, FourCC('Avul'))
+            Unit[pt.source].attack = true
+            pt:destroy()
         end
 
         function thistype:onCast()
@@ -1288,7 +1250,7 @@ OnInit.final("Spells", function(require)
             ToggleCommandCard(self.caster, false)
             SetUnitVertexColor(self.caster, 50, 50, 50, 50)
             Unit[self.caster].attack = false
-            pt.timer:callDelayed(FPS_32, thistype.expire, pt)
+            pt.timer:callDelayed(pt.dur, thistype.expire, pt)
         end
     end
 
@@ -1307,16 +1269,31 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.aoe, thistype.dmg, thistype.dur}
 
         function thistype:onCast()
-            local dummy = GetDummy(self.x, self.y, FourCC('A01X'), 1, 0)
-
-            local target = GetDummy(self.targetX, self.targetY, 0, 0, 0)
-            UnitRemoveAbility(target, FourCC('Avul'))
-            UnitRemoveAbility(target, FourCC('Aloc'))
-
-            SetUnitOwner(dummy, Player(self.pid - 1), true)
-            IssueTargetOrder(dummy, "acidbomb", target)
-
             AddUnitAnimationProperties(self.caster, "alternate", false)
+
+            local missile = Missiles:create(self.x, self.y, 60, self.targetX, self.targetY, 0) ---@type Missiles
+            missile:model("Abilities\\Spells\\Other\\AcidBomb\\BottleMissile.mdl")
+            missile:scale(1.1)
+            missile:speed(900)
+            missile:arc(40)
+            missile:vision(400)
+            missile.source = self.caster
+            missile.owner = Player(self.pid - 1)
+
+            missile.onFinish = function()
+                local ug = CreateGroup()
+                local pid = GetPlayerId(missile.owner) + 1
+
+                MakeGroupInRange(pid, ug, missile.x, missile.y, NERVEGAS.aoe(pid) * LBOOST[pid], Condition(FilterEnemy))
+
+                for enemy in each(ug) do
+                    NerveGasDebuff:add(missile.source, enemy):duration(NERVEGAS.dur * LBOOST[pid])
+                end
+
+                return true
+            end
+
+            missile:launch()
         end
     end
 
@@ -1326,11 +1303,11 @@ OnInit.final("Spells", function(require)
     do
         local thistype = BACKSTAB
         thistype.id = FourCC("A0QP") ---@type integer 
+
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (GetHeroAgi(Hero[pid], true) * 0.16 + (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) * .03) * ablev end ---@return number
         thistype.values = {thistype.dmg}
     end
 
-    --TODO wahhh
     ---@class PIERCINGSTRIKE : Spell
     PIERCINGSTRIKE = {}
     do
@@ -1360,7 +1337,7 @@ OnInit.final("Spells", function(require)
             UnitDisableAbility(pt.source, MAGNETICSTRIKE.id, false)
 
             if GetLocalPlayer() == Player(pt.pid - 1) then
-                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\PASBodyOfFire" .. BodyOfFireCharges[pt.pid] .. ".blp")
+                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BodyOfFireCharges[pt.pid]) .. ".blp")
             end
 
             if BodyOfFireCharges[pt.pid] >= MAX_CHARGES then
@@ -1397,13 +1374,9 @@ OnInit.final("Spells", function(require)
 
             MakeGroupInRange(pt.pid, ug, pt.x, pt.y, thistype.aoe * LBOOST[pt.pid], Condition(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 Stun:add(Hero[pt.pid], target):duration(thistype.dur * LBOOST[pt.pid])
-                UnitDamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                target = FirstOfGroup(ug)
+                DamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
 
             if SquareRoot(Pow(GetUnitX(Hero[pt.pid]) - pt.x, 2) + Pow(GetUnitY(Hero[pt.pid]) - pt.y, 2)) < 1000. then
@@ -1508,13 +1481,9 @@ OnInit.final("Spells", function(require)
             BlzPauseUnitEx(Hero[pt.pid], false)
             MakeGroupInRange(pt.pid, ug, GetUnitX(Hero[pt.pid]), GetUnitY(Hero[pt.pid]), thistype.aoe(pt.pid) * LBOOST[pt.pid], Condition(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 StunUnit(pt.pid, target, 5.)
-                UnitDamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                target = FirstOfGroup(ug)
+                DamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
 
             pt:destroy()
@@ -1572,20 +1541,19 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(pt.pid, ug, x, y, pt.aoe, Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     if IsUnitInGroup(target, pt.ug) == false then
                         GroupAddUnit(pt.ug, target)
                         DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\PhoenixMissile\\Phoenix_Missile.mdl", GetUnitX(target), GetUnitY(target)))
-                        UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                         if GetUnitAbilityLevel(target, FourCC('B02O')) > 0 then
                             UnitRemoveAbility(target, FourCC('B02O'))
                             SEARINGARROWS.ignite(pt.source, target)
                         end
                     end
-                    target = FirstOfGroup(ug)
                 end
+
+                DestroyGroup(ug)
 
                 pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
             else
@@ -1596,8 +1564,6 @@ OnInit.final("Spells", function(require)
                 SetUnitAnimation(pt.target, "death")
                 pt:destroy()
             end
-
-            DestroyGroup(ug)
         end
 
         function thistype:onCast()
@@ -1610,7 +1576,7 @@ OnInit.final("Spells", function(require)
             pt.y = self.y + pt.dur * Sin(self.angle)
             pt.aoe = self.aoe * LBOOST[self.pid]
             pt.source = self.caster
-            pt.target = GetDummy(self.x, self.y, 0, 0, DUMMY_RECYCLE_TIME)
+            pt.target = Dummy.create(self.x, self.y, 0, 0).unit
             pt.dmg = self.dmg * BOOST[self.pid]
             pt.ug = CreateGroup()
             UnitAddAbility(self.caster, FourCC('Avul'))
@@ -1633,7 +1599,7 @@ OnInit.final("Spells", function(require)
         local thistype = FIERYARROWS
         thistype.id = FourCC("A0IB") ---@type integer 
         thistype.chance = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 2 * ablev end
-        thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroAgility(Hero[pid], true) * ablev + BlzGetUnitBaseDamage(Hero[pid], 0) + GetUnitBonus(Hero[pid], BONUS_DAMAGE) end
+        thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroAgi(Hero[pid], true) * ablev + BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE) end
         thistype.values = {thistype.chance, thistype.dmg}
     end
 
@@ -1657,7 +1623,7 @@ OnInit.final("Spells", function(require)
             pt.dur = pt.dur - 1
 
             if pt.dur >= 0 then
-                UnitDamageTarget(pt.source, pt.target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                DamageTarget(pt.source, pt.target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 pt.timer:callDelayed(1., thistype.burn, pt)
             else
                 pt:destroy()
@@ -1669,7 +1635,7 @@ OnInit.final("Spells", function(require)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             local pt = TimerList[pid]:add()
 
-            TimerQueue:callDelayed(5., DestroyEffect, AddSpecialEffectTarget("war3mapImported\\FireNormal1.mdl", target, "chest"))
+            TimerQueue:callDelayed(5., HideEffect, AddSpecialEffectTarget("war3mapImported\\FireNormal1.mdl", target, "chest"))
 
             pt.dmg = thistype.dot(pid) * BOOST[pid]
             pt.dur = 5.
@@ -1684,16 +1650,12 @@ OnInit.final("Spells", function(require)
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-
-                local dummy = GetDummy(self.x, self.y, FourCC('A069'), 1, 2.5)
+            for target in each(ug) do
+                local dummy = Dummy.create(self.x, self.y, FourCC('A069'), 1, 2.5).unit
                 SetUnitOwner(dummy, Player(self.pid - 1), true)
                 BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(self.y - GetUnitY(target), self.x - GetUnitX(target)))
                 UnitDisableAbility(dummy, FourCC('Amov'), true)
                 InstantAttack(dummy, target)
-                target = FirstOfGroup(ug)
             end
 
             DestroyGroup(ug)
@@ -1780,12 +1742,9 @@ OnInit.final("Spells", function(require)
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", pt.x, pt.y))
                     MakeGroupInRange(pt.pid, ug, pt.x, pt.y, thistype.aoe * LBOOST[pt.pid], Condition(FilterEnemy))
 
-                    local target = FirstOfGroup(ug)
-                    while target do
-                        GroupRemoveUnit(ug, target)
+                    for target in each(ug) do
                         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Orc\\Devour\\DevourEffectArt.mdl", target, "chest"))
-                        UnitDamageTarget(pt.target, target, thistype.dmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                        target = FirstOfGroup(ug)
+                        DamageTarget(pt.target, target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
 
                     DestroyGroup(ug)
@@ -1811,7 +1770,7 @@ OnInit.final("Spells", function(require)
             self.x = self.x + dur * Cos(self.angle)
             self.y = self.y + dur * Sin(self.angle)
 
-            UnitDamageTarget(self.caster, self.caster, 0.1 * BlzGetUnitMaxHP(self.caster), true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(self.caster, self.caster, 0.1 * BlzGetUnitMaxHP(self.caster), ATTACK_TYPE_NORMAL, PURE, thistype.tag)
 
             pt.angle = self.angle
             pt.dur = dur
@@ -1849,14 +1808,11 @@ OnInit.final("Spells", function(require)
         function thistype:onCast()
             local ug = CreateGroup()
 
-            UnitDamageTarget(self.caster, self.caster, 0.1 * BlzGetUnitMaxHP(self.caster), true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(self.caster, self.caster, 0.1 * BlzGetUnitMaxHP(self.caster), ATTACK_TYPE_NORMAL, PURE, thistype.tag)
             MakeGroupInRange(self.pid, ug, self.x, self.y, thistype.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 BloodCurdlingScreamDebuff:add(self.caster, target):duration(self.dur * LBOOST[self.pid])
-                target = FirstOfGroup(ug)
             end
 
             DestroyGroup(ug)
@@ -1898,16 +1854,27 @@ OnInit.final("Spells", function(require)
         local thistype = UNDYINGRAGE
         thistype.id = FourCC("A0AD") ---@type integer 
 
-        thistype.regen = function(pid) return GetHeroStr(Hero[pid], true) * (GetWidgetLife(Hero[pid]) / BlzGetUnitMaxHP(Hero[pid])) end
+        thistype.regen = function(pid)
+            local hp = GetWidgetLife(Hero[pid])
+            local maxhp = BlzGetUnitMaxHP(Hero[pid])
+            return GetHeroStr(Hero[pid], true) - (hp / maxhp) * GetHeroStr(Hero[pid], true) end
         thistype.attack = function(pid)
+            local hp = GetWidgetLife(Hero[pid])
+            local maxhp = BlzGetUnitMaxHP(Hero[pid])
             local base = BlzGetUnitBaseDamage(Hero[pid], 0)
-            local bonus = UnitGetBonus(Hero[pid], BONUS_DAMAGE)
-            return (base + bonus - undyingRageAttackBonus[pid]) * (GetWidgetLife(Hero[pid]) / BlzGetUnitMaxHP(Hero[pid])) end
+            local bonus = UnitGetBonus(Hero[pid], BONUS_DAMAGE) - undyingRageAttackBonus[pid]
+            return (base + bonus) - (hp / maxhp) * (base + bonus) end
         thistype.dur = 10. ---@type number
         thistype.values = {thistype.regen, thistype.attack, thistype.dur}
 
         function thistype:onCast()
             UndyingRageBuff:add(self.caster, self.caster):duration(self.dur * LBOOST[self.pid])
+        end
+
+        function thistype.onLearn(u, ablev, pid)
+            if ablev == 1 then
+                undyingRageAttackBonus[pid] = 0
+            end
         end
     end
 
@@ -1955,20 +1922,16 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(pt.pid, ug, x, y, 225. * LBOOST[pt.pid], Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
-
+                for target in each(ug) do
                     if not IsUnitInGroup(target, pt.ug) then
                         GroupAddUnit(pt.ug, target)
                         if limitBreak[pt.pid] & 0x2 > 0 then
-                            UnitDamageTarget(pt.source, target, thistype.dmg(pt.pid) * 4. * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                            DamageTarget(pt.source, target, thistype.dmg(pt.pid) * 4. * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                             SpinDashDebuff:add(pt.source, target):duration(2.)
                         else
-                            UnitDamageTarget(pt.source, target, thistype.dmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                            DamageTarget(pt.source, target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                         end
                     end
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyGroup(ug)
@@ -2079,20 +2042,19 @@ OnInit.final("Spells", function(require)
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
+            local effect
+
             if limitBreak[self.pid] & 0x4 > 0 then
-                bj_lastCreatedEffect = AddSpecialEffectTarget("war3mapImported\\BattleCryCaster.mdx", self.caster, "origin")
-                BlzSetSpecialEffectColor(bj_lastCreatedEffect, 255, 255, 0)
+                effect = AddSpecialEffectTarget("war3mapImported\\BattleCryCaster.mdx", self.caster, "origin")
+                BlzSetSpecialEffectColor(effect, 255, 255, 0)
             else
-                bj_lastCreatedEffect = AddSpecialEffectTarget("Abilities\\Spells\\Other\\HowlOfTerror\\HowlCaster.mdl", self.caster, "origin")
+                effect = AddSpecialEffectTarget("Abilities\\Spells\\Other\\HowlOfTerror\\HowlCaster.mdl", self.caster, "origin")
             end
 
-            DestroyEffect(bj_lastCreatedEffect)
+            DestroyEffect(effect)
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 IntimidatingShoutDebuff:add(self.caster, target):duration(self.dur * LBOOST[self.pid])
-                target = FirstOfGroup(ug)
             end
 
             DestroyGroup(ug)
@@ -2124,16 +2086,12 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(pt.pid, ug, x, y, pt.aoe, Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
-
+                for target in each(ug) do
                     if not IsUnitInGroup(target, pt.ug) then
                         GroupAddUnit(pt.ug, target)
                         TimerQueue:callDelayed(1., GroupRemoveUnit, pt.ug, target)
-                        UnitDamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
-                    target = FirstOfGroup(ug)
                 end
 
                 if pt.limitbreak then
@@ -2156,7 +2114,7 @@ OnInit.final("Spells", function(require)
         ---@type fun(pt: PlayerTimer)
         function thistype.delay(pt)
             local angle      = 0. ---@type number 
-            local pt2  
+            local pt2
 
             if limitBreak[pt.pid] & 0x8 > 0 then
                 for i = 0, 3 do
@@ -2165,7 +2123,7 @@ OnInit.final("Spells", function(require)
                     pt2.aoe = 120.
                     pt2.angle = 2. * bj_PI / 3. * i
                     pt2.source = pt.source
-                    pt2.target = GetDummy(GetUnitX(pt.source) + 150. * Cos(pt2.angle), GetUnitY(pt.source) + 150. * Sin(pt2.angle), 0, 0, DUMMY_RECYCLE_TIME)
+                    pt2.target = Dummy.create(GetUnitX(pt.source) + 150. * Cos(pt2.angle), GetUnitY(pt.source) + 150. * Sin(pt2.angle), 0, 0).unit
                     pt2.dmg = thistype.dmg(pt.pid)
                     pt2.limitbreak = true
 
@@ -2188,7 +2146,7 @@ OnInit.final("Spells", function(require)
                     pt2.ug = CreateGroup()
                     pt2.aoe = 150.
                     pt2.angle = angle + i / 4. * bj_PI
-                    pt2.target = GetDummy(GetUnitX(pt.source) + 100. * Cos(pt2.angle), GetUnitY(pt.source) + 100. * Sin(pt2.angle), 0, 0, DUMMY_RECYCLE_TIME)
+                    pt2.target = Dummy.create(GetUnitX(pt.source) + 100. * Cos(pt2.angle), GetUnitY(pt.source) + 100. * Sin(pt2.angle), 0, 0).unit
                     pt2.x = GetUnitX(pt2.target)
                     pt2.y = GetUnitY(pt2.target)
                     pt2.speed = 700.
@@ -2244,6 +2202,12 @@ OnInit.final("Spells", function(require)
                 pt.timer:callDelayed(0.4, thistype.delay, pt)
             end
         end
+        
+        function thistype.onLearn(u, ablev, pid)
+            if limitBreak[pid] & 0x8 > 0 then
+                BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(u, thistype.id), ABILITY_ILF_TARGET_TYPE, ablev - 1, 0)
+            end
+        end
     end
 
     ---@class ADAPTIVESTRIKE : Spell
@@ -2294,11 +2258,8 @@ OnInit.final("Spells", function(require)
                     local ug = CreateGroup()
                     MakeGroupInRange(pt.pid, ug, x, y, 200., Condition(FilterEnemy))
 
-                    local target = FirstOfGroup(ug)
-                    while target do
-                        GroupRemoveUnit(ug, target)
-                        UnitDamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                        target = FirstOfGroup(ug)
+                    for target in each(ug) do
+                        DamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
 
                     DestroyGroup(ug)
@@ -2313,46 +2274,39 @@ OnInit.final("Spells", function(require)
             local pid = GetPlayerId(GetOwningPlayer(caster)) + 1
             local pt
             local ug = CreateGroup()
-            local target
 
             if lastCast[pid] == PARRY.id then --spin heal
                 SetUnitAnimation(caster, "spell")
                 MakeGroupInRange(pid, ug, x, y, thistype.spinaoe * LBOOST[pid], Condition(FilterEnemy))
 
-                target = GetDummy(x, y, 0, 0, 1.)
-                BlzSetUnitSkin(target, FourCC('h074'))
-                SetUnitTimeScale(target, 1.)
-                SetUnitScale(target, 1.25, 1.25, 1.25)
-                SetUnitAnimationByIndex(target, 0)
-                SetUnitFlyHeight(target, 100., 0)
-                BlzSetUnitFacingEx(target, GetUnitFacing(caster))
+                local dummy = Dummy.create(x, y, 0, 0, 1.).unit
+                BlzSetUnitSkin(dummy, FourCC('h074'))
+                SetUnitTimeScale(dummy, 1.)
+                SetUnitScale(dummy, 1.25, 1.25, 1.25)
+                SetUnitAnimationByIndex(dummy, 0)
+                SetUnitFlyHeight(dummy, 100., 0)
+                BlzSetUnitFacingEx(dummy, GetUnitFacing(caster))
 
-                target = GetDummy(x, y, 0, 0, 1.)
-                BlzSetUnitSkin(target, FourCC('h074'))
-                SetUnitTimeScale(target, 1.)
-                SetUnitScale(target, 1.25, 1.25, 1.25)
-                SetUnitAnimationByIndex(target, 0)
-                SetUnitFlyHeight(target, 100., 0)
-                BlzSetUnitFacingEx(target, GetUnitFacing(caster) + 180.)
+                dummy = Dummy.create(x, y, 0, 0, 1.).unit
+                BlzSetUnitSkin(dummy, FourCC('h074'))
+                SetUnitTimeScale(dummy, 1.)
+                SetUnitScale(dummy, 1.25, 1.25, 1.25)
+                SetUnitAnimationByIndex(dummy, 0)
+                SetUnitFlyHeight(dummy, 100., 0)
+                BlzSetUnitFacingEx(dummy, GetUnitFacing(caster) + 180.)
 
-                target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
-                    UnitDamageTarget(caster, target, thistype.spindmg(pid) * BOOST[pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(ug)
+                for target in each(ug) do
+                    DamageTarget(caster, target, thistype.spindmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
-                HP(caster, thistype.spinheal(pid) * BOOST[pid])
+                HP(caster, caster, thistype.spinheal(pid) * BOOST[pid], thistype.tag)
             elseif lastCast[pid] == SPINDASH.id then --knock up
                 SetUnitAnimationByIndex(caster, 4)
                 DelayAnimation(pid, caster, 0.6, 0, 1., false)
                 MakeGroupInRange(pid, ug, x, y, thistype.knockaoe * LBOOST[pid], Condition(FilterEnemy))
 
-                target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     KnockUp:add(caster, target):duration(thistype.knockdur * LBOOST[pid])
-                    target = FirstOfGroup(ug)
                 end
 
                 local sfx = AddSpecialEffect("war3mapImported\\DustWindFaster3.mdx", x - 110., y)
@@ -2364,11 +2318,8 @@ OnInit.final("Spells", function(require)
             elseif lastCast[pid] == INTIMIDATINGSHOUT.id then --ally attack damage buff
                 MakeGroupInRange(pid, ug, x, y, thistype.shoutaoe * LBOOST[pid], Condition(FilterAlly))
 
-                target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     IntimidatingShoutBuff:add(caster, target):duration(thistype.shoutdur * LBOOST[pid])
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyEffect(AddSpecialEffectTarget("war3mapImported\\BattleCryCaster.mdx", caster, "origin"))
@@ -2376,7 +2327,7 @@ OnInit.final("Spells", function(require)
                 for i = 0, 4 do
                     pt = TimerList[pid]:add()
                     pt.angle = bj_PI * 0.4 * i
-                    pt.target = GetDummy(x + 75. * Cos(pt.angle), y + 75 * Sin(pt.angle), 0, 0, DUMMY_RECYCLE_TIME)
+                    pt.target = Dummy.create(x + 75. * Cos(pt.angle), y + 75 * Sin(pt.angle), 0, 0).unit
                     pt.dmg = thistype.tornadodmg(pid)
                     pt.dur = thistype.tornadodur * LBOOST[pid]
 
@@ -2413,6 +2364,13 @@ OnInit.final("Spells", function(require)
         function thistype:onCast()
             thistype.effect(self.caster, self.x, self.y)
         end
+
+        function thistype.onLearn(u, ablev, pid)
+            if ablev == 1 then
+                UnitDisableAbility(u, thistype.id, true)
+                BlzUnitHideAbility(u, thistype.id, false)
+            end
+        end
     end
 
     ---@class LIMITBREAK : Spell
@@ -2428,6 +2386,13 @@ OnInit.final("Spells", function(require)
                 else
                     BlzFrameSetVisible(LimitBreakBackdrop, true)
                 end
+            end
+        end
+
+        function thistype.onLearn(u, ablev, pid)
+            limitBreakPoints[pid] = math.min(2, limitBreakPoints[pid] + 1)
+            if GetLocalPlayer() == GetOwningPlayer(u) then
+                BlzFrameSetVisible(LimitBreakBackdrop, true)
             end
         end
     end
@@ -2449,9 +2414,49 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.dmg, thistype.aoe, thistype.dur}
 
         function thistype:onCast()
-            local dummy = GetDummy(self.x, self.y, FourCC('A04B'), 1, DUMMY_RECYCLE_TIME) ---@type unit 
-            SetUnitOwner(dummy, Player(self.pid - 1), true)
-            IssueTargetOrder(dummy, "thunderbolt", self.target)
+            local missile = Missiles:create(self.x, self.y, 20., GetUnitX(self.target), GetUnitY(self.target), 20.) ---@type Missiles
+            missile:model("Abilities\\Spells\\Other\\FrostBolt\\FrostBoltMissile.mdl")
+            missile:scale(1.1)
+            missile:speed(1200)
+            missile.source = self.caster
+            missile.target = self.target
+            missile.owner = Player(self.pid - 1)
+            missile:vision(400)
+            missile.collision = 45
+            missile.damage = self.dmg * BOOST[self.pid]
+
+            missile.onHit = function(target)
+                if target == missile.target then
+                    local ug = CreateGroup()
+                    local pid = GetPlayerId(missile.owner) + 1
+                    MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), FROSTBLAST.aoe * LBOOST[pid], Condition(FilterEnemy))
+
+                    if GetUnitAbilityLevel(missile.source, FourCC('B01I')) > 0 then
+                        UnitRemoveAbility(missile.source, FourCC('B01I'))
+                        missile.damage = missile.damage * 2
+                    end
+
+                    DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", GetUnitX(target), GetUnitY(target)))
+
+                    for enemy in each(ug) do
+                        if enemy == target then
+                            Freeze:add(missile.source, target):duration(FROSTBLAST.dur * LBOOST[pid])
+                            DamageTarget(missile.source, enemy, missile.damage * (GetUnitAbilityLevel(enemy, FourCC('B01G')) + 1.), ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                        else
+                            Freeze:add(missile.source, target):duration(FROSTBLAST.dur * 0.5 * LBOOST[pid])
+                            DamageTarget(missile.source, enemy, missile.damage / (2. - (GetUnitAbilityLevel(enemy, FourCC('B01G')))), ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                        end
+                    end
+
+                    DestroyGroup(ug)
+
+                    return true
+                end
+
+                return false
+            end
+
+            missile:launch()
         end
     end
 
@@ -2481,10 +2486,9 @@ OnInit.final("Spells", function(require)
 
                 pt.dur = pt.dur - 0.0015 * IMinBJ(BlzGroupGetSize(ug), 20)
 
-                local target = FirstOfGroup(ug)
                 local angle
-                while target do
-                    GroupRemoveUnit(ug, target)
+
+                for target in each(ug) do
                     --movement effects
                     angle = Atan2(pt.y - GetUnitY(target), pt.x - GetUnitX(target))
 
@@ -2496,11 +2500,10 @@ OnInit.final("Spells", function(require)
                     SetUnitPathing(target, true)
 
                     if ModuloInteger(pt.count, 32) == 0 then
-                        UnitDamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
 
                     SoakedDebuff:add(Hero[pt.pid], target):duration(5.)
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyGroup(ug)
@@ -2515,7 +2518,7 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.dmg = self.dmg
             pt.aoe = self.aoe * LBOOST[self.pid]
@@ -2529,14 +2532,14 @@ OnInit.final("Spells", function(require)
                 pt.dur = pt.dur + 3
             end
 
-            pt.source = GetDummy(pt.x, pt.y, 0, 0, pt.dur + 1.)
+            pt.source = Dummy.create(pt.x, pt.y, 0, 0, pt.dur + 1.).unit
             BlzSetUnitSkin(pt.source, FourCC('h01I'))
             SetUnitTimeScale(pt.source, 1.3)
             SetUnitScale(pt.source, 0.6, 0.6, 0.6)
             SetUnitAnimation(pt.source, "birth")
             SetUnitFlyHeight(pt.source, 50., 0)
             PauseUnit(pt.source, true)
-            pt.target = GetDummy(pt.x, pt.y, 0, 0, pt.dur + 1.)
+            pt.target = Dummy.create(pt.x, pt.y, 0, 0, pt.dur + 1.).unit
             BlzSetUnitSkin(pt.target, FourCC('h01I'))
             SetUnitTimeScale(pt.target, 1.1)
             SetUnitScale(pt.target, 0.35, 0.35, 0.35)
@@ -2593,12 +2596,10 @@ OnInit.final("Spells", function(require)
                 SetUnitXBounded(pt.target, pt.x)
                 SetUnitYBounded(pt.target, pt.y)
 
-                local target = FirstOfGroup(ug)
                 local x = 0.
                 local y = 0.
-                while target do
-                    GroupRemoveUnit(ug, target)
 
+                for target in each(ug) do
                     x = GetUnitX(target)
                     y = GetUnitY(target)
 
@@ -2627,8 +2628,6 @@ OnInit.final("Spells", function(require)
                             debuff.percent = .20
                         end
                     end
-
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyGroup(ug)
@@ -2642,11 +2641,11 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.angle = self.angle
             pt.dist = self.range * LBOOST[self.pid]
-            pt.target = GetDummy(self.x, self.y, 0, 0, DUMMY_RECYCLE_TIME)
+            pt.target = Dummy.create(self.x, self.y, 0, 0).unit
             pt.x = self.x
             pt.y = self.y
             pt.infused = false
@@ -2674,31 +2673,21 @@ OnInit.final("Spells", function(require)
         thistype.id = FourCC("A08E") ---@type integer 
 
         thistype.aoe = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 175. + 25. * ablev end ---@return number
-        thistype.dmg = function(pid) return 0.25 * ablev * GetHeroInt(Hero[pid], true) end ---@return number
-        thistype.values = {thistype.aoe, thistype.dmg}
-
-        ---@type fun(pt: PlayerTimer)
-        function thistype.periodic(pt)
-            pt.dur = pt.dur - 1
-
-            if pt.dur < 1 then
-                pt:destroy()
-            elseif pt.dur < 3 then
-                IssueImmediateOrder(pt.source, "stop")
-                pt.timer:callDelayed(1., thistype.periodic, pt)
-            end
-        end
+        thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 0.25 * ablev * GetHeroInt(Hero[pid], true) end ---@return number
+        thistype.dur = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return ablev + 3 end
+        thistype.values = {thistype.aoe, thistype.dmg, thistype.dur}
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
-            pt.dur = (self.ablev + 3) * LBOOST[self.pid]
-            pt.source = GetDummy(self.x, self.y, FourCC('A02O'), 1, pt.dur + 3.)
+            pt.dur = self.dur * LBOOST[self.pid]
+            pt.source = Dummy.create(self.x, self.y, FourCC('A02O'), 1, pt.dur + 3.).unit
             pt.aoe = self.aoe * LBOOST[self.pid]
             pt.dmg = self.dmg
             pt.tag = thistype.id
             pt.infused = false
 
+            BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(pt.source, FourCC('A02O')), ABILITY_ILF_NUMBER_OF_WAVES, 0, pt.dur // 0.6)
             BlzSetAbilityRealLevelField(BlzGetUnitAbility(pt.source, FourCC('A02O')), ABILITY_RLF_AREA_OF_EFFECT, 0, pt.aoe)
             IncUnitAbilityLevel(pt.source, FourCC('A02O'))
             DecUnitAbilityLevel(pt.source, FourCC('A02O'))
@@ -2711,7 +2700,7 @@ OnInit.final("Spells", function(require)
 
             IssuePointOrder(pt.source, "blizzard", self.targetX, self.targetY)
 
-            pt.timer:callDelayed(1., thistype.periodic, pt)
+            pt.timer:callDelayed(pt.dur, PlayerTimer.destroy, pt)
         end
     end
 
@@ -2723,7 +2712,7 @@ OnInit.final("Spells", function(require)
         local thistype = ICEBARRAGE
         thistype.id = FourCC("A098") ---@type integer 
 
-        thistype.times = function(pid) local ablev = GetUnitAbilitylevel(Hero[pid], thistype.id) return 12. + 4. * ablev end ---@return number
+        thistype.times = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 12. + 4. * ablev end ---@return number
         thistype.dmg = function(pid) return GetHeroInt(Hero[pid], true) * 0.5 end ---@return number
         thistype.values = {thistype.times, thistype.dmg}
 
@@ -2744,18 +2733,20 @@ OnInit.final("Spells", function(require)
                 elseif pt.time > 0.35 then
                     SetUnitFlyHeight(pt.source, GetUnitFlyHeight(pt.source) - pt.time * 40, 0.)
                 end
+
+                pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
             else
                 SetUnitXBounded(pt.source, GetUnitX(pt.target))
                 SetUnitYBounded(pt.source, GetUnitY(pt.target))
                 SetUnitAnimation(pt.source, "death")
                 if pt.infused then
-                    Stun:add(Hero[pid], pt.target):duration(0.25)
+                    Stun:add(Hero[pt.pid], pt.target):duration(0.25)
                 end
 
                 if SoakedDebuff:has(nil, pt.target) then
-                    UnitDamageTarget(Hero[pid], pt.target, pt.dmg * 2. * BOOST[pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(Hero[pt.pid], pt.target, pt.dmg * 2. * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 else
-                    UnitDamageTarget(Hero[pid], pt.target, pt.dmg * BOOST[pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(Hero[pt.pid], pt.target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
                 pt:destroy()
             end
@@ -2771,7 +2762,7 @@ OnInit.final("Spells", function(require)
                 local angle = Atan2(GetUnitY(pt.target) - y, GetUnitX(pt.target) - x) + bj_DEGTORAD * (180 + GetRandomInt(-60, 60))
 
                 local pt2 = TimerList[pt.pid]:add()
-                pt2.source = GetDummy(x + 100. * Cos(angle), y + 100. * Sin(angle), 0, 0, DUMMY_RECYCLE_TIME)
+                pt2.source = Dummy.create(x + 100. * Cos(angle), y + 100. * Sin(angle), 0, 0).unit
                 pt2.target = pt.target
                 pt2.dmg = thistype.dmg(pt.pid)
                 pt2.infused = pt.infused
@@ -2794,12 +2785,13 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.source = self.caster
             pt.target = self.target
             pt.dur = self.times * LBOOST[self.pid]
             pt.infused = false
+            pt.time = 0
 
             if GetUnitAbilityLevel(Hero[self.pid], FourCC('B01I')) > 0 then
                 pt.infused = true
@@ -2822,7 +2814,7 @@ OnInit.final("Spells", function(require)
         thistype.id = FourCC("A07K") ---@type integer 
 
         thistype.gain = function(pid) return 0.75 * GetHeroStr(Hero[pid], true) end ---@return number
-        thistype.max = function(pid) return 200. * GetHeroStr(Hero[pid], true) end ---@return number
+        thistype.max = function(pid) return 200. * GetHeroInt(Hero[pid], true) end ---@return number
         thistype.curr = function(pid) return BloodBank[pid] end ---@return number
         thistype.values = {thistype.gain, thistype.max, thistype.curr}
     end
@@ -2835,12 +2827,12 @@ OnInit.final("Spells", function(require)
         local thistype = BLOODLEECH
         thistype.id = FourCC("A07A") ---@type integer 
 
-        thistype.gain = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (2.75 + 0.25 * ablev) * (GetHeroAgi(Hero[pid], true) + GetHeroStr(Hero[pid], true)) end ---@return number
-        thistype.dmg = function(pid) return 10. * GetHeroAgi(Hero[pid], true) + 5. * GetHeroStr(Hero[pid], true) end ---@return number
-        thistype.values = {thistype.gain, thistype.dmg}
+        thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (2.75 + 0.25 * ablev) * (GetHeroAgi(Hero[pid], true) + GetHeroStr(Hero[pid], true)) end ---@return number
+        thistype.gain = function(pid) return 10. * GetHeroAgi(Hero[pid], true) + 5. * GetHeroStr(Hero[pid], true) end ---@return number
+        thistype.values = {thistype.dmg, thistype.gain}
 
         function thistype:onCast()
-            UnitDamageTarget(self.caster, self.target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(self.caster, self.target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             BloodBank[self.pid] = math.min(BloodBank[self.pid] + self.gain, BLOODBANK.max(self.pid))
         end
     end
@@ -2874,32 +2866,29 @@ OnInit.final("Spells", function(require)
                 pt.dmg = math.max(thistype.dmg(pt.pid) * 0.2, thistype.dmg(pt.pid) * (1 - (0.17 - 0.02 * ablev) * (BlzGroupGetSize(ug2) - 1)))
                 pt.armor = math.max(thistype.gain(pt.pid) * 0.2, thistype.gain(pt.pid) * (1 - (0.17 - 0.02 * ablev) * (BlzGroupGetSize(ug) - 1)))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     BloodBank[pt.pid] = math.min(BloodBank[pt.pid] + pt.armor, BLOODBANK.max(pt.pid))
 
                     if UnitAlive(target) then
-                        UnitDamageTarget(pt.source, target, pt.dmg * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(pt.source, target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
 
-                    local dummy = GetDummy(GetUnitX(target), GetUnitY(target), FourCC('A09D'), 1, DUMMY_RECYCLE_TIME)
+                    local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A09D'), 1).unit
                     BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(pt.source) - GetUnitY(dummy),  GetUnitX(pt.source) - GetUnitX(dummy)))
                     InstantAttack(dummy, pt.source)
-                    target = FirstOfGroup(ug)
                 end
+
+                DestroyGroup(ug)
+                DestroyGroup(ug2)
 
                 pt.timer:callDelayed(1., thistype.periodic, pt)
             else
                 pt:destroy()
             end
-
-            DestroyGroup(ug)
-            DestroyGroup(ug2)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             if GetHeroStr(self.caster, true) > GetHeroAgi(self.caster, true) and GetUnitAbilityLevel(self.caster, BLOODLORD.id) > 0 then
                 pt.aoe = thistype.aoe * 2. * LBOOST[self.pid]
@@ -2910,31 +2899,27 @@ OnInit.final("Spells", function(require)
             local ug = CreateGroup()
             local ug2 = CreateGroup()
 
-            MakeGroupInRange(self.pid, ug, x, y, pt.aoe, Condition(FilterEnemyDead))
-            MakeGroupInRange(self.pid, ug2, x, y, pt.aoe, Condition(FilterEnemy))
+            MakeGroupInRange(self.pid, ug, self.x, self.y, pt.aoe, Condition(FilterEnemyDead))
+            MakeGroupInRange(self.pid, ug2, self.x, self.y, pt.aoe, Condition(FilterEnemy))
 
             pt.dur = 5.
-            pt.dmg = math.max(thistype.dmg(self.pid) * 0.2, thistype.dmg(self.pid) * (1 - (0.17 - 0.02 * ablev) * (BlzGroupGetSize(ug2) - 1)))
-            pt.armor = math.max(thistype.gain(self.pid) * 0.2, thistype.gain(self.pid) * (1 - (0.17 - 0.02 * ablev) * (BlzGroupGetSize(ug) - 1)))
+            pt.dmg = math.max(self.dmg * 0.2, self.dmg * (1 - (0.17 - 0.02 * self.ablev) * (BlzGroupGetSize(ug2) - 1)))
+            pt.armor = math.max(self.gain * 0.2, self.gain * (1 - (0.17 - 0.02 * self.ablev) * (BlzGroupGetSize(ug) - 1)))
             pt.source = self.caster
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-
+            for target in each(ug) do
                 BloodBank[self.pid] = math.min(BloodBank[self.pid] + pt.armor, BLOODBANK.max(self.pid))
 
                 if UnitAlive(target) then
-                    UnitDamageTarget(self.caster, target, pt.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(self.caster, target, pt.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     if GetHeroStr(self.caster, true) > GetHeroAgi(self.caster, true) and GetUnitAbilityLevel(self.caster, BLOODLORD.id) > 0 then
                         --TODO blood domain taunt?
                     end
                 end
 
-                local dummy = GetDummy(GetUnitX(target), GetUnitY(target), FourCC('A09D'), 1, DUMMY_RECYCLE_TIME)
+                local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A09D'), 1).unit
                 BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(self.caster) - GetUnitY(dummy), GetUnitX(self.caster) - GetUnitX(dummy)))
                 InstantAttack(dummy, self.caster)
-                target = FirstOfGroup(ug)
             end
 
             pt.timer:callDelayed(1., thistype.periodic, pt)
@@ -2980,11 +2965,8 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
-                    UnitDamageTarget(self.caster, target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(ug)
+                for target in each(ug) do
+                    DamageTarget(self.caster, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
                 local dummy = AddSpecialEffect("war3mapImported\\Death Nova.mdx", self.x, self.y)
@@ -3040,14 +3022,11 @@ OnInit.final("Spells", function(require)
 
             MakeGroupInRange(pt.pid, ug, pt.x, pt.y, pt.aoe, Condition(FilterAllyHero))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 if percent > GetUnitLifePercent(target) then
                     percent = GetUnitLifePercent(target)
                     ftarget = target
                 end
-                target = FirstOfGroup(ug)
             end
 
             if pt.dur > 10. then
@@ -3060,7 +3039,7 @@ OnInit.final("Spells", function(require)
                 end
                 if ftarget then
                     heal = (heal + BlzGetUnitMaxHP(ftarget) * 0.01) * BOOST[pt.pid]
-                    HP(ftarget, heal)
+                    HP(Hero[pt.pid], ftarget, heal, thistype.tag)
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAuraTarget.mdl", ftarget, "origin"))
                 end
 
@@ -3073,7 +3052,7 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.x = self.x
             pt.y = self.y
@@ -3101,7 +3080,7 @@ OnInit.final("Spells", function(require)
                 self.target = Hero[self.pid]
             end
 
-            HP(self.target, (self.heal + BlzGetUnitMaxHP(self.target) * 0.05) * BOOST[self.pid])
+            HP(self.caster, self.target, (self.heal + BlzGetUnitMaxHP(self.target) * 0.05) * BOOST[self.pid], thistype.tag)
             DivineLightBuff:add(self.caster, self.target):duration(3.)
         end
     end
@@ -3131,23 +3110,20 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(pt.pid, ug, pt.x, pt.y, pt.aoe, Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     SanctifiedGroundDebuff:add(Hero[pt.pid], target):duration(1.)
-                    target = FirstOfGroup(ug)
                 end
 
                 if pt.dur == 2 then
-                    Fade(pt.target, 1., true)
+                    Fade(pt.target, 0.9, true)
                 end
+
+                DestroyGroup(ug)
 
                 pt.timer:callDelayed(0.5, thistype.periodic, pt)
             else
                 pt:destroy()
             end
-
-            DestroyGroup(ug)
         end
 
         function thistype:onCast()
@@ -3158,7 +3134,7 @@ OnInit.final("Spells", function(require)
             pt.y = self.targetY
             pt.aoe = self.aoe * LBOOST[self.pid]
             pt.dur = self.dur * 2. * LBOOST[self.pid]
-            pt.target = GetDummy(pt.x, pt.y, 0, 0, pt.dur * 0.5)
+            pt.target = Dummy.create(pt.x, pt.y, 0, 0, pt.dur * 0.5).unit
 
             UnitDisableAbility(pt.target, FourCC('Amov'), true)
             BlzSetUnitSkin(pt.target, FourCC('h04D'))
@@ -3191,22 +3167,19 @@ OnInit.final("Spells", function(require)
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(isalive))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 if IsUnitAlly(target, Player(self.pid - 1)) then
-                    local dummy = GetDummy(self.x, self.y, FourCC('A09Q'), 1, DUMMY_RECYCLE_TIME)
+                    local dummy = Dummy.create(self.x, self.y, FourCC('A09Q'), 1).unit
                     BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(dummy), GetUnitX(target) - GetUnitX(dummy)))
                     InstantAttack(dummy, target)
-                    HP(target, self.heal * BOOST[self.pid])
+                    HP(self.caster, target, self.heal * BOOST[self.pid], thistype.tag)
                 else
-                    local dummy = GetDummy(self.x, self.y, FourCC('A014'), 1, DUMMY_RECYCLE_TIME)
+                    local dummy = Dummy.create(self.x, self.y, FourCC('A014'), 1).unit
                     BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(dummy), GetUnitX(target) - GetUnitX(dummy)))
                     InstantAttack(dummy, target)
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\AncestralGuardianMissile\\AncestralGuardianMissile.mdl", target, "chest"))
-                    UnitDamageTarget(self.caster, target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(self.caster, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
-                target = FirstOfGroup(ug)
             end
         end
     end
@@ -3231,12 +3204,9 @@ OnInit.final("Spells", function(require)
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterAllyHero))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 ProtectionBuff:add(self.caster, target):duration(99999.)
                 shield.add(target, self.shield * BOOST[self.pid], 20 + 10 * self.ablev):color(4)
-                target = FirstOfGroup(ug)
             end
         end
     end
@@ -3286,7 +3256,7 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.dur}
 
         function thistype:onCast()
-            SoulLinkBuff:add(self.caster, self.target):duration(thistype.dur * LBOOST[self.pid])
+            SoulLinkBuff:add(self.caster, self.target):duration(self.dur * LBOOST[self.pid])
         end
     end
 
@@ -3303,7 +3273,7 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.echo, thistype.dur}
 
         function thistype:onCast()
-            LawOfResonanceBuff:add(self.caster, self.target):duration(thistype.dur * LBOOST[self.pid])
+            LawOfResonanceBuff:add(self.caster, self.target):duration(self.dur * LBOOST[self.pid])
         end
     end
 
@@ -3316,13 +3286,13 @@ OnInit.final("Spells", function(require)
         local thistype = LAWOFVALOR
         thistype.id = FourCC("A06D") ---@type integer 
 
-        thistype.regen = function(pid) return (0.08 + 0.02 * ablev) * GetHeroStr(Hero[pid], true) end ---@return number
+        thistype.regen = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.08 + 0.02 * ablev) * GetHeroStr(Hero[pid], true) end ---@return number
         thistype.amp = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 8. + 2. * ablev end ---@return number
-        thistype.dur = 15. ---@type number
+        thistype.dur = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 14. + ablev end
         thistype.values = {thistype.regen, thistype.amp, thistype.dur}
 
         function thistype:onCast()
-            LawOfValorBuff:add(self.caster, self.target):duration(thistype.dur * LBOOST[self.pid])
+            LawOfValorBuff:add(self.caster, self.target):duration(self.dur * LBOOST[self.pid])
         end
     end
 
@@ -3337,11 +3307,11 @@ OnInit.final("Spells", function(require)
 
         thistype.pbonus = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 10. + 5. * ablev end ---@return number
         thistype.fbonus = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.04 + 0.01 * ablev) * GetHeroInt(Hero[pid], true) end ---@return number
-        thistype.dur = 15. ---@type number
+        thistype.dur = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 14. + ablev end
         thistype.values = {thistype.pbonus, thistype.fbonus, thistype.dur}
 
         function thistype:onCast()
-            LawOfMightBuff:add(self.caster, self.target):duration(thistype.dur * LBOOST[self.pid])
+            LawOfMightBuff:add(self.caster, self.target):duration(self.dur * LBOOST[self.pid])
         end
     end
 
@@ -3363,11 +3333,8 @@ OnInit.final("Spells", function(require)
             MakeGroupInRange(self.pid, ug, self.x, self.y, 900., Condition(FilterAlly))
             DestroyEffect(AddSpecialEffect("war3mapImported\\BlessedField.mdx", self.x, self.y))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                shield.add(target, BlzGetUnitMaxHP(target) * self.pshield * 0.01 * LBOOST[self.pid], self.dur * LBOOST[pid])
-                target = FirstOfGroup(ug)
+            for target in each(ug) do
+                shield.add(target, BlzGetUnitMaxHP(target) * self.pshield * 0.01 * LBOOST[self.pid], self.dur * LBOOST[self.pid])
             end
 
             DestroyGroup(ug)
@@ -3392,41 +3359,40 @@ OnInit.final("Spells", function(require)
 
         ---@type fun(pt: PlayerTimer)
         function thistype.periodic(pt)
-            pt.dur = pt.dur - 1
+            pt.dur = pt.dur - 2.
 
             local ug = CreateGroup()
 
             MakeGroupInRange(pt.pid, ug, GetUnitX(pt.source), GetUnitY(pt.source), thistype.aoe * LBOOST[pt.pid], Condition(FilterAlive))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 if IsUnitEnemy(target, Player(pt.pid - 1)) then
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\HolyBolt\\HolyBoltSpecialArt.mdl", GetUnitX(target), GetUnitY(target)))
-                    UnitDamageTarget(pt.source, target, thistype.dmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(pt.source, target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 elseif GetUnitTypeId(target) ~= BACKPACK and IsUnitAlly(target, Player(pt.pid - 1)) and GetUnitAbilityLevel(target, FourCC('Aloc')) == 0 then
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\HolyBolt\\HolyBoltSpecialArt.mdl", GetUnitX(target), GetUnitY(target)))
-                    HP(target, thistype.heal(pt.pid) * BOOST[pt.pid])
+                    HP(pt.source, target, thistype.heal(pt.pid) * BOOST[pt.pid], thistype.tag)
                 end
-                target = FirstOfGroup(ug)
             end
 
             if pt.dur - 1 <= 0 then
                 pt:destroy()
+            else
+                pt.timer:callDelayed(2., thistype.periodic, pt)
             end
 
             DestroyGroup(ug)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
-            pt.dur = self..dur * LBOOST[self.pid]
+            pt.dur = self.dur * LBOOST[self.pid]
             pt.source = self.caster
 
-            TimerQueue:callDelayed(pt.dur * 2., DestroyEffect, AddSpecialEffectTarget("war3mapImported\\HolyAurora.MDX", self.caster, "origin"))
+            TimerQueue:callDelayed(pt.dur, HideEffect, AddSpecialEffectTarget("war3mapImported\\HolyAurora.MDX", self.caster, "origin"))
 
-            pt.timer:callDelayed(2., thistype.periodic, pt)
+            pt.timer:callDelayed(1., thistype.periodic, pt)
         end
     end
 
@@ -3490,6 +3456,7 @@ OnInit.final("Spells", function(require)
     do
         local thistype = ELEMENTLIGHTNING
         thistype.id = FourCC("A0J9") ---@type integer 
+
         thistype.value = 3 ---@type integer 
 
         ---@type fun(pt: PlayerTimer)
@@ -3501,7 +3468,7 @@ OnInit.final("Spells", function(require)
 
                 local target = FirstOfGroup(ug)
                 if target then
-                    local dummy = GetDummy(GetUnitX(Hero[pt.pid]), GetUnitY(Hero[pt.pid]), FourCC('A09W'), 1, 1.)
+                    local dummy = Dummy.create(GetUnitX(Hero[pt.pid]), GetUnitY(Hero[pt.pid]), FourCC('A09W'), 1, 1.).unit
                     SetUnitOwner(dummy, Player(pt.pid - 1), false)
                     BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(dummy), GetUnitX(target) - GetUnitX(dummy)))
                     InstantAttack(dummy, target)
@@ -3593,25 +3560,25 @@ OnInit.final("Spells", function(require)
 
                 if target then
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdl", target, "origin"))
-                    UnitDamageTarget(Hero[pt.pid], target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(Hero[pt.pid], target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
 
                     pt.dur = 0.
                 end
+
+                DestroyGroup(ug)
 
                 pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
             else
                 SetUnitAnimation(pt.target, "death")
                 pt:destroy()
             end
-
-            DestroyGroup(ug)
         end
 
         function thistype:onCast()
             local pt = TimerList[self.pid]:add()  
 
             pt.angle = self.angle
-            pt.target = GetDummy(self.x + 25. * Cos(pt.angle), self.y + 25. * Sin(pt.angle), 0, 0, 5.)
+            pt.target = Dummy.create(self.x + 25. * Cos(pt.angle), self.y + 25. * Sin(pt.angle), 0, 0, 5.).unit
             pt.aoe = 150.
             pt.dur = self.range
             pt.speed = 25. + 2. * self.ablev
@@ -3661,23 +3628,20 @@ OnInit.final("Spells", function(require)
                 SetUnitYBounded(pt.target, y + 6 * Sin(pt.angle))
 
                 --icicle every second
-                if ModuloInteger(pt.agi,32) == 0 then
+                if ModuloInteger(pt.agi, 32) == 0 then
                     local ug = CreateGroup()
                     local angle = 0. ---@type number 
 
-                    MakeGroupInRange(pt.pid, ug, x, y, thistype.iceaoe(pt.pid) * LBOOST[pt.pid], Condition(FilterEnemy))
+                    MakeGroupInRange(pt.pid, ug, x, y, thistype.iceaoe * LBOOST[pt.pid], Condition(FilterEnemy))
 
-                    local target = FirstOfGroup(ug)
-                    while target do
-                        GroupRemoveUnit(ug, target)
+                    for target in each(ug) do
                         angle = Atan2(GetUnitY(target) - y, GetUnitX(target) - x)
-                        bj_lastCreatedUnit = GetDummy(x + 50. * Cos(angle), y + 50 * Sin(angle), FourCC('A09F'), 1, 3.)
-                        SetUnitOwner(bj_lastCreatedUnit, Player(pt.pid - 1), false)
-                        BlzSetUnitFacingEx(bj_lastCreatedUnit, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(pt.target), GetUnitX(target) - GetUnitX(pt.target)))
-                        SetUnitScale(bj_lastCreatedUnit, 0.35, 0.35, 0.35)
-                        SetUnitFlyHeight(bj_lastCreatedUnit, GetUnitFlyHeight(pt.target), 0)
-                        InstantAttack(bj_lastCreatedUnit, target)
-                        target = FirstOfGroup(ug)
+                        local dummy = Dummy.create(x + 50. * Cos(angle), y + 50 * Sin(angle), FourCC('A09F'), 1, 3.).unit
+                        SetUnitOwner(dummy, Player(pt.pid - 1), false)
+                        BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(pt.target), GetUnitX(target) - GetUnitX(pt.target)))
+                        SetUnitScale(dummy, 0.35, 0.35, 0.35)
+                        SetUnitFlyHeight(dummy, GetUnitFlyHeight(pt.target), 0)
+                        InstantAttack(dummy, target)
                     end
 
                     DestroyGroup(ug)
@@ -3691,14 +3655,11 @@ OnInit.final("Spells", function(require)
 
                 --orb shatter
                 local ug = CreateGroup()
-                MakeGroupInRange(pt.pid, ug, x, y, thistype.orbaoe(pt.pid) * LBOOST[pt.pid], Condition(FilterEnemy))
+                MakeGroupInRange(pt.pid, ug, x, y, thistype.orbaoe * LBOOST[pt.pid], Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
-                    Freeze:add(pt.source, target):duration(thistype.freeze(pt.pid))
-                    UnitDamageTarget(pt.source, target, thistype.orbdmg(pt.pid) * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(ug)
+                for target in each(ug) do
+                    Freeze:add(pt.source, target):duration(thistype.freeze * LBOOST[pt.id])
+                    DamageTarget(pt.source, target, thistype.orbdmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
                 DestroyGroup(ug)
@@ -3712,7 +3673,7 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt  
+            local pt
 
             if self.sid == thistype.id2 then
                 pt = TimerList[self.pid]:get(thistype.id, self.caster)
@@ -3728,7 +3689,7 @@ OnInit.final("Spells", function(require)
                 pt.agi = 16
 
                 pt.source = self.caster
-                pt.target = GetDummy(self.x + 75 * Cos(pt.angle), self.y + 75 * Sin(pt.angle), 0, 0, 8.)
+                pt.target = Dummy.create(self.x + 75 * Cos(pt.angle), self.y + 75 * Sin(pt.angle), 0, 0, 8.).unit
                 BlzSetUnitSkin(pt.target, FourCC('h06Z'))
                 SetUnitScale(pt.target, 1.3, 1.3, 1.3)
                 SetUnitFlyHeight(pt.target, 70.00, 0.00)
@@ -3754,7 +3715,7 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.shield}
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.sfx = AddSpecialEffectTarget("war3mapImported\\Archnathid Armor.mdx", self.caster, "chest")
             pt.tag = thistype.id
@@ -3767,6 +3728,18 @@ OnInit.final("Spells", function(require)
             end
 
             pt.timer:callDelayed(30., PlayerTimer.destroy, pt)
+        end
+
+        function thistype.onLearn(u, ablev, pid)
+            if ablev == 1 then
+                UnitAddAbility(u, FourCC('A033'))
+                BlzUnitHideAbility(u, FourCC('A033'), true)
+                
+                --avoids tome of retraining abuse
+                if gaiaArmorCD[pid] == 0 then
+                    gaiaArmorCD[pid] = 1
+                end
+            end
         end
     end
 
@@ -3815,10 +3788,7 @@ OnInit.final("Spells", function(require)
                 local ug = CreateGroup()
                 MakeGroupInRange(pt.pid, ug, x, y, pt.aoe * LBOOST[pt.pid], Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
-
+                for target in each(ug) do
                     x = GetUnitX(target)
                     y = GetUnitY(target)
 
@@ -3828,10 +3798,8 @@ OnInit.final("Spells", function(require)
                     DA = (y - Ay) * (Dx - Ax) - (x - Ax) * (Dy - Ay)
 
                     if (AB >= 0 and BC >= 0 and CD >= 0 and DA >= 0) or (AB <= 0 and BC <= 0 and CD <= 0 and DA <= 0) then
-                        UnitDamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
-
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyGroup(ug)
@@ -3845,13 +3813,13 @@ OnInit.final("Spells", function(require)
         function thistype:onCast()
             TimerList[self.pid]:stopAllTimers(thistype.id)
 
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
             pt.angle = self.angle
-            pt.sfx = AddSpecialEffect("war3mapImported\\FlameBreath.mdx", self.x + 75 * Cos(pt.angle), self.y + 75 * Sin(pt.angle))
+            pt.sfx = AddSpecialEffect("war3mapImported\\flamebreath.mdx", self.x + 75 * Cos(pt.angle), self.y + 75 * Sin(pt.angle))
             pt.tag = thistype.id
             pt.aoe = self.aoe
             pt.dmg = self.dmg
-            BlzSetSpecialEffectScale(pt.sfx, 1.8 * LBOOST[self.pid])
+            BlzSetSpecialEffectScale(pt.sfx, 1.3 * LBOOST[self.pid])
             BlzSetSpecialEffectTimeScale(pt.sfx, 1.5)
             BlzSetSpecialEffectYaw(pt.sfx, pt.angle)
 
@@ -3922,19 +3890,18 @@ OnInit.final("Spells", function(require)
                     TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffect("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", x2, y2))
                     MP(Hero[pt.pid], BlzGetUnitMaxMana(Hero[pt.pid]) * 0.15)
                 elseif rand == ELEMENTLIGHTNING.value then
-                    UnitDamageTarget(Hero[pt.pid], target, GetWidgetLife(target) * 0.015, true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(Hero[pt.pid], target, GetWidgetLife(target) * 0.015, ATTACK_TYPE_NORMAL, PURE, thistype.tag)
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", target, "origin"))
                 elseif rand == ELEMENTEARTH.value then
                     TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffect("war3mapImported\\Earth NovaTarget.mdx", x2, y2))
                 end
 
                 --unique effects
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     if rand == ELEMENTFIRE.value then --fire
-                        UnitDamageTarget(Hero[pt.pid], target, pt.dmg * 1.5, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(Hero[pt.pid], target, pt.dmg * 1.5, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     else
-                        UnitDamageTarget(Hero[pt.pid], target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(Hero[pt.pid], target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                         if rand == ELEMENTICE.value then --ice
                             Freeze:add(Hero[pt.pid], target):duration(2.)
                         elseif rand == ELEMENTEARTH.value then --earth
@@ -3944,15 +3911,14 @@ OnInit.final("Spells", function(require)
                             EarthDebuff:add(Hero[pt.pid], target):duration(10.)
                         end
                     end
-                    target = FirstOfGroup(ug)
                 end
+
+                DestroyGroup(ug)
 
                 pt.timer:callDelayed(0.4, thistype.periodic, pt)
             else
                 pt:destroy()
             end
-
-            DestroyGroup(ug)
         end
 
         function thistype:onCast()
@@ -4052,7 +4018,7 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.hounds, thistype.str, thistype.agi, thistype.int}
 
         function thistype:onCast()
-            local pt  
+            local pt
             local offset = self.pid * PLAYER_CAP ---@type integer 
 
             self.angle = GetUnitFacing(self.caster)
@@ -4096,9 +4062,9 @@ OnInit.final("Spells", function(require)
 
                 SummonGroup[#SummonGroup + 1] = hounds[offset + i]
 
-                SetHeroXP(hounds[offset + i], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.armor) - 1), false)
+                SetHeroXP(hounds[offset + i], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
 
-                pt.timer:callPeriodically(0.5, SummonDurationXPBar, pt)
+                pt.timer:callPeriodically(0.5, nil, SummonDurationXPBar, pt)
             end
         end
     end
@@ -4116,7 +4082,7 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.str, thistype.int}
 
         function thistype:onCast()
-            local pt  
+            local pt
 
             TimerList[self.pid]:stopAllTimers('dvou')
             self.angle = GetUnitFacing(self.caster)
@@ -4157,9 +4123,9 @@ OnInit.final("Spells", function(require)
             TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl", meatgolem[self.pid], "origin"))
             SUMMONINGIMPROVEMENT.apply(self.pid, meatgolem[self.pid], R2I(self.str * BOOST[self.pid]), 0, R2I(self.int * BOOST[self.pid]))
             SummonGroup[#SummonGroup + 1] = meatgolem[self.pid]
-            SetHeroXP(meatgolem[self.pid], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.armor) - 1), false)
+            SetHeroXP(meatgolem[self.pid], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
 
-            pt.timer:callPeriodically(0.5, SummonDurationXPBar, pt)
+            pt.timer:callPeriodically(0.5, nil, SummonDurationXPBar, pt)
         end
     end
 
@@ -4199,7 +4165,7 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt  
+            local pt
 
             TimerList[self.pid]:stopAllTimers('blif')
             self.angle = GetUnitFacing(self.caster) + 180
@@ -4230,8 +4196,8 @@ OnInit.final("Spells", function(require)
             end
 
             pt = TimerList[self.pid]:add()
-            pt.x = x
-            pt.y = y
+            pt.x = self.x
+            pt.y = self.y
             pt.dur = 180.
             pt.time = 180.
             pt.tag = destroyer[self.pid]
@@ -4255,12 +4221,10 @@ OnInit.final("Spells", function(require)
                 end
             end
 
-            DestroyGroup(ug)
-
             SummonGroup[#SummonGroup + 1] = destroyer[self.pid]
-            SetHeroXP(destroyer[self.pid], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.armor) - 1), false)
+            SetHeroXP(destroyer[self.pid], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
 
-            pt.timer:callPeriodically(0.5, SummonDurationXPBar, pt)
+            pt.timer:callPeriodically(0.5, nil, SummonDurationXPBar, pt)
         end
     end
 
@@ -4292,7 +4256,7 @@ OnInit.final("Spells", function(require)
                     local target = SummonGroup[i]
                     if GetOwningPlayer(target) == Player(self.pid - 1) then
                         local heal = BlzGetUnitMaxHP(target) * self.pheal * 0.01 * BOOST[self.pid]
-                        HP(target, heal)
+                        HP(self.caster, target, heal, thistype.tag)
                     end
                 end
             --meat golem
@@ -4352,15 +4316,12 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(pid, ug, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 150., Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     if SteedChargeStun:has(Hero[pid], target) == false then
                         Stun:add(Hero[pid], target):duration(1.)
                         SteedChargeStun:add(Hero[pid], target):duration(2.)
                         DestroyEffect(AddSpecialEffectTarget("Objects\\Spawnmodels\\Undead\\ImpaleTargetDust\\ImpaleTargetDust.mdl", target, "origin"))
                     end
-                    target = FirstOfGroup(ug)
                 end
 
                 TimerQueue:callDelayed(FPS_32, thistype.charge, pid, angle, x, y)
@@ -4396,7 +4357,7 @@ OnInit.final("Spells", function(require)
             local dmg = self.dmg * BOOST[self.pid] ---@type number 
 
             StunUnit(self.pid, self.target, 3.)
-            UnitDamageTarget(self.caster, self.target, dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(self.caster, self.target, dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
 
             local sfx = AddSpecialEffect("war3mapImported\\DetroitSmash_Effect_CasterArt.mdx", self.x, self.y)
             BlzSetSpecialEffectYaw(sfx, bj_DEGTORAD * GetUnitFacing(self.caster))
@@ -4407,12 +4368,9 @@ OnInit.final("Spells", function(require)
                 MakeGroupInRange(self.pid, ug, GetUnitX(self.target), GetUnitY(self.target), 300 * LBOOST[self.pid], Condition(FilterEnemy))
                 GroupRemoveUnit(ug, self.target)
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
-                    UnitDamageTarget(self.caster, target, dmg * .5, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                for target in each(ug) do
+                    DamageTarget(self.caster, target, dmg * .5, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     StunUnit(self.pid, target, 1.5)
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyGroup(ug)
@@ -4452,15 +4410,12 @@ OnInit.final("Spells", function(require)
         function thistype:onCast()
             local ug = CreateGroup()
 
-            HP(self.caster, self.heal * BOOST[self.pid])
+            HP(self.caster, self.caster, self.heal * BOOST[self.pid], thistype.tag)
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Taunt\\TauntCaster.mdl", self.caster, "origin"))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                DummyCastTarget(Player(self.pid - 1), target, FourCC('A04X'), 1, GetUnitX(target), GetUnitY(target), "slow")
-                target = FirstOfGroup(ug)
+            for target in each(ug) do
+                Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A04X'), 1):cast(Player(self.pid - 1), "slow", target)
             end
 
             Taunt(self.caster, self.pid, 800., true, 2000, 2000)
@@ -4514,9 +4469,8 @@ OnInit.final("Spells", function(require)
                 local ug = CreateGroup()
 
                 MakeGroupInRange(pt.pid, ug, GetUnitX(pt.target), GetUnitY(pt.target), pt.aoe, Condition(FilterEnemy))
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+
+                for target in each(ug) do
                     if IsUnitInGroup(target, pt.ug) == false then
                         GroupAddUnit(pt.ug, target)
                         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", target, "chest"))
@@ -4543,10 +4497,8 @@ OnInit.final("Spells", function(require)
                             SetUnitPathing(target, true)
                             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIma\\AImaTarget.mdl", Hero[pt.pid], "origin"))
                         end
-                        UnitDamageTarget(Hero[pt.pid], target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(Hero[pt.pid], target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
-
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyGroup(ug)
@@ -4565,7 +4517,7 @@ OnInit.final("Spells", function(require)
             UpdateManaCosts(self.pid)
 
             local pt = TimerList[self.pid]:add()
-            pt.target = GetDummy(self.x, self.y, 0, 0, DUMMY_RECYCLE_TIME)
+            pt.target = Dummy.create(self.x, self.y, 0, 0).unit
             pt.ug = CreateGroup()
             pt.dur = 750.
             pt.aoe = 200.
@@ -4613,9 +4565,7 @@ OnInit.final("Spells", function(require)
             DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Orc\\FeralSpirit\\feralspiritdone.mdl", self.targetX, self.targetY))
             MakeGroupInRange(self.pid, ug, self.targetX, self.targetY, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", target, "origin"))
 
                 local debuff = MarkedForDeathDebuff:get(nil, target)
@@ -4626,8 +4576,7 @@ OnInit.final("Spells", function(require)
                     BlinkStrikeBuff:add(Hero[self.pid], Hero[self.pid]):duration(6.)
                 end
 
-                UnitDamageTarget(self.caster, target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                target = FirstOfGroup(ug)
+                DamageTarget(self.caster, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
 
             SetUnitXBounded(self.caster, self.targetX)
@@ -4657,15 +4606,12 @@ OnInit.final("Spells", function(require)
                 local ug = CreateGroup()
                 MakeGroupInRange(pt.pid, ug, pt.x, pt.y, pt.aoe, Condition(isalive))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     if IsUnitAlly(target, Player(pt.pid - 1)) then
                         SmokebombBuff:add(Hero[pt.pid], target):duration(1.)
                     else
                         SmokebombDebuff:add(Hero[pt.pid], target):duration(1.)
                     end
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyGroup(ug)
@@ -4714,25 +4660,24 @@ OnInit.final("Spells", function(require)
                 for _ = 0, 2 do
                     i = -i
                     local spawnangle = pt.angle + bj_PI + GetRandomReal(bj_PI * -0.15, bj_PI * 0.15) ---@type number
-                    local x = pt.x + GetRandomReal(70., 300.) * Cos(spawnangle) ---@type number
-                    local y = pt.y + GetRandomReal(70., 300.) * Sin(spawnangle) ---@type number
+                    local x = pt.x + GetRandomReal(70., 200.) * Cos(spawnangle) ---@type number
+                    local y = pt.y + GetRandomReal(70., 200.) * Sin(spawnangle) ---@type number
                     local moveangle = Atan2(pt.targetY - y, pt.targetX - x)
                     local missile = Missiles:create(x, y, 70, x + 1150. * Cos(moveangle), y + 1150. * Sin(moveangle), 0) ---@type Missiles
                     missile:model("Abilities\\Weapons\\WardenMissile\\WardenMissile.mdl")
                     missile:scale(1.1)
                     missile:speed(1400)
                     missile:arc(GetRandomReal(5, 15))
-                    missile:curve(GetRandomReal(1, 10) * i)
                     missile.source = pt.source
                     missile.owner = Player(pt.pid - 1)
                     missile:vision(400)
                     missile.collision = 45
                     missile.damage = pt.dmg * BOOST[pt.pid]
 
-                    missile.onHit = function(unit)
-                        if unit ~= missile.source and IsUnitEnemy(unit, missile.owner) then
-                            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", unit, "origin"))
-                            UnitDamageTarget(missile.source, unit, missile.damage, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    missile.onHit = function(enemy)
+                        if IsUnitEnemy(enemy, missile.owner) then
+                            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", enemy, "origin"))
+                            DamageTarget(missile.source, enemy, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                             missile.damage = missile.damage - missile.damage * 0.05
                         end
 
@@ -4806,41 +4751,36 @@ OnInit.final("Spells", function(require)
         function thistype.spin(caster, active)
             local ug = CreateGroup()
             local pid = GetPlayerId(GetOwningPlayer(caster)) + 1
-            local ablev = GetUnitAbilityLevel(caster, thistype.id)
-            local target
 
             DelayAnimation(pid, caster, 0.5, 0, 1., true)
             SetUnitTimeScale(caster, 1.75)
             SetUnitAnimationByIndex(caster, 5)
 
-            target = GetDummy(GetUnitX(caster), GetUnitY(caster), 0, 0, DUMMY_RECYCLE_TIME)
-            BlzSetUnitSkin(target, FourCC('h00C'))
-            SetUnitTimeScale(target, 0.5)
-            SetUnitScale(target, 1.35, 1.35, 1.35)
-            SetUnitAnimationByIndex(target, 0)
-            SetUnitFlyHeight(target, 75., 0)
-            BlzSetUnitFacingEx(target, GetUnitFacing(caster))
+            local dummy = Dummy.create(GetUnitX(caster), GetUnitY(caster), 0, 0).unit
+            BlzSetUnitSkin(dummy, FourCC('h00C'))
+            SetUnitTimeScale(dummy, 0.5)
+            SetUnitScale(dummy, 1.35, 1.35, 1.35)
+            SetUnitAnimationByIndex(dummy, 0)
+            SetUnitFlyHeight(dummy, 75., 0)
+            BlzSetUnitFacingEx(dummy, GetUnitFacing(caster))
 
-            target = GetDummy(GetUnitX(caster), GetUnitY(caster), 0, 0, DUMMY_RECYCLE_TIME)
-            BlzSetUnitSkin(target, FourCC('h00C'))
-            SetUnitTimeScale(target, 0.5)
-            SetUnitScale(target, 1.35, 1.35, 1.35)
-            SetUnitAnimationByIndex(target, 0)
-            SetUnitFlyHeight(target, 75., 0)
-            BlzSetUnitFacingEx(target, GetUnitFacing(caster) + 180)
+            dummy = Dummy.create(GetUnitX(caster), GetUnitY(caster), 0, 0).unit
+            BlzSetUnitSkin(dummy, FourCC('h00C'))
+            SetUnitTimeScale(dummy, 0.5)
+            SetUnitScale(dummy, 1.35, 1.35, 1.35)
+            SetUnitAnimationByIndex(dummy, 0)
+            SetUnitFlyHeight(dummy, 75., 0)
+            BlzSetUnitFacingEx(dummy, GetUnitFacing(caster) + 180)
 
             MakeGroupInRange(pid, ug, GetUnitX(caster), GetUnitY(caster), thistype.aoe * LBOOST[pid], Condition(FilterEnemy))
 
-            target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 DestroyEffect(AddSpecialEffectTarget("Objects\\Spawnmodels\\Critters\\Albatross\\CritterBloodAlbatross.mdl", target, "chest"))
                 if active then
-                    UnitDamageTarget(caster, target, thistype.admg(pid) * BOOST[pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(caster, target, thistype.admg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 else
-                    UnitDamageTarget(caster, target, thistype.pdmg(pid) * BOOST[pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(caster, target, thistype.pdmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
-                target = FirstOfGroup(ug)
             end
 
             DestroyGroup(ug)
@@ -4881,15 +4821,12 @@ OnInit.final("Spells", function(require)
                 local ug = CreateGroup()
                 MakeGroupInRange(pt.pid, ug, x, y, 200., Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     if not IsUnitInGroup(target, pt.ug) then
                         GroupAddUnit(pt.ug, target)
                         MarkedForDeathDebuff:add(pt.source, target):duration(4.)
-                        UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyGroup(ug)
@@ -4899,6 +4836,7 @@ OnInit.final("Spells", function(require)
                 BlzUnitDisableAbility(pt.source, thistype.id, false, false)
 
                 PhantomSlashing[pt.pid] = false
+                Unit[pt.source].evasion = Unit[pt.source].evasion - 100
                 SetUnitTimeScale(pt.source, 1.)
                 SetUnitAnimationByIndex(pt.source, 4)
                 pt:destroy()
@@ -4907,7 +4845,7 @@ OnInit.final("Spells", function(require)
 
         function thistype:onCast()
             PhantomSlashing[self.pid] = true
-            TotalEvasion[self.pid] = 100
+            Unit[self.caster].evasion = Unit[self.caster].evasion + 100
 
             BlzUnitDisableAbility(self.caster, thistype.id, true, false)
             SetUnitState(self.caster, UNIT_STATE_MANA, GetUnitState(self.caster, UNIT_STATE_MANA) - BlzGetUnitMaxMana(self.caster) * (.1 - 0.025 * self.ablev))
@@ -4930,7 +4868,7 @@ OnInit.final("Spells", function(require)
             BlzSetSpecialEffectColorByPlayer(sfx, Player(self.pid - 1))
             BlzSetSpecialEffectYaw(sfx, pt.angle)
             FadeSFX(sfx, true)
-            TimerQueue:callDelayed(2., DestroyEffect, sfx)
+            TimerQueue:callDelayed(2., HideEffect, sfx)
             BlzPlaySpecialEffectWithTimeScale(sfx, ANIM_TYPE_ATTACK, 1.5)
         end
     end
@@ -4969,11 +4907,8 @@ OnInit.final("Spells", function(require)
 
             MakeGroupInRange(pt.pid, ug, pt.x, pt.y, pt.aoe, Condition(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                target = FirstOfGroup(ug)
+            for target in each(ug) do
+                DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
 
             pt:destroy()
@@ -5011,16 +4946,16 @@ OnInit.final("Spells", function(require)
                     pt2.timer:callDelayed(0.6, thistype.expire, pt2)
                 end
 
+                DestroyGroup(ug)
+
                 pt.timer:callDelayed(0.2, thistype.spawn, pt)
             else
                 pt:destroy()
             end
-
-            DestroyGroup(ug)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
             pt.source = self.caster
             pt.count = self.ablev + 2
             pt.dmg = self.dmg * BOOST[self.pid]
@@ -5045,89 +4980,57 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.dmg, thistype.aoe}
 
         ---@type fun(pt: PlayerTimer)
-        function thistype.periodic(pt)
-            pt.dur = pt.dur - 40.
-
-            if pt.dur >= 0 then
-                local x = GetUnitX(pt.target) ---@type number 
-                local y = GetUnitY(pt.target) ---@type number 
-                local ug = CreateGroup()
-
-                MakeGroupInRange(pt.pid, ug, x, y, 125., Condition(FilterEnemy))
-
-                local target = FirstOfGroup(ug)
-
-                --a unit was found
-                if target then
-                    MakeGroupInRange(pt.pid, ug, x, y, pt.aoe, Condition(FilterEnemy))
-
-                    while target do
-                        GroupRemoveUnit(ug, target)
-                        UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                        target = FirstOfGroup(ug)
-                    end
-
-                    DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x, y))
-                    pt.dur = 0.
-                else
-                    SetUnitXBounded(pt.target, x + 40. * Cos(pt.angle))
-                    SetUnitYBounded(pt.target, y + 40. * Sin(pt.angle))
-                end
-
-                DestroyGroup(ug)
-
-                pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
-            else
-                SetUnitAnimation(pt.target, "death")
-                pt:destroy()
-            end
-        end
-
-        ---@type fun(pt: PlayerTimer)
         function thistype.spawn(pt)
-            local x = GetUnitX(pt.source) ---@type number 
-            local y = GetUnitY(pt.source) ---@type number 
-
             pt.dur = pt.dur - 1
 
             if pt.dur >= 0 then
-                local target = GetDummy(x, y, 0, 0, 3.)
+                local x = GetUnitX(pt.source) ---@type number 
+                local y = GetUnitY(pt.source) ---@type number 
+                local missile = Missiles:create(x, y, 20., pt.x, pt.y, 20.) ---@type Missiles
+                missile:model("ArcaneRocketProjectile.mdl")
+                missile:scale(1.4)
+                missile:speed(1400)
+                missile.source = pt.source
+                missile.owner = Player(pt.pid - 1)
+                missile:vision(400)
+                missile.collision = 125
+                missile.damage = pt.dmg * BOOST[pt.pid]
 
-                BlzSetUnitSkin(target, FourCC('h00Y'))
-                BlzSetUnitFacingEx(target, bj_RADTODEG * pt.angle)
-                SetUnitFlyHeight(target, 55.00, 0.00)
-                SetUnitScale(target, 1.3, 1.3, 1.3)
+                missile.onHit = function(target)
+                    if IsUnitEnemy(target, missile.owner) then
+                        local ug = CreateGroup()
+                        MakeGroupInRange(GetPlayerId(missile.owner) + 1, ug, missile.x, missile.y, ARCANEBOLTS.aoe, Condition(FilterEnemy))
 
-                local pt2 = TimerList[pt.pid]:add()
-                pt2.angle = pt.angle
-                pt2.source = pt.source
-                pt2.target = target
-                pt2.dur = 1000.
-                pt2.aoe = pt.aoe
-                pt2.dmg = pt.dmg
+                        for enemy in each(ug) do
+                            DamageTarget(missile.source, enemy, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                        end
 
-                pt2.timer:callDelayed(FPS_32, thistype.periodic, pt2)
+                        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", missile.x, missile.y))
+
+                        return true
+                    end
+
+                    return false
+                end
+
+                missile:launch()
+
+                pt.timer:callDelayed(0.2, thistype.spawn, pt)
             else
                 pt:destroy()
             end
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
-            pt.dur = 1.
+            local pt = TimerList[self.pid]:add()
+            pt.dur = self.ablev + 2
             pt.angle = self.angle
             pt.source = self.caster
             pt.dmg = self.dmg * BOOST[self.pid]
             pt.aoe = self.aoe * LBOOST[self.pid]
+            pt.x = self.x + 1000. * Cos(pt.angle)
+            pt.y = self.y + 1000. * Sin(pt.angle)
             pt.timer:callDelayed(0., thistype.spawn, pt)
-
-            pt = TimerList[self.pid]:add()
-            pt.dur = self.ablev + 1
-            pt.angle = self.angle
-            pt.source = self.caster
-            pt.dmg = self.dmg * BOOST[self.pid]
-            pt.aoe = self.aoe * LBOOST[self.pid]
-            pt.timer:callDelayed(0.2, thistype.spawn, pt)
         end
     end
 
@@ -5141,7 +5044,7 @@ OnInit.final("Spells", function(require)
         thistype.id = FourCC("A02N") ---@type integer 
 
         thistype.aoe = 750. ---@type number
-        thistype.dmg = function(pid) return GetHeroInt(Hero[pid], true) * (GetUnitAbilityLevel(Hero[pid], thistype.id) + 1.) end ---@return number
+        thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroInt(Hero[pid], true) * (ablev + 1.) end ---@return number
         thistype.cd = function(pid) return TimerList[pid]:has(ARCANOSPHERE.id) and 8. or 25. end
         thistype.values = {thistype.aoe, thistype.dmg, thistype.cd}
 
@@ -5167,7 +5070,7 @@ OnInit.final("Spells", function(require)
                     self.targetX = self.x + 40. * Cos(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
                     self.targetY = self.y + 40. * Sin(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
 
-                    local dummy = GetDummy(self.targetX, self.targetY, FourCC('A008'), 1, DUMMY_RECYCLE_TIME)
+                    local dummy = Dummy.create(self.targetX, self.targetY, FourCC('A008'), 1).unit
                     SetUnitOwner(dummy, Player(self.pid - 1), true)
                     BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(self.targetY - GetUnitY(target), self.targetX - GetUnitX(target)))
                     SetUnitFlyHeight(dummy, 150., 0.)
@@ -5199,11 +5102,8 @@ OnInit.final("Spells", function(require)
             pt.dur = pt.dur - 0.5
 
             if pt.dur > 0. then
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     ArcanosphereDebuff:add(pt.source, target):duration(1.)
-                    target = FirstOfGroup(ug)
                 end
 
                 pt.timer:callDelayed(0.5, thistype.periodic, pt)
@@ -5221,7 +5121,7 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.dur = self.dur * LBOOST[self.pid]
             pt.aoe = 800.
@@ -5230,7 +5130,7 @@ OnInit.final("Spells", function(require)
             pt.source = self.caster
             pt.tag = thistype.id
 
-            pt.target = GetDummy(self.targetX, self.targetY, 0, 0, pt.dur + 2.)
+            pt.target = Dummy.create(self.targetX, self.targetY, 0, 0, pt.dur + 1.5).unit
             BlzSetUnitSkin(pt.target, FourCC('e00M'))
             SetUnitScale(pt.target, 10., 10., 10.)
             SetUnitFlyHeight(pt.target, -50.00, 0.00)
@@ -5274,11 +5174,8 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(pt.pid, ug, pt.x, pt.y, pt.aoe, Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     StasisFieldDebuff:add(pt.source, target):duration(0.5)
-                    target = FirstOfGroup(ug)
                 end
 
                 DestroyGroup(ug)
@@ -5290,7 +5187,7 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.aoe = self.aoe * LBOOST[self.pid]
             pt.x = self.targetX
@@ -5298,7 +5195,7 @@ OnInit.final("Spells", function(require)
             pt.dur = self.dur * LBOOST[self.pid]
             pt.source = self.caster
 
-            pt.target = GetDummy(pt.x, pt.y, 0, 0, 6.)
+            pt.target = Dummy.create(pt.x, pt.y, 0, 0, 6.).unit
             BlzSetUnitSkin(pt.target, FourCC('h02B'))
             SetUnitScale(pt.target, 1.05 * LBOOST[self.pid], 1.05 * LBOOST[self.pid], 1.05 * LBOOST[self.pid])
             UnitDisableAbility(pt.target, FourCC('Amov'), true)
@@ -5332,9 +5229,7 @@ OnInit.final("Spells", function(require)
             pt.time = pt.time + FPS_32
 
             if pt.time >= pt.dur then
-                local target = FirstOfGroup(pt.ug)
-                while target do
-                    GroupRemoveUnit(pt.ug, target)
+                for target in each(pt.ug) do
                     SetUnitFlyHeight(target, 0.00, 0.00)
                     if GetUnitMoveSpeed(target) > 0 then
                         SetUnitPathing(target, false)
@@ -5343,8 +5238,7 @@ OnInit.final("Spells", function(require)
                         ResetPathingTimed(target, 2.)
                     end
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(target), GetUnitY(target)))
-                    UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(pt.ug)
+                    DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
                 BlzStartUnitAbilityCooldown(pt.source, thistype.id, pt.cd - pt.time)
@@ -5368,9 +5262,7 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(self.pid, ug, self.targetX, self.targetY, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
-                local target = FirstOfGroup(ug)
-
-                if target then
+                if FirstOfGroup(ug) then
                     pt = TimerList[self.pid]:add()
                     pt.ug = CreateGroup()
                     pt.dmg = self.dmg * BOOST[self.pid]
@@ -5381,8 +5273,7 @@ OnInit.final("Spells", function(require)
                     pt.x = self.targetX
                     pt.y = self.targetY
 
-                    while target do
-                        GroupRemoveUnit(ug, target)
+                    for target in each(ug) do
                         GroupAddUnit(pt.ug, target)
                         DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportCaster.mdl", GetUnitX(target), GetUnitY(target)))
                         if UnitAddAbility(target, FourCC('Amrf')) then
@@ -5390,7 +5281,6 @@ OnInit.final("Spells", function(require)
                         end
                         Stun:add(self.caster, target):duration(pt.dur)
                         SetUnitFlyHeight(target, 500.00, 0.00)
-                        target = FirstOfGroup(ug)
                     end
 
                     pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
@@ -5432,12 +5322,9 @@ OnInit.final("Spells", function(require)
             pt.dur = pt.dur - 0.5
 
             if pt.dur > 0. then
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     GroupAddUnit(pt.ug, target)
                     DarkSealDebuff:add(pt.source, target):duration(1.)
-                    target = FirstOfGroup(ug)
                 end
 
                 --count units in seal
@@ -5467,7 +5354,7 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.dur = self.dur * LBOOST[self.pid]
             pt.x = self.targetX
@@ -5477,7 +5364,7 @@ OnInit.final("Spells", function(require)
             pt.ug = CreateGroup()
             pt.count = 0.
 
-            pt.target = GetDummy(pt.x, pt.y, 0, 0, pt.dur)
+            pt.target = Dummy.create(pt.x, pt.y, 0, 0, pt.dur).unit
 
             BlzSetUnitSkin(pt.target, FourCC('h03X'))
             UnitDisableAbility(pt.target, FourCC('Amov'), true)
@@ -5527,7 +5414,7 @@ OnInit.final("Spells", function(require)
                 for i = 0, pt.time - 1 do
                     target = BlzGroupUnitAt(ug, i)
                     if not target then break end
-                    dummy = GetDummy(x, y, FourCC('A01Y'), 1, 4.)
+                    dummy = Dummy.create(x, y, FourCC('A01Y'), 1, 4.).unit
                     SetUnitOwner(dummy, Player(pt.pid - 1), false)
                     BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(dummy), GetUnitX(target) - GetUnitX(dummy)))
                     UnitDisableAbility(dummy, FourCC('Amov'), true)
@@ -5550,7 +5437,7 @@ OnInit.final("Spells", function(require)
                                 x = pt2.x + 380 * Cos(angle)
                                 y = pt2.y + 380 * Sin(angle)
 
-                                dummy = GetDummy(x, y, FourCC('A01Y'), 1, 4.)
+                                dummy = Dummy.create(x, y, FourCC('A01Y'), 1, 4.).unit
                                 SetUnitOwner(dummy, Player(pt.pid - 1), false)
                                 BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(dummy), GetUnitX(target) - GetUnitX(dummy)))
                                 UnitDisableAbility(dummy, FourCC('Amov'), true)
@@ -5603,7 +5490,7 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.aoe, thistype.dmg, thistype.slow, thistype.freeze}
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:get(DARKSEAL.id, self.caster)  
+            local pt = TimerList[self.pid]:get(DARKSEAL.id, self.caster)
             local ug = CreateGroup()
 
             MakeGroupInRange(self.pid, ug, self.targetX, self.targetY, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
@@ -5619,16 +5506,37 @@ OnInit.final("Spells", function(require)
 
             DestroyEffect(AddSpecialEffect("war3mapImported\\AquaSpikeVersion2.mdx", self.targetX, self.targetY))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(ug) do
                 Freeze:add(Hero[self.pid], target):duration(self.freeze * LBOOST[self.pid])
                 if IsUnitInRangeXY(target, self.targetX, self.targetY, self.aoe * LBOOST[self.pid]) == true and pt then
-                    UnitDamageTarget(self.caster, target, self.dmg * 2 * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(self.caster, target, self.dmg * 2 * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 else
-                    UnitDamageTarget(self.caster, target, self.dmg * BOOST[self.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(self.caster, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
-                target = FirstOfGroup(ug)
+            end
+        end
+    end
+
+    ---@class DARKBLADE : Spell
+    ---@field dmg function
+    ---@field cost function
+    DARKBLADE = {}
+    do
+        local thistype = DARKBLADE
+        thistype.id = FourCC("AEim")
+
+        thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.6 + 0.1 * ablev) * GetHeroInt(Hero[pid], true) end
+        thistype.values = {thistype.dmg}
+
+        function thistype.cost(pid)
+            if GetUnitManaPercent(Hero[pid]) >= 0.5 then
+                if metamorphosis[pid] > 0 then
+                    SetUnitManaPercentBJ(Hero[pid], (GetUnitManaPercent(Hero[pid]) + 0.5))
+                else
+                    SetUnitManaPercentBJ(Hero[pid], (GetUnitManaPercent(Hero[pid]) - 1.00))
+                end
+            else
+                IssueImmediateOrder(Hero[pid], "unimmolation")
             end
         end
     end
@@ -5770,10 +5678,6 @@ OnInit.final("Spells", function(require)
 
         function thistype:onCast()
             local ug = CreateGroup()
-            local song = pt.song ---@type integer 
-            local x2 = 0. ---@type number 
-            local y2 = 0. ---@type number 
-            local aoe = 0. ---@type number 
             local p = Player(self.pid - 1) ---@type player 
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(isalive))
@@ -5784,46 +5688,45 @@ OnInit.final("Spells", function(require)
             --peace all heroes
 
             --improv
-            local pt = TimerList[self.pid]:get(IMPROV.id, nil, caster)  
+            local pt = TimerList[self.pid]:get(IMPROV.id, nil, self.caster)
+            local x2, y2, aoe, song = 0, 0, 0, 0
 
             if pt then
                 GroupEnumUnitsInRangeEx(self.pid, ug, pt.x, pt.y, pt.aoe, Condition(isalive))
                 x2 = pt.x
                 y2 = pt.y
                 aoe = pt.aoe
+                song = pt.song ---@type integer 
             end
 
-            local target = FirstOfGroup(ug)
-            while target do
+            for target in each(ug) do
                 self.tpid = GetPlayerId(GetOwningPlayer(target)) + 1
-                GroupRemoveUnit(ug, target)
 
                 --allied units
                 if IsUnitAlly(target, p) == true then
                     --song of harmony
-                    if (BardSong[self.pid] == SONG_HARMONY and IsUnitInRangeXY(target, x, y, aoe)) or (song == SONG_HARMONY and IsUnitInRangeXY(target, x2, y2, aoe)) then
-                        HP(target, thistype.heal(self.pid) * BOOST[self.pid])
+                    if (BardSong[self.pid] == SONG_HARMONY and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_HARMONY and IsUnitInRangeXY(target, x2, y2, aoe)) then
+                        HP(self.caster, target, self.heal * BOOST[self.pid], thistype.tag)
                         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAuraTarget.mdl", target, "origin"))
                     end
                     --heroes
                     if target == Hero[self.tpid] then
                         --song of war
-                        if (BardSong[self.pid] == SONG_WAR and IsUnitInRangeXY(target, x, y, aoe)) or (song == SONG_WAR and IsUnitInRangeXY(target, x2, y2, aoe)) then
-                            SongOfWarEncoreBuff:add(caster, target):duration(thistype.wardur(self.pid) * LBOOST[self.pid])
+                        if (BardSong[self.pid] == SONG_WAR and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_WAR and IsUnitInRangeXY(target, x2, y2, aoe)) then
+                            SongOfWarEncoreBuff:add(self.caster, target):duration(thistype.wardur * LBOOST[self.pid])
                         end
                         --song of peace
-                        if (BardSong[self.pid] == SONG_PEACE and IsUnitInRangeXY(target, x, y, aoe)) or (song == SONG_PEACE and IsUnitInRangeXY(target, x2, y2, aoe)) then
-                            SongOfPeaceEncoreBuff:add(caster, target):duration(thistype.peacedur(self.pid) * LBOOST[self.pid])
+                        if (BardSong[self.pid] == SONG_PEACE and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_PEACE and IsUnitInRangeXY(target, x2, y2, aoe)) then
+                            SongOfPeaceEncoreBuff:add(self.caster, target):duration(thistype.peacedur * LBOOST[self.pid])
                         end
                     end
                 else
                 --enemies
                     --song of fatigue
-                    if (BardSong[self.pid] == SONG_FATIGUE and IsUnitInRangeXY(target, x, y, aoe)) or (song == SONG_FATIGUE and IsUnitInRangeXY(target, x2, y2, aoe)) then
-                        StunUnit(self.pid, target, thistype.fatiguedur(self.pid) * LBOOST[self.pid])
+                    if (BardSong[self.pid] == SONG_FATIGUE and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_FATIGUE and IsUnitInRangeXY(target, x2, y2, aoe)) then
+                        StunUnit(self.pid, target, thistype.fatiguedur * LBOOST[self.pid])
                     end
                 end
-                target = FirstOfGroup(ug)
             end
         end
     end
@@ -5845,10 +5748,10 @@ OnInit.final("Spells", function(require)
             local heal = self.heal * BOOST[self.pid] ---@type number 
 
             if GetUnitTypeId(self.target) == BACKPACK then
-                HP(Hero[self.tpid], heal)
+                HP(self.caster, Hero[self.tpid], heal, thistype.tag)
                 DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", GetUnitX(Hero[self.tpid]), GetUnitY(Hero[self.tpid])))
             elseif IsUnitAlly(self.target, p) then
-                HP(self.target, heal)
+                HP(self.caster, self.target, heal, thistype.tag)
                 DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", self.targetX, self.targetY))
             end
         end
@@ -5881,12 +5784,10 @@ OnInit.final("Spells", function(require)
 
                 MakeGroupInRange(pt.pid, ug, pt.x, pt.y, pt.aoe, Condition(isalive))
 
-                local target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     if IsUnitAlly(target, Player(pt.pid - 1)) == false then
                         if ModuloInteger(R2I(pt.time),2) == 0 then
-                            UnitDamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                            DamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                         end
                         if pt.song == SONG_FATIGUE then
                             SongOfFatigueSlow:add(Hero[pt.pid], target):duration(2.)
@@ -5903,13 +5804,12 @@ OnInit.final("Spells", function(require)
                             SongOfWarBuff:add(Hero[pt.pid], target):duration(2.)
                         end
                     end
-                    target = FirstOfGroup(ug)
                 end
+
+                DestroyGroup(ug)
 
                 pt.timer:callDelayed(1., thistype.periodic, pt)
             end
-
-            DestroyGroup(ug)
         end
 
         function thistype:onCast()
@@ -5924,7 +5824,7 @@ OnInit.final("Spells", function(require)
                 pt.dmg = self.dmg
                 pt.dur = self.dur * LBOOST[self.pid]
                 pt.target = self.caster
-                pt.source = GetDummy(pt.x, pt.y, 0, 0, pt.dur)
+                pt.source = Dummy.create(pt.x, pt.y, 0, 0, pt.dur).unit
 
                 SetUnitScale(pt.source, 3., 3., 3.)
                 SetUnitOwner(pt.source, Player(PLAYER_TOWN), true)
@@ -5965,8 +5865,6 @@ OnInit.final("Spells", function(require)
 
         function thistype:onCast()
             InspireBuff:add(self.caster, self.caster):duration(99999.)
-
-            InspireActive[self.pid] = true
         end
     end
 
@@ -5980,7 +5878,7 @@ OnInit.final("Spells", function(require)
         thistype.id = FourCC("A02K") ---@type integer 
 
         thistype.aoe = 350. ---@type number
-        thistype.dmg = function(pid) return (0.5 + 0.5 * ablev) * GetHeroInt(Hero[pid], true) end ---@return number
+        thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.5 + 0.5 * ablev) * GetHeroInt(Hero[pid], true) end ---@return number
         thistype.dur = 5. ---@type number
         thistype.values = {thistype.aoe, thistype.dmg, thistype.dur}
 
@@ -5999,51 +5897,45 @@ OnInit.final("Spells", function(require)
                 SetUnitYBounded(pt.target, y)
 
                 local ug = CreateGroup()
-                local target
                 local rand = GetRandomReal(bj_PI // -9., bj_PI // 9.) ---@type number 
 
                 MakeGroupInRange(pt.pid, ug, GetUnitX(pt.target), GetUnitY(pt.target), pt.aoe, Condition(FilterEnemy))
 
-                local count = BlzGroupGetSize(ug)
+                for target in each(ug) do
+                    --enemy movement
+                    if GetUnitMoveSpeed(target) > 0 then
+                        local angle = Atan2(GetUnitY(pt.target) - GetUnitY(target), GetUnitX(pt.target) - GetUnitX(target))
+                        local x = GetUnitX(target) + (17. + 30. / (UnitDistance(target, pt.target) + 1)) * Cos(angle + rand)
+                        local y = GetUnitY(target) + (17. + 30. / (UnitDistance(target, pt.target) + 1)) * Sin(angle + rand)
 
-                if count > 0 then
-                    for index = 0, count - 1 do
-                        target = BlzGroupUnitAt(ug, index)
-                        --enemy movement
-                        if GetUnitMoveSpeed(target) > 0 then
-                            local angle = Atan2(GetUnitY(pt.target) - GetUnitY(target), GetUnitX(pt.target) - GetUnitX(target))
-                            local x = GetUnitX(target) + (17. + 30. / (UnitDistance(target, pt.target) + 1)) * Cos(angle + rand)
-                            local y = GetUnitY(target) + (17. + 30. / (UnitDistance(target, pt.target) + 1)) * Sin(angle + rand)
-
-                            if GetUnitMoveSpeed(target) > 0 and IsTerrainWalkable(x, y) then
-                                if IsUnitType(target, UNIT_TYPE_HERO) == false then
-                                    SetUnitPathing(target, false)
-                                end
-                                SetUnitXBounded(target, x)
-                                SetUnitYBounded(target, y)
+                        if GetUnitMoveSpeed(target) > 0 and IsTerrainWalkable(x, y) then
+                            if IsUnitType(target, UNIT_TYPE_HERO) == false then
+                                SetUnitPathing(target, false)
                             end
-                        end
-
-                        --damage per second
-                        if ModuloInteger(pt.count,32) == 0 then
-                            UnitDamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                            SetUnitXBounded(target, x)
+                            SetUnitYBounded(target, y)
                         end
                     end
+
+                    --damage per second
+                    if ModuloInteger(pt.count,32) == 0 then
+                        DamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    end
                 end
+
+                DestroyGroup(ug)
 
                 pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
             else
                 pt:destroy()
             end
-
-            DestroyGroup(ug)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.angle = self.angle
-            pt.target = GetDummy(x + 250 * Cos(pt.angle), y + 250 * Sin(pt.angle), 0, 0, 6.)
+            pt.target = Dummy.create(self.x + 250 * Cos(pt.angle), self.y + 250 * Sin(pt.angle), 0, 0, 6.).unit
             pt.sfx = AddSpecialEffectTarget("war3mapImported\\BlackHoleSpell.mdx", pt.target, "origin")
             pt.aoe = self.aoe * LBOOST[self.pid]
             pt.dmg = self.dmg
@@ -6095,42 +5987,39 @@ OnInit.final("Spells", function(require)
 
         if pt.dur > 0. then
             --spawn effect
-            local target = GetDummy(GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 0, 0, 0.75)
-            BlzSetUnitSkin(target, FourCC('h00D'))
-            SetUnitTimeScale(target, GetRandomReal(0.8, 1.1))
-            SetUnitScale(target, 1.30, 1.30, 1.30)
-            SetUnitAnimationByIndex(target, 0)
-            SetUnitFlyHeight(target, GetRandomReal(50., 100.), 0)
-            BlzSetUnitFacingEx(target, GetRandomReal(0, 359.))
+            local dummy = Dummy.create(GetUnitX(pt.source), GetUnitY(pt.source), 0, 0, 0.75).unit
+            BlzSetUnitSkin(dummy, FourCC('h00D'))
+            SetUnitTimeScale(dummy, GetRandomReal(0.8, 1.1))
+            SetUnitScale(dummy, 1.30, 1.30, 1.30)
+            SetUnitAnimationByIndex(dummy, 0)
+            SetUnitFlyHeight(dummy, GetRandomReal(50., 100.), 0)
+            BlzSetUnitFacingEx(dummy, GetRandomReal(0, 359.))
 
-            target = GetDummy(GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 0, 0, 0.75)
-            BlzSetUnitSkin(target, FourCC('h00D'))
-            SetUnitTimeScale(target, GetRandomReal(0.8, 1.1))
-            SetUnitScale(target, 0.7, 0.7, 0.7)
-            SetUnitAnimationByIndex(target, 0)
-            SetUnitFlyHeight(target, GetRandomReal(50., 100.), 0)
-            BlzSetUnitFacingEx(target, GetRandomReal(0, 359.))
+            dummy = Dummy.create(GetUnitX(pt.source), GetUnitY(pt.source), 0, 0, 0.75).unit
+            BlzSetUnitSkin(dummy, FourCC('h00D'))
+            SetUnitTimeScale(dummy, GetRandomReal(0.8, 1.1))
+            SetUnitScale(dummy, 0.7, 0.7, 0.7)
+            SetUnitAnimationByIndex(dummy, 0)
+            SetUnitFlyHeight(dummy, GetRandomReal(50., 100.), 0)
+            BlzSetUnitFacingEx(dummy, GetRandomReal(0, 359.))
 
             if pt.dur < 4.85 and ModuloReal(pt.dur, 0.25) < 0.05 then --do damage every 0.25 second
                 local ug = CreateGroup()
 
-                MakeGroupInRange(pid, ug, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 300., Condition(FilterEnemy))
+                MakeGroupInRange(pt.pid, ug, GetUnitX(pt.source), GetUnitY(pt.source), 300., Condition(FilterEnemy))
 
-                target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     DestroyEffect(AddSpecialEffectTarget("Objects\\Spawnmodels\\Critters\\Albatross\\CritterBloodAlbatross.mdl", target, "chest"))
-                    UnitDamageTarget(Hero[pid], target, (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + GetHeroStr(Hero[pid], true)) * 0.25 * BOOST[pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(ug)
+                    DamageTarget(pt.source, target, (UnitGetBonus(pt.source, BONUS_DAMAGE) + GetHeroStr(pt.source, true)) * 0.25 * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, "Blade Storm")
                 end
+
+                DestroyGroup(ug)
             end
 
             pt.timer:callDelayed(0.05, AzazothBladeStorm, pt)
         else
             pt:destroy()
         end
-
-        DestroyGroup(ug)
     end
 
     ---@type fun(pid: integer)
@@ -6147,196 +6036,20 @@ OnInit.final("Spells", function(require)
     function MagneticForcePull(pid)
         if magneticForceFlag[pid] then
             local ug = CreateGroup()
-            local angle ---@type number 
 
             MakeGroupInRange(pid, ug, GetUnitX(meatgolem[pid]), GetUnitY(meatgolem[pid]), 600. * LBOOST[pid], Condition(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                angle = Atan2(GetUnitY(meatgolem[pid]) - GetUnitY(target), GetUnitX(meatgolem[pid]) - GetUnitX(target))
+            for target in each(ug) do
+                local angle = Atan2(GetUnitY(meatgolem[pid]) - GetUnitY(target), GetUnitX(meatgolem[pid]) - GetUnitX(target))
                 if GetUnitMoveSpeed(target) > 0 and IsTerrainWalkable(GetUnitX(target) + (7. * Cos(angle)), GetUnitY(target) + (7. * Sin(angle))) then
                     SetUnitXBounded(target, GetUnitX(target) + (7. * Cos(angle)))
                     SetUnitYBounded(target, GetUnitY(target) + (7. * Sin(angle)))
                 end
-                target = FirstOfGroup(ug)
             end
 
             TimerQueue:callDelayed(0.05, MagneticForcePull, pid)
 
             DestroyGroup(ug)
-        end
-    end
-
-    ---@type fun(time: integer)
-    function SpiritCallPeriodic(time)
-        local ug       = CreateGroup()
-        local ug2       = CreateGroup()
-        local target ---@type unit 
-        local u ---@type unit 
-        local scs ---@type SpiritCallSlow 
-
-        time = time - 1
-
-        GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon_Boss, Condition(isspirit))
-
-        if time >= 0 then
-            target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                if GetRandomInt(0, 99) < 25 then
-                    GroupEnumUnitsInRect(ug2, gg_rct_Naga_Dungeon_Boss, Condition(isplayerunit))
-                    u = BlzGroupUnitAt(ug2, GetRandomInt(0, BlzGroupGetSize(ug2) - 1))
-                    IssuePointOrder(target, "move", GetUnitX(u), GetUnitY(u))
-                end
-                GroupEnumUnitsInRange(ug2, GetUnitX(target), GetUnitY(target), 300., Condition(isplayerunit))
-                u = FirstOfGroup(ug2)
-                while u do
-                    GroupRemoveUnit(ug2, u)
-                    bj_lastCreatedUnit = GetDummy(GetUnitX(target), GetUnitY(target), FourCC('A09R'), 1, DUMMY_RECYCLE_TIME)
-                    BlzSetUnitFacingEx(bj_lastCreatedUnit, bj_RADTODEG * Atan2(GetUnitY(u) - GetUnitY(target), GetUnitX(u) - GetUnitX(target)))
-                    InstantAttack(bj_lastCreatedUnit, u)
-                    UnitDamageTarget(target, u, BlzGetUnitMaxHP(u) * 0.1, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    if UnitAlive(u) then
-                        scs = SpiritCallSlow:add(u, u)
-                        scs:duration(5.)
-                    end
-                    u = FirstOfGroup(ug2)
-                end
-                target = FirstOfGroup(ug)
-            end
-            TimerQueue:callDelayed(1., SpiritCallPeriodic, time)
-        else
-            target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                SetUnitVertexColor(target, 100, 255, 100, 255)
-                SetUnitScale(target, 1, 1, 1)
-                IssuePointOrder(target, "move", GetRandomReal(GetRectMinX(gg_rct_Naga_Dungeon_Boss_Vision), GetRectMaxX(gg_rct_Naga_Dungeon_Boss_Vision)), GetRandomReal(GetRectMinY(gg_rct_Naga_Dungeon_Boss_Vision), GetRectMaxY(gg_rct_Naga_Dungeon_Boss_Vision)))
-                target = FirstOfGroup(ug)
-            end
-        end
-
-        DestroyGroup(ug)
-        DestroyGroup(ug2)
-    end
-
-    function SpiritCall()
-        local ug       = CreateGroup()
-
-        GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon_Boss, Condition(isspirit))
-
-        local target = FirstOfGroup(ug)
-        while target do
-            GroupRemoveUnit(ug, target)
-            SetUnitVertexColor(target, 255, 25, 25, 255)
-            SetUnitScale(target, 1.25, 1.25, 1.25)
-            target = FirstOfGroup(ug)
-        end
-
-        TimerQueue:callDelayed(1., SpiritCallPeriodic, 15)
-
-        DestroyGroup(ug)
-    end
-
-    ---@type fun(x: number, y: number)
-    function CollapseExpire(x, y)
-        local ug = CreateGroup()
-
-        GroupEnumUnitsInRange(ug, x, y, 500., Condition(isplayerunit))
-        DestroyEffect(AddSpecialEffect("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", x + 150, y + 150))
-        DestroyEffect(AddSpecialEffect("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", x - 150, y - 150))
-        DestroyEffect(AddSpecialEffect("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", x + 150, y - 150))
-        DestroyEffect(AddSpecialEffect("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", x - 150, y + 150))
-
-        local target = FirstOfGroup(ug)
-        while target do
-            GroupRemoveUnit(ug, target)
-            UnitDamageTarget(nagaboss, target, BlzGetUnitMaxHP(target) * GetRandomReal(0.75, 1), true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-            target = FirstOfGroup(ug)
-        end
-
-        DestroyGroup(ug)
-    end
-
-    function NagaCollapse()
-        local dummy ---@type unit 
-
-        for i = 0, 9 do
-            dummy = GetDummy(GetRandomReal(GetRectMinX(gg_rct_Naga_Dungeon_Boss), GetRectMaxX(gg_rct_Naga_Dungeon_Boss)), GetRandomReal(GetRectMinY(gg_rct_Naga_Dungeon_Boss), GetRectMaxY(gg_rct_Naga_Dungeon_Boss)), 0, 0, 4.)
-            BlzSetUnitFacingEx(dummy, 270.)
-            BlzSetUnitSkin(dummy, FourCC('e01F'))
-            SetUnitScale(dummy, 10., 10., 10.)
-            SetUnitVertexColor(dummy, 0, 255, 255, 255)
-            TimerQueue:callDelayed(3., CollapseExpire, GetUnitX(dummy), GetUnitY(dummy))
-        end
-    end
-
-    function NagaWaterStrike()
-        local ug       = CreateGroup()
-        local dummy ---@type unit 
-
-        if UnitAlive(nagaboss) then
-            MakeGroupInRect(FOE_ID, ug, gg_rct_Naga_Dungeon_Boss, Condition(FilterEnemy))
-
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                dummy = CreateUnit(pfoe, FourCC('h003'), GetUnitX(nagaboss), GetUnitY(nagaboss), 0)
-                IssueTargetOrder(dummy, "smart", target)
-                target = FirstOfGroup(ug)
-            end
-        else
-            nagawaterstrikecd = false
-        end
-
-        DestroyGroup(ug)
-    end
-
-    ---@type fun(caster: unit, time: integer)
-    function NagaMiasmaDamage(caster, time)
-        time = time - 1
-
-        if time > 0 then
-            local ug = CreateGroup()
-
-            GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon, Condition(isplayerunit))
-
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                if ModuloInteger(num,2) == 0 then
-                    TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Units\\Undead\\PlagueCloud\\PlagueCloudtarget.mdl", target, "overhead"))
-                end
-                UnitDamageTarget(caster, target, 25000 + BlzGetUnitMaxHP(target) * 0.03, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                target = FirstOfGroup(ug)
-            end
-            TimerQueue:callDelayed(0.5, NagaMiasmaDamage, caster, time)
-
-            DestroyGroup(ug)
-        end
-    end
-
-    ---@type fun(source: unit, target: unit)
-    function SwarmBeetle(source, target)
-    PauseUnit(source, false)
-    UnitRemoveAbility(source, FourCC('Avul'))
-    IssueTargetOrder(source, "attack", target)
-    UnitApplyTimedLife(source, FourCC('BTLF'), 6.5)
-    TimerQueue:callDelayed(5., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Other\\Parasite\\ParasiteTarget.mdl", source, "overhead"))
-    end
-
-    ---@type fun(source: unit)
-    function ApplyNagaAtkSpeed(source)
-        if UnitAlive(source) then
-            NagaEliteAtkSpeed:add(source, source):duration(4.)
-        end
-    end
-
-    ---@type fun(source: unit)
-    function ApplyNagaThorns(source)
-        if UnitAlive(source) then
-            NagaThorns:add(u, u):duration(6.5)
         end
     end
 
@@ -6348,19 +6061,14 @@ OnInit.final("Spells", function(require)
 
     ---@type fun(pt: PlayerTimer)
     function GaiaArmorPush(pt)
-        local angle      = 0. ---@type number 
-        local x      = 0. ---@type number 
-        local y      = 0. ---@type number 
-        local ug       = CreateGroup()
-
-        BlzGroupAddGroupFast(pt.ug, ug)
+        local angle = 0. ---@type number 
+        local x     = 0. ---@type number 
+        local y     = 0. ---@type number 
 
         pt.dur = pt.dur - 1
 
         if pt.dur > 0. then
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
+            for target in each(pt.ug) do
                 x = GetUnitX(target)
                 y = GetUnitY(target)
                 angle = Atan2(y - GetUnitY(Hero[pt.pid]), x - GetUnitX(Hero[pt.pid]))
@@ -6368,19 +6076,17 @@ OnInit.final("Spells", function(require)
                     SetUnitXBounded(target, x + pt.speed * Cos(angle))
                     SetUnitYBounded(target, y + pt.speed * Sin(angle))
                 end
-                target = FirstOfGroup(ug)
             end
         else
             pt:destroy()
         end
-
-        DestroyGroup(ug)
     end
 
     ---@type fun(pid: integer)
     function GaiaArmorCD(pid)
+        gaiaArmorCD[pid] = 1
+
         if HeroID[pid] == HERO_ELEMENTALIST then
-            aoteCD[pid] = true
             UnitAddAbility(Hero[pid], FourCC('A033'))
             BlzUnitHideAbility(Hero[pid], FourCC('A033'), true)
         end
@@ -6391,7 +6097,6 @@ OnInit.final("Spells", function(require)
         local i         = 1 ---@type integer 
         local i2         = 0 ---@type integer 
         local ug       = CreateGroup()
-        local target ---@type unit 
         local playerBonus         = 0 ---@type integer 
         local x      = 0. ---@type number 
         local y      = 0. ---@type number 
@@ -6425,11 +6130,8 @@ OnInit.final("Spells", function(require)
                 i = i + 1
             end
 
-            while true do
-                target = FirstOfGroup(ug)
-                if target == nil then break end
-                GroupRemoveUnit(ug, target)
-                UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            for target in each(ug) do
+                DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, pt.tag)
             end
 
             pt:destroy()
@@ -6444,6 +6146,7 @@ OnInit.final("Spells", function(require)
 
         if pt.time < 4 then --azazoth cast
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Charm\\CharmTarget.mdl", pt.source, "origin"))
+            pt.timer:callDelayed(pt.dur, AstralAnnihilation, pt)
         else
             local x = GetUnitX(pt.source)
             local y = GetUnitY(pt.source)
@@ -6458,22 +6161,19 @@ OnInit.final("Spells", function(require)
             local ug = CreateGroup()
             MakeGroupInRange(pt.pid, ug, x, y, 900., Filter(FilterEnemy))
 
-            local target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                target = FirstOfGroup(ug)
+            for target in each(ug) do
+                DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, pt.tag)
             end
+
+            DestroyGroup(ug)
 
             pt:destroy()
         end
-
-        DestroyGroup(ug)
     end
 
     ---@type fun(pt: PlayerTimer)
     function MassTeleportFinish(pt)
-        isteleporting[pt.pid] = false
+        IS_TELEPORTING[pt.pid] = false
         BlzPauseUnitEx(Backpack[pt.pid], false)
 
         if UnitAlive(Hero[pt.pid]) and getRect(GetUnitX(Hero[pt.pid]), GetUnitY(Hero[pt.pid])) == getRect(pt.x, pt.y) then
@@ -6489,9 +6189,8 @@ OnInit.final("Spells", function(require)
     function MassTeleport(pid, u, dur)
         local pt = TimerList[pid]:add()  
 
-        isteleporting[pid] = true
+        IS_TELEPORTING[pid] = true
         BlzPauseUnitEx(Backpack[pid], true)
-        --call DummyCastTarget(p, u, FourCC('A01R'), ablev, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), "massteleport")
         TimerQueue:callDelayed(dur, DestroyEffect, AddSpecialEffect("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTo.mdl", GetUnitX(u), GetUnitY(u)))
         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportCaster.mdl", Backpack[pid], "origin"))
         pt.x = GetUnitX(u)
@@ -6521,16 +6220,16 @@ OnInit.final("Spells", function(require)
             pt:destroy()
         end
 
-        isteleporting[pt.pid] = false
+        IS_TELEPORTING[pt.pid] = false
     end
 
     ---@param p player
     ---@param dur integer
     function TeleportHome(p, dur)
-        local pid         = GetPlayerId(p) + 1 ---@type integer 
-        local pt             = TimerList[pid]:add()  
+        local pid = GetPlayerId(p) + 1 ---@type integer 
+        local pt  = TimerList[pid]:add()
 
-        isteleporting[pid] = true
+        IS_TELEPORTING[pid] = true
 
         PauseUnit(Backpack[pid], true)
         PauseUnit(Hero[pid], true)
@@ -6548,191 +6247,146 @@ OnInit.final("Spells", function(require)
         pt.timer:callDelayed(0.05, TeleportHomePeriodic, pt)
     end
 
-    ---@param boss unit
-    ---@param baseDamage integer
-    ---@param effectability integer
-    ---@param AOE number
-    function BossBlastTaper(boss, baseDamage, effectability, AOE)
-        local castx      = GetUnitX(boss) ---@type number 
-        local casty      = GetUnitY(boss) ---@type number 
-        local dx      = 0. ---@type number 
-        local dy      = 0. ---@type number 
-        local g       = CreateGroup()
-        local target ---@type unit 
-        local angle ---@type number 
-        local distance ---@type number 
-        local i         =1 ---@type integer 
+    ---@type fun(boss: unit, baseDamage: integer, effectability: integer, AOE: number, tag: string)
+    function BossBlastTaper(boss, baseDamage, effectability, AOE, tag)
+        local castx = GetUnitX(boss) ---@type number 
+        local casty = GetUnitY(boss) ---@type number 
+        local dx    = 0. ---@type number 
+        local dy    = 0. ---@type number 
+        local ug    = CreateGroup()
 
-        while i <= 18 do
-            angle= bj_PI *i /9.
-            target = GetDummy(castx, casty, effectability, 1, DUMMY_RECYCLE_TIME)
-            SetUnitFlyHeight(target, 150., 0)
-            IssuePointOrder(target, "breathoffire", castx + 40 * Cos(angle), casty + 40 * Sin(angle))
-            i = i + 1
+        for i = 1, 18 do
+            local angle = bj_PI * i /9.
+            local dummy = Dummy.create(castx, casty, effectability, 1).unit
+            SetUnitFlyHeight(dummy, 150., 0)
+            IssuePointOrder(dummy, "breathoffire", castx + 40 * Cos(angle), casty + 40 * Sin(angle))
         end
-        GroupEnumUnitsInRange(g, castx, casty, AOE, Condition(ishostileEnemy))
-        while true do
-            target = FirstOfGroup(g)
-            if target == nil then break end
-            GroupRemoveUnit(g, target)
+        GroupEnumUnitsInRange(ug, castx, casty, AOE, Condition(ishostileEnemy))
+        for target in each(ug) do
             --call DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\LordofFlameMissile\\LordofFlameMissile.mdl", GetUnitX(target), GetUnitY(target)))
-            dx= GetUnitX(target) -castx
-            dy= GetUnitY(target) -casty
-            distance= SquareRoot(dx * dx +dy * dy)
-            if distance<150 then
-                UnitDamageTarget(boss,target, baseDamage, true, false,ATTACK_TYPE_NORMAL,MAGIC,WEAPON_TYPE_WHOKNOWS)
+            dx= GetUnitX(target) - castx
+            dy= GetUnitY(target) - casty
+            local dist = SquareRoot(dx * dx +dy * dy)
+            if dist < 150 then
+                DamageTarget(boss,target, baseDamage, ATTACK_TYPE_NORMAL, MAGIC, tag)
             else
-                UnitDamageTarget(boss,target, baseDamage /(distance/200.), true, false,ATTACK_TYPE_NORMAL,MAGIC,WEAPON_TYPE_WHOKNOWS)
+                DamageTarget(boss,target, baseDamage / (dist / 200.), ATTACK_TYPE_NORMAL, MAGIC, tag)
             end
         end
 
-        DestroyGroup(g)
-        PauseUnit(boss,false)
+        DestroyGroup(ug)
+        PauseUnit(boss, false)
     end
 
-    ---@param boss unit
-    ---@param baseDamage integer
-    ---@param hgroup integer
-    ---@param speffect string
-    function BossPlusSpell(boss, baseDamage, hgroup, speffect)
-        local castx      = GetUnitX(boss) ---@type number 
-        local casty      = GetUnitY(boss) ---@type number 
+    ---@type fun(boss: unit, baseDamage: integer, hgroup: integer, speffect: string, tag: string)
+    function BossPlusSpell(boss, baseDamage, hgroup, speffect, tag)
+        local castx = GetUnitX(boss) ---@type number 
+        local casty = GetUnitY(boss) ---@type number 
         local dx ---@type number 
         local dy ---@type number 
-        local i         = -8 ---@type integer 
-        local g      = CreateGroup()
-        local target ---@type unit 
 
         if UnitAlive(boss) then
-            while i <= 8 do
-                DestroyEffect(AddSpecialEffect(speffect, castx +80 * i, casty-75))
-                DestroyEffect(AddSpecialEffect(speffect, castx +80 * i, casty + 75))
-                DestroyEffect(AddSpecialEffect(speffect, castx-75, casty +80 * i))
-                DestroyEffect(AddSpecialEffect(speffect, castx + 75, casty +80 * i))
-                i = i + 1
+            for i = -8, 8 do
+                DestroyEffect(AddSpecialEffect(speffect, castx + 80 * i, casty - 75))
+                DestroyEffect(AddSpecialEffect(speffect, castx + 80 * i, casty + 75))
+                DestroyEffect(AddSpecialEffect(speffect, castx - 75, casty + 80 * i))
+                DestroyEffect(AddSpecialEffect(speffect, castx + 75, casty + 80 * i))
             end
-            GroupEnumUnitsInRange(g, castx, casty, 750, Condition(ishostileEnemy))
-            while true do
-                target = FirstOfGroup(g)
-                if target == nil then break end
-                GroupRemoveUnit(g, target)
+
+            local ug = CreateGroup()
+
+            GroupEnumUnitsInRange(ug, castx, casty, 750, Condition(ishostileEnemy))
+
+            for target in each(ug) do
                 --call DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\LordofFlameMissile\\LordofFlameMissile.mdl", GetUnitX(target), GetUnitY(target)))
-                dx = RAbsBJ(GetUnitX(target)- castx)
-                dy = RAbsBJ(GetUnitY(target)- casty)
-                if dx<150 and dy<700 then
-                    UnitDamageTarget(boss, target, baseDamage, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                elseif dx<700 and dy<150 then
-                    UnitDamageTarget(boss, target, baseDamage, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                dx = RAbsBJ(GetUnitX(target) - castx)
+                dy = RAbsBJ(GetUnitY(target) - casty)
+                if dx < 150 and dy < 700 then
+                    DamageTarget(boss, target, baseDamage, ATTACK_TYPE_NORMAL, MAGIC, tag)
+                elseif dx < 700 and dy < 150 then
+                    DamageTarget(boss, target, baseDamage, ATTACK_TYPE_NORMAL, MAGIC, tag)
                 end
             end
-        end
 
-        DestroyGroup(g)
+            DestroyGroup(ug)
+        end
     end
 
-    ---@param boss unit
-    ---@param baseDamage integer
-    ---@param hgroup integer
-    ---@param speffect string
-    function BossXSpell(boss, baseDamage, hgroup, speffect)
+    ---@type fun(boss: unit, baseDamage: integer, hgroup: integer, speffect: string, tag: string)
+    function BossXSpell(boss, baseDamage, hgroup, speffect, tag)
         local castx      = GetUnitX(boss) ---@type number 
         local casty      = GetUnitY(boss) ---@type number 
         local dx ---@type number 
         local dy ---@type number 
-        local i         = -8 ---@type integer 
-        local g      = CreateGroup()
-        local target ---@type unit 
 
         if UnitAlive(boss) then
-            while i <= 8 do
-                    DestroyEffect(AddSpecialEffect(speffect, castx +75 * i, casty +75 * i))
-                    DestroyEffect(AddSpecialEffect(speffect, castx +75 * i, casty -75 * i))
-                i = i + 1
+            for i = -8, 8 do
+                DestroyEffect(AddSpecialEffect(speffect, castx + 75 * i, casty + 75 * i))
+                DestroyEffect(AddSpecialEffect(speffect, castx + 75 * i, casty - 75 * i))
             end
-            GroupEnumUnitsInRange(g, castx, casty, 750, Condition(ishostileEnemy))
-            while true do
-                target = FirstOfGroup(g)
-                if target == nil then break end
-                GroupRemoveUnit(g, target)
-                dx = RAbsBJ(GetUnitX(target)- castx)
-                dy = RAbsBJ(GetUnitY(target)- casty)
-                if RAbsBJ(dx -dy) <200 then
-                    UnitDamageTarget(boss, target, baseDamage, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+
+            local ug = CreateGroup()
+            GroupEnumUnitsInRange(ug, castx, casty, 750, Condition(ishostileEnemy))
+
+            for target in each(ug) do
+                dx = RAbsBJ(GetUnitX(target) - castx)
+                dy = RAbsBJ(GetUnitY(target) - casty)
+                if RAbsBJ(dx - dy) < 200 then
+                    DamageTarget(boss, target, baseDamage, ATTACK_TYPE_NORMAL, MAGIC, tag)
                 end
             end
-        end
 
-        DestroyGroup(g)
+            DestroyGroup(ug)
+        end
     end
 
-    ---@param boss unit
-    ---@param baseDamage integer
-    ---@param hgroup integer
-    ---@param AOE number
-    ---@param speffect string
-    function BossInnerRing(boss, baseDamage, hgroup, AOE, speffect)
-        local castx ---@type number 
-        local casty ---@type number 
-        local g ---@type group 
-        local target ---@type unit 
+    ---@type fun(boss: unit, baseDamage: integer, hgroup: integer, AOE: number, speffect: string, tag: string)
+    function BossInnerRing(boss, baseDamage, hgroup, AOE, speffect, tag)
+        local castx = GetUnitX(boss) ---@type number 
+        local casty = GetUnitY(boss) ---@type number 
         local angle ---@type number 
-        local i         =0 ---@type integer 
 
-        castx = GetUnitX(boss)
-        casty = GetUnitY(boss)
-        g= CreateGroup()
-        while i <= 6 do
+        for i = 0, 6 do
             angle= bj_PI *i /3.
             DestroyEffect(AddSpecialEffect(speffect, castx +AOE*.4 * Cos(angle), casty +AOE*.4 * Sin(angle)))
             DestroyEffect(AddSpecialEffect(speffect, castx +AOE*.8 * Cos(angle), casty +AOE*.8 * Sin(angle)))
-            i = i + 1
-        end
-        GroupEnumUnitsInRange(g, castx, casty, AOE, Condition(ishostileEnemy))
-        while true do
-            target = FirstOfGroup(g)
-            if target == nil then break end
-            GroupRemoveUnit(g, target)
-            --call DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\LordofFlameMissile\\LordofFlameMissile.mdl", GetUnitX(target), GetUnitY(target)))
-            UnitDamageTarget(boss,target, baseDamage, true, false,ATTACK_TYPE_NORMAL,MAGIC,WEAPON_TYPE_WHOKNOWS)
         end
 
-        DestroyGroup(g)
+        local ug = CreateGroup()
+        GroupEnumUnitsInRange(ug, castx, casty, AOE, Condition(ishostileEnemy))
+
+        for target in each(ug) do
+            --call DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\LordofFlameMissile\\LordofFlameMissile.mdl", GetUnitX(target), GetUnitY(target)))
+            DamageTarget(boss, target, baseDamage, ATTACK_TYPE_NORMAL, MAGIC, tag)
+        end
+
+        DestroyGroup(ug)
     end
 
-    ---@param boss unit
-    ---@param baseDamage integer
-    ---@param hgroup integer
-    ---@param innerRadius number
-    ---@param outerRadius number
-    ---@param speffect string
-    function BossOuterRing(boss, baseDamage, hgroup, innerRadius, outerRadius, speffect)
-        local castx      = GetUnitX(boss) ---@type number 
-        local casty      = GetUnitY(boss) ---@type number 
-        local dx      = 0. ---@type number 
-        local dy      = 0. ---@type number 
-        local ug       = CreateGroup()
-        local target      = nil ---@type unit 
-        local angle      = 0. ---@type number 
-        local distance      = outerRadius - innerRadius ---@type number 
-        local i         = 0 ---@type integer 
+    ---@type fun(boss: unit, baseDamage: integer, hgroup: integer, innerRadius: number, outerRadius: number, speffect: string, tag: string)
+    function BossOuterRing(boss, baseDamage, hgroup, innerRadius, outerRadius, speffect, tag)
+        local castx = GetUnitX(boss) ---@type number 
+        local casty = GetUnitY(boss) ---@type number 
+        local dx    = 0. ---@type number 
+        local dy    = 0. ---@type number 
+        local angle = 0. ---@type number 
+        local distance = outerRadius - innerRadius ---@type number 
 
-        while i <= 10 do
+        for i = 0, 10 do
             angle = bj_PI * i / 5.
             DestroyEffect(AddSpecialEffect(speffect, castx + (innerRadius + distance / 6.) * Cos(angle), casty + (innerRadius + distance / 6.) * Sin(angle)))
             DestroyEffect(AddSpecialEffect(speffect, castx + (outerRadius - distance / 6.) * Cos(angle), casty + (outerRadius - distance / 6.) * Sin(angle)))
-            i = i + 1
         end
 
+        local ug = CreateGroup()
         GroupEnumUnitsInRange(ug, castx, casty, outerRadius, Condition(ishostileEnemy))
-        while true do
-            target = FirstOfGroup(ug)
-            if target == nil then break end
-            GroupRemoveUnit(ug, target)
+
+        for target in each(ug) do
             dx = GetUnitX(target) - castx
             dy = GetUnitY(target) - casty
             distance = SquareRoot(dx * dx + dy * dy)
             if distance > innerRadius then
-                UnitDamageTarget(boss, target, baseDamage, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                DamageTarget(boss, target, baseDamage, ATTACK_TYPE_NORMAL, MAGIC, tag)
             end
         end
 
@@ -6740,15 +6394,16 @@ OnInit.final("Spells", function(require)
     end
 
     ---@return boolean
-    function HeroPanelClick()
+    local function HeroPanelClick()
         local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
         local dw    = DialogWindow[pid] ---@type DialogWindow 
         local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
-        local i     = pid * PLAYER_CAP + dw.data[index] ---@type integer 
 
         if index ~= -1 then
-            hero_panel_on[i] = (not hero_panel_on[i])
-            ShowHeroPanel(GetTriggerPlayer(), Player(dw.data[index] - 1), hero_panel_on[i])
+            local id = pid * PLAYER_CAP + dw.data[index] ---@type integer 
+
+            hero_panel_on[id] = (not hero_panel_on[id])
+            ShowHeroPanel(GetTriggerPlayer(), Player(dw.data[index] - 1), hero_panel_on[id])
 
             dw:destroy()
         end
@@ -6757,7 +6412,7 @@ OnInit.final("Spells", function(require)
     end
 
     ---@param pid integer
-    function DisplayHeroPanel(pid)
+    local function DisplayHeroPanel(pid)
         local dw = DialogWindow.create(pid, "", HeroPanelClick) ---@type DialogWindow 
         local U  = User.first ---@type User 
 
@@ -6781,8 +6436,8 @@ OnInit.final("Spells", function(require)
         local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
 
         if index ~= -1 then
-            if CosmeticTable[name][index] == 0 then
-                DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, CosmeticTable.skins[index].error)
+            if CosmeticTable[User[pid - 1].name][dw.data[index]] == 0 then
+                DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, CosmeticTable.skins[dw.data[index]].error)
             else
                 Profile[pid]:skin(dw.data[index])
             end
@@ -6801,9 +6456,11 @@ OnInit.final("Spells", function(require)
         local dw   = DialogWindow.create(pid, "Select Appearance", BackpackSkinClick) ---@type DialogWindow 
 
         for i, v in ipairs(CosmeticTable.skins) do
-            if CosmeticTable[name][i] > 0 or v.public then
+            local text = ((v.req and CosmeticTable[name][i] > 0) and "|cff00ff00" .. v.name .. "|r") or v.name
+
+            if CosmeticTable[name][i] > 0 or v.public == true then
                 dw.data[dw.ButtonCount] = i
-                dw:addButton(v.name)
+                dw:addButton(text)
             end
         end
 
@@ -6843,27 +6500,6 @@ OnInit.final("Spells", function(require)
         dw:display()
     end
 
-    ---@type fun(pt: PlayerTimer)
-    function NerveGas(pt)
-        pt.dur = pt.dur - 1
-
-        if pt.dur < 0 then
-            pt:destroy()
-        else
-            local count = BlzGroupGetSize(pt.ug) ---@type integer 
-
-            if count > 0 then
-                for index = 0, count - 1 do
-                    local target = BlzGroupUnitAt(pt.ug, index)
-                    if UnitAlive(target) and GetUnitAbilityLevel(target, FourCC('Avul')) == 0 then
-                        UnitDamageTarget(Hero[pt.pid], target, pt.dmg / pt.armor, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    end
-                end
-            end
-            pt.timer:callDelayed(0.5, NerveGas, pt)
-        end
-    end
-
     function OnCast()
         local caster  = GetTriggerUnit() ---@type unit 
         local target  = GetSpellTargetUnit() ---@type unit 
@@ -6884,7 +6520,7 @@ OnInit.final("Spells", function(require)
             if UnitAlive(Hero[pid]) == false then
                 IssueImmediateOrder(caster, "stop")
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport while dead.")
-            elseif sid == FourCC('A018') and ChaosMode then
+            elseif sid == FourCC('A018') and CHAOS_MODE then
                 IssueImmediateOrder(caster, "stop")
                 DisplayTimedTextToPlayer(p, 0, 0, 20.00, "With the Gods dead, these items no longer have the ability to move around the map with free will. Their powers are dead, however their innate fighting powers are left unscathed.")
             elseif getRect(x, y) ~= MAIN_MAP.rect then
@@ -6993,36 +6629,19 @@ OnInit.final("Spells", function(require)
         --remove bracket indicators
         UpdateSpellTooltips(pid)
 
-        if sid == GAIAARMOR.id then --Gaia Armor
-            if ablev == 1 then
-                UnitAddAbility(u, FourCC('A033'))
-                BlzUnitHideAbility(u, FourCC('A033'), true)
-                aoteCD[pid] = true
-            end
-        elseif sid == ADAPTIVESTRIKE.id then --adaptive strike
-            if ablev == 1 then
-                UnitDisableAbility(u, sid, true)
-                BlzUnitHideAbility(u, sid, false)
-            end
-        elseif sid == LIMITBREAK.id then --limit break
-            limitBreakPoints[pid] = limitBreakPoints[pid] + 1
-            if GetLocalPlayer() == GetOwningPlayer(u) then
-                BlzFrameSetVisible(LimitBreakBackdrop, true)
-            end
-        elseif sid == WINDSCAR.id then --wind scar
-            if limitBreak[pid] & 0x8 > 0 then
-                BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(Hero[pid], WINDSCAR.id), ABILITY_ILF_TARGET_TYPE, ablev - 1, 0)
-            end
+        --execute onlearn function
+        if Spells[sid] then
+            Spells[sid].onLearn(u, ablev, pid)
         end
 
         return false
     end
 
     function OnFinish()
-        local caster      = GetTriggerUnit() ---@type unit 
-        local sid         = GetSpellAbilityId() ---@type integer 
-        local p        = GetOwningPlayer(caster) ---@type player 
-        local ablev         = GetUnitAbilityLevel(caster, sid) ---@type integer 
+        local caster = GetTriggerUnit() ---@type unit 
+        local sid    = GetSpellAbilityId() ---@type integer 
+        local p      = GetOwningPlayer(caster) ---@type player 
+        local ablev  = GetUnitAbilityLevel(caster, sid) ---@type integer 
 
         if sid == FourCC('A0FV') then --Teleport Town
             if ablev > 1 then
@@ -7034,8 +6653,8 @@ OnInit.final("Spells", function(require)
     end
 
     function EnemySpells()
-        local caster      = GetTriggerUnit() ---@type unit 
-        local sid         = GetSpellAbilityId() ---@type integer 
+        local caster = GetTriggerUnit() ---@type unit 
+        local sid    = GetSpellAbilityId() ---@type integer 
 
         if sid == FourCC('A04K') then --naga dungeon thorns
             FloatingTextUnit("Thorns", caster, 2, 50, 0, 13.5, 255, 255, 125, 0, true)
@@ -7125,7 +6744,7 @@ OnInit.final("Spells", function(require)
         --========================
 
         elseif sid == FourCC('A03V') then --Move Item (Hero)
-            if ItemsDisabled[pid] == false then
+            if itm and ItemsDisabled[pid] == false then
                 UnitRemoveItem(caster, itm)
                 UnitAddItem(Backpack[pid], itm)
             end
@@ -7137,14 +6756,14 @@ OnInit.final("Spells", function(require)
             DisplayQuestProgress(p)
         elseif sid == FourCC('A08Y') then --Auto-attack Toggle
             ToggleAutoAttack(pid)
+        elseif sid == FourCC('A00I') then --Item-stacking Toggle
+            ToggleItemStacking(pid)
         elseif sid == FourCC('A00B') then --Movement Toggle
-            ForceRemovePlayer(rightclicked, p)
-            if IsPlayerInForce(p, rightclickactivator) then
-                DisplayTextToPlayer(p, 0, 0, "Movement Toggle disabled.")
-                ForceRemovePlayer(rightclickactivator, p)
-            else
+            rightclickmovement[pid] = not rightclickmovement[pid]
+            if rightclickmovement[pid] then
                 DisplayTextToPlayer(p, 0, 0, "Movement Toggle enabled.")
-                ForceAddPlayer(rightclickactivator, p)
+            else
+                DisplayTextToPlayer(p, 0, 0, "Movement Toggle disabled.")
             end
 
         --Hero Panels
@@ -7179,13 +6798,13 @@ OnInit.final("Spells", function(require)
         elseif sid == FourCC('A083') then --Paladin Book
             local heal = 3 * GetHeroInt(caster, true) * BOOST[pid]
             if GetUnitTypeId(target) == BACKPACK then
-                HP(Hero[tpid], heal)
+                HP(caster, Hero[tpid], heal, GetObjectName(sid))
             else
-                HP(target, heal)
+                HP(caster, target, heal, GetObjectName(sid))
             end
         elseif sid == FourCC('A02A') then --Instill Fear
             if HasProficiency(pid, PROF_DAGGER) then
-                DummyCastTarget(p, target, FourCC('A0AE'), 1, x, y, "firebolt")
+                Dummy.create(x, y, FourCC('A0AE'), 1):cast(p, "firebolt", target)
             else
                 DisplayTimedTextToPlayer(p, 0, 0, 15., "You do not have the proficiency to use this spell!")
             end
@@ -7196,11 +6815,12 @@ OnInit.final("Spells", function(require)
             if not HasProficiency(pid, PROF_BOW) then
                 dmg= dmg * 0.5
             end
-            UnitDamageTarget(caster, target, dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(caster, target, dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
         elseif sid == FourCC('A07G') then --Azazoth Sword (Bladestorm)
             if HasProficiency(pid, PROF_SWORD) then
                 local pt = TimerList[pid]:add()
                 pt.dur = 5.
+                pt.source = caster
                 pt.timer:callDelayed(0.05, AzazothBladeStorm, pt)
             else
                 DisplayTimedTextToPlayer(p, 0, 0, 15., "You do not have the proficiency to use this spell!")
@@ -7212,6 +6832,7 @@ OnInit.final("Spells", function(require)
                 pt.dmg = 40 * GetHeroInt(caster, true) * BOOST[pid]
                 pt.angle = bj_RADTODEG * Atan2(GetSpellTargetY() - y, GetSpellTargetX() - x)
                 pt.time = 4
+                pt.tag = "Astral Devastation"
 
                 pt.timer:callDelayed(0., AstralDevastation, pt)
             else
@@ -7222,12 +6843,9 @@ OnInit.final("Spells", function(require)
                 local ug = CreateGroup()
                 MakeGroupInRange(pid, ug, x, y, 550.00, Condition(FilterEnemy))
 
-                target = FirstOfGroup(ug)
-                while target do
-                    GroupRemoveUnit(ug, target)
+                for target in each(ug) do
                     AzazothHammerStomp:add(caster, target):duration(15.)
-                    UnitDamageTarget(caster, target, 15.00 * GetHeroStr(caster, true) * BOOST[pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    target = FirstOfGroup(ug)
+                    DamageTarget(caster, target, 15.00 * GetHeroStr(caster, true) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, "Stomp")
                 end
 
                 DestroyGroup(ug)
@@ -7252,21 +6870,35 @@ OnInit.final("Spells", function(require)
                 DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", x, y))
             end
 
-            target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug, target)
-                UnitDamageTarget(caster, target, 10.00 * (GetHeroInt(caster, true) + GetHeroAgi(caster, true) + GetHeroStr(caster, true)) * BOOST[pid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                target = FirstOfGroup(ug)
+            for target in each(ug) do
+                DamageTarget(caster, target, 10.00 * (GetHeroInt(caster, true) + GetHeroAgi(caster, true) + GetHeroStr(caster, true)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, "Final Blast")
             end
 
             DestroyGroup(ug)
+        elseif sid == FourCC('A00D') then --thanatos wing color
+            local wings = Item[GetItemFromUnit(caster, FourCC('I04E'))]
+
+            if wings then
+                local max = wings:getValue(ITEM_ABILITY, 0)
+
+                if wings.sfx_index then
+                    wings.sfx_index = ((wings.sfx_index + 1) > max and 1) or wings.sfx_index + 1
+                else
+                    wings.sfx_index = 1
+                end
+
+                local tbl = ItemData[wings.id].sfx[wings.sfx_index]
+
+                DestroyEffect(wings.sfx)
+                wings.sfx = AddSpecialEffectTarget(tbl.path, caster, tbl.attach)
+            end
 
         --========================
         --Backpack
         --========================
 
         elseif sid == FourCC('A0DT') then --Move Item (Backpack)
-            if ItemsDisabled[pid] == false then
+            if itm and ItemsDisabled[pid] == false then
                 UnitRemoveItem(caster, itm)
                 UnitAddItem(Hero[pid], itm)
             end
@@ -7276,12 +6908,12 @@ OnInit.final("Spells", function(require)
             DisplaySpecialEffects(p)
         elseif sid == FourCC('A02J') then --Mass Teleport
             if ablev > 1 then
-                MassTeleport(pid, target, ablev, 3 - ablev * .25)
+                MassTeleport(pid, target, 3 - ablev * .25)
             else
-                MassTeleport(pid, target, ablev, 3)
+                MassTeleport(pid, target, 3)
             end
-        elseif sid == FourCC('A00R') then --Next Backpack Page
-            for i = MAX_INVENTORY_SLOTS + 5, 12 do --iterate through hidden slots back to front
+        elseif sid == FourCC('A00R') then --Backpack Next Page
+            for i = MAX_INVENTORY_SLOTS + 5, 12, -1 do --iterate through hidden slots back to front
                 Profile[pid].hero.items[i] = Profile[pid].hero.items[i - 6]
             end
 
@@ -7298,101 +6930,34 @@ OnInit.final("Spells", function(require)
                     SetItemVisible(itm, true)
                     UnitAddItem(Backpack[pid], itm)
                     UnitDropItemSlot(Backpack[pid], itm, i)
-                    SetItemDroppable(itm, (not ItemsDisabled[pid]))
                     Profile[pid].hero.items[MAX_INVENTORY_SLOTS + i] = nil
                 end
             end
 
-        elseif sid == FourCC('A09C') then --Health Potion (Backpack)
-            for i = 0, 5 do
-                itm = UnitItemInSlot(caster, i)
-                if GetItemTypeId(itm) == FourCC('I0BJ') then
-                    HP(Hero[pid], 10000)
-                    break
-                elseif GetItemTypeId(itm) == FourCC('I028') then
-                    HP(Hero[pid], 2000)
-                    break
-                elseif GetItemTypeId(itm) == FourCC('I062') then
-                    HP(Hero[pid], 500)
-                    break
-                elseif GetItemTypeId(itm) == FourCC('I0MP') then
-                    HP(Hero[pid], 50000 + BlzGetUnitMaxHP(Hero[pid]) * 0.08)
-                    MP(Hero[pid], BlzGetUnitMaxMana(Hero[pid]) * 0.08)
-                    break
-                elseif GetItemTypeId(itm) == FourCC('I0MQ') then
-                    HP(Hero[pid], BlzGetUnitMaxHP(Hero[pid]) * 0.15)
-                    break
+        --Use Potion / Consumable (Backpack)
+        elseif POTIONS[sid] then
+            local used = false
+            local pot
+
+            for i = 0, MAX_INVENTORY_SLOTS - 1 do
+                pot = Profile[pid].hero.items[i]
+
+                if pot then
+                    local abil = ItemData[pot.id][ITEM_ABILITY * ABILITY_OFFSET]
+
+                    if POTIONS[sid][abil] then
+                        POTIONS[sid][abil](pid, pot)
+                        used = true
+                        break
+                    end
                 end
             end
 
-            if itm then
-                if GetItemCharges(itm) < 2 then
-                    Item[itm]:destroy()
-                else
-                    Item[itm]:charge(Item[itm].charges - 1)
-                end
-            else
-                DisplayTextToPlayer(p, 0, 0, "You do not have a potion to consume.")
-            end
-        elseif sid == FourCC('A0FS') then --Mana Potion (Backpack)
-            for i = 0, 5 do
-                itm = UnitItemInSlot(caster, i)
-                if GetItemTypeId(itm) == FourCC('I0BL') then
-                    MP(Hero[pid], 10000)
-                    break
-                elseif GetItemTypeId(itm) == FourCC('I00D') then
-                    MP(Hero[pid], 2000)
-                    break
-                elseif GetItemTypeId(itm) == FourCC('I06E') then
-                    MP(Hero[pid], 500)
-                    break
-                elseif GetItemTypeId(itm) == FourCC('I0MP') then
-                    HP(Hero[pid], 50000 + BlzGetUnitMaxHP(Hero[pid]) * 0.08)
-                    MP(Hero[pid], BlzGetUnitMaxMana(Hero[pid]) * 0.08)
-                    break
-                elseif GetItemTypeId(itm) == FourCC('I0MQ') then
-                    HP(Hero[pid], BlzGetUnitMaxHP(Hero[pid]) * 0.15)
-                    break
-                end
-
-                itm = nil
-            end
-
-            if itm then
-                if GetItemCharges(itm) < 2 then
-                    Item[itm]:destroy()
-                else
-                    Item[itm]:charge(Item[itm].charges - 1)
-                end
-            else
-                DisplayTextToPlayer(p, 0, 0, "You do not have a potion to consume.")
-            end
-        elseif sid == FourCC('A05N') then --Unique Consumable (Backpack)
-            for i = 0, 5 do
-                itm = UnitItemInSlot(caster, i)
-                if GetItemTypeId(itm) == FourCC('I02K') then
-                    VampiricPotion:add(Hero[pid], Hero[pid]):duration(10.)
-                    break
-                elseif GetItemTypeId(itm) == FourCC('I027') then
-                    DummyCastTarget(p, Hero[pid], FourCC('A05P'), 1, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), "invisibility")
-                    break
-                end
-
-                itm = nil
-            end
-
-            if itm then
-                if GetItemCharges(itm) < 2 then
-                    Item[itm]:destroy()
-                else
-                    Item[itm]:charge(Item[itm].charges - 1)
-                end
-            else
-                DisplayTextToPlayer(p, 0, 0, "You do not have a consumable.")
+            if used == false then
+                DisplayTextToPlayer(p, 0, 0, "You do not have a consumable of this type.")
             end
 
         --dark summoner summon spells
-
         --meat golem taunt
         elseif sid == FourCC('A0KI') then --meat golem taunt
             Taunt(caster, pid, 800., true, 2000, 0)
@@ -7402,11 +6967,8 @@ OnInit.final("Spells", function(require)
             local ug = CreateGroup()
             MakeGroupInRange(pid, ug, x, y, 300., Condition(FilterEnemy))
 
-            target = FirstOfGroup(ug)
-            while target do
-                GroupRemoveUnit(ug,target)
+            for target in each(ug) do
                 MeatGolemThunderClap:add(caster, target):duration(3.)
-                target = FirstOfGroup(ug)
             end
 
             DestroyGroup(ug)
@@ -7415,10 +6977,10 @@ OnInit.final("Spells", function(require)
         elseif sid == FourCC('A06C') then
             if GetUnitTypeId(target) == SUMMON_HOUND and GetOwningPlayer(target) == p and golemDevourStacks[pid] < GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
                 DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", target, "chest"))
-                bj_lastCreatedUnit = GetDummy(GetUnitX(target), GetUnitY(target), FourCC('A00W'), 1, DUMMY_RECYCLE_TIME)
-                SetUnitOwner(bj_lastCreatedUnit, p, false)
-                BlzSetUnitFacingEx(bj_lastCreatedUnit, bj_RADTODEG * Atan2(GetUnitY(caster) - GetUnitY(target),  GetUnitX(caster) - GetUnitX(target)))
-                InstantAttack(bj_lastCreatedUnit, caster)
+                local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A00W'), 1).unit
+                SetUnitOwner(dummy, p, false)
+                BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(caster) - GetUnitY(target),  GetUnitX(caster) - GetUnitX(target)))
+                InstantAttack(dummy, caster)
                 SummonExpire(target)
             end
 
@@ -7426,10 +6988,10 @@ OnInit.final("Spells", function(require)
         elseif sid == FourCC('A04Z') then
             if GetUnitTypeId(target) == SUMMON_HOUND and GetOwningPlayer(target) == p and destroyerDevourStacks[pid] < GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
                 DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", target, "chest"))
-                bj_lastCreatedUnit = GetDummy(GetUnitX(target), GetUnitY(target), FourCC('A00W'), 1, DUMMY_RECYCLE_TIME)
-                SetUnitOwner(bj_lastCreatedUnit, p, false)
-                BlzSetUnitFacingEx(bj_lastCreatedUnit, bj_RADTODEG * Atan2(GetUnitY(caster) - GetUnitY(target),  GetUnitX(caster) - GetUnitX(target)))
-                InstantAttack(bj_lastCreatedUnit, caster)
+                local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A00W'), 1).unit
+                SetUnitOwner(dummy, p, false)
+                BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(caster) - GetUnitY(target),  GetUnitX(caster) - GetUnitX(target)))
+                InstantAttack(dummy, caster)
                 SummonExpire(target)
             end
 
@@ -7469,7 +7031,7 @@ OnInit.final("Spells", function(require)
 
         --Castle of the Gods
         elseif sid == FourCC('A0A9') or sid == FourCC('A0A7') or sid == FourCC('A0A6') or sid == FourCC('S001') or sid == FourCC('A0A5') then
-            if ChaosMode then
+            if CHAOS_MODE then
                 IssueImmediateOrder(caster, "stop")
                 DisplayTimedTextToPlayer(p, 0, 0, 10.00, "With the Gods dead, the Castle of Gods can no longer draw enough power from them in order to use its abilities.")
             end
@@ -7511,6 +7073,7 @@ OnInit.final("Spells", function(require)
                 DestroyEffect(HeroReviveIndicator[pid])
                 BlzSetSpecialEffectScale(HeroTimedLife[pid], 0)
                 DestroyEffect(HeroTimedLife[pid])
+                TimerList[pid]:stopAllTimers('dead')
 
                 --item revival
                 if sid == FourCC('A042') then
@@ -7520,11 +7083,9 @@ OnInit.final("Spells", function(require)
                     if itm2 then
                         heal = ItemData[itm2.id][ITEM_ABILITY] * 0.01
 
-                        itm2:charge(itm2.charges - 1)
-
                         --remove perishable resurrections
-                        if ItemData[itm2.id][ITEM_ABILITY * ABILITY_OFFSET] == FourCC('Anrv') and itm2.charges <= 0 then
-                            itm2:destroy()
+                        if ItemData[itm2.id][ITEM_ABILITY * ABILITY_OFFSET] == FourCC('Anrv') then
+                            itm2:consumeCharge()
                         end
                     end
 
@@ -7559,7 +7120,7 @@ OnInit.final("Spells", function(require)
         --banish demon
         elseif sid == FourCC('A00Q') then
             itm = GetItemFromUnit(caster, FourCC('I0OU'))
-            if ChaosMode then
+            if CHAOS_MODE then
                 if target == BossTable[BOSS_LEGION].unit then
                     Item[itm]:destroy()
                     if BANISH_FLAG == false then
@@ -7592,12 +7153,12 @@ OnInit.final("Spells", function(require)
         end
     end
 
-    local spell         = CreateTrigger() ---@type trigger 
-    local onenemyspell  = CreateTrigger() ---@type trigger 
-    local cast          = CreateTrigger() ---@type trigger 
-    local finish        = CreateTrigger() ---@type trigger 
-    local learn         = CreateTrigger() ---@type trigger 
-    local channel       = CreateTrigger() ---@type trigger 
+    local spell         = CreateTrigger()
+    local onenemyspell  = CreateTrigger()
+    local cast          = CreateTrigger()
+    local finish        = CreateTrigger()
+    local learn         = CreateTrigger()
+    local channel       = CreateTrigger()
     local u             = User.first ---@type User 
 
     while u do
@@ -7760,6 +7321,7 @@ OnInit.final("Spells", function(require)
         [DARKSEAL.id] = DARKSEAL,
         [MEDEANLIGHTNING.id] = MEDEANLIGHTNING,
         [FREEZINGBLAST.id] = FREEZINGBLAST,
+        [DARKBLADE.id] = DARKBLADE,
         [METAMORPHOSIS.id] = METAMORPHOSIS,
 
         [PHOENIXFLIGHT.id] = PHOENIXFLIGHT,
@@ -7781,6 +7343,7 @@ OnInit.final("Spells", function(require)
     --Spell inheritance
     for _, v in pairs(Spells) do --sync safe
         setmetatable(v, { __index = Spell })
+        v.tag = GetObjectName(v.id)
     end
 end)
 
