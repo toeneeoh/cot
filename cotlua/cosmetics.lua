@@ -1,6 +1,12 @@
-if Debug then Debug.beginFile 'Donator' end
+--[[
+    cosmetics.lua
 
-OnInit.final("Donator", function(require)
+    A module that defines both unlockable and donator cosmetics in the game.
+]]
+
+if Debug then Debug.beginFile 'Cosmetics' end
+
+OnInit.final("Cosmetics", function(require)
     require 'Users'
     require 'Variables'
     require 'MapSetup'
@@ -10,25 +16,25 @@ OnInit.final("Donator", function(require)
     isdonator = __jarray(false) ---@type boolean[] 
     local donator = {
         "lcm#1458 11111111111111111111111 1111111111111111111",
-        "Mayday#12613 01",
-        "gnta#1220 001",
+        "Mayday#12613 01 0",
+        "gnta#1220 001 0",
         "Gingusa#1768 0001 0000000000001",
         "Demon#24174 00001 000001",
         "Veridian#1582 000001 001",
-        "Baraghmarus#1362 0000001",
+        "Baraghmarus#1362 0000001 0",
         "DarkSideGami#1825 00000001 000000001",
-        "CanFight#2771 000000001",
-        "DivineEvil#1601 0000000001",
-        "Ash#14387 00000000001",
-        "YeOldTurnip#1512 000000000001",
+        "CanFight#2771 000000001 0",
+        "DivineEvil#1601 0000000001 0",
+        "Ash#14387 00000000001 0",
+        "YeOldTurnip#1512 000000000001 0",
         "Anarak#11980 0000000000001 01",
         "ThayldDrekka#1293 00000000000001 0000001",
         "Wyce#21518 000000000000001 00000000001",
-        "SilverHand#11103 0000000000000001",
-        "Kris#2648 00000000000000001",
+        "SilverHand#11103 0000000000000001 0",
+        "Kris#2648 00000000000000001 0",
         "Diablo89#1701 000000000000000001 000000000001",
         "Luglug#1434 0000000000000000001 00000000000001",
-        "Peacee#21451 00000000000000000001",
+        "Peacee#21451 00000000000000000001 0",
         "DarkMatter#12814 0 00011",
         "xriderx#1392 0 0000000001",
         "Dynasty3990#1468 000000000000000000001 000000000001",
@@ -37,7 +43,7 @@ OnInit.final("Donator", function(require)
     }
 
     for i = 1, #donator do
-        local name, skinFlags, auraFlags = donator[i]:match("([^#]+)#%d+ ([^ ]*) ([^ ]*)")
+        local name, skinFlags, auraFlags = donator[i]:match("(\x25S+) (\x25S+) (\x25S+)")
 
         --flag as donator
         CosmeticTable[name][0] = 1
@@ -52,6 +58,31 @@ OnInit.final("Donator", function(require)
             CosmeticTable[name][DONATOR_AURA_OFFSET + j] = tonumber(auraFlags:sub(j, j))
         end
     end
+
+    --used to unlock backpack skins
+    PrestigeSkins = {
+        {HERO_MARKSMAN, HERO_PHOENIX_RANGER, HERO_BLOODZERKER},     --atk prestige 1
+        {HERO_MARKSMAN, HERO_PHOENIX_RANGER, HERO_BLOODZERKER},     --atk prestige 2
+        {HERO_SAVIOR, HERO_OBLIVION_GUARD, HERO_WARRIOR},           --str prestige 1
+        {HERO_SAVIOR, HERO_OBLIVION_GUARD, HERO_WARRIOR},           --str prestige 2
+        {HERO_ASSASSIN, HERO_MASTER_ROGUE, HERO_VAMPIRE},           --agi prestige 1
+        {HERO_ASSASSIN, HERO_MASTER_ROGUE, HERO_VAMPIRE},           --agi prestige 2
+        {HERO_HYDROMANCER, HERO_DARK_SAVIOR, HERO_DARK_SUMMONER},   --int prestige 1
+        {HERO_HYDROMANCER, HERO_DARK_SAVIOR, HERO_DARK_SUMMONER},   --int prestige 2
+        {HERO_CRUSADER, HERO_ROYAL_GUARDIAN},                       --dr prestige 1
+        {HERO_CRUSADER, HERO_ROYAL_GUARDIAN},                       --dr prestige 2
+        {HERO_ARCANIST, HERO_ELEMENTALIST, HERO_THUNDERBLADE},      --spellboost prestige 1
+        {HERO_ARCANIST, HERO_ELEMENTALIST, HERO_THUNDERBLADE},      --spellboost prestige 2
+        {HERO_ARCANIST, HERO_ELEMENTALIST, HERO_THUNDERBLADE},      --spellboost prestige 3
+        {HERO_HIGH_PRIEST, HERO_BARD},                              --regen prestige 1
+        {HERO_HIGH_PRIEST, HERO_BARD},                              --regen prestige 2
+        {HERO_ARCANIST, HERO_ASSASSIN, HERO_MARKSMAN, HERO_HYDROMANCER, HERO_PHOENIX_RANGER, HERO_ELEMENTALIST, HERO_HIGH_PRIEST, HERO_MASTER_ROGUE,
+        HERO_SAVIOR, HERO_BARD, HERO_CRUSADER, HERO_BLOODZERKER, HERO_DARK_SAVIOR, HERO_DARK_SUMMONER, HERO_OBLIVION_GUARD, HERO_ROYAL_GUARDIAN,
+        HERO_THUNDERBLADE, HERO_WARRIOR, HERO_VAMPIRE},            --prestige 10
+        {HERO_ARCANIST, HERO_ASSASSIN, HERO_MARKSMAN, HERO_HYDROMANCER, HERO_PHOENIX_RANGER, HERO_ELEMENTALIST, HERO_HIGH_PRIEST, HERO_MASTER_ROGUE,
+        HERO_SAVIOR, HERO_BARD, HERO_CRUSADER, HERO_BLOODZERKER, HERO_DARK_SAVIOR, HERO_DARK_SUMMONER, HERO_OBLIVION_GUARD, HERO_ROYAL_GUARDIAN,
+        HERO_THUNDERBLADE, HERO_WARRIOR, HERO_VAMPIRE},            --prestige all
+    }
 
     CosmeticTable.skins = {
         { name = "Malthael", id = FourCC('H013'), public = false },
@@ -74,34 +105,49 @@ OnInit.final("Donator", function(require)
         { name = "Diablo", id = FourCC('H03R'), public = false },
         { name = "Gnome Dragonrider", id = FourCC('H00A'), public = false },
         { name = "Explosive Sheep", id = FourCC('H03S'), public = false },
-        { name = "Phoenix", id = FourCC('H04D'), public = false },
-        { name = "Demon Taskmaster", id = FourCC('H04Y'), public = false },
-        { name = "Robincoon", id = FourCC('H05C'), public = false },
+        { name = "Phoenix", id = FourCC('H00H'), public = false },
+        { name = "Demon Taskmaster", id = FourCC('H000'), public = false },
+        { name = "Robincoon", id = FourCC('H00L'), public = false },
         --obtainable skins
         { name = "None", id = FourCC('eRez'), public = true },
         { name = "Wisp", id = FourCC('H011'), public = true },
-        { name = "Black Dragon Whelp", id = FourCC('H031'), public = true, error = "You must prestige one of these heroes to unlock this! ()" }, --atk prestige 1
-        { name = "Shadow Mephit", id = FourCC('H03C'), public = true }, --atk prestige 2
-        { name = "Red Dragon Whelp", id = FourCC('H03E'), public = true }, --str prestige 1
-        { name = "Fire Mephit", id = FourCC('H03L'), public = true }, --str prestige 2
-        { name = "Green Dragon Whelp", id = FourCC('H03U'), public = true }, --agi prestige 1
-        { name = "Venom Mephit", id = FourCC('H03Z'), public = true }, --agi prestige 2
-        { name = "Blue Dragon Whelp", id = FourCC('H041'), public = true }, --int prestige 1
-        { name = "Ice Mephit", id = FourCC('H042'), public = true }, --int prestige 2
-        { name = "Wyvern", id = FourCC('H04E'), public = true }, --dmg prestige 
-        { name = "Nether Dragon", id = FourCC('H04L'), public = true }, --dmg prestige 2
-        { name = "Owl", id = FourCC('H04O'), public = true }, --spellboost prestige 1
-        { name = "Spirit Owl", id = FourCC('H04P'), public = true }, --spellboost prestige 2
-        { name = "Phase Bat", id = FourCC('H058'), public = true }, --spellboost prestige 3
-        { name = "Yellow Dragon Whelp", id = FourCC('H05I'), public = true }, --regen prestige 1
-        { name = "Earth Mephit", id = FourCC('H05K'), public = true }, --regen prestige 2
-        { name = "Elder Shadow Dragon", id = FourCC('H066'), public = true }, --prestige 10 chars
-        { name = "Sin", id = FourCC('H06W'), public = true }, --all chars prestiged
+        { name = "Black Dragon Whelp", id = FourCC('H031'), public = true, req = 1 }, --atk prestige 1
+        { name = "Shadow Mephit", id = FourCC('H03C'), public = true, req = 2 }, --atk prestige 2
+        { name = "Red Dragon Whelp", id = FourCC('H03E'), public = true, req = 1 }, --str prestige 1
+        { name = "Fire Mephit", id = FourCC('H03L'), public = true, req = 2 }, --str prestige 2
+        { name = "Green Dragon Whelp", id = FourCC('H03U'), public = true, req = 1 }, --agi prestige 1
+        { name = "Venom Mephit", id = FourCC('H03Z'), public = true, req = 2 }, --agi prestige 2
+        { name = "Blue Dragon Whelp", id = FourCC('H041'), public = true, req = 1 }, --int prestige 1
+        { name = "Ice Mephit", id = FourCC('H042'), public = true, req = 2 }, --int prestige 2
+        { name = "Wyvern", id = FourCC('H04E'), public = true, req = 1 }, --dmg prestige 1
+        { name = "Nether Dragon", id = FourCC('H04L'), public = true, req = 2 }, --dmg prestige 2
+        { name = "Owl", id = FourCC('H04O'), public = true, req = 1 }, --spellboost prestige 1
+        { name = "Spirit Owl", id = FourCC('H04P'), public = true, req = 2 }, --spellboost prestige 2
+        { name = "Phase Bat", id = FourCC('H058'), public = true, req = 3 }, --spellboost prestige 3
+        { name = "Yellow Dragon Whelp", id = FourCC('H05I'), public = true, req = 1 }, --regen prestige 1
+        { name = "Earth Mephit", id = FourCC('H05K'), public = true, req = 2 }, --regen prestige 2
+        { name = "Elder Shadow Dragon", id = FourCC('H066'), public = true, req = 10 }, --prestige 10 chars
+        { name = "Sin", id = FourCC('H06W'), public = true, req = HERO_TOTAL }, --all chars prestiged
     }
 
     PUBLIC_SKINS = 24
     TOTAL_SKINS = #CosmeticTable.skins
 
+    --generate error messages
+    local count = 1
+    for i = PUBLIC_SKINS + 2, TOTAL_SKINS do
+        local requirements = ""
+
+        for _, j in ipairs(PrestigeSkins[count]) do
+            requirements = requirements .. GetObjectName(j) .. ", "
+        end
+        requirements = requirements:gsub(", $", "")
+        CosmeticTable.skins[i].error = "|cffff0000You need atleast " .. CosmeticTable.skins[i].req .. " prestige" .. ((CosmeticTable.skins[i].req > 1 and "s") or "") .. " from (" .. requirements .. ")"
+
+        count = count + 1
+    end
+
+    --auras
     CosmeticTable.cosmetics = {
         {
             name = "Giant + Blue Flame",
@@ -180,8 +226,8 @@ OnInit.final("Donator", function(require)
                     DestroyEffect(self[pid .. self.name])
                     self[pid .. self.name] = nil
                 else
-                    self[pid .. self.name] = AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAura.mdl", Hero[pid], "head")
-                    BlzSetSpecialEffectScale(self[pid .. self.name], 0.5)
+                    self[pid .. self.name] = AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAura.mdl", Hero[pid], "origin")
+                    BlzSetSpecialEffectScale(self[pid .. self.name], 0.75)
                     BlzSetSpecialEffectColor(self[pid .. self.name], 255, 0, 0)
                 end
             end
@@ -226,7 +272,7 @@ OnInit.final("Donator", function(require)
                     DestroyEffect(self[pid .. self.name])
                     self[pid .. self.name] = nil
                 else
-                    self[pid .. self.name] = AddSpecialEffectTarget("war3mapImported\\Liberty Green.mdx", Hero[pid], "origin")
+                    self[pid .. self.name] = AddSpecialEffectTarget("war3mapImported\\Liberty Green.mdx", Hero[pid], "chest")
                 end
             end
         },
@@ -298,9 +344,6 @@ OnInit.final("Donator", function(require)
 
         if CosmeticTable[u.name][0] > 0 then
             isdonator[u.id] = true
-            local mbitem = MultiboardGetItem(MULTI_BOARD, MB_SPOT[u.id], 0)
-            MultiboardSetItemValue(mbitem, u.nameColored .. "|cffffcc00*|r")
-            MultiboardReleaseItem(mbitem)
         end
 
         u = u.next
