@@ -1,13 +1,21 @@
+--[[
+    buffs.lua
+
+    A module that contains most of the triggered buffs and debuffs in the game.
+]]
+
 if Debug then Debug.beginFile 'Buffs' end
 
 OnInit.global("Buffs", function(require)
     require 'BuffSystem'
 
+    local mt = { __index = Buff }
+
     ---@class Disarm : Buff
     Disarm = {} --
     do
         local thistype = Disarm
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Adar') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -25,7 +33,7 @@ OnInit.global("Buffs", function(require)
     Silence = {} --
     do
         local thistype = Silence
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Asil') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -46,7 +54,7 @@ OnInit.global("Buffs", function(require)
     Fear = {} --
     do
         local thistype = Fear
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Afea') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -62,25 +70,53 @@ OnInit.global("Buffs", function(require)
             local angle = Atan2(GetUnitY(self.target) - GetUnitY(self.source), GetUnitX(self.target) - GetUnitX(self.source)) ---@type number 
 
             IssuePointOrder(self.target, "move", GetUnitX(self.target) + 2000. * Cos(angle), GetUnitY(self.target) + 2000. * Sin(angle))
-            UnitAddAbility(self.target, FourCC('ARal'))
             ToggleCommandCard(self.target, false)
+            UnitAddAbility(self.target, FourCC('ARal'))
 
             Unit[self.target].attack = false
         end
     end
 
     ---@class InspireBuff : Buff
+    ---@field timer TimerQueue
     InspireBuff = {} --
     do
         local thistype = InspireBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Ains') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
         thistype.ablev         = 0 ---@type integer 
+        thistype.timer = nil
+
+        --mana cost per second
+        ---@type fun(b: InspireBuff)
+        function thistype.periodic(b)
+            local mana = GetUnitState(b.target, UNIT_STATE_MANA)
+            local cost = BlzGetUnitMaxMana(b.target) * 0.02
+            SetUnitState(b.target, UNIT_STATE_MANA, math.max(mana - cost, 0))
+            if mana - cost > 0 then
+                b.timer:callDelayed(1, thistype.periodic, b)
+            else
+                b:remove()
+            end
+        end
+
+        function thistype:onRemove()
+            if self.source == self.target then
+                --unimmolation
+                self.timer:destroy()
+                IssueImmediateOrderById(self.source, 852178)
+            end
+        end
 
         function thistype:onApply()
             self.ablev = GetUnitAbilityLevel(self.source, INSPIRE.id)
+
+            if self.source == self.target then
+                self.timer = TimerQueue.create()
+                self.timer:callDelayed(1, thistype.periodic, self)
+            end
         end
     end
 
@@ -88,7 +124,7 @@ OnInit.global("Buffs", function(require)
     SongOfWarBuff = {} --
     do
         local thistype = SongOfWarBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aswb') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
@@ -108,7 +144,7 @@ OnInit.global("Buffs", function(require)
     SongOfPeaceEncoreBuff = {} --
     do
         local thistype = SongOfPeaceEncoreBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aspc') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -127,7 +163,7 @@ OnInit.global("Buffs", function(require)
     SongOfWarEncoreBuff = {} --
     do
         local thistype = SongOfWarEncoreBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aswa') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
@@ -158,7 +194,7 @@ OnInit.global("Buffs", function(require)
     MagneticStanceBuff = {} --
     do
         local thistype = MagneticStanceBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Amag') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -205,7 +241,7 @@ OnInit.global("Buffs", function(require)
     FlamingBowBuff = {} --
     do
         local thistype = FlamingBowBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Afbo') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -247,7 +283,7 @@ OnInit.global("Buffs", function(require)
     StasisFieldDebuff = {} --
     do
         local thistype = StasisFieldDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Asfi') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -266,7 +302,7 @@ OnInit.global("Buffs", function(require)
     ArcanosphereDebuff = {} --
     do
         local thistype = ArcanosphereDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aarc') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -287,7 +323,7 @@ OnInit.global("Buffs", function(require)
     ControlTimeBuff = {} --
     do
         local thistype = ControlTimeBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Acti') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -305,7 +341,7 @@ OnInit.global("Buffs", function(require)
     MarkedForDeathDebuff = {} --
     do
         local thistype = MarkedForDeathDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Amar') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -335,7 +371,7 @@ OnInit.global("Buffs", function(require)
     FightMeCasterBuff = {} --
     do
         local thistype = FightMeCasterBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Afmc') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -354,7 +390,7 @@ OnInit.global("Buffs", function(require)
     RoyalPlateBuff = {} --
     do
         local thistype = RoyalPlateBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aroy') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -379,7 +415,7 @@ OnInit.global("Buffs", function(require)
     DemonicSacrificeBuff = {} --
     do
         local thistype = DemonicSacrificeBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Adsa') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -389,7 +425,7 @@ OnInit.global("Buffs", function(require)
     JusticeAuraBuff = {} --
     do
         local thistype = JusticeAuraBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Ajap') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -404,7 +440,7 @@ OnInit.global("Buffs", function(require)
     SoulLinkBuff = {} --
     do
         local thistype = SoulLinkBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Asli') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -416,10 +452,10 @@ OnInit.global("Buffs", function(require)
 
         function thistype:onRemove()
             FadeSFX(self.sfx, true)
-            TimerQueue:callDelayed(2., DestroyEffect, self.sfx)
+            TimerQueue:callDelayed(2., HideEffect, self.sfx)
             DestroyLightning(self.lfx)
 
-            HP(self.target, math.max(0., self.hp - GetWidgetLife(self.target)))
+            HP(self.source, self.target, math.max(0., self.hp - GetWidgetLife(self.target)), SOULLINK.tag)
             if GetUnitTypeId(self.target) ~= HERO_VAMPIRE then
                 MP(self.target, math.max(0., self.mana - GetUnitState(self.target, UNIT_STATE_MANA)))
             end
@@ -461,7 +497,7 @@ OnInit.global("Buffs", function(require)
     LawOfMightBuff = {} --
     do
         local thistype = LawOfMightBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Almi') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -489,7 +525,7 @@ OnInit.global("Buffs", function(require)
     LawOfValorBuff = {} --
     do
         local thistype = LawOfValorBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Alva') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -519,7 +555,7 @@ OnInit.global("Buffs", function(require)
     LawOfResonanceBuff = {} --
     do
         local thistype = LawOfResonanceBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Alre') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -543,7 +579,7 @@ OnInit.global("Buffs", function(require)
     OverloadBuff = {} --
     do
         local thistype = OverloadBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aove') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -580,7 +616,7 @@ OnInit.global("Buffs", function(require)
     BloodMistBuff = {} --
     do
         local thistype = BloodMistBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Abmi') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -628,13 +664,35 @@ OnInit.global("Buffs", function(require)
     BloodLordBuff = {} --
     do
         local thistype = BloodLordBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Ablr') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
         thistype.agi      = 0. ---@type number 
         thistype.str      = 0. ---@type number 
-        thistype.timer      = nil ---@type TimerQueue
+
+        function thistype.periodic(self)
+            local ug = CreateGroup()
+
+            MakeGroupInRange(self.tpid, ug, GetUnitX(self.source), GetUnitY(self.source), 500. * LBOOST[self.tpid], Condition(FilterEnemy))
+
+            if BlzGroupGetSize(ug) > 0 then
+                DestroyEffect(AddSpecialEffectTarget("war3mapImported\\DarknessLeechTarget_Portrait.mdx", self.source, "origin"))
+            end
+
+            for target in each(ug) do
+                BloodBank[self.tpid] = math.min(BloodBank[self.tpid] + BLOODLEECH.gain(self.tpid) / 3., BLOODBANK.max(self.tpid))
+                DamageTarget(self.source, target, BLOODLEECH.dmg(self.tpid) / 3. * BOOST[self.tpid], ATTACK_TYPE_NORMAL, MAGIC, BLOODLORD.tag)
+
+                local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A0A1'), 1).unit
+                BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(self.source) - GetUnitY(dummy), GetUnitX(self.source) - GetUnitX(dummy)))
+                InstantAttack(dummy, self.source)
+            end
+
+            DestroyGroup(ug)
+
+            self.timer:callDelayed(1, thistype.periodic, self)
+        end
 
         function thistype:onRemove()
             BlzSetUnitAttackCooldown(self.source, BlzGetUnitAttackCooldown(self.source, 0) / 0.7, 0)
@@ -658,33 +716,9 @@ OnInit.global("Buffs", function(require)
                 UnitDisableAbility(self.source, BLOODDOMAIN.id, true)
                 BlzUnitHideAbility(self.source, BLOODDOMAIN.id, false)
 
-                local periodic = function()
-                    local ug       = CreateGroup()
-
-                    MakeGroupInRange(self.tpid, ug, GetUnitX(self.source), GetUnitY(self.source), 500 * LBOOST[self.tpid], Condition(FilterEnemy))
-
-                    if BlzGroupGetSize(ug) > 0 then
-                        DestroyEffect(AddSpecialEffectTarget("war3mapImported\\DarknessLeechTarget_Portrait.mdx", self.source, "origin"))
-                    end
-
-                    local u = FirstOfGroup(ug)
-                    while u do
-                        GroupRemoveUnit(ug, u)
-                        BloodBank[self.tpid] = math.min(BloodBank[self.tpid] + BLOODLEECH.gain(self.tpid) / 3., 200 * GetHeroInt(self.source, true))
-                        UnitDamageTarget(self.source, u, BLOODLEECH.dmg(self.tpid) / 3. * BOOST[self.tpid], true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-
-                        u = GetDummy(GetUnitX(u), GetUnitY(u), FourCC('A0A1'), 1, DUMMY_RECYCLE_TIME)
-                        BlzSetUnitFacingEx(u, bj_RADTODEG * Atan2(GetUnitY(self.source) - GetUnitY(u), GetUnitX(self.source) - GetUnitX(u)))
-                        InstantAttack(u, self.source)
-                        u = FirstOfGroup(ug)
-                    end
-
-                    DestroyGroup(ug)
-                end
-
                 --blood leech aoe
                 self.timer = TimerQueue.create()
-                self.timer:callPeriodically(1., nil, periodic)
+                self.timer:callDelayed(1., thistype.periodic, self)
                 self.agi = BLOODLORD.bonus(self.pid)
                 UnitAddBonus(self.source, BONUS_HERO_AGI, self.agi)
             else
@@ -705,12 +739,34 @@ OnInit.global("Buffs", function(require)
     ManaDrainDebuff = {} --
     do
         local thistype = ManaDrainDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Amdr') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.lfx           = nil ---@type lightning 
-        thistype.timer           = nil ---@type TimerQueue 
+
+        function thistype.drain(self, x, y)
+            local mana = GetUnitState(self.target, UNIT_STATE_MANA) ---@type number 
+
+            if mana > 0. then
+                mana = math.max(0., mana - 1000.)
+                SetUnitState(self.target, UNIT_STATE_MANA, mana)
+                SetUnitState(self.source, UNIT_STATE_MANA, GetUnitState(self.source, UNIT_STATE_MANA) + math.min(1000., mana))
+
+                DamageTarget(self.source, self.target, math.min(1000., mana) * 2., ATTACK_TYPE_NORMAL, MAGIC, "Mana Drain")
+                DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\ManaBurn\\ManaBurnTarget.mdl", self.target, "chest"))
+            end
+
+            if DistanceCoords(x, y, GetUnitX(self.target), GetUnitY(self.target)) > 800. or not UnitAlive(self.source) then
+                self:remove()
+            else
+                self.timer:callDelayed(FPS_32, thistype.periodic, self, x, y)
+            end
+        end
+
+        function thistype.periodic(self)
+            MoveLightningEx(self.lfx, false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
+            self.timer:callDelayed(FPS_32, thistype.periodic, self)
+        end
 
         function thistype:onRemove()
             DestroyLightning(self.lfx)
@@ -719,32 +775,12 @@ OnInit.global("Buffs", function(require)
 
         function thistype:onApply()
             self.lfx = AddLightningEx("DRAM", false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
+            self.timer = TimerQueue.create()
 
-            timer = TimerQueue.create()
+            MoveLightningEx(self.lfx, false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
 
-            local drain = function(x, y)
-                local mana      = GetUnitState(self.target, UNIT_STATE_MANA) ---@type number 
-
-                if mana > 0. then
-                    mana = math.max(0., mana - 1000.)
-                    SetUnitState(self.target, UNIT_STATE_MANA, mana)
-                    SetUnitState(self.source, UNIT_STATE_MANA, GetUnitState(self.source, UNIT_STATE_MANA) + math.min(1000., mana))
-
-                    UnitDamageTarget(self.source, self.target, math.min(1000., mana) * 2., true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
-                    DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\ManaBurn\\ManaBurnTarget.mdl", self.target, "chest"))
-                end
-
-                if DistanceCoords(x, y, GetUnitX(self.target), GetUnitY(self.target)) > 800. or not UnitAlive(self.source) then
-                    self:remove()
-                end
-            end
-
-            local move = function()
-                MoveLightningEx(lfx, false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
-            end
-
-            timer:callPeriodically(1., nil, drain, GetUnitX(self.source), GetUnitY(self.source))
-            timer:callPeriodically(FPS_32, nil, move)
+            self.timer:callDelayed(1., thistype.drain, self, GetUnitX(self.source), GetUnitY(self.source))
+            self.timer:callDelayed(FPS_32, thistype.periodic, self)
         end
     end
 
@@ -752,7 +788,7 @@ OnInit.global("Buffs", function(require)
     SpinDashDebuff = {} --
     do
         local thistype = SpinDashDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Asda') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -775,7 +811,7 @@ OnInit.global("Buffs", function(require)
     ParryBuff = {} --
     do
         local thistype = ParryBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Apar') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -810,7 +846,7 @@ OnInit.global("Buffs", function(require)
     IntimidatingShoutBuff = {} --
     do
         local thistype = IntimidatingShoutBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Ainb') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -842,7 +878,7 @@ OnInit.global("Buffs", function(require)
     IntimidatingShoutDebuff = {} --
     do
         local thistype = IntimidatingShoutDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aint') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -868,7 +904,7 @@ OnInit.global("Buffs", function(require)
     UndyingRageBuff = {} --
     do
         local thistype = UndyingRageBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Arag') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -891,9 +927,9 @@ OnInit.global("Buffs", function(require)
             DestroyTextTag(self.text)
 
             if self.totalRegen >= 0 then
-                HP(self.source, BlzGetUnitMaxHP(self.source) * 0.01 * self.totalRegen)
+                HP(self.source, self.source, BlzGetUnitMaxHP(self.source) * 0.01 * self.totalRegen, UNDYINGRAGE.tag)
             else
-                UnitDamageTarget(self.source, self.source, BlzGetUnitMaxHP(self.source) * 0.01 * -self.totalRegen, true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
+                DamageTarget(self.source, self.source, BlzGetUnitMaxHP(self.source) * 0.01 * -self.totalRegen, ATTACK_TYPE_NORMAL, PURE, UNDYINGRAGE.tag)
             end
         end
 
@@ -909,7 +945,7 @@ OnInit.global("Buffs", function(require)
 
             local periodic = function()
                 SetTextTagText(self.text, (R2I(self.totalRegen)) .. "\x25", 0.025)
-                local red, green, blue = HealthGradient(self.totalRegen)
+                local red, green, blue = HealthGradient(self.totalRegen, false) ---@type integer, integer, integer
                 SetTextTagColor(self.text, red, green, blue, 255)
                 SetTextTagPosUnit(self.text, self.source, -200.)
 
@@ -927,7 +963,7 @@ OnInit.global("Buffs", function(require)
     RampageBuff = {} --
     do
         local thistype = RampageBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aram') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
@@ -949,7 +985,7 @@ OnInit.global("Buffs", function(require)
             self.timer = TimerQueue.create()
 
             local periodic = function()
-                UnitDamageTarget(self.source, self.source, 0.08 * GetWidgetLife(self.source), true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
+                DamageTarget(self.source, self.source, 0.08 * GetWidgetLife(self.source), ATTACK_TYPE_NORMAL, PURE, "Rampage")
             end
 
             periodic()
@@ -961,7 +997,7 @@ OnInit.global("Buffs", function(require)
     FrostArmorDebuff = {} --
     do
         local thistype = FrostArmorDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Afde') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -984,7 +1020,7 @@ OnInit.global("Buffs", function(require)
     FrostArmorBuff = {} --
     do
         local thistype = FrostArmorBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Afar') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
@@ -1007,7 +1043,7 @@ OnInit.global("Buffs", function(require)
     MagneticStrikeDebuff = {} --
     do
         local thistype = MagneticStrikeDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Amsd') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1017,7 +1053,7 @@ OnInit.global("Buffs", function(require)
     MagneticStrikeBuff = {} --
     do
         local thistype = MagneticStrikeBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Amst') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1027,7 +1063,7 @@ OnInit.global("Buffs", function(require)
     InfernalStrikeBuff = {} --
     do
         local thistype = InfernalStrikeBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aist') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1037,7 +1073,7 @@ OnInit.global("Buffs", function(require)
     PiercingStrikeDebuff = {} --
     do
         local thistype = PiercingStrikeDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Apie') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1061,7 +1097,7 @@ OnInit.global("Buffs", function(require)
     FightMeBuff = {} --
     do
         local thistype = FightMeBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aftm') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1079,7 +1115,7 @@ OnInit.global("Buffs", function(require)
     RighteousMightBuff = {} --
     do
         local thistype = RighteousMightBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Armi') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1095,21 +1131,24 @@ OnInit.global("Buffs", function(require)
             SetUnitScale(self.target, BlzGetUnitRealField(self.target, UNIT_RF_SCALING_VALUE), BlzGetUnitRealField(self.target, UNIT_RF_SCALING_VALUE), BlzGetUnitRealField(self.target, UNIT_RF_SCALING_VALUE))
         end
 
+        local function grow(timer, source, size, dur)
+            size = size + 0.008
+            SetUnitScale(source, size, size, size)
+            dur = dur - 1
+
+            if dur > 0 then
+                timer:callDelayed(FPS_32, grow, timer, source, size, dur)
+            end
+        end
+
         function thistype:onApply()
-            local dur = 60
             local size = BlzGetUnitRealField(self.target, UNIT_RF_SCALING_VALUE)
 
             UnitAddBonus(self.target, BONUS_DAMAGE, self.dmg)
             UnitAddBonus(self.target, BONUS_ARMOR, self.armor)
 
-            local grow = function()
-                size = size + 0.008
-                SetUnitScale(self.source, size, size, size)
-                dur = dur - 1
-            end
-
             self.timer = TimerQueue.create()
-            self.timer:callPeriodically(FPS_32, dur <= 0, grow)
+            self.timer:callDelayed(FPS_32, grow, self.timer, self.target, size, 60)
         end
     end
 
@@ -1117,7 +1156,7 @@ OnInit.global("Buffs", function(require)
     BloodFrenzyBuff = {} --
     do
         local thistype = BloodFrenzyBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A07E') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1132,7 +1171,7 @@ OnInit.global("Buffs", function(require)
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\Bloodlust\\BloodlustTarget.mdl", self.target, "chest")
 
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / 1.50, 0)
-            UnitDamageTarget(self.source, self.source, 0.15 * BlzGetUnitMaxHP(self.source), true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(self.source, self.source, 0.15 * BlzGetUnitMaxHP(self.source), ATTACK_TYPE_NORMAL, PURE, BLOODFRENZY.tag)
         end
     end
 
@@ -1140,7 +1179,7 @@ OnInit.global("Buffs", function(require)
     EarthDebuff = {} --
     do
         local thistype = EarthDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A04P') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1150,7 +1189,7 @@ OnInit.global("Buffs", function(require)
     SteedChargeStun = {} --
     do
         local thistype = SteedChargeStun
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('AIDK') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1208,7 +1247,7 @@ OnInit.global("Buffs", function(require)
     SingleShotDebuff = {} --
     do
         local thistype = SingleShotDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A950') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1232,7 +1271,7 @@ OnInit.global("Buffs", function(require)
     FreezingBlastDebuff = {} --
     do
         local thistype = FreezingBlastDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A01O') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1253,7 +1292,7 @@ OnInit.global("Buffs", function(require)
     ProtectedBuff = {} --
     do
         local thistype = ProtectedBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A09I') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1263,7 +1302,7 @@ OnInit.global("Buffs", function(require)
     AstralShieldBuff = {} --
     do
         local thistype = AstralShieldBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Azas') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1282,7 +1321,7 @@ OnInit.global("Buffs", function(require)
     ProtectedExistenceBuff = {} --
     do
         local thistype = ProtectedExistenceBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aexi') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1301,7 +1340,7 @@ OnInit.global("Buffs", function(require)
     ProtectionBuff = {} --
     do
         local thistype = ProtectionBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Apro') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1320,7 +1359,7 @@ OnInit.global("Buffs", function(require)
     SanctifiedGroundDebuff = {} --
     do
         local thistype = SanctifiedGroundDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Asan') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1348,7 +1387,7 @@ OnInit.global("Buffs", function(require)
     DivineLightBuff = {} --
     do
         local thistype = DivineLightBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Adiv') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1369,17 +1408,32 @@ OnInit.global("Buffs", function(require)
     SmokebombBuff = {} --
     do
         local thistype = SmokebombBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Asmk') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.evasion = 0.
+
+        function thistype:onRemove()
+            Unit[self.target].evasion = Unit[self.target].evasion - self.evasion
+        end
+
+        function thistype:onApply()
+            if self.source == self.target then
+                self.evasion = self.evasion + (9 + GetUnitAbilityLevel(self.source, SMOKEBOMB.id)) * 2
+            else
+                self.evasion = self.evasion + 9 + GetUnitAbilityLevel(self.source, SMOKEBOMB.id)
+            end
+
+            Unit[self.target].evasion = Unit[self.target].evasion + self.evasion
+        end
     end
 
     ---@class SmokebombDebuff : Buff
     SmokebombDebuff = {} --
     do
         local thistype = SmokebombDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A03S') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1400,7 +1454,7 @@ OnInit.global("Buffs", function(require)
     AzazothHammerStomp = {} --
     do
         local thistype = AzazothHammerStomp
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A00C') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1422,7 +1476,7 @@ OnInit.global("Buffs", function(require)
     BloodCurdlingScreamDebuff = {} --
     do
         local thistype = BloodCurdlingScreamDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Ascr') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1446,7 +1500,7 @@ OnInit.global("Buffs", function(require)
     NerveGasDebuff = {} --
     do
         local thistype = NerveGasDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Agas') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1454,11 +1508,20 @@ OnInit.global("Buffs", function(require)
         thistype.armor         = 0 ---@type integer 
         thistype.sfx        = nil ---@type effect 
 
+        function thistype.periodic(self)
+            local dmg = NERVEGAS.dmg(self.pid) * BOOST[self.pid] / (NERVEGAS.dur * LBOOST[self.pid] * 0.5)
+
+            DamageTarget(self.source, self.target, dmg, ATTACK_TYPE_NORMAL, MAGIC, "Nerve Gas")
+
+            self.timer:callDelayed(0.5, thistype.periodic, self)
+        end
+
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
             SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
             UnitAddBonus(self.target, BONUS_ARMOR, self.armor)
             DestroyEffect(self.sfx)
+            self.timer:destroy()
         end
 
         function thistype:onApply()
@@ -1469,6 +1532,9 @@ OnInit.global("Buffs", function(require)
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.3)
             SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
             UnitAddBonus(self.target, BONUS_ARMOR, -self.armor)
+
+            self.timer = TimerQueue.create()
+            self.timer:callDelayed(0.25, thistype.periodic, self)
         end
     end
 
@@ -1476,7 +1542,7 @@ OnInit.global("Buffs", function(require)
     DemonPrinceBloodlust = {} --
     do
         local thistype = DemonPrinceBloodlust
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Ablo') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1499,7 +1565,7 @@ OnInit.global("Buffs", function(require)
     IceElementSlow = {} --
     do
         local thistype = IceElementSlow
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Aice') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1525,7 +1591,7 @@ OnInit.global("Buffs", function(require)
     TidalWaveDebuff = {} --
     do
         local thistype = TidalWaveDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Atwa') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1536,7 +1602,7 @@ OnInit.global("Buffs", function(require)
     SoakedDebuff = {} --
     do
         local thistype = SoakedDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A01G') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1562,7 +1628,7 @@ OnInit.global("Buffs", function(require)
     SongOfFatigueSlow = {} --
     do
         local thistype = SongOfFatigueSlow
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A00X') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1588,7 +1654,7 @@ OnInit.global("Buffs", function(require)
     MeatGolemThunderClap = {} --
     do
         local thistype = MeatGolemThunderClap
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A00C') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1614,7 +1680,7 @@ OnInit.global("Buffs", function(require)
     SaviorThunderClap = {} --
     do
         local thistype = SaviorThunderClap
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A013') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1640,7 +1706,7 @@ OnInit.global("Buffs", function(require)
     BlinkStrikeBuff = {} --
     do
         local thistype = BlinkStrikeBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A03Y') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1659,7 +1725,7 @@ OnInit.global("Buffs", function(require)
     NagaThorns = {} --
     do
         local thistype = NagaThorns
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
 
         thistype.RAWCODE         = FourCC('A04S') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
@@ -1675,7 +1741,7 @@ OnInit.global("Buffs", function(require)
     NagaEliteAtkSpeed = {} --
     do
         local thistype = NagaEliteAtkSpeed
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
 
         thistype.RAWCODE         = FourCC('A04L') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
@@ -1695,17 +1761,27 @@ OnInit.global("Buffs", function(require)
     SpiritCallSlow = {} --
     do
         local thistype = SpiritCallSlow
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A05M') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+
+        function thistype:onRemove()
+            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] + self.ms
+        end
+
+        function thistype:onApply()
+            self.ms = GetUnitMoveSpeed(self.target) * 0.3
+
+            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] - self.ms
+        end
     end
 
     ---@class LightSealBuff : Buff
     LightSealBuff = {} --
     do
         local thistype = LightSealBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Alse') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1731,10 +1807,11 @@ OnInit.global("Buffs", function(require)
             self.timer:destroy()
         end
 
-        function thistype:onApply()
-            self.timer = TimerQueue.create()
-
-            local LightSealStackExpire = function()
+        ---@type fun(self: LightSealBuff)
+        local function LightSealStackExpire(self)
+            if self.stacks <= 0 then
+                self:remove()
+            else
                 self.stacks = IMaxBJ(0, self.stacks - 1)
 
                 UnitAddBonus(self.source, BONUS_HERO_STR, -self.strength)
@@ -1746,8 +1823,12 @@ OnInit.global("Buffs", function(require)
                 UnitAddBonus(self.source, BONUS_HERO_STR, self.strength)
                 UnitAddBonus(self.source, BONUS_ARMOR, self.armor)
             end
+        end
 
-            self.timer:callPeriodically(5., self.stacks <= 0, LightSealStackExpire)
+        function thistype:onApply()
+            self.timer = TimerQueue.create()
+
+            self.timer:callDelayed(5., LightSealStackExpire, self)
         end
     end
 
@@ -1755,7 +1836,7 @@ OnInit.global("Buffs", function(require)
     DarkSealDebuff = {} --
     do
         local thistype = DarkSealDebuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A06W') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
@@ -1763,7 +1844,9 @@ OnInit.global("Buffs", function(require)
         function thistype:onRemove()
             local pt = TimerList[self.pid]:get(DARKSEAL.id, self.source) ---@type PlayerTimer 
 
-            GroupRemoveUnit(pt.ug, self.target)
+            if pt then
+                GroupRemoveUnit(pt.ug, self.target)
+            end
         end
     end
 
@@ -1771,7 +1854,7 @@ OnInit.global("Buffs", function(require)
     KnockUp = {} --
     do
         local thistype = KnockUp
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Akno') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1797,9 +1880,21 @@ OnInit.global("Buffs", function(require)
             return math.max(0, h)
         end
 
+        function thistype:periodic()
+            self.time = self.time + FPS_32
+            SetUnitFlyHeight(self.target, calcHeight(self.time), 0.)
+
+            if self.time > thistype.DEBUFF_TIME then
+                self:remove()
+            else
+                self.timer:callDelayed(FPS_32, thistype.periodic, self)
+            end
+        end
+
         function thistype:onRemove()
             BlzPauseUnitEx(self.target, false)
             SetUnitFlyHeight(self.target, 0., 0.)
+            self.timer:destroy()
         end
 
         function thistype:onApply()
@@ -1809,13 +1904,9 @@ OnInit.global("Buffs", function(require)
                 UnitRemoveAbility(self.target, FourCC('Amrf'))
             end
 
-            local time = 0.
-            local knockup = function()
-                time = time + FPS_32
-                SetUnitFlyHeight(self.target, calcHeight(time), 0.)
-            end
-
-            TimerQueue:callPeriodically(FPS_32, time > thistype.DEBUFF_TIME, knockup)
+            self.timer = TimerQueue.create()
+            self.time = 0
+            self.timer:callDelayed(FPS_32, thistype.periodic, self)
         end
     end
 
@@ -1823,7 +1914,7 @@ OnInit.global("Buffs", function(require)
     Freeze = {} --
     do
         local thistype = Freeze
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A01D') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1847,7 +1938,7 @@ OnInit.global("Buffs", function(require)
     Stun = {} --
     do
         local thistype = Stun
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A08J') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1868,7 +1959,7 @@ OnInit.global("Buffs", function(require)
     DarkestOfDarknessBuff = {} --
     do
         local thistype = DarkestOfDarknessBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A056') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
@@ -1882,7 +1973,7 @@ OnInit.global("Buffs", function(require)
     HolyBlessing = {} --
     do
         local thistype = HolyBlessing
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A08K') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
@@ -1900,13 +1991,17 @@ OnInit.global("Buffs", function(require)
     VampiricPotion = {} --
     do
         local thistype = VampiricPotion
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('A05O') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:onRemove()
+            DestroyEffect(self.sfx)
+        end
 
         function thistype:onApply()
-            TimerQueue:callDelayed(9., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Items\\VampiricPotion\\VampPotionCaster.mdl", self.target, "origin"))
+            self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Items\\VampiricPotion\\VampPotionCaster.mdl", self.target, "origin")
         end
     end
 
@@ -1914,7 +2009,7 @@ OnInit.global("Buffs", function(require)
     WeatherBuff = {} --
     do
         local thistype = WeatherBuff
-        setmetatable(thistype, { __index = Buff })
+        setmetatable(thistype, mt)
         thistype.RAWCODE         = FourCC('Wcle') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NONE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
@@ -1927,7 +2022,7 @@ OnInit.global("Buffs", function(require)
             UnitAddBonus(self.target, BONUS_DAMAGE, -self.atk)
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.as, 0)
 
-            if player_fog[self.tpid] and GetLocalPlayer() == GetOwningPlayer(self.target) then
+            if player_fog[self.tpid] and GetLocalPlayer() == GetOwningPlayer(self.target) and self.target == Hero[self.tpid] then
                 player_fog[self.tpid] = false
                 SetCineFilterTexture("ReplaceableTextures\\CameraMasks\\HazeAndFogFilter_Mask.blp")
                 SetCineFilterStartColor(171, 174, WeatherTable[self.weather].blue, WeatherTable[self.weather].fog)
@@ -1945,7 +2040,7 @@ OnInit.global("Buffs", function(require)
             self.atk = (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * WeatherTable[CURRENT_WEATHER].atk * 0.01
             self.weather = CURRENT_WEATHER
 
-            if GetLocalPlayer() == GetOwningPlayer(self.target) and WeatherTable[self.weather].fog > 0 then
+            if GetLocalPlayer() == GetOwningPlayer(self.target) and WeatherTable[self.weather].fog > 0 and self.target == Hero[self.tpid] then
                 player_fog[self.tpid] = true
                 SetCineFilterTexture("ReplaceableTextures\\CameraMasks\\HazeAndFogFilter_Mask.blp")
                 SetCineFilterStartColor(171, 174, WeatherTable[self.weather].blue, 0)
