@@ -1,14 +1,21 @@
+--[[
+    orders.lua
+
+    This library handles order events
+        (EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,
+        EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,
+        EVENT_PLAYER_UNIT_ISSUED_ORDER)
+]]
+
 if Debug then Debug.beginFile 'Orders' end
 
 OnInit.final("Orders", function(require)
     require 'Users'
+    require 'Units'
 
-    pointOrder    = CreateTrigger() ---@type trigger 
     bpmoving      = __jarray(false) ---@type boolean[] 
     metamorphosis = __jarray(0) ---@type number[] 
     LAST_TARGET   = {} ---@type unit[] 
-    LAST_TARGET_X = __jarray(0) ---@type number[] 
-    LAST_TARGET_Y = __jarray(0) ---@type number[] 
     Moving        = __jarray(false) ---@type boolean[] 
 
     local OrderTable = {
@@ -22,6 +29,8 @@ OnInit.final("Orders", function(require)
                 pt.tag = 'aggr'
                 TimerQueue:callDelayed(3., RunDropAggro, pt)
             end
+
+            Moving[pid] = true
         end,
 
         --issued undefend order
@@ -83,7 +92,7 @@ OnInit.final("Orders", function(require)
                 UnitDisableAbility(source, ADAPTIVESTRIKE.id, false)
 
                 if limitBreak[pid] & 0x10 > 0 and not pt then
-                    ADAPTIVESTRIKE.effect(source, x, y)
+                    ADAPTIVESTRIKE.effect(source, GetUnitX(source), GetUnitY(source))
                     UnitDisableAbility(source, ADAPTIVESTRIKE.id, true)
                     BlzUnitHideAbility(source, ADAPTIVESTRIKE.id, false)
                 elseif pt then
@@ -114,7 +123,7 @@ OnInit.final("Orders", function(require)
         --issued immolation on order
         [852177] = function(id, source, p, pid)
             --phoenix ranger multishot
-            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and isteleporting[pid] == false then
+            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and IS_TELEPORTING[pid] == false then
                 SetPlayerAbilityAvailable(p, prMulti[IMinBJ(4, GetHeroLevel(source) // 50)], true)
                 MultiShot[pid] = true
 
@@ -140,7 +149,7 @@ OnInit.final("Orders", function(require)
         --issued immolation off order
         [852178] = function(id, source, p, pid)
             --phoenix ranger multishot
-            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and isteleporting[pid] == false then
+            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and IS_TELEPORTING[pid] == false then
                 SetPlayerAbilityAvailable(p, prMulti[0], false)
                 SetPlayerAbilityAvailable(p, prMulti[1], false)
                 SetPlayerAbilityAvailable(p, prMulti[2], false)
@@ -151,7 +160,6 @@ OnInit.final("Orders", function(require)
 
             --bard inspire
             if GetUnitAbilityLevel(source, INSPIRE.id) > 0 and IsUnitPaused(source) == false and IsUnitLoaded(source) == false then
-                InspireActive[pid] = false
                 InspireBuff:dispel(source, source)
             end
 
@@ -183,10 +191,10 @@ function OnOrder()
     local pid    = GetPlayerId(p) + 1 ---@type integer 
     local id     = GetIssuedOrderId() ---@type integer 
 
-    if LIBRARY_dev then
+    if DEV_ENABLED then
         if EXTRA_DEBUG then
-            DEBUGMSG(OrderId2String(id))
-            DEBUGMSG(id)
+            print(OrderId2String(id))
+            print(id)
         end
     end
 
@@ -247,23 +255,26 @@ function OnOrder()
         end
     end
 
-    --determine moving
-    if GetOrderPointX() ~= 0 and GetOrderPointY() ~= 0 and source == Hero[pid] and (GetUnitCurrentOrder(Hero[pid]) == OrderId("move") or GetUnitCurrentOrder(Hero[pid]) == OrderId("smart") or GetUnitCurrentOrder(Hero[pid]) == OrderId("attack")) then
-        clickedpointX[pid] = GetOrderPointX()
-        clickedpointY[pid] = GetOrderPointY()
-        Moving[pid] = true
-    elseif GetOrderPointX() == 0 and GetOrderPointY() == 0 and source == Hero[pid] then
-        clickedpointX[pid] = GetUnitX(target)
-        clickedpointY[pid] = GetUnitY(target)
-        Moving[pid] = false
+    --store order location
+    if source == Hero[pid] then
+        LAST_TARGET[pid] = nil
+
+        if GetOrderPointX() ~= 0 and GetOrderPointY() ~= 0 then
+            clickedPoint[pid] = { GetOrderPointX(), GetOrderPointY() }
+        end
+
+        --stop order holdposition
+        if id == 851972 or id == 851993 then
+            Moving[pid] = false
+        end
     end
 
-    if LIBRARY_dev then
+    if DEV_ENABLED then
         if nocd[pid] then --No Cooldowns
             TimerQueue:callDelayed(0.1, ResetCD, pid)
         end
 
-        if nocost[pid] then --No Manacost
+        if nocost[pid] and HeroID[pid] ~= HERO_VAMPIRE then --No Manacost
             SetUnitState(Hero[pid], UNIT_STATE_MANA, GetUnitState(Hero[pid], UNIT_STATE_MAX_MANA))
         end
     end
@@ -274,56 +285,66 @@ function OnTargetOrder()
     local target  = GetOrderTargetUnit() ---@type unit 
     local id      = GetIssuedOrderId() ---@type integer 
     local pid     = GetPlayerId(GetOwningPlayer(source)) + 1 ---@type integer 
-    local itm     = GetOrderTargetItem() ---@type item 
-    local oldSlot = GetItemSlot(itm, source) ---@type integer 
+    local itm     = Item[GetOrderTargetItem()]
 
-    if LIBRARY_dev then
+    if DEV_ENABLED then
         if EXTRA_DEBUG then
-            DEBUGMSG(OrderId2String(id))
-            DEBUGMSG((id))
+            print(OrderId2String(id))
+            print((id))
         end
     end
 
-    if id >= 852002 and id <= 852007 and oldSlot >= 0 then --move item slot
-        local swappedItem = UnitItemInSlot(source, id - 852002)
+    if itm then
+        local oldSlot = GetItemSlot(itm, source) ---@type integer 
 
-        if GetLocalPlayer() == Player(pid - 1) then
-            if swappedItem then
-                BlzFrameSetTexture(INVENTORYBACKDROP[oldSlot], SPRITE_RARITY[Item[swappedItem].level], 0, true)
-            end
-            BlzFrameSetTexture(INVENTORYBACKDROP[id - 852002], SPRITE_RARITY[Item[itm].level], 0, true)
+        -- prevent other units from attacking a bound item
+        if id == 851983 and itm.owner ~= Player(pid - 1) then
+            TimerQueue:callDelayed(0., IssueImmediateOrderById, source, 851972)
         end
 
-        if id - 852002 ~= oldSlot then --order slot not equal to old slot
-            local offset = 0
+        --move item slot
+        if id >= 852002 and id <= 852007 and oldSlot >= 0 then
+            local swappedItem = UnitItemInSlot(source, id - 852002)
 
-            if GetUnitTypeId(source) == BACKPACK then
-                oldSlot = oldSlot + 6
-                offset = offset + 6
+            if GetLocalPlayer() == Player(pid - 1) then
+                if swappedItem then
+                    BlzFrameSetTexture(INVENTORYBACKDROP[oldSlot], SPRITE_RARITY[Item[swappedItem].level], 0, true)
+                end
+                BlzFrameSetTexture(INVENTORYBACKDROP[id - 852002], SPRITE_RARITY[itm.level], 0, true)
             end
 
-            Profile[pid].hero.items[id - 852002 + offset] = Item[itm] --move slot = current item
+            if id - 852002 ~= oldSlot then --order slot not equal to old slot
+                local offset = 0
 
-            if Item[UnitItemInSlot(source, id - 852002)] then
-                Profile[pid].hero.items[oldSlot] = Item[UnitItemInSlot(source, id - 852002)] --item that was swapped = previous item slot
-            else
-                Profile[pid].hero.items[oldSlot] = nil
+                if GetUnitTypeId(source) == BACKPACK then
+                    oldSlot = oldSlot + 6
+                    offset = offset + 6
+                end
+
+                Profile[pid].hero.items[id - 852002 + offset] = itm --move slot = current item
+
+                if Item[UnitItemInSlot(source, id - 852002)] then
+                    Profile[pid].hero.items[oldSlot] = Item[UnitItemInSlot(source, id - 852002)] --item that was swapped = previous item slot
+                else
+                    Profile[pid].hero.items[oldSlot] = nil
+                end
             end
         end
     end
 
     --hero targets enemy
-    if source == Hero[pid] and IsUnitEnemy(target, Player(pid - 1)) then
-        LAST_TARGET[pid] = target
-        LAST_TARGET_X[pid] = GetUnitX(target)
-        LAST_TARGET_Y[pid] = GetUnitY(target)
+    if source == Hero[pid] then
+        clickedPoint[pid] = { GetUnitX(target), GetUnitY(target) }
 
-        clickedpointX[pid] = GetUnitX(target)
-        clickedpointY[pid] = GetUnitY(target)
+        if IsUnitEnemy(target, Player(pid - 1)) then
+            LAST_TARGET[pid] = target
+            Moving[pid] = true
+        end
     end
 end
 
-    local ordertarget = CreateTrigger() ---@type trigger
+    pointOrder = CreateTrigger()
+    local ordertarget = CreateTrigger()
     local u = User.first ---@type User 
 
     while u do
@@ -335,7 +356,6 @@ end
 
     TriggerAddAction(pointOrder, OnOrder)
     TriggerAddAction(ordertarget, OnTargetOrder)
-
 end)
 
 if Debug then Debug.endFile() end
