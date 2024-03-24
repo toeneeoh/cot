@@ -1,3 +1,12 @@
+--[[
+    saveload.lua
+
+    This module handles -save/load commands and determines how they behave
+    depending on game status (singleplayer/multiplayer)
+
+    Automatically loads players' profiles at map start.
+]]
+
 if Debug then Debug.beginFile 'SaveLoad' end
 
 OnInit.final("SaveLoad", function(require)
@@ -28,14 +37,18 @@ OnInit.final("SaveLoad", function(require)
     SAVE_UNIT_TYPE[20] = HERO_DRUID
     SAVE_UNIT_TYPE[21] = HERO_VAMPIRE
 
+    for i, v in ipairs(SAVE_UNIT_TYPE) do
+        SAVE_TABLE.KEY_UNITS[v] = i
+    end
+
     ---@return boolean
-    function ActionLoadHero()
+    function onLoadCommand()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
         if CANNOT_LOAD[pid] then
             DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 20, "You cannot -load anymore!")
 
-            if LIBRARY_dev then
+            if DEV_ENABLED then
             else
                 return false
             end
@@ -60,20 +73,14 @@ OnInit.final("SaveLoad", function(require)
     ---@param whichPlayer player
     function ForceSave(whichPlayer)
         local pid         = GetPlayerId(whichPlayer) + 1 ---@type integer 
-        local i         = 0 ---@type integer 
-        local itm ---@type item 
 
         if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or UnitAlive(Hero[pid]) == false then
             DisplayTextToPlayer(whichPlayer, 0, 0, "An error occured while attempting to save.")
             return
         end
 
-        if LIBRARY_dev then
+        if DEV_ENABLED then
             GAME_STATE = 2
-        end
-
-        if GAME_STATE <= 1 then
-            return
         end
 
         forceSaving[pid] = false
@@ -124,12 +131,8 @@ OnInit.final("SaveLoad", function(require)
             return false
         end
 
-        if LIBRARY_dev then
+        if DEV_ENABLED then
             GAME_STATE = 2
-        end
-
-        if GAME_STATE <= 1 then
-            return false
         end
 
         if autosave[pid] or Hardcore[pid] then
@@ -166,17 +169,13 @@ OnInit.final("SaveLoad", function(require)
             return
         end
 
-        if LIBRARY_dev then
+        if DEV_ENABLED then
             GAME_STATE = 2
-        end
-
-        if GAME_STATE <= 1 then
-            return
         end
 
         if timed then
             forceSaving[pid] = true
-            isteleporting[pid] = true
+            IS_TELEPORTING[pid] = true
             PauseUnit(Hero[pid], true)
             PauseUnit(Backpack[pid], true)
             UnitRemoveAbility(Hero[pid], FourCC('Binv'))
@@ -191,19 +190,51 @@ OnInit.final("SaveLoad", function(require)
         end
     end
 
+    ---@return boolean
+    function onSaveCommand()
+        local cmd = GetEventPlayerChatStringMatched()
+        local p = GetTriggerPlayer()
+        local pid = GetPlayerId(p) + 1
+
+        if UnitAlive(Hero[pid]) == false then
+            DisplayTextToPlayer(p, 0, 0, "You cannot do this while dead!")
+            return false
+        end
+
+        if (cmd == "-forcesave") then
+            if InCombat(Hero[pid]) then
+                DisplayTextToPlayer(p, 0, 0, "You cannot do this while in combat!")
+            elseif IS_TELEPORTING[pid] then
+                DisplayTextToPlayer(p, 0, 0, "You cannot do this while teleporting!")
+            elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) or RectContainsCoords(gg_rct_Tavern, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) then
+                ActionSaveForce(p, false)
+            else
+                ActionSaveForce(p, true)
+            end
+        elseif (cmd == "-save") then
+            if TimerGetRemaining(SaveTimer[pid]) > 1 and Hardcore[pid] then
+                DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(SaveTimer[pid]) .. " until you can save again.")
+            elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) == false and Hardcore[pid] then
+                DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffFF0000You're playing in hardcore mode, you may only save inside the church in town.|r")
+            else
+                ActionSave(p)
+            end
+        end
+
+        return false
+    end
+
     do
-        local loadHeroTrigger = CreateTrigger() ---@type trigger 
+        local loadHeroTrigger = CreateTrigger()
+        local saveHeroTrigger = CreateTrigger()
         local load = true ---@type boolean
 
         TriggerAddCondition(Profile.sync_event, Filter(Profile.LoadSync))
-        TriggerAddCondition(loadHeroTrigger, Filter(ActionLoadHero))
-
-        for i = 0, 21 do
-            SAVE_TABLE.KEY_ITEMS[SAVE_UNIT_TYPE[i]] = i
-        end
+        TriggerAddCondition(loadHeroTrigger, Filter(onLoadCommand))
+        TriggerAddCondition(saveHeroTrigger, Filter(onSaveCommand))
 
         --dev game state bypass
-        if LIBRARY_dev then
+        if DEV_ENABLED then
             GAME_STATE = 2
         end
 
@@ -228,13 +259,15 @@ OnInit.final("SaveLoad", function(require)
 
                 if load then
                     TriggerRegisterPlayerChatEvent(loadHeroTrigger, u.player, "-load", true)
+                    TriggerRegisterPlayerChatEvent(saveHeroTrigger, u.player, "-save", true)
+                    TriggerRegisterPlayerChatEvent(saveHeroTrigger, u.player, "-forcesave", true)
                     BlzTriggerRegisterPlayerSyncEvent(Profile.sync_event, u.player, SYNC_PREFIX, false)
 
                     if GetLocalPlayer() == u.player then
                         local s = FileIO.Load(MAP_NAME .. "\\" .. u.name .. "\\profile.pld")
 
                         if s then
-                            BlzSendSyncData(SYNC_PREFIX, getLine(1, s))
+                            BlzSendSyncData(SYNC_PREFIX, GetLine(1, s))
                         end
                     end
                 end
