@@ -1,24 +1,15 @@
-if Debug then Debug.beginFile 'WorldBounds' end
-
-OnInit.global("WorldBounds", function()
-
---[[ mapbounds.lua v1.1.0 | https://www.hiveworkshop.com/threads/330669/
-
+--[[
+    worldbounds.lua
+    https://www.hiveworkshop.com/threads/330669/
 
     Description:
-
         Nestharus's WorldBounds ported into Lua, with few simple but useful
         additions. Aside from providing map boundary data thru variables,
         also provides premade functions for checking whether a coordinate
         is inside map boundaries, getting a random coordinate within
         map boundaries, and getting a bounded coordinate value.
 
-
-]]--
---[[
-
     API:
-
         Prefixes:
             MapBounds
             - Refers to initial playable map bounds
@@ -52,10 +43,14 @@ OnInit.global("WorldBounds", function()
             function <Prefix>:containsXY(number: x, number: y) -> boolean
             - Checks if the bounds contain the input coordinate
 
-]]--
+]]
 
-MapBounds = setmetatable({}, {})
-WorldBounds = setmetatable({}, getmetatable(MapBounds))
+if Debug then Debug.beginFile 'WorldBounds' end
+
+OnInit.global("WorldBounds", function()
+
+    MapBounds = setmetatable({}, {})
+    WorldBounds = setmetatable({}, getmetatable(MapBounds))
 
 do
 
