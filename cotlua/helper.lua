@@ -1094,39 +1094,6 @@ function GroupEnumUnitsInRangeEx(pid, g, x, y, radius, b)
     DestroyGroup(ug)
 end
 
----@param pid integer
----@param index integer
----@param amount integer
-function SetCurrency(pid, index, amount)
-    Currency[pid * CURRENCY_COUNT + index] = IMaxBJ(0, amount)
-
-    if index == GOLD then
-        SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_GOLD, Currency[pid * CURRENCY_COUNT + index])
-    elseif index == LUMBER then
-        SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_LUMBER, Currency[pid * CURRENCY_COUNT + index])
-    elseif index == PLATINUM then
-        if GetLocalPlayer() == Player(pid - 1) then
-            BlzFrameSetText(platText, tostring(Currency[pid * CURRENCY_COUNT + index]))
-        end
-    elseif index == ARCADITE then
-        if GetLocalPlayer() == Player(pid - 1) then
-            BlzFrameSetText(arcText, tostring(Currency[pid * CURRENCY_COUNT + index]))
-        end
-    elseif index == CRYSTAL then
-        SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_FOOD_USED, Currency[pid * CURRENCY_COUNT + index])
-    end
-end
-
----@type fun(pid: integer, index: integer):integer
-function GetCurrency(pid, index)
-    return Currency[pid * CURRENCY_COUNT + index]
-end
-
----@type fun(pid: integer, index: integer, amount: integer)
-function AddCurrency(pid, index, amount)
-    SetCurrency(pid, index, GetCurrency(pid, index) + amount)
-end
-
 ---@param u unit
 ---@param show boolean
 function ToggleCommandCard(u, show)
@@ -2101,6 +2068,69 @@ function GetItemFromUnit(u, itid)
     return nil
 end
 
+---@type fun(pid: integer, bonus: number, type: integer, plat: boolean)
+function StatTome(pid, bonus, type, plat)
+    local p              = Player(pid - 1)
+    local totalStats     = 0
+    local trueBonus      = 0
+    local msg            = "You gained |cffffcc00"
+    local hlev           = GetHeroLevel(Hero[pid])
+    local levelMax       = TomeCap(hlev)
+
+    if hlev > 25 then
+        totalStats = IMaxBJ(250, GetHeroStr(Hero[pid],false) + GetHeroAgi(Hero[pid],false) + GetHeroInt(Hero[pid],false))
+    else
+        totalStats = IMaxBJ(50, GetHeroStr(Hero[pid],false) + GetHeroAgi(Hero[pid],false) + GetHeroInt(Hero[pid],false))
+    end
+
+    trueBonus = R2I(bonus * 17.2 // Pow(totalStats, 0.35))
+
+    if totalStats > levelMax then
+        DisplayTextToPlayer(p, 0, 0, "You cannot buy any more tomes until you level up further, no gold has been charged.")
+        return
+    elseif not plat then
+        if type == 4 then
+            AddCurrency(pid, GOLD, -20000)
+        else
+            AddCurrency(pid, GOLD, -10000)
+        end
+    elseif plat then
+        if hlev < 100 then
+            return
+        end
+
+        if type == 4 then
+            AddCurrency(pid, PLATINUM, -2)
+        else
+            AddCurrency(pid, PLATINUM, -1)
+        end
+    end
+
+    local statText = {
+        "|r Strength.",
+        "|r Agility.",
+        "|r Intelligence.",
+        "|r All Stats.",
+    }
+
+    if type == 1 then
+        SetHeroStr(Hero[pid], GetHeroStr(Hero[pid], false) + trueBonus, true)
+    elseif type == 2 then
+        SetHeroAgi(Hero[pid], GetHeroAgi(Hero[pid], false) + trueBonus, true)
+    elseif type == 3 then
+        SetHeroInt(Hero[pid], GetHeroInt(Hero[pid], false) + trueBonus, true)
+    elseif type == 4 then
+        SetHeroStr(Hero[pid], GetHeroStr(Hero[pid], false) + trueBonus, true)
+        SetHeroAgi(Hero[pid], GetHeroAgi(Hero[pid], false) + trueBonus, true)
+        SetHeroInt(Hero[pid], GetHeroInt(Hero[pid], false) + trueBonus, true)
+    end
+
+    DisplayTextToPlayer(p, 0, 0, msg .. trueBonus .. statText[type])
+
+    DestroyEffect(AddSpecialEffectTarget("Objects\\InventoryItems\\tomeRed\\tomeRed.mdl", Hero[pid], "chest"))
+    DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIam\\AIamTarget.mdl", Hero[pid], "chest"))
+end
+
 ---@type fun(pid: integer, id: integer):integer
 function PlayerCountItemType(pid, id)
     local j = 0 ---@type integer 
@@ -3024,44 +3054,6 @@ function AwardXP(pid, xp)
     FloatingTextUnit("+" .. (xp) .. " XP", Hero[pid], 2, 80, 0, 10, 204, 0, 204, 0, false)
 end
 
----@type fun(pid: integer, goldawarded:number, displaymessage: boolean)
-function AwardGold(pid, goldawarded, displaymessage)
-    local p = Player(pid - 1)
-    local goldWon ---@type integer 
-    local platWon ---@type integer 
-
-    goldWon = math.floor(goldawarded * GetRandomReal(0.9,1.1))
-    goldWon = math.floor(goldWon * (1 + (ItemGoldRate[pid] * 0.01)))
-
-    platWon = goldWon // 1000000
-    goldWon = goldWon - platWon * 1000000
-
-    AddCurrency(pid, PLATINUM, platWon)
-    AddCurrency(pid, GOLD, goldWon)
-
-    if displaymessage then
-        if platWon > 0 then
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "|c00ebeb15You have gained " .. (goldWon) .. " gold and " .. (platWon) .. " platinum coins.")
-            DisplayTimedTextToPlayer(p, 0, 0, 10, PlatTag .. (GetCurrency(pid, PLATINUM)))
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "|c00ebeb15You have gained " .. (goldWon) .. " gold.")
-        end
-    end
-
-    local s = string.format(goldWon)
-
-    if goldWon >= 100000 then
-        s = "+" .. (goldWon // 1000) .. "K"
-    end
-
-    if platWon > 0 then
-        s = "|cffcccccc+" .. platWon .. "|r |cffffcc00" .. s .. "|r"
-        FloatingTextUnit(s, Hero[pid], 1.5, 75, -100, 9., 255, 255, 255, 0, false)
-    else
-        FloatingTextUnit(s, Hero[pid], 1.5, 75, -100, 8.5, 255, 255, 0, 0, false)
-    end
-end
-
 ---@type fun(s: string, u: unit, dur: number, speed: number, z: number, size: number, r: integer, g: integer, b: integer, alpha: integer, shared: boolean)
 function FloatingTextUnit(s, u, dur, speed, z, size, r, g, b, alpha, shared)
     local tt = nil
@@ -3094,30 +3086,6 @@ function DoFloatingTextCoords(s, x, y, dur, speed, z, size, r, g, b, alpha)
     SetTextTagVelocity(tt, 0, speed / 1803.)
     SetTextTagLifespan(tt, dur)
     SetTextTagFadepoint(tt, dur - .4)
-end
-
----@type fun(id: integer, x: number, y: number)
-function AwardCrystals(id, x, y)
-    local count = BossTable[id].crystal ---@type integer 
-
-    if count == 0 then
-        return
-    end
-
-    if HARD_MODE > 0 then
-        count = count * 2
-    end
-
-    local u = User.first
-
-    while u do
-        if IsUnitInRangeXY(Hero[u.id], x, y, NEARBY_BOSS_RANGE) and GetHeroLevel(Hero[u.id]) >= BossTable[id].level then
-            AddCurrency(u.id, CRYSTAL, count)
-            FloatingTextUnit("+" .. (count) .. (count == 1 and " Crystal" or " Crystals"), Hero[u.id], 2.1, 80, 90, 9, 70, 150, 230, 0, false)
-        end
-
-        u = u.next
-    end
 end
 
 ---@type fun(source: unit, target: unit, hp: number, tag: string|nil)
