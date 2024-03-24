@@ -1,19 +1,28 @@
+--[[
+    summon.lua
+
+    This library handles unit summoning events, which is only used
+    by one instance in the entire game: Assault Helicopter.
+
+    TODO: disassemble this file
+]]
+
 if Debug then Debug.beginFile 'Summon' end
 
 OnInit.final("Summon", function(require)
     require 'Users'
 
-        SummonGroup = {} ---@type unit[]
+    SummonGroup = {} ---@type unit[]
 
-        helicopter  = {} ---@type unit[] 
-        heliangle   = __jarray(0) ---@type number[] 
-        helitargets = {} ---@type group[] 
-        heliboost   = __jarray(0) ---@type number[] 
-        destroyer   = {} ---@type unit[] 
-        meatgolem   = {} ---@type unit[] 
-        hounds      = {} ---@type unit[] 
+    helicopter  = {} ---@type unit[] 
+    heliangle   = __jarray(0) ---@type number[] 
+    helitargets = {} ---@type group[] 
+    heliboost   = __jarray(0) ---@type number[] 
+    destroyer   = {} ---@type unit[] 
+    meatgolem   = {} ---@type unit[] 
+    hounds      = {} ---@type unit[] 
 
-        improvementArmorBonus=__jarray(0) ---@type integer[] 
+    improvementArmorBonus=__jarray(0) ---@type integer[] 
 
     ---@param pid integer
     function ClusterRockets(pid)
@@ -27,12 +36,7 @@ OnInit.final("Summon", function(require)
             end
         end
 
-        DestroyGroup(ug)
-
-        BlzGroupAddGroupFast(helitargets[pid], ug)
-        enemyCount = BlzGroupGetSize(ug)
-
-        local x, y, z = GetUnitX(helicopter[pid]), GetUnitY(helicopter[pid]), BlzGetUnitZ(helicopter[pid]) - 20
+        local x, y, z = GetUnitX(helicopter[pid]), GetUnitY(helicopter[pid]), GetUnitFlyHeight(helicopter[pid]) + BlzGetUnitZ(helicopter[pid]) - 20.
 
         --single shot
         if sniperstance[pid] then
@@ -51,21 +55,23 @@ OnInit.final("Summon", function(require)
             missile.target = target
             missile.owner = Player(pid - 1)
             missile:vision(500)
-            missile.collision = 75.
+            missile.collision = 60.
             missile.damage = ASSAULTHELICOPTER.dmg(pid) * 2.5 * BOOST[pid]
 
             missile.onHit = function(unit)
                 if unit == missile.target then
-                    UnitDamageTarget(missile.source, unit, missile.damage, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(missile.source, unit, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, "Cluster Rockets")
 
                     return true
                 end
 
                 return false
             end
+
+            missile:launch()
         --multi shot
         else
-            for enemy in each(helitarget[pid]) do
+            for enemy in each(helitargets[pid]) do
                 local missile = Missiles:create(x, y, z, GetUnitX(enemy), GetUnitY(enemy), BlzGetUnitZ(enemy)) ---@type Missiles
                 missile:model("Abilities\\Spells\\Other\\TinkerRocket\\TinkerRocketMissile.mdl")
                 missile:scale(1.1)
@@ -74,18 +80,20 @@ OnInit.final("Summon", function(require)
                 missile.target = enemy
                 missile.owner = Player(pid - 1)
                 missile:vision(500)
-                missile.collision = 75.
+                missile.collision = 60.
                 missile.damage = ASSAULTHELICOPTER.dmg(pid) * BOOST[pid]
 
                 missile.onHit = function(unit)
                     if unit == missile.target then
-                        UnitDamageTarget(missile.source, unit, missile.damage, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                        DamageTarget(missile.source, unit, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, "Cluster Rockets")
 
                         return true
                     end
 
                     return false
                 end
+
+                missile:launch()
             end
         end
     end
@@ -108,7 +116,7 @@ OnInit.final("Summon", function(require)
             end
 
             if UnitAlive(LAST_TARGET[pid]) then
-                SetUnitFacing(helicopter[pid], bj_RADTODEG * Atan2(LAST_TARGET_Y[pid] - GetUnitY(helicopter[pid]), LAST_TARGET_X[pid] - GetUnitX(helicopter[pid])))
+                SetUnitFacing(helicopter[pid], bj_RADTODEG * Atan2(GetUnitY(LAST_TARGET[pid]) - GetUnitY(helicopter[pid]), GetUnitX(LAST_TARGET[pid]) - GetUnitX(helicopter[pid])))
             end
 
             --acquire helicopter targets near hero
@@ -128,7 +136,7 @@ OnInit.final("Summon", function(require)
         end
     end
 
-    ---@type fun(pid: integer, tag: texttag)
+    ---@type fun(pid: integer, tag: texttag, pt: PlayerTimer)
     local function HelicopterExpire(pid, tag, pt)
         SoundHandler("Units\\Human\\Gyrocopter\\GyrocopterPissed6.flac", true, nil, helicopter[pid])
         IssuePointOrder(helicopter[pid], "move", GetUnitX(Hero[pid]) + 1000. * Cos(bj_DEGTORAD * GetUnitFacing(Hero[pid])), GetUnitY(Hero[pid]) + 1000. * Sin(bj_DEGTORAD * GetUnitFacing(Hero[pid])))
@@ -138,6 +146,13 @@ OnInit.final("Summon", function(require)
         helicopter[pid] = nil
 
         pt:destroy()
+    end
+
+    local function periodic(pid, tag)
+        if UnitAlive(helicopter[pid]) then
+            SetTextTagPosUnit(tag, helicopter[pid], -200.)
+            TimerQueue:callDelayed(FPS_32, periodic, pid, tag)
+        end
     end
 
     function onSummon()
@@ -158,7 +173,7 @@ OnInit.final("Summon", function(require)
             SetTextTagText(helitag, RealToString(heliboost[pid] * 100) .. "\x25", 0.024)
             SetTextTagColor(helitag, 255, R2I(270 - heliboost[pid] * 150), R2I(270 - heliboost[pid] * 150), 255)
 
-            TimerQueue:callPeriodically(FPS_32, not UnitAlive(helicopter[pid]), function() SetTextTagPosUnit(helitag, helicopter[pid], -200.) end)
+            TimerQueue:callDelayed(FPS_32, periodic, pid, helitag)
 
             SoundHandler("Units\\Human\\Gyrocopter\\GyrocopterWhat" .. (GetRandomInt(1,5)) .. ".flac", true, nil, helicopter[pid])
 
@@ -167,19 +182,10 @@ OnInit.final("Summon", function(require)
             pt.timer:callPeriodically(6., nil, function() heliangle[pid] = GetRandomInt(1, 3) * 120 - 60 end)
             pt.timer:callPeriodically(1., nil, HeliLeash, pid)
             TimerQueue:callDelayed(ASSAULTHELICOPTER.dur * LBOOST[pid], HelicopterExpire, pid, helitag, pt)
-        else
-            return
-        end
-
-        SummonGroup[#SummonGroup + 1] = summon
-
-        if IsUnitType(summon, UNIT_TYPE_HERO) then
-            SetHeroLevelBJ(summon, GetHeroLevel(Hero[pid]), false)
-            SuspendHeroXP(summon, true)
         end
     end
 
-    local summon = CreateTrigger() ---@type trigger 
+    local summon = CreateTrigger()
     local u = User.first ---@type User 
 
     while u do
