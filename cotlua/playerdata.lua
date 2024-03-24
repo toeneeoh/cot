@@ -1,3 +1,12 @@
+--[[
+    playerdata.lua
+
+    A module that defines the Profile interface which provides
+    functions to save and load player data across games.
+
+    TODO: move playertimers to another file
+]]
+
 if Debug then Debug.beginFile 'PlayerData' end
 
 OnInit.global("PlayerData", function(require)
@@ -17,8 +26,6 @@ OnInit.global("PlayerData", function(require)
 
     newcharacter    =__jarray(false) ---@type boolean[] 
     CANNOT_LOAD     =__jarray(false) ---@type boolean[] 
-
-    --boolean LOAD_SAFE = true
 
     ---@class HeroData
     ---@field pid integer
@@ -45,15 +52,18 @@ OnInit.global("PlayerData", function(require)
     HeroData = {}
     do
         local thistype = HeroData
+        thistype.SKIN_DEFAULT = 26 --wisp
 
         ---@type fun(pid: integer):HeroData
         function thistype.create(pid)
             local self = {
                 pid = pid,
                 items = {},
-                skin = 26,
+                skin = thistype.SKIN_DEFAULT,
                 reveal = 0,
-                teleport = 0
+                teleport = 0,
+                hardcore = 0,
+                prestige = 0,
             }
 
             setmetatable(self, { __index = HeroData })
@@ -118,13 +128,13 @@ OnInit.global("PlayerData", function(require)
     ---@field saveCharacter function
     ---@field loadCharacter function
     ---@field create function
-    Profile = {}
+    Profile = {} ---@type Profile | Profile[]
     do
         local thistype = Profile
-        thistype.sync_event = CreateTrigger() ---@type trigger 
+        thistype.sync_event = CreateTrigger()
         thistype.savecode   =__jarray("") ---@type string[] [PLAYER_CAP]
 
-        ---@type fun(pid: integer):Profile
+        ---@type fun(pid: integer): Profile
         function thistype.create(pid)
             local self = {
                 pid = pid,
@@ -140,7 +150,7 @@ OnInit.global("PlayerData", function(require)
             return self
         end
 
-        ---@type fun(s: string, pid: integer):Profile
+        ---@type fun(s: string, pid: integer): Profile | nil
         function thistype.load(s, pid)
             local p = Player(pid - 1)
 
@@ -150,9 +160,8 @@ OnInit.global("PlayerData", function(require)
                 return nil
             end
 
-            local vers = 0
             local index = 1
-            vers = SaveData[pid][index]
+            local vers = SaveData[pid][index]
 
             --TODO implement version handling
             if vers <= SAVE_LOAD_VERSION - 2 or vers >= SAVE_LOAD_VERSION + 2 then
@@ -160,28 +169,26 @@ OnInit.global("PlayerData", function(require)
                 return nil
             end
 
+            print("Save Load Version: " .. (vers))
+
             local self = thistype.create(pid)
-            local id = 0
-            local prestige = 0
 
             index = index + 1
-            DEBUGMSG("Save Load Version: " .. (SaveData[pid][index]))
 
             for i = 0, MAX_SLOTS do
                 self.phtl[i] = SaveData[pid][index]
-                prestige = (self.phtl[i] & 0x6) >> 1
-                id = (self.phtl[i] & 0x1F8) >> 3
+                local prestige = (self.phtl[i] & 0x6) >> 1
+                local id = (self.phtl[i] & 0x1F8) >> 3
                 index = index + 1
 
                 if prestige > 0 then
                     AllocatePrestige(pid, prestige, id)
                 end
-                --call DEBUGMSG((self.phtl[i]))
             end
 
             self.profileHash = SaveData[pid][index]
 
-            return profile
+            return self
         end
 
         ---@return boolean
@@ -192,7 +199,7 @@ OnInit.global("PlayerData", function(require)
 
             if StringLength(thistype.savecode[pid - 1]) > 1 then
                 if not Profile[pid] then
-                    Profile[pid]:load(thistype.savecode[pid - 1], pid)
+                    Profile[pid] = thistype.load(thistype.savecode[pid - 1], pid)
                 else
                     Profile[pid]:loadCharacter(thistype.savecode[pid - 1])
                 end
@@ -216,10 +223,9 @@ OnInit.global("PlayerData", function(require)
 
         function thistype:saveProfile()
             local p = Player(self.pid - 1)
+            local data = {}
 
-            SaveData[self.pid] = {}
-
-            table.insert(SaveData[self.pid], SAVE_LOAD_VERSION)
+            data[#data + 1] = SAVE_LOAD_VERSION
 
             for i = 0, MAX_SLOTS do
 
@@ -229,19 +235,20 @@ OnInit.global("PlayerData", function(require)
                     else
                         self.phtl[i] = self.hero.hardcore + (self.hero.prestige << 1) + (self.hero.id << 3) + (self.hero.level << 9)
                     end
-                    --call DEBUGMSG((.hero.prestige) .. " " .. (.hero.hardcore) .. " " .. (.hero.id) .. " " .. (.hero.level))
                 end
 
-                table.insert(SaveData[self.pid], self.phtl[i])
+                data[#data + 1] = self.phtl[i]
             end
 
-            table.insert(SaveData[self.pid], self.profileHash)
+            data[#data + 1] = self.profileHash
 
-            local s = Compile(self.pid)
+            local s = Compile(self.pid, data)
 
-            if GetLocalPlayer() == p then
-                FileIO.Save(MAP_NAME .. "\\" .. User[p].name .. "\\" .. "profile.pld", "\n" .. s)
-                FileIO.Save(MAP_NAME .. "\\" .. "BACKUP" .. "\\" .. GetObjectName(HeroID[self.pid]) .. GetHeroLevel(Hero[self.pid]) .. "_" .. TIME .. "\\" .. User[p].name .. "\\" .. "profile.pld", "\n" .. s)
+            if GAME_STATE == 2 then
+                if GetLocalPlayer() == p then
+                    FileIO.Save(MAP_NAME .. "\\" .. User[p].name .. "\\" .. "profile.pld", "\n" .. s)
+                    FileIO.Save(MAP_NAME .. "\\" .. "BACKUP" .. "\\" .. GetObjectName(HeroID[self.pid]) .. GetHeroLevel(Hero[self.pid]) .. "_" .. TIME .. "\\" .. User[p].name .. "\\" .. "profile.pld", "\n" .. s)
+                end
             end
 
             DisplayTimedTextToPlayer(p, 0, 0, 60, "-------------------------------------------------------------------")
@@ -253,8 +260,7 @@ OnInit.global("PlayerData", function(require)
 
         function thistype:saveCharacter()
             local p = Player(self.pid - 1)
-
-            SaveData[self.pid] = {}
+            local data = {}
 
             --[[
                 hash
@@ -274,49 +280,62 @@ OnInit.global("PlayerData", function(require)
                 skin
             ]]
 
-            table.insert(SaveData[self.pid], self.profileHash)
-            table.insert(SaveData[self.pid], self.hero.prestige)
-            self.hero.hardcore = (Hardcore[self.pid] == true and 1) or 0
-            table.insert(SaveData[self.pid], self.hero.hardcore)
-            self.hero.id = SAVE_TABLE.KEY_ITEMS[HeroID[self.pid]]
-            table.insert(SaveData[self.pid], self.hero.id)
+            data[#data + 1] = self.profileHash
+            data[#data + 1] = self.hero.prestige
+            data[#data + 1] = self.hero.hardcore
+            self.hero.id = SAVE_TABLE.KEY_UNITS[HeroID[self.pid]]
+            data[#data + 1] = self.hero.id
             self.hero.level = GetHeroLevel(Hero[self.pid])
-            table.insert(SaveData[self.pid], self.hero.level)
+            data[#data + 1] = self.hero.level
             self.hero.str = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_STR, Hero[self.pid], false))
             self.hero.agi = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_AGI, Hero[self.pid], false))
             self.hero.int = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_INT, Hero[self.pid], false))
-            table.insert(SaveData[self.pid], self.hero.str)
-            table.insert(SaveData[self.pid], self.hero.agi)
-            table.insert(SaveData[self.pid], self.hero.int)
+            data[#data + 1] = self.hero.str
+            data[#data + 1] = self.hero.agi
+            data[#data + 1] = self.hero.int
             for i = 0, MAX_INVENTORY_SLOTS - 1 do
-                table.insert(SaveData[self.pid], self.hero.items[i]:encode_id())
-                table.insert(SaveData[self.pid], self.hero.items[i]:encode())
-                self.hero.items[i].owner = p
+                local id, stats = 0, 0
+
+                if self.hero.items[i] then
+                    id = self.hero.items[i]:encode_id()
+                    stats = self.hero.items[i]:encode()
+                    self.hero.items[i].owner = p --binds item after saving
+                end
+
+                data[#data + 1] = id
+                data[#data + 1] = stats
             end
             self.hero.teleport = GetUnitAbilityLevel(Backpack[self.pid], FourCC('A0FV'))
-            table.insert(SaveData[self.pid], self.hero.teleport)
+            data[#data + 1] = self.hero.teleport
             self.hero.reveal = GetUnitAbilityLevel(Backpack[self.pid], FourCC('A0FK'))
-            table.insert(SaveData[self.pid], self.hero.reveal)
+            data[#data + 1] = self.hero.reveal
             self.hero.platinum = IMinBJ(GetCurrency(self.pid, PLATINUM), MAX_PLAT_ARC_CRYS)
-            table.insert(SaveData[self.pid], self.hero.platinum)
+            data[#data + 1] = self.hero.platinum
             self.hero.arcadite = IMinBJ(GetCurrency(self.pid, ARCADITE), MAX_PLAT_ARC_CRYS)
-            table.insert(SaveData[self.pid], self.hero.arcadite)
+            data[#data + 1] = self.hero.arcadite
             self.hero.crystal = IMinBJ(GetCurrency(self.pid, CRYSTAL), MAX_PLAT_ARC_CRYS)
-            table.insert(SaveData[self.pid], self.hero.crystal)
+            data[#data + 1] = self.hero.crystal
             self.hero.time = IMinBJ(TimePlayed[self.pid], MAX_TIME_PLAYED)
-            table.insert(SaveData[self.pid], self.hero.time)
+            data[#data + 1] = self.hero.time
             self.hero.gold = IMinBJ(GetCurrency(self.pid, GOLD), MAX_GOLD_LUMB)
-            table.insert(SaveData[self.pid], self.hero.gold)
+            data[#data + 1] = self.hero.gold
             self.hero.lumber = IMinBJ(GetCurrency(self.pid, LUMBER), MAX_GOLD_LUMB)
-            table.insert(SaveData[self.pid], self.hero.lumber)
-            table.insert(SaveData[self.pid], self.hero.skin)
+            data[#data + 1] = self.hero.lumber
+            data[#data + 1] = self.hero.skin
 
-            Compile(self.pid)
+            local s = Compile(self.pid, data)
 
-            Profile[self.pid]:saveProfile()
+            if GAME_STATE == 2 then
+                if GetLocalPlayer() == p then
+                    FileIO.Save(MAP_NAME .. "\\" .. User[p].name .. "\\slot" .. (self.currentSlot + 1) .. ".pld", GetObjectName(HeroID[pid]) .. " " .. I2S(GetHeroLevel(Hero[pid])) .. "\n" .. s)
+                    FileIO.Save(MAP_NAME .. "\\" .. "BACKUP" .. "\\" .. GetObjectName(HeroID[pid]) .. I2S(GetHeroLevel(Hero[pid])) .. "_" .. os.time() .. "\\" .. User[p].name .. "\\slot" .. (self.currentSlot + 1) .. ".pld", GetObjectName(HeroID[pid]) .. " " .. I2S(GetHeroLevel(Hero[pid])) .. "\n" .. s)
+                end
+            end
+
+            self:saveProfile()
         end
 
-        ---@type fun(data: string)
+        ---@type fun(self: Profile, data: string)
         function thistype:loadCharacter(data)
             local p = Player(self.pid - 1)
 
@@ -327,56 +346,41 @@ OnInit.global("PlayerData", function(require)
 
             local index = 1
             local hash = SaveData[self.pid][index]
-
-            index = index + 1
-            self.hero.prestige = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.hardcore = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.id = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.level = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.str = IMinBJ(MAX_STATS, SaveData[self.pid][index])
-            index = index + 1
-            self.hero.agi = IMinBJ(MAX_STATS, SaveData[self.pid][index])
-            index = index + 1
-            self.hero.int = IMinBJ(MAX_STATS, SaveData[self.pid][index])
-            index = index + 1
-            for i = 0, MAX_INVENTORY_SLOTS - 1 do
-                self.hero.items[i] = Item.decode_id(SaveData[self.pid][index])
+            local counter = function()
                 index = index + 1
+                return index
+            end
+
+            self.hero.prestige = SaveData[self.pid][counter()]
+            self.hero.hardcore = SaveData[self.pid][counter()]
+            self.hero.id = SaveData[self.pid][counter()]
+            self.hero.level = SaveData[self.pid][counter()]
+            self.hero.str = IMinBJ(MAX_STATS, SaveData[self.pid][counter()])
+            self.hero.agi = IMinBJ(MAX_STATS, SaveData[self.pid][counter()])
+            self.hero.int = IMinBJ(MAX_STATS, SaveData[self.pid][counter()])
+            for i = 0, MAX_INVENTORY_SLOTS - 1 do
+                local id = SaveData[self.pid][counter()]
+                local stats = SaveData[self.pid][counter()]
+
+                self.hero.items[i] = Item.decode(id, stats)
                 if self.hero.items[i] then
                     self.hero.items[i].owner = p
-                    self.hero.items[i]:decode(SaveData[self.pid][index])
                 end
-                index = index + 1
             end
-            self.hero.teleport = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.reveal = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.platinum = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.arcadite = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.crystal = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.time = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.gold = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.lumber = SaveData[self.pid][index]
-            index = index + 1
-            self.hero.skin = SaveData[self.pid][index]
+            self.hero.teleport = SaveData[self.pid][counter()]
+            self.hero.reveal = SaveData[self.pid][counter()]
+            self.hero.platinum = SaveData[self.pid][counter()]
+            self.hero.arcadite = SaveData[self.pid][counter()]
+            self.hero.crystal = SaveData[self.pid][counter()]
+            self.hero.time = SaveData[self.pid][counter()]
+            self.hero.gold = SaveData[self.pid][counter()]
+            self.hero.lumber = SaveData[self.pid][counter()]
+            self.hero.skin = SaveData[self.pid][counter()]
 
             local hardcore = self.phtl[self.currentSlot] & 0x1
             local prestige = (self.phtl[self.currentSlot] & 0x6) >> 1
             local id = (self.phtl[self.currentSlot] & 0x1F8) >> 3
             local herolevel = (self.phtl[self.currentSlot] & 0x7FE00) >> 9
-
-            --call DEBUGMSG((hero.prestige) .. " " .. (hero.hardcore) .. " " .. (hero.id) .. " " .. (hero.level)) 
-            --call DEBUGMSG((prestige) .. " " .. (hardcore) .. " " .. (id) .. " " .. (herolevel)) 
 
             --TODO remove hero level mismatch?
             if (hash ~= profileHash) or (prestige ~= self.hero.prestige) or (hardcore ~= self.hero.hardcore) or (id ~= self.hero.id) or (herolevel ~= self.hero.level) then
@@ -389,11 +393,11 @@ OnInit.global("PlayerData", function(require)
             CharacterSetup(self.pid, true)
         end
 
-        function thistype:skin(id)
-            self.hero.skin = id
+        function thistype:skin(index)
+            self.hero.skin = index
 
-            BlzSetUnitSkin(Backpack[self.pid], CosmeticTable.skins[id])
-            if CosmeticTable.skins[id] == FourCC('H02O') then
+            BlzSetUnitSkin(Backpack[self.pid], CosmeticTable.skins[index].id)
+            if CosmeticTable.skins[index].id == FourCC('H02O') then
                 AddUnitAnimationProperties(Backpack[self.pid], "alternate", true)
             end
         end
@@ -445,6 +449,7 @@ OnInit.global("PlayerData", function(require)
     ---@field spell number
     ---@field pause boolean
     ---@field index integer
+    ---@field flag integer
     PlayerTimer = {}
     do
         local thistype = PlayerTimer
@@ -454,6 +459,7 @@ OnInit.global("PlayerData", function(require)
             local self = {
                 dur = 0.,
                 time = 0.,
+                dmg = 0.,
                 timer = TimerQueue.create()
             }
 
@@ -517,7 +523,7 @@ OnInit.global("PlayerData", function(require)
             end
         })
 
-        ---@type fun(pt: PlayerTimer)
+        ---@type fun(self: TimerList, pt: PlayerTimer)
         function thistype:removeTimer(pt)
             for i = 1, #self.timers do
                 if self.timers[i] == pt then
@@ -530,7 +536,7 @@ OnInit.global("PlayerData", function(require)
 
         --[[returns first timer found
         source and target may be omitted if only looking by tag]]
-        ---@type fun(tag: any, source: unit?, target: unit?):PlayerTimer
+        ---@type fun(self: TimerList, tag: any, source: unit?, target: unit?): PlayerTimer | nil
         function thistype:get(tag, source, target)
             for i = 1, #self.timers do
                 if self.timers[i].tag == tag and (self.timers[i].target == target or not target) and (self.timers[i].source == source or not source) then
@@ -542,13 +548,13 @@ OnInit.global("PlayerData", function(require)
         end
 
         --source and target may be omitted if only looking by tag
-        ---@type fun(tag: any, source: unit?, target: unit?):boolean
+        ---@type fun(self: TimerList, tag: any, source: unit?, target: unit?):boolean
         function thistype:has(tag, source, target)
             return self:get(tag, source, target) ~= nil
         end
 
         ---optional tag to only stop timers with such tag
-        ---@type fun(tag: any)
+        ---@type fun(self: TimerList, tag: any)
         function thistype:stopAllTimers(tag)
             local i = 1
             while i <= #self.timers do
@@ -561,7 +567,7 @@ OnInit.global("PlayerData", function(require)
         end
 
         --PlayerTimer constructor
-        ---@return PlayerTimer
+        ---@type fun(self: TimerList): PlayerTimer
         function thistype:add()
             local pt = PlayerTimer.create()
 
@@ -610,6 +616,8 @@ OnInit.global("PlayerData", function(require)
                 SetDayNightModels("Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx","Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx")
             end
             SetCameraBoundsRectForPlayerEx(p, gg_rct_Church)
+            SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]))
+            SetUnitState(Hero[pid], UNIT_STATE_MANA, BlzGetUnitMaxMana(Hero[pid]))
         else
             --new characters can save immediately
             CANNOT_LOAD[pid] = true
@@ -626,7 +634,7 @@ OnInit.global("PlayerData", function(require)
         ShowUnit(HeroGrave[pid], false)
 
         --backpack
-        Backpack[pid] = CreateUnit(p, BACKPACK, 30000, 30000, 0)
+        Backpack[pid] = CreateUnit(p, BACKPACK, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 0)
 
         --show backpack hero panel only for player
         if GetLocalPlayer() == p then
@@ -678,7 +686,7 @@ OnInit.global("PlayerData", function(require)
             BodyOfFireCharges[pid] = 5 --default
 
             if GetLocalPlayer() == Player(pid - 1) then
-                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\PASBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
+                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
             end
         elseif HeroID[pid] == HERO_ASSASSIN then
             UnitRemoveAbility(Hero[pid], BLADESPIN.id)
