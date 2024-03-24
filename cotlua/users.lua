@@ -1,10 +1,55 @@
+--[[
+    users.lua
+
+    A module that creates a User interface and a linked structure such that
+    player manipulation is simpler.
+]]
+
 if Debug then Debug.beginFile 'Users' end
 
 OnInit.global("Users", function()
 
     FORCE_PLAYING = CreateForce() ---@type force 
-    LEAVE_TRIGGER = CreateTrigger() ---@type trigger
+    LEAVE_TRIGGER = CreateTrigger()
     OriginalHex = {} ---@type string[] 
+        OriginalHex[0]  = "|cffff0303"
+        OriginalHex[1]  = "|cff0042ff"
+        OriginalHex[2]  = "|cff1ce6b9"
+        OriginalHex[3]  = "|cff540081"
+        OriginalHex[4]  = "|cfffffc01"
+        OriginalHex[5]  = "|cfffe8a0e"
+        OriginalHex[6]  = "|cff20c000"
+        OriginalHex[7]  = "|cffe55bb0"
+        OriginalHex[8]  = "|cff959697"
+        OriginalHex[9]  = "|cff7ebff1"
+        OriginalHex[10] = "|cff106246"
+        OriginalHex[11] = "|cff4e2a04"
+        OriginalHex[12] = "|cff9B0000"
+        OriginalHex[13] = "|cff0000C3"
+        OriginalHex[14] = "|cff00EAFF"
+        OriginalHex[15] = "|cffBE00FE"
+        OriginalHex[16] = "|cffEBCD87"
+        OriginalHex[17] = "|cffF8A48B"
+        OriginalHex[18] = "|cffBFFF80"
+        OriginalHex[19] = "|cffDCB9EB"
+        OriginalHex[20] = "|cff282828"
+        OriginalHex[21] = "|cffEBF0FF"
+        OriginalHex[22] = "|cff00781E"
+        OriginalHex[23] = "|cffA46F33"
+
+    OriginalRGB = {}
+        OriginalRGB[0] =  { r = 255, g = 3,   b = 3 }
+        OriginalRGB[1] =  { r = 0,   g = 66,  b = 255 }
+        OriginalRGB[2] =  { r = 28,  g = 230, b = 185 }
+        OriginalRGB[3] =  { r = 84,  g = 0,   b = 129 }
+        OriginalRGB[4] =  { r = 255, g = 252, b = 0 }
+        OriginalRGB[5] =  { r = 254, g = 138, b = 14 }
+        OriginalRGB[6] =  { r = 32,  g = 192, b = 0 }
+        OriginalRGB[7] =  { r = 229, g = 91,  b = 176 }
+        OriginalRGB[8] =  { r = 149, g = 150, b = 151 }
+        OriginalRGB[9] =  { r = 126, g = 191, b = 241 }
+        OriginalRGB[10] = { r = 16,  g = 98,  b = 70 }
+        OriginalRGB[11] = { r = 74,  g = 42,  b = 4 }
 
     ---@class User
     ---@field player player
@@ -26,20 +71,17 @@ OnInit.global("Users", function()
     do
         local thistype = User
 
-        -- metatable to handle custom indices (User[1], User[Player(1)])
+        -- handle player reference (User[Player(1)])
         local mt = {
             __index = function(tbl, key)
                 if type(key) == "userdata" then
                     return rawget(tbl, GetPlayerId(key))
                 end
-                return rawget(tbl, key)
             end
         }
 
-        -- Set metatable for the User table
         setmetatable(thistype, mt)
 
-        ---@type fun()
         function thistype:colorUnits()
             local ug = CreateGroup()
 
@@ -68,11 +110,19 @@ OnInit.global("Users", function()
                 thistype.AmountPlaying = thistype.AmountPlaying - 1
 
                 if (thistype.AmountPlaying == 1) then
-                    u.prev.next = nil
-                    u.next.prev = nil
+                    if u.prev then
+                        u.prev.next = nil
+                    end
+                    if u.next then
+                        u.next.prev = nil
+                    end
                 else
-                    u.prev.next = u.next
-                    u.next.prev = u.prev
+                    if u.prev then
+                        u.prev.next = u.next
+                    end
+                    if u.next then
+                        u.next.prev = u.prev
+                    end
                 end
 
                 u.isPlaying = false
@@ -80,31 +130,6 @@ OnInit.global("Users", function()
 
             return false
         end
-
-        OriginalHex[0]  = "|cffff0303"
-        OriginalHex[1]  = "|cff0042ff"
-        OriginalHex[2]  = "|cff1ce6b9"
-        OriginalHex[3]  = "|cff540081"
-        OriginalHex[4]  = "|cfffffc01"
-        OriginalHex[5]  = "|cfffe8a0e"
-        OriginalHex[6]  = "|cff20c000"
-        OriginalHex[7]  = "|cffe55bb0"
-        OriginalHex[8]  = "|cff959697"
-        OriginalHex[9]  = "|cff7ebff1"
-        OriginalHex[10] = "|cff106246"
-        OriginalHex[11] = "|cff4e2a04"
-        OriginalHex[12] = "|cff9B0000"
-        OriginalHex[13] = "|cff0000C3"
-        OriginalHex[14] = "|cff00EAFF"
-        OriginalHex[15] = "|cffBE00FE"
-        OriginalHex[16] = "|cffEBCD87"
-        OriginalHex[17] = "|cffF8A48B"
-        OriginalHex[18] = "|cffBFFF80"
-        OriginalHex[19] = "|cffDCB9EB"
-        OriginalHex[20] = "|cff282828"
-        OriginalHex[21] = "|cffEBF0FF"
-        OriginalHex[22] = "|cff00781E"
-        OriginalHex[23] = "|cffA46F33"
 
         local p ---@type player 
 
