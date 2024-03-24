@@ -1,10 +1,15 @@
+--[[
+    shopcomponent.lua
+
+    A module that provides button and tooltip functionality for shop.lua UI.
+]]
+
 if Debug then Debug.beginFile 'ShopComponent' end
 
 OnInit.final("ShopComponent", function()
 
     -- Credits:
     --      Taysen: FDF file
-    --      Bribe: Table library
     --      Chopinski: Original vJass
 
     local TOOLTIP_SIZE               = 0.2 ---@type number 
@@ -40,7 +45,7 @@ OnInit.final("ShopComponent", function()
 
         thistype.frame=nil ---@type framehandle 
 
-        ---@type fun(description:string):string
+        ---@type fun(self: Tooltip, description:string):string
         function thistype:text(description)
             if description ~= nil then
                 BlzFrameSetText(self.tooltip, description)
@@ -49,7 +54,7 @@ OnInit.final("ShopComponent", function()
             return BlzFrameGetText(self.tooltip)
         end
 
-        ---@type fun(newName:string):string
+        ---@type fun(self: Tooltip, newName:string):string
         function thistype:name(newName)
             if newName ~= nil then
                 BlzFrameSetText(self.nameFrame, newName)
@@ -58,7 +63,7 @@ OnInit.final("ShopComponent", function()
             return BlzFrameGetText(self.nameFrame)
         end
 
-        ---@type fun(texture:string):string
+        ---@type fun(self: Tooltip, texture:string):string
         function thistype:icon(texture)
             if texture ~= nil then
                 self.texture = texture
@@ -68,7 +73,7 @@ OnInit.final("ShopComponent", function()
             return self.texture
         end
 
-        ---@type fun(newWidth: number):number
+        ---@type fun(self: Tooltip, newWidth: number):number
         function thistype:width(newWidth)
             if newWidth ~= nil then
                 self.widthSize = newWidth
@@ -82,7 +87,7 @@ OnInit.final("ShopComponent", function()
             return self.widthSize
         end
 
-        ---@type fun(newPoint: framepointtype):framepointtype
+        ---@type fun(self: Tooltip, newPoint: framepointtype):framepointtype
         function thistype:point(newPoint)
             if newPoint ~= nil then
                 self.pointType = newPoint
@@ -109,7 +114,7 @@ OnInit.final("ShopComponent", function()
             return self.pointType
         end
 
-        ---@type fun(visibility: boolean):boolean
+        ---@type fun(self: Tooltip, visibility: boolean):boolean
         function thistype:visible(visibility)
             if visibility ~= nil then
                 self.isVisible = visibility
@@ -210,18 +215,18 @@ OnInit.final("ShopComponent", function()
     Button = {}
     do
         local thistype = Button
-        thistype.clicked         = CreateTrigger() ---@type trigger 
-        thistype.scrolled         = CreateTrigger() ---@type trigger 
-        thistype.rightClicked         = CreateTrigger() ---@type trigger 
+        thistype.clicked         = CreateTrigger()
+        thistype.scrolled         = CreateTrigger()
+        thistype.rightClicked         = CreateTrigger()
         thistype.double       = CreateTimer() ---@type timer 
         thistype.timer={} ---@type timer[] 
         thistype.table={} ---@type table 
         thistype.time={} ---@type table 
 
-        thistype.click=nil ---@type trigger 
-        thistype.scroll=nil ---@type trigger 
-        thistype.doubleClick=nil ---@type trigger 
-        thistype.rightClick=nil ---@type trigger 
+        thistype.click=nil  
+        thistype.scroll=nil  
+        thistype.doubleClick=nil  
+        thistype.rightClick=nil
         thistype.iconFrame=nil ---@type framehandle 
         thistype.availableFrame=nil ---@type framehandle 
         thistype.checkedFrame=nil ---@type framehandle 
@@ -297,7 +302,7 @@ OnInit.final("ShopComponent", function()
             return self.heightSize
         end
 
-        ---@type fun(visibility: boolean):boolean
+        ---@type fun(self: Button, visibility: boolean):boolean
         function thistype:visible(visibility)
             if visibility ~= nil then
                 self.isVisible = visibility
@@ -359,10 +364,8 @@ OnInit.final("ShopComponent", function()
 
                 self.isEnabled = flag
 
-                if not flag then
-                    if t:sub(35, 36) == "\\" then
-                        t = t:sub(1, 35) .. "Disabled\\DIS" .. t:sub(36, t:len())
-                    end
+                if flag == false then
+                    t = (t:sub(1, 34) .. "Disabled\\DIS" .. t:sub(36, t:len()))
                 end
 
                 BlzFrameSetTexture(self.iconFrame, t, 0, true)
@@ -442,7 +445,7 @@ OnInit.final("ShopComponent", function()
             end
         end
 
-        ---@type fun(model: string, width: number, height: number, scale: number, point: framepointtype, relativePoint: framepointtype, offsetX: number, offsetY: number)
+        ---@type fun(self: Button, model: string, width: number, height: number, scale: number, point: framepointtype, relativePoint: framepointtype, offsetX: number, offsetY: number)
         function thistype:display(model, width, height, scale, point, relativePoint, offsetX, offsetY)
             if model ~= "" and model ~= nil then
                 BlzFrameClearAllPoints(self.displayFrame)
