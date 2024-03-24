@@ -1,9 +1,16 @@
+--[[
+    weather.lua
+
+    A module that defines random weather behavior and effects.
+]]
+
 if Debug then Debug.beginFile 'Weather' end
 
 OnInit.global("Weather", function(require)
     require 'Helper'
     require 'Variables'
     require 'TimerQueue'
+    require 'Buffs'
 
     WeatherTimer = TimerQueue.create()
     WeatherTable = {}
@@ -37,14 +44,11 @@ OnInit.global("Weather", function(require)
 function FirestormDamage(x, y)
     local ug = CreateGroup()
 
-    GroupEnumUnitsInRange(ug, x, y, 300, isplayerAlly)
+    GroupEnumUnitsInRange(ug, x, y, 300, Condition(isplayerAlly))
     DestroyTreesInRange(x, y, 300)
 
-    local target = FirstOfGroup(ug)
-    while target do
-        GroupRemoveUnit(ug, target)
-        UnitDamageTarget(DummyUnit, target, BlzGetUnitMaxHP(target) * .1, true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
-        target = FirstOfGroup(ug)
+    for target in each(ug) do
+        DamageTarget(DummyUnit, target, BlzGetUnitMaxHP(target) * .1, ATTACK_TYPE_NORMAL, PURE, "Firestorm")
     end
 
     DestroyGroup(ug)
@@ -52,13 +56,13 @@ end
 
 ---@type fun(pt: PlayerTimer)
 function FirestormEffect(pt)
-    local ug     = CreateGroup()
-    local x      = 0. ---@type number 
-    local y      = 0. ---@type number 
+    local ug = CreateGroup()
+    local x  = 0. ---@type number 
+    local y  = 0. ---@type number 
 
     pt.dur = pt.dur - 3
 
-    if dur > 0 then
+    if pt.dur > 0 then
         for _ = 0, firestormRate do
             repeat
                 x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
@@ -89,9 +93,9 @@ function GracePeriod(weather)
     end
 
     if CURRENT_WEATHER == WEATHER_FIRESTORM then
-        local pt = TimerList[0]:add()
+        local pt = TimerList[0]:add() ---@type PlayerTimer
         pt.dur = WeatherTable[weather].dur
-        TimerQueue:callPeriodically(3., FirestormEffect, pt)
+        pt.timer:callPeriodically(3., nil, FirestormEffect, pt)
     end
 end
 
@@ -106,7 +110,7 @@ function WeatherPeriodic()
         local valid = true
 
         --restrict weather types
-        if (ChaosMode and WeatherTable[i].chaos == -1) or (not ChaosMode and WeatherTable[i].chaos == 1) then
+        if (CHAOS_MODE and WeatherTable[i].chaos == -1) or (not CHAOS_MODE and WeatherTable[i].chaos == 1) then
             valid = false
         --no sunny weather at night
         elseif i == WEATHER_SUNNY and (time < 6 or time > 15) then
@@ -139,7 +143,7 @@ function WeatherPeriodic()
         end
     until choice > 0
 
-    if LIBRARY_dev then
+    if DEV_ENABLED then
         if WEATHER_OVERRIDE > 0 then
             choice = WEATHER_OVERRIDE
             WEATHER_OVERRIDE = 0
@@ -375,13 +379,7 @@ end
     }
 
     for i = 1, WEATHER_MAX do
-        setmetatable(WeatherTable[i], { __index = function(tbl, key)
-            if rawget(tbl, key) then
-                return rawget(tbl, key)
-            else
-                return 0
-            end
-        end})
+        setmetatable(WeatherTable[i], { __index = function(tbl, key) return 0 end})
     end
 
     WeatherTimer:callDelayed(WeatherTable[CURRENT_WEATHER].dur, WeatherPeriodic)
