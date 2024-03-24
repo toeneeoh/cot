@@ -1,17 +1,19 @@
+--[[
+    spellview.lua
+
+    Credits: Taysen
+    https://www.hiveworkshop.com/threads/tasspellview.349600/
+
+    A library that allows players to view spells of units they do not own on the command card with
+    custom UI.
+]]
+
 if Debug then Debug.beginFile 'SpellView' end
 
 OnInit.final("SpellView", function()
 
-    -- TasSpellView 1.1a by Tasyen
-    --displays with custom UI the abilites of not controled units in the command card
-
-    -- when REFORGED = false you need to tell the abilityCodes used by units to have cooldown display
-    -- the unit does not need to have the skills they are displayed when added that way.
-    -- call AddUnitCodeData(FourCC('Ulic'), "AUfn,AUfu,AUdr,AUdd")
-
         REFORGED         = true  ---@type boolean -- have BlzGetAbilityId? otherwise false
         local AutoRun         = true  ---@type boolean --(true) will create Itself at 0s, (false) you need to InitSpellView()
-        local TocPath        = "war3mapImported\\TasSpellView.toc" ---@type string 
 
         local UpdateTime      = 0.1 ---@type number 
         local ShowCooldown         = true  ---@type boolean -- can be set async, needs BlzGetAbilityId for ability by index 
@@ -57,37 +59,66 @@ OnInit.final("SpellView", function()
         return BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0)
     end
 
+    --spells disabled on spellview
+    local disabled_spells = {
+        --backpack utilities
+        [FourCC('uDex')] = 1,
+        [0] = 1,
+        [FourCC('A04M')] = 1,
+        [FourCC('A00R')] = 1,
+        [FourCC('A0DT')] = 1,
+        [FourCC('A0KX')] = 1,
+        [FourCC('A04N')] = 1,
+        [FourCC('A03V')] = 1,
+        [FourCC('A0L0')] = 1,
+
+        --hero utilities
+        [FourCC('A0GD')] = 1,
+        [FourCC('A06X')] = 1,
+        [FourCC('A08Y')] = 1,
+        [FourCC('A00B')] = 1,
+        [FourCC('A02T')] = 1,
+        [FourCC('A031')] = 1,
+        [FourCC('A067')] = 1,
+        [FourCC('A03C')] = 1,
+        [FourCC('A00F')] = 1,
+        [FourCC('A00I')] = 1,
+
+        --dummy spells
+        [FourCC('A06K')] = 1,
+        [FourCC('A033')] = 1,
+        [FourCC('A0AP')] = 1,
+        [FourCC('A0A3')] = 1,
+        [FourCC('A0IW')] = 1,
+        [FourCC('A0IX')] = 1,
+        [FourCC('A0IY')] = 1,
+        [FourCC('A0IZ')] = 1,
+        [FourCC('A0JZ')] = 1,
+        [FourCC('A0JV')] = 1,
+        [FourCC('A0JY')] = 1,
+        [FourCC('A0JW')] = 1,
+        [FourCC('A00N')] = 1,
+        [FourCC('A01A')] = 1,
+        [FourCC('A09X')] = 1,
+        [FourCC('A024')] = 1,
+    }
+
     ---@param abi ability
     ---@param text string
-    ---@param pid integer
     ---@return boolean
-    local function AbiFilter(abi, text, pid)
-        local id         = BlzGetAbilityId(abi) ---@type integer 
+    local function AbiFilter(abi, text)
+        local id = BlzGetAbilityId(abi) ---@type integer 
 
         if BlzGetAbilityBooleanField(abi, ABILITY_BF_ITEM_ABILITY) then
             return false
-        end
-        if BlzGetAbilityIntegerField(abi, ABILITY_IF_BUTTON_POSITION_NORMAL_X) == 0 and BlzGetAbilityIntegerField(abi, ABILITY_IF_BUTTON_POSITION_NORMAL_Y) == -11 then
+        elseif BlzGetAbilityIntegerField(abi, ABILITY_IF_BUTTON_POSITION_NORMAL_X) == 0 and BlzGetAbilityIntegerField(abi, ABILITY_IF_BUTTON_POSITION_NORMAL_Y) == -11 then
+            return false
+        elseif text == "Tool tip missing!" or text == "" or text == " " then
+            return false
+        elseif disabled_spells[id] then
             return false
         end
-        if text == "Tool tip missing!" or text == "" or text == " " then
-            return false
-        end
-        --backpack utilities
-        if id == DETECT_LEAVE_ABILITY or id == 0 or id == FourCC('A04M') or id == FourCC('A00R') or id == FourCC('A0DT') or id == FourCC('A0KX') or id == FourCC('A04N') or id == FourCC('A03V') or id == FourCC('A0L0') then
-            return false
-        end
-        --hero utilities
-        if id == FourCC('A0GD') or id == FourCC('A06X') or id == FourCC('A08Y') or id == FourCC('A00B') or id == FourCC('A02T') or id == FourCC('A031') or id == FourCC('A067') or id == FourCC('A03C') or id == FourCC('A00F') then
-            return false
-        end
-        --dummy spells
-        if id == FourCC('A06K') or id == FourCC('A033') or id == FourCC('A0AP') or id == FourCC('A0A3') or id == FourCC('A0IW') or id == FourCC('A0IX') or id == FourCC('A0IY') or id == FourCC('A0IZ') then
-            return false
-        end
-        if id == FourCC('A0JZ') or id == FourCC('A0JV') or id == FourCC('A0JY') or id == FourCC('A0JW') or id == FourCC('A00N') or id == FourCC('A01A') or id == FourCC('A09X') or id == FourCC('A024') then
-            return false
-        end
+
         return true
     end
 
@@ -132,7 +163,6 @@ OnInit.final("SpellView", function()
         local addCount         = 0 ---@type integer 
         local abi ---@type ability 
         local abiString ---@type string 
-        local pid         = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
         DataCount = -1
 
         -- have presaved Data
@@ -150,7 +180,7 @@ OnInit.final("SpellView", function()
             addCount = 0
             abi = BlzGetUnitAbilityByIndex(u, i)
             while abi do
-                if AbiFilter(abi, BlzGetAbilityStringLevelField(abi, ABILITY_SLF_TOOLTIP_NORMAL, 0), pid) then
+                if AbiFilter(abi, BlzGetAbilityStringLevelField(abi, ABILITY_SLF_TOOLTIP_NORMAL, 0)) then
                     if REFORGED then
                         -- store abiCode treat it like MOD_ABI_CODE
                         DataAbiCode[addCount] = BlzGetAbilityId(abi)
@@ -179,7 +209,6 @@ OnInit.final("SpellView", function()
         local u ---@type unit 
         local hasControl ---@type boolean 
         local showSpellView ---@type boolean 
-        local i ---@type integer 
         local spellType ---@type integer 
         local level ---@type integer 
         local cdRemain ---@type number 
@@ -201,14 +230,11 @@ OnInit.final("SpellView", function()
 
         -- check for visible buttons, if any is visible then do not show TasSpellView
         if not hasControl then
-            i = 0
-            while true do
+            for i = 0, 11 do
                 if BlzFrameIsVisible(BlzGetOriginFrame(ORIGIN_FRAME_COMMAND_BUTTON, i)) then
                     hasControl = true
                     break
                 end
-                if i == 11 then break end
-                i = i + 1
             end
         end
 
@@ -219,8 +245,7 @@ OnInit.final("SpellView", function()
         BlzFrameSetVisible(BlzGetFrameByName("TasSpellViewSimpleFrame", 0), showSpellView)
         BlzFrameSetVisible(BlzGetFrameByName("TasSpellViewFrame", 0), showSpellView)
         if showSpellView then
-            i = 0
-            while true do
+            for i = 0, 11 do
                 if i <= DataCount then
                     BlzFrameSetVisible(BlzGetFrameByName("TasSpellViewButton", i), true)
                     if DataMod == MOD_ABI then
@@ -248,7 +273,7 @@ OnInit.final("SpellView", function()
                         end
 
                         BlzFrameSetVisible(BlzGetFrameByName("TasSpellViewButtonOverLayFrame", i), true)
-                        BlzFrameSetText(BlzGetFrameByName("TasSpellViewButtonChargeText", i), (level))
+                        BlzFrameSetText(BlzGetFrameByName("TasSpellViewButtonChargeText", i), tostring(level))
                         BlzFrameSetTexture(BlzGetFrameByName("TasSpellViewButtonBackdrop", i), BlzGetAbilityIcon(abiCode), 0, false)
                     end
                 else
@@ -263,10 +288,10 @@ OnInit.final("SpellView", function()
                         BlzFrameSetTexture(BlzGetFrameByName("TasSpellViewTooltipIcon", 0), DataIcon[i], 0, false)
                         BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipName", 0), "|cffffcc00" .. DataName[i])
                         BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipText", 0), DataText[i])
-                        BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipManaText", 0), (DataMana[i]))
+                        BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipManaText", 0), tostring(DataMana[i]))
                         BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipCooldownText", 0), R2SW(DataCool[i],1,1))
-                        BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipRangeText", 0), (R2I(DataRange[i])))
-                        BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipAreaText", 0), (R2I(DataAoe[i])))
+                        BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipRangeText", 0), tostring(R2I(DataRange[i])))
+                        BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipAreaText", 0), tostring(R2I(DataAoe[i])))
                     elseif DataMod == MOD_ABI_CODE then
                         abiCode = DataAbiCode[i]
                         level = GetUnitAbilityLevel(u, DataAbiCode[i])
@@ -276,7 +301,7 @@ OnInit.final("SpellView", function()
                         if Spells[spellType] then
                             mySpell = Spells[spellType]:create(GetPlayerId(GetOwningPlayer(u)) + 1)
 
-                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipText", 0), GetSpellTooltip(mySpell, SpellTooltips[abiCode].string[level]))
+                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipText", 0), GetSpellTooltip(mySpell))
 
                             mySpell:destroy()
                         else
@@ -289,22 +314,20 @@ OnInit.final("SpellView", function()
 
                         BlzFrameSetTexture(BlzGetFrameByName("TasSpellViewTooltipIcon", 0), BlzGetAbilityIcon(abiCode), 0, false)
                         if level > 0 then
-                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipManaText", 0), (BlzGetUnitAbilityManaCost(u, abiCode, level - 1)))
+                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipManaText", 0), tostring(BlzGetUnitAbilityManaCost(u, abiCode, level - 1)))
                             BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipCooldownText", 0), R2SW(BlzGetUnitAbilityCooldown(u, abiCode, level - 1),1,1))
-                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipRangeText", 0), (R2I(BlzGetAbilityRealLevelField(abi, ABILITY_RLF_CAST_RANGE, level - 1))))
-                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipAreaText", 0), (R2I(BlzGetAbilityRealLevelField(abi, ABILITY_RLF_AREA_OF_EFFECT, level - 1))))
+                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipRangeText", 0), tostring(R2I(BlzGetAbilityRealLevelField(abi, ABILITY_RLF_CAST_RANGE, level - 1))))
+                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipAreaText", 0), tostring(R2I(BlzGetAbilityRealLevelField(abi, ABILITY_RLF_AREA_OF_EFFECT, level - 1))))
                             BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipName", 0), "|cffffcc00" .. BlzGetAbilityTooltip(abiCode, level - 1))
                         else
                             BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipName", 0), "|cffffcc00" .. BlzGetAbilityResearchTooltip(abiCode, 0))
-                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipManaText", 0), (BlzGetAbilityManaCost(abiCode, 0)))
+                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipManaText", 0), tostring(BlzGetAbilityManaCost(abiCode, 0)))
                             BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipCooldownText", 0), R2SW(BlzGetAbilityCooldown(abiCode, 0),1,1))
                             BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipRangeText", 0), "0")
                             BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipAreaText", 0), "0")
                         end
                     end
                 end
-                if i == 11 then break end
-                i = i + 1
             end
             BlzFrameSetVisible(BlzGetFrameByName("TasSpellViewTooltipFrame", 0), foundTooltip)
             BlzFrameSetVisible(BlzGetFrameByName("TasSpellViewTooltipManaText", 0), false)
@@ -315,16 +338,11 @@ OnInit.final("SpellView", function()
     end
 
     local function InitFrames()
-        local i ---@type integer 
         local frame ---@type framehandle 
         local tooltipFrame ---@type framehandle 
-        if not BlzLoadTOCFile(TocPath) then
-            BJDebugMsg("|cffff0000TasSpellView - Error Reading Toc File at: " .. TocPath)
-        end
         ParentSimple = BlzCreateFrameByType("SIMPLEFRAME", "TasSpellViewSimpleFrame", ParentFuncSimple(), "", 0)
         Parent = BlzCreateFrameByType("FRAME", "TasSpellViewFrame", ParentFunc(), "", 0)
-        i = 0
-        repeat
+        for i = 0, 11 do
             frame = BlzCreateSimpleFrame("TasSpellViewButton", ParentSimple, i)
             BlzFrameSetPoint(frame, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_COMMAND_BUTTON, i), FRAMEPOINT_CENTER, 0, 0.0)
             BlzFrameSetLevel(frame, 6) -- reforged stuff
@@ -341,14 +359,9 @@ OnInit.final("SpellView", function()
             BlzGetFrameByName("TasSpellViewButtonOverLayFrame", i)
             BlzGetFrameByName("TasSpellViewButtonChargeBox", i)
             BlzGetFrameByName("TasSpellViewButtonChargeText", i)
-            i = i + 1
-        until i > 11
+        end
         if GetHandleId(BlzGetFrameByName("TasSpellViewButtonBackdrop", 1)) == 0 then
-            BJDebugMsg("|cffff0000TasSpellView - Error Create TasSpellViewButton|r")
-            BJDebugMsg("  Check Imported toc & fdf & TocPath in Map script")
-            BJDebugMsg("  Imported toc needs to have empty ending line")
-            BJDebugMsg("  fdf path in toc needs to match map imported path")
-            BJDebugMsg("  TocPath in Map script needs to match map imported path")
+            print("Error: TasSpellViewButton asset not found|r")
         end
 
         -- create one ToolTip which shows data for current hovered inside a timer.
@@ -373,8 +386,7 @@ OnInit.final("SpellView", function()
         BlzFrameSetVisible(ParentSimple, false)
         BlzFrameSetVisible(Parent, false)
         if GetHandleId(BlzGetFrameByName("TasSpellViewTooltipFrame", 0)) == 0 then
-            BJDebugMsg("TasSpellView - Error - Create TasSpellViewTooltipFrame")
-            BJDebugMsg("Check Imported toc & fdf & TocPath")
+            print("Error: TasSpellView asset not found|r")
         end
     end
 
