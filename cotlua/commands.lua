@@ -9,18 +9,319 @@ if Debug then Debug.beginFile 'Commands' end
 OnInit.final("Commands", function(require)
     require 'Users'
 
-    autosave             = __jarray(false) ---@type boolean[] 
-    VoteYay              = 0
-    VoteNay              = 0
-    autoAttackDisabled   = __jarray(false) ---@type boolean[] 
-    fullItemStacking     = __jarray(true) ---@type boolean[] 
-    bossResMod           = 1.
-    destroyBaseFlag      = __jarray(false) ---@type boolean[] 
-    votekickPlayer       = 0
-    votekickingPlayer    = 0
+    autosave           = __jarray(false) ---@type boolean[] 
+    VoteYay            = 0
+    VoteNay            = 0
+    autoAttackDisabled = __jarray(false) ---@type boolean[] 
+    fullItemStacking   = __jarray(true) ---@type boolean[] 
+    bossResMod         = 1.
+    destroyBaseFlag    = __jarray(false) ---@type boolean[] 
+    votekickPlayer     = 0
+    votekickingPlayer  = 0
 
     VOTING_TYPE = 0
     I_VOTED     =__jarray(false) ---@type boolean[] 
+
+    CMD_LIST = {
+        ["-commands"] = function(p, pid, args)
+            DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffffcc00Commands are located in F9.|r")
+        end,
+        ["-stats"] = function(p, pid, args)
+            StatsInfo(p, tonumber(args[2]))
+        end,
+        ["-clear"] = function(p, pid, args)
+            if p == GetLocalPlayer() then
+                ClearTextMessages()
+            end
+        end,
+        ["-destroybase"] = function(p, pid, args)
+            if PlayerBase[pid] ~= nil then
+                destroyBaseFlag[pid] = true
+                SetUnitExploded(PlayerBase[pid], true)
+                KillUnit(PlayerBase[pid])
+            end
+        end,
+        ["-suicide"] = function(p, pid, args)
+            reselect(Hero[pid])
+            KillUnit(Hero[pid])
+        end,
+        ["-proficiency"] = function(p, pid, args)
+            for i, _ in ipairs(PROF) do
+                DisplayTimedTextToPlayer(p, 0, 0, 30, TYPE_NAME[i] .. ((HasProficiency(pid, PROF[i]) and " - |cffFF0909Y|r") or " - |cff00ff33X|r"))
+            end
+        end,
+        ["-tome"] = function(p, pid, args)
+            local stats = GetHeroStr(Hero[pid], false) + GetHeroAgi(Hero[pid], false) + GetHeroInt(Hero[pid], false)
+
+            DisplayTextToPlayer(p, 0, 0, "|cffffcc00Total Stats:|r " .. stats)
+            DisplayTextToPlayer(p, 0, 0, "|cffffcc00Tome Cap:|r " .. TomeCap(GetHeroLevel(Hero[pid])))
+        end,
+        ["-ready"] = function(p, pid, args)
+            if TableHas(QUEUE_GROUP, p) then
+                QUEUE_READY[pid] = true
+            end
+        end,
+        ["-color"] = function(p, pid, args)
+            local num = tonumber(args[2])
+
+            if num and num > 0 and num < 26 then
+                User[p].color = ConvertPlayerColor(num)
+                User[p].hex = OriginalHex[num]
+                User[p]:colorUnits()
+                User[p].nameColored = OriginalHex[num] .. GetPlayerName(p) .. "|r"
+                SetPlayerColor(p, ConvertPlayerColor(num))
+            end
+        end,
+        ["-roll"] = function(p, pid, args)
+            myRoll(pid)
+        end,
+        ["-estats"] = function(p, pid, args)
+            if Unit[PlayerSelectedUnit[pid]] then
+                local atkspeed = 1. / BlzGetUnitAttackCooldown(PlayerSelectedUnit[pid], 0)
+                if IsUnitType(PlayerSelectedUnit[pid], UNIT_TYPE_HERO) then
+                    atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(PlayerSelectedUnit[pid], true) + R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
+                else
+                    atkspeed = atkspeed * (1 + IMinBJ(R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
+                end
+
+                DisplayTimedTextToPlayer(p, 0, 0, 20, GetUnitName(PlayerSelectedUnit[pid]))
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "Level: " .. (GetUnitLevel(PlayerSelectedUnit[pid])))
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "Health: " .. RealToString(GetWidgetLife(PlayerSelectedUnit[pid])) .. " / " .. RealToString(BlzGetUnitMaxHP(PlayerSelectedUnit[pid])))
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cffffcc00Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff800040Regeneration: |r" .. R2S(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) .. " health per second")
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff008080Evasion: |r" .. IMinBJ(100, (Unit[PlayerSelectedUnit[pid]].evasion)) .. "\x25")
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "Movespeed: " .. RealToString(GetUnitMoveSpeed(PlayerSelectedUnit[pid])))
+            else
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "Please click a valid unit!")
+            end
+        end,
+        ["-p"] = function(p, pid, args)
+            if GetCurrency(pid, PLATINUM) > 0 then
+                AddCurrency(pid, PLATINUM, -1)
+                AddCurrency(pid, GOLD, 1000000)
+                DisplayTimedTextToPlayer(p, 0, 0, 10, PlatTag + (GetCurrency(pid, PLATINUM)))
+            else
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 1 Platinum Coin to buy this")
+            end
+        end,
+        ["-a"] = function(p, pid, args)
+            if GetCurrency(pid, ARCADITE) > 0 then
+                AddCurrency(pid, ARCADITE, -1)
+                AddCurrency(pid, LUMBER, 1000000)
+                DisplayTimedTextToPlayer(p, 0, 0, 10, ArcTag + (GetCurrency(pid, ARCADITE)))
+            else
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 1 Arcadite Lumber to buy this")
+            end
+        end,
+        ["-pa"] = function(p, pid, args)
+            local num = tonumber(args[2])
+            if num and num <= PLAYER_CAP then
+                DisplayTimedTextToPlayer(p, 0, 0, 30, PlatTag + (GetCurrency(num, PLATINUM)))
+                DisplayTimedTextToPlayer(p, 0, 0, 30, ArcTag + (GetCurrency(num, ARCADITE)))
+            else
+                DisplayTimedTextToPlayer(p, 0, 0, 30, PlatTag + (GetCurrency(num, PLATINUM)))
+                DisplayTimedTextToPlayer(p, 0, 0, 30, ArcTag + (GetCurrency(num, ARCADITE)))
+            end
+        end,
+        ["-xp"] = function(p, pid, args)
+            ShowExpRate(p, pid)
+        end,
+        ["-ms"] = function(p, pid, args)
+            DisplayTimedTextToPlayer(p, 0, 0, 10, "Movespeed: " .. (Movespeed[pid]))
+        end,
+        ["-as"] = function(p, pid, args)
+            local atkspeed = 1 / BlzGetUnitAttackCooldown(Hero[pid], 0)
+            DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Base Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
+
+            atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(Hero[pid], true), 400) * 0.01)
+            DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Total Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second.")
+        end,
+        ["-speed"] = function(p, pid, args)
+            DisplayTimedTextToPlayer(p, 0, 0, 10, "Movespeed: " .. (Movespeed[pid]))
+            local atkspeed = 1. / BlzGetUnitAttackCooldown(Hero[pid], 0)
+            DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Base Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
+
+            atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(Hero[pid], true), 400) * 0.01)
+            DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Total Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second.")
+        end,
+        ["-actions"] = function(p, pid, args)
+            UnitRemoveAbility(Hero[pid], FourCC('A03C'))
+            UnitAddAbility(Hero[pid], FourCC('A03C'))
+        end,
+        ["-flee"] = function(p, pid, args)
+            FleeCommand(p)
+        end,
+        ["-cam"] = function(p, pid, args)
+            if args[2] then
+                local _, _, zoom, lock = args[2]:find("(\x25d+)\x25s.([lL])")
+
+                if zoom then
+                    CameraLock[pid] = (lock == "l") or CameraLock[pid]
+                    Zoom[pid] = MathClamp(tonumber(zoom), 100, 3000)
+
+                    if not selectingHero[pid] then
+                        SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, zoom, 0)
+                    end
+                end
+            end
+        end,
+        ["-aa"] = function(p, pid, args)
+            ToggleAutoAttack(pid)
+        end,
+        ["-zml"] = function(p, pid, args, cmd)
+            local _, _, lock = cmd:find("[lL]$")
+            CameraLock[pid] = (lock == "l") or CameraLock[pid]
+            Zoom[pid] = 2500
+
+            if not selectingHero[pid] then
+                SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, 2500, 0)
+            end
+        end,
+        ["-lock"] = function(p, pid, args)
+            CameraLock[pid] = true
+        end,
+        ["-unlock"] = function(p, pid, args)
+            CameraLock[pid] = false
+        end,
+        ["-new"] = function(p, pid, args)
+            NewProfile(pid)
+        end,
+        ["-info"] = function(p, pid, args)
+            DisplayTimedTextToPlayer(p, 0, 0, 30, infoString[S2I(SubString(cmd,6,8))])
+        end,
+        ["-unstuck"] = function(p, pid, args)
+            if GetLocalPlayer() == p then
+                ShowInterface(false, 0)
+                EnableUserControl(false)
+                EnableOcclusion(false)
+            end
+            TimerQueue:callDelayed(0.5, function()
+                if GetLocalPlayer() == p then
+                    ShowInterface(true, 0)
+                    EnableUserControl(true)
+                    EnableOcclusion(true)
+                end
+            end)
+        end,
+        ["-st"] = function(p, pid, args)
+            if autosave[pid] then
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "Your next autosave is in " .. RemainingTimeString(SaveTimer[pid]) .. ".")
+            elseif Hardcore[pid] then
+                DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(SaveTimer[pid]) .. " until you can save again.")
+            end
+        end,
+        ["-restime"] = function(p, pid, args)
+            if TimerGetRemaining(rezretimer[pid]) <= 0.1 then
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "You can recharge.")
+            else
+                DisplayTimedTextToPlayer(p, 0, 0, 20, (R2I(TimerGetRemaining(rezretimer[pid]))) .. " seconds until you can recharge again.")
+            end
+        end,
+        ["-autosave"] = function(p, pid, args)
+            if not autosave[pid] then
+                autosave[pid] = true
+                DisplayTextToPlayer(p, 0, 0, "|cffffcc00Autosave is now enabled -- you will save every 30 minutes or when your next save is available as Hardcore.|r")
+                TimerStart(SaveTimer[pid], 1800, false, nil)
+            else
+                autosave[pid] = false
+                DisplayTextToPlayer(p, 0, 0, "|cffffcc00Autosave disabled.|r")
+            end
+        end,
+        ["-cancel"] = function(p, pid, args)
+            if forceSaving[pid] then
+                forceSaving[pid] = false
+                IS_TELEPORTING[pid] = false
+                PauseUnit(Hero[pid], false)
+                PauseUnit(Backpack[pid], false)
+                if (GetLocalPlayer() == p) then
+                    ClearTextMessages()
+                end
+                DisplayTimedTextToPlayer(p, 0, 0, 60., "Force save aborted!")
+                local pt = TimerList[pid]:get(FourCC('fsav'))
+
+                if pt then
+                    pt:destroy()
+                end
+            end
+        end,
+        ["-hardmode"] = function(p, pid, args)
+            if HARD_MODE > 0 then
+                DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 5, "|cffffcc00Hard mode is already active.|r")
+            else
+                if VOTING_TYPE == 0 then
+                    Hardmode()
+                end
+            end
+        end,
+        ["-votekick"] = function(p, pid, args)
+            if VOTING_TYPE == 0 and User.AmountPlaying > 2 then
+                local dw = DialogWindow.create(pid, "", VotekickPanelClick) ---@type DialogWindow
+                local U = User.first
+
+                while U do
+
+                    if pid ~= U.id then
+                        dw.data[dw.ButtonCount] = U.id
+                        dw:addButton(U.nameColored)
+                    end
+
+                    U = U.next
+                end
+            end
+        end,
+        ["-repick"] = function(p, pid, args)
+            if Profile[pid] then
+                --TODO 30?
+                if Profile[pid]:getSlotsUsed() >= 30 then
+                    DisplayTimedTextToPlayer(p, 0, 0, 30.0, "You cannot save more than 30 heroes!")
+                else
+                    MainRepick(pid)
+                end
+            end
+        end,
+        ["-prestige"] = function(p, pid, args)
+            PrestigeInfo(p, S2I(SubString(cmd, 10, 12)))
+        end,
+        ["-quests"] = function(p, pid, args)
+            DisplayQuestProgress(p)
+        end,
+        ["-hints"] = function(p, pid, args)
+            if IsPlayerInForce(p, HINT_PLAYERS) then
+                ForceRemovePlayer(HINT_PLAYERS, p)
+                DisplayTimedTextToPlayer(p, 0, 0, 10, "Hints turned off.")
+            else
+                ForceAddPlayer(HINT_PLAYERS, p)
+                DisplayTimedTextToPlayer(p, 0, 0, 10, "Hints turned on.")
+            end
+        end,
+    }
+
+    --alternate syntax
+    CMD_LIST["-cl"] = CMD_LIST["-clear"]
+    CMD_LIST["-clr"] = CMD_LIST["-clear"]
+
+    CMD_LIST["-db"] = CMD_LIST["-destroybase"]
+
+    CMD_LIST["-pf"] = CMD_LIST["-proficiency"]
+    CMD_LIST["-prof"] = CMD_LIST["-proficiency"]
+
+    CMD_LIST["-r"] = CMD_LIST["-ready"]
+
+    CMD_LIST["-cash"] = CMD_LIST["-pa"]
+
+    CMD_LIST["-autoattack"] = CMD_LIST["-aa"]
+
+    CMD_LIST["-zm"] = CMD_LIST["-zml"]
+
+    CMD_LIST["-newprofile"] = CMD_LIST["-new"]
+
+    CMD_LIST["-savetime"] = CMD_LIST["-st"]
+
+    CMD_LIST["-rt"] = CMD_LIST["-restime"]
+
+    CMD_LIST["-q"] = CMD_LIST["-quests"]
+
+    CMD_LIST["-nohints"] = CMD_LIST["-hints"]
 
 ---@return boolean
 function NewProfileClick()
@@ -48,111 +349,6 @@ function NewProfile(pid)
         dw:addButton("Yes")
 
         dw:display()
-    end
-end
-
----@type fun(pid: integer, bonus: number, type: integer, plat: boolean)
-function StatTome(pid, bonus, type, plat)
-    local p              = Player(pid - 1)
-    local totalStats     = 0
-    local trueBonus      = 0
-    local msg            = "You gained |cffffcc00"
-    local hlev           = GetHeroLevel(Hero[pid])
-    local levelMax       = TomeCap(hlev)
-
-    if hlev > 25 then
-        totalStats = IMaxBJ(250, GetHeroStr(Hero[pid],false) + GetHeroAgi(Hero[pid],false) + GetHeroInt(Hero[pid],false))
-    else
-        totalStats = IMaxBJ(50, GetHeroStr(Hero[pid],false) + GetHeroAgi(Hero[pid],false) + GetHeroInt(Hero[pid],false))
-    end
-
-    trueBonus = R2I(bonus * 17.2 // Pow(totalStats, 0.35))
-
-    if totalStats > levelMax then
-        DisplayTextToPlayer(p, 0, 0, "You cannot buy any more tomes until you level up further, no gold has been charged.")
-        return
-    elseif not plat then
-        if type == 4 then
-            AddCurrency(pid, GOLD, -20000)
-        else
-            AddCurrency(pid, GOLD, -10000)
-        end
-    elseif plat then
-        if hlev < 100 then
-            return
-        end
-
-        if type == 4 then
-            AddCurrency(pid, PLATINUM, -2)
-        else
-            AddCurrency(pid, PLATINUM, -1)
-        end
-    end
-
-    local statText = {
-        "|r Strength.",
-        "|r Agility.",
-        "|r Intelligence.",
-        "|r All Stats.",
-    }
-
-    if type == 1 then
-        SetHeroStr(Hero[pid], GetHeroStr(Hero[pid], false) + trueBonus, true)
-    elseif type == 2 then
-        SetHeroAgi(Hero[pid], GetHeroAgi(Hero[pid], false) + trueBonus, true)
-    elseif type == 3 then
-        SetHeroInt(Hero[pid], GetHeroInt(Hero[pid], false) + trueBonus, true)
-    elseif type == 4 then
-        SetHeroStr(Hero[pid], GetHeroStr(Hero[pid], false) + trueBonus, true)
-        SetHeroAgi(Hero[pid], GetHeroAgi(Hero[pid], false) + trueBonus, true)
-        SetHeroInt(Hero[pid], GetHeroInt(Hero[pid], false) + trueBonus, true)
-    end
-
-    DisplayTextToPlayer(p, 0, 0, msg .. trueBonus .. statText[type])
-
-    DestroyEffect(AddSpecialEffectTarget("Objects\\InventoryItems\\tomeRed\\tomeRed.mdl", Hero[pid], "chest"))
-    DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIam\\AIamTarget.mdl", Hero[pid], "chest"))
-end
-
----@type fun(p: player, flat: integer, percent: number, minimum: integer, message: string)
-function ChargeNetworth(p, flat, percent, minimum, message)
-    local pid          = GetPlayerId(p) + 1
-    local playerGold   = GetCurrency(pid, GOLD)
-    local playerLumber = GetCurrency(pid, LUMBER)
-    local platCost     = R2I(GetCurrency(pid, PLATINUM) * percent)
-    local arcCost      = R2I(GetCurrency(pid, ARCADITE) * percent)
-
-    local cost = flat + R2I(playerGold * percent)
-    if cost < minimum then
-        cost = minimum
-    end
-
-    AddCurrency(pid, GOLD, -cost)
-    AddCurrency(pid, PLATINUM, -platCost)
-
-    if message ~= "" then
-        if platCost > 0 then
-            message = message .. " " .. RealToString(platCost) .. " platinum, " .. RealToString(cost) .. " gold"
-        else
-            message = message .. " " .. RealToString(cost) .. " gold"
-        end
-    end
-
-    cost = flat + R2I(playerLumber * percent)
-    if cost < minimum then
-        cost = minimum
-    end
-
-    AddCurrency(pid, LUMBER, -cost)
-    AddCurrency(pid, ARCADITE, -arcCost)
-
-    if message ~= "" then
-        if arcCost > 0 then
-            message = message .. ", " .. RealToString(arcCost) .. " arcadite, and " .. RealToString(cost) .. " lumber."
-        else
-            message = message .. " and " .. RealToString(cost) .. " lumber."
-        end
-        DisplayTextToPlayer(p, 0, 0, message)
     end
 end
 
@@ -420,368 +616,25 @@ function CustomCommands()
     local cmd = GetEventPlayerChatString() ---@type string 
     local p = GetTriggerPlayer() ---@type player 
     local pid = GetPlayerId(p) + 1 ---@type integer 
-    local U = User.first ---@type User 
+    local args = {}
 
-    if (cmd == "-cc") or (cmd == "-commands") then
-        DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffffcc00Commands are located in F9.|r")
+    --propogate args table
+    for arg in cmd:gmatch("\x25S+") do
+        args[#args + 1] = arg
+    end
 
-    elseif (SubString(cmd,0,6) == "-stats") then
-        StatsInfo(p, S2I(SubString(cmd,7,8)))
+    if CMD_LIST[args[1]] then
+        CMD_LIST[args[1]](p, pid, args, cmd)
+    end
 
-    elseif (cmd=="-clear") or (cmd=="-cl") or (cmd=="-clr") then
-        if p == GetLocalPlayer() then
-            ClearTextMessages()
-        end
-
-    elseif (cmd == "-suicide base") or (cmd == "-destroy base") or (cmd == "-db") then
-        if PlayerBase[pid] ~= nil then
-            destroyBaseFlag[pid] = true
-            SetUnitExploded(PlayerBase[pid], true)
-            KillUnit(PlayerBase[pid])
-        end
-
-    elseif (cmd == "-suicide") then
-        reselect(Hero[pid])
-        KillUnit(Hero[pid])
-
-    elseif (cmd == "-proficiency") or (cmd == "-pf") then
-        for i, _ in ipairs(PROF) do
-            DisplayTimedTextToPlayer(p, 0, 0, 30, TYPE_NAME[i] .. ((HasProficiency(pid, PROF[i]) and " - |cffFF0909Y|r") or " - |cff00ff33X|r"))
-        end
-
-    elseif (SubString(cmd,0,6) == "-stats") then
-        StatsInfo(p, S2I(SubString(cmd,7,8)))
-
-    elseif (SubString(cmd,0,5) == "-tome") then
-        local stats = GetHeroStr(Hero[pid],false) + GetHeroAgi(Hero[pid],false) + GetHeroInt(Hero[pid],false)
-
-        DisplayTextToPlayer(p, 0, 0, "|cffffcc00Total Stats:|r " .. stats)
-        DisplayTextToPlayer(p, 0, 0, "|cffffcc00Tome Cap:|r " .. TomeCap(GetHeroLevel(Hero[pid])))
-
-    elseif (cmd == "-r") or (cmd == "-ready") then
-        if TableHas(QUEUE_GROUP, p) then
-            QUEUE_READY[pid] = true
-        end
-
-    elseif (SubString(cmd, 0, 6) == "-color") and S2I(SubString(cmd, 7, StringLength(cmd))) > 0 and S2I(SubString(cmd, 7, StringLength(cmd))) < 26 then
-        local id = S2I(SubString(cmd, 7, StringLength(cmd))) - 1
-
-        User[p].color = ConvertPlayerColor(id)
-        User[p].hex = OriginalHex[id]
-        User[p]:colorUnits()
-        User[p].nameColored = OriginalHex[id] .. GetPlayerName(p) .. "|r"
-        SetPlayerColor(p, ConvertPlayerColor(id))
-
-    elseif (cmd == "-roll") then
-        myRoll(pid)
-
-    elseif (cmd == "-estats") and PlayerSelectedUnit[pid] then
-        if Unit[PlayerSelectedUnit[pid]] then
-            local atkspeed = 1. / BlzGetUnitAttackCooldown(PlayerSelectedUnit[pid], 0)
-            if IsUnitType(PlayerSelectedUnit[pid], UNIT_TYPE_HERO) then
-                atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(PlayerSelectedUnit[pid], true) + R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
-            else
-                atkspeed = atkspeed * (1 + IMinBJ(R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
-            end
-
-            DisplayTimedTextToPlayer(p, 0, 0, 20, GetUnitName(PlayerSelectedUnit[pid]))
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "Level: " .. (GetUnitLevel(PlayerSelectedUnit[pid])))
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "Health: " .. RealToString(GetWidgetLife(PlayerSelectedUnit[pid])) .. " / " .. RealToString(BlzGetUnitMaxHP(PlayerSelectedUnit[pid])))
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cffffcc00Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff800040Regeneration: |r" .. R2S(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) .. " health per second")
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff008080Evasion: |r" .. IMinBJ(100, (Unit[PlayerSelectedUnit[pid]].evasion)) .. "\x25")
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "Movespeed: " .. RealToString(GetUnitMoveSpeed(PlayerSelectedUnit[pid])))
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "Please click a valid unit!")
-        end
-
-    elseif (cmd == "-pcoins") then
-        DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag + (GetCurrency(pid, PLATINUM)))
-
-    elseif (cmd == "-awood") then
-        DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag + (GetCurrency(pid, ARCADITE)))
-
-    elseif (cmd == "-p") then
-        if GetCurrency(pid, PLATINUM) > 0 then
-            AddCurrency(pid, PLATINUM, -1)
-            AddCurrency(pid, GOLD, 1000000)
-            DisplayTimedTextToPlayer(p, 0, 0, 10, PlatTag + (GetCurrency(pid, PLATINUM)))
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 1 Platinum Coin to buy this")
-        end
-
-    elseif (cmd == "-a") then
-        if GetCurrency(pid, ARCADITE) > 0 then
-            AddCurrency(pid, ARCADITE, -1)
-            AddCurrency(pid, LUMBER, 1000000)
-            DisplayTimedTextToPlayer(p, 0, 0, 10, ArcTag + (GetCurrency(pid, ARCADITE)))
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 1 Arcadite Lumber to buy this")
-        end
-
-    elseif (cmd == "-bppc") then
-        if PlatConverterBought[pid] then
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "You already purchased this.")
-        elseif GetCurrency(pid, PLATINUM) < 2 then
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 2 Platinum Coins to buy this")
-        else
-            AddCurrency(pid, PLATINUM, -2)
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "Bought Portable Platinum Coin Converter.")
-            PlatConverter[pid]= true
-            PlatConverterBought[pid]= true
-        end
-
-    elseif (cmd == "-bpac") then
-        if ArcaConverterBought[pid] then
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "You already purchased this.")
-        elseif GetCurrency(pid, ARCADITE)<2 then
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 2 Arcadite Lumber to buy this")
-        else
-            AddCurrency(pid, ARCADITE, -2)
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "Bought Arcadite Lumber Converter.")
-            ArcaConverter[pid]= true
-            ArcaConverterBought[pid]= true
-        end
-
-    elseif SubString(cmd,0,3)=="-pa" or cmd=="-cash" then
-        local id = S2I(SubString(cmd, StringLength(cmd) - 1, StringLength(cmd)))
-        if id > 0 then
-            DisplayTimedTextToPlayer(p, 0, 0, 30, PlatTag + (GetCurrency(id, PLATINUM)))
-            DisplayTimedTextToPlayer(p, 0, 0, 30, ArcTag + (GetCurrency(id, ARCADITE)))
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 30, PlatTag + (GetCurrency(pid, PLATINUM)))
-            DisplayTimedTextToPlayer(p, 0, 0, 30, ArcTag + (GetCurrency(pid, ARCADITE)))
-        end
-
-    elseif (cmd == "-xp") then
-        ShowExpRate(p, pid)
-
-    elseif (cmd == "-ms") then
-        DisplayTimedTextToPlayer(p, 0, 0, 10, "Movespeed: " .. (Movespeed[pid]))
-
-    elseif (cmd == "-as") then
-        local atkspeed = 1 / BlzGetUnitAttackCooldown(Hero[pid], 0)
-        DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Base Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
-
-        atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(Hero[pid], true), 400) * 0.01)
-        DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Total Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second.")
-    elseif (cmd == "-speed") then
-        DisplayTimedTextToPlayer(p, 0, 0, 10, "Movespeed: " .. (Movespeed[pid]))
-        local atkspeed = 1. / BlzGetUnitAttackCooldown(Hero[pid], 0)
-        DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Base Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
-
-        atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(Hero[pid], true), 400) * 0.01)
-        DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Total Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second.")
-    elseif (cmd == "-actions") then
-        UnitRemoveAbility(Hero[pid], FourCC('A03C'))
-        UnitAddAbility(Hero[pid], FourCC('A03C'))
-
-    elseif (cmd == "-flee") then
-        FleeCommand(p)
-
-    elseif (SubString(cmd,0,4) == "-cam") and not selectingHero[pid] then
-        local zoom = 0
-
-        if SubString(cmd, StringLength(cmd) - 1, StringLength(cmd)) == "l" or SubString(cmd, StringLength(cmd) - 1, StringLength(cmd)) == "L" then
-            CameraLock[pid] = true
-            zoom = S2I(SubString(cmd,5, StringLength(cmd) - 1))
-        else
-            zoom = S2I(SubString(cmd,5, StringLength(cmd)))
-        end
-
-        MathClamp(zoom, 100, 3000)
-
-        SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, zoom, 0)
-        Zoom[pid] = zoom
-
-    elseif (SubString(cmd,0,3) == "-aa") or SubString(cmd, 0, 11) == "-autoattack" then
-        ToggleAutoAttack(pid)
-    elseif (SubString(cmd,0,3) == "-zm") and not selectingHero[pid] then
-        SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, 2500, 0)
-        Zoom[pid] = 2500
-        if SubString(cmd, StringLength(cmd) - 1, StringLength(cmd)) == "l" or SubString(cmd, StringLength(cmd) - 1, StringLength(cmd)) == "L" then
-            CameraLock[pid] = true
-        end
-
-    elseif (cmd == "-lock") then
-        CameraLock[pid] = true
-
-    elseif (cmd == "-unlock") then
-        CameraLock[pid] = false
-
-    elseif (SubString(cmd,0,6) == "-price") then
-        DisplayTimedTextToPlayer(p, 0, 0,30, "Upgrade item prices have been moved to \"Item Info\" (hotkey Z + E on your hero).")
-
-    elseif (SubString(cmd,0,5) == "-info") then
-        DisplayTimedTextToPlayer(p, 0, 0, 30, infoString[S2I(SubString(cmd,6,8))])
-
-    elseif (cmd == "-unstuck") then
-        if GetLocalPlayer() == p then
-            ShowInterface(false, 0)
-            EnableUserControl(false)
-            EnableOcclusion(false)
-        end
-        TimerQueue:callDelayed(0.5, function()
-            if GetLocalPlayer() == p then
-                ShowInterface(true, 0)
-                EnableUserControl(true)
-                EnableOcclusion(true)
-            end
-        end)
-
-    elseif (cmd=="-st") or (cmd=="-savetime") then
-        if autosave[pid] then
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "Your next autosave is in " .. RemainingTimeString(SaveTimer[pid]) .. ".")
-        elseif Hardcore[pid] then
-            DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(SaveTimer[pid]) .. " until you can save again.")
-        end
-
-    elseif (cmd=="-rt") or (cmd == "-restime") then
-        if TimerGetRemaining(rezretimer[pid]) <= 0.1 then
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "You can recharge.")
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 20, (R2I(TimerGetRemaining(rezretimer[pid]))) .. " seconds until you can recharge again.")
-        end
-
-    elseif (SubString(cmd, 0, 5) == "-save") then
-        if UnitAlive(Hero[pid]) == false then
-            DisplayTextToPlayer(p, 0, 0, "You cannot do this while dead!")
-        elseif TimerGetRemaining(SaveTimer[pid]) > 1 and Hardcore[pid] then
-            DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(SaveTimer[pid]) .. " until you can save again.")
-        elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) == false and Hardcore[pid] then
-            DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffFF0000You're playing in hardcore mode, you may only save inside the church in town.|r")
-        else
-            ActionSave(p)
-        end
-
-    elseif (SubString(cmd, 0, 9) == "-autosave") then
-        if not autosave[pid] then
-            autosave[pid] = true
-            DisplayTextToPlayer(p, 0, 0, "|cffffcc00Autosave is now enabled -- you will save every 30 minutes or when your next save is available as Hardcore.|r")
-            TimerStart(SaveTimer[pid], 1800, false, nil)
-        else
-            autosave[pid] = false
-            DisplayTextToPlayer(p, 0, 0, "|cffffcc00Autosave disabled.|r")
-        end
-
-    elseif (cmd == "-forcesave") or (cmd == "-saveforce") then
-        if UnitAlive(Hero[pid]) == false then
-            DisplayTextToPlayer(p, 0, 0, "You cannot do this while dead!")
-        elseif InCombat(Hero[pid]) then
-            DisplayTextToPlayer(p, 0, 0, "You cannot do this while in combat!")
-        elseif IS_TELEPORTING[pid] then
-            DisplayTextToPlayer(p, 0, 0, "You cannot do this while teleporting!")
-        elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) or RectContainsCoords(gg_rct_Tavern, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) then
-            ActionSaveForce(p, false)
-        else
-            ActionSaveForce(p, true)
-        end
-
-    elseif (cmd == "-cancel") and forceSaving[pid] then
-        forceSaving[pid] = false
-        IS_TELEPORTING[pid] = false
-        PauseUnit(Hero[pid], false)
-        PauseUnit(Backpack[pid], false)
-        if (GetLocalPlayer() == p) then
-            ClearTextMessages()
-        end
-        DisplayTimedTextToPlayer(p, 0, 0, 60., "Force save aborted!")
-        local pt = TimerList[pid]:get(FourCC('fsav'))
-
-        if pt then
-            pt:destroy()
-        end
-    elseif (SubString(cmd, 0, 9) == "-HardMode") or (SubString(cmd, 0, 9) == "-hardmode") then
-        if HARD_MODE > 0 then
-            DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 5, "|cffffcc00Hard mode is already active.|r")
-        else
-            if VOTING_TYPE == 0 then
-                Hardmode()
-            end
-        end
-
-    elseif (SubString(cmd, 0, 9) == "-votekick") then
-        if VOTING_TYPE == 0 and User.AmountPlaying > 2 then
-            local dw = DialogWindow.create(pid, "", VotekickPanelClick) ---@type DialogWindow
-
-            while U do
-
-                if pid ~= U.id then
-                    dw.data[dw.ButtonCount] = U.id
-                    dw:addButton(U.nameColored)
-                end
-
-                U = U.next
-            end
-        end
-
-    elseif (cmd == "-repick") then
-        if Profile[pid] then
-            --TODO 30?
-            if Profile[pid]:getSlotsUsed() >= 30 then
-                DisplayTimedTextToPlayer(p, 0, 0, 30.0, "You cannot save more than 30 heroes!")
-            else
-                MainRepick(pid)
-            end
-        end
-
-    elseif (SubString(cmd, 0, 9) == "-prestige") then
-        PrestigeInfo(p, S2I(SubString(cmd, 10, 12)))
-
-    elseif (cmd == "-pcoff") or (cmd == "-platinum converter off") then
-        if PlatConverterBought[pid] then
-            PlatConverter[pid]= false
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "Platinum converter off.")
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "You have not bought a Platinum Converter.")
-        end
-
-    elseif cmd == "-newprofile" or cmd == "-new profile" then
-        NewProfile(pid)
-
-    elseif (cmd == "-pcon") or (cmd == "-platinum converter on") then
-        if PlatConverterBought[pid] then
-            PlatConverter[pid]= true
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "Platinum converter on.")
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "You have not bought a Platinum Converter.")
-        end
-
-    elseif (cmd == "-acoff") or (cmd == "-arcadite converter off") then
-        if ArcaConverterBought[pid] then
-            ArcaConverter[pid]= false
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "arcadite converter off.")
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "You have not bought an Arcadite Converter.")
-        end
-
-    elseif (cmd == "-acon") or (cmd == "-arcadite converter on") then
-        if ArcaConverterBought[pid] then
-            ArcaConverter[pid]= true
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "arcadite converter on.")
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "You have not bought an Arcadite Converter.")
-        end
-
-    elseif (cmd == "-q") or (cmd == "-quests") then
-        DisplayQuestProgress(p)
-
-    elseif cmd:sub(2, #cmd) == AFK_TEXT and afkTextVisible[pid] == true then
+    --afk text
+    if cmd:sub(2, #cmd) == AFK_TEXT and afkTextVisible[pid] == true then
         if GetLocalPlayer() == p then
             BlzFrameSetVisible(AFK_FRAME_BG, false)
         end
 
         afkTextVisible[pid] = false
         SoundHandler("Sound\\Interface\\GoodJob.wav", false, p)
-
-    elseif (cmd == "-nohints") or (cmd == "-hints") then
-        if IsPlayerInForce(p, HINT_PLAYERS) then
-            ForceRemovePlayer(HINT_PLAYERS, p)
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "Hints turned off.")
-        else
-            ForceAddPlayer(HINT_PLAYERS, p)
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "Hints turned on.")
-        end
     end
 
     return false
