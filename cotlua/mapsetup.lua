@@ -1,15 +1,14 @@
+if Debug then Debug.beginFile 'MapSetup' end
+
 --[[
     mapsetup.lua
 
     A library that executes any necessary map initialization after players have loaded in.
 ]]
 
-if Debug then Debug.beginFile 'MapSetup' end
-
 OnInit.final("MapSetup", function(require)
     require 'Users'
     require 'Variables'
-    require 'Helper'
     require 'PlayerData'
 
     --create floating texttags
@@ -68,7 +67,7 @@ OnInit.final("MapSetup", function(require)
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Arena1, false, false))
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Arena2, false, false))
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Arena3, false, false))
-        FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Gods_Vision, false, false))
+        FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Gods_Arena, false, false))
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Training_Prechaos, false, false))
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Training_Chaos, false, false))
 
@@ -79,7 +78,7 @@ OnInit.final("MapSetup", function(require)
     --neutral / enemy vision
     FogModifierStart(CreateFogModifierRect(Player(PLAYER_NEUTRAL_PASSIVE),FOG_OF_WAR_VISIBLE,bj_mapInitialPlayableArea, false, false))
     FogModifierStart(CreateFogModifierRect(pboss,FOG_OF_WAR_VISIBLE,gg_rct_Colosseum, false, false))
-    FogModifierStart(CreateFogModifierRect(pboss,FOG_OF_WAR_VISIBLE,gg_rct_Gods_Vision, false, false))
+    FogModifierStart(CreateFogModifierRect(pboss,FOG_OF_WAR_VISIBLE,gg_rct_Gods_Arena, false, false))
     FogModifierStart(CreateFogModifierRect(pboss,FOG_OF_WAR_VISIBLE,gg_rct_InfiniteStruggleCameraBounds, false, false))
 
     --player clean on leave
@@ -106,18 +105,11 @@ OnInit.final("MapSetup", function(require)
     DestroyTimer(bj_stockUpdateTimer)
     DisableTrigger(bj_stockItemPurchased)
 
-    i = 0
-    -- give these frames a handleId
-    while not (i >= BlzFrameGetChildrenCount(containerFrame) - 1) do
-        frames[i] = BlzFrameGetChild(BlzFrameGetChild(containerFrame, i), 0)
-        i = i + 1
-    end
-
     --final misc touches
     bj_useDawnDuskSounds = false
     StopSound(bj_nightAmbientSound, true, false)
     StopSound(bj_dayAmbientSound, true, false)
-    BlzChangeMinimapTerrainTex("MiniMap.dds")
+    BlzChangeMinimapTerrainTex("war3mapImported\\minimap_main.dds")
     SetSkyModel("war3mapImported\\StarSphere.mdx")
     SetCameraBoundsToRect(gg_rct_Tavern_Vision)
     PanCameraToTimed(21645, 3430, 0)

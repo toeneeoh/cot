@@ -1,10 +1,10 @@
+if Debug then Debug.beginFile 'Dummy' end
+
 --[[
     dummy.lua
 
     A module used to create and recycle dummies for spell casting and projectile effects.
 ]]
-
-if Debug then Debug.beginFile 'Dummy' end
 
 OnInit.final("Dummy", function()
 
@@ -21,6 +21,7 @@ OnInit.final("Dummy", function()
     Dummy = {} ---@type Dummy|Dummy[]
     do
         local thistype = Dummy
+        local mt = { __index = thistype }
 
         ---@type fun(self: Dummy, owner: player, order: string, a: any, b: any)
         function thistype:cast(owner, order, a, b)
@@ -86,7 +87,7 @@ OnInit.final("Dummy", function()
 
                 Dummy[self.unit] = self
 
-                setmetatable(self, { __index = thistype })
+                setmetatable(self, mt)
             --use an existing available dummy
             else
                 DUMMY_STACK[#DUMMY_STACK] = nil

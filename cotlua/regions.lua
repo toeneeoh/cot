@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'Regions' end
+
 --[[
     regions.lua
 
@@ -5,10 +7,7 @@
     and defines enemy spawn, teleport, and quest trigger regions.
 ]]
 
-if Debug then Debug.beginFile 'Regions' end
-
 OnInit.final("Regions", function(require)
-    require 'Variables'
     require 'Helper'
     require 'WorldBounds'
 
@@ -19,7 +18,7 @@ OnInit.final("Regions", function(require)
         gg_rct_Infinite_Struggle,
         gg_rct_Colosseum,
         gg_rct_Cave,
-        gg_rct_Gods_Vision,
+        gg_rct_Gods_Arena,
         gg_rct_Training_Prechaos,
         gg_rct_Training_Chaos,
         gg_rct_Church,
@@ -27,43 +26,64 @@ OnInit.final("Regions", function(require)
         gg_rct_Naga_Dungeon_Reward,
         gg_rct_Naga_Dungeon,
         gg_rct_Crypt,
+        gg_rct_Arena1,
+        gg_rct_Arena2,
+        gg_rct_Arena3,
+        gg_rct_Tomb,
     }
 
-    MoveRegions = {}
+    REGION_DATA = {}
 
     for i = 1, 10 do
-        MoveRegions[i] = CreateRegion()
+        REGION_DATA[i] = CreateRegion()
     end
 
-    RegionAddRect(MoveRegions[1], gg_rct_ChurchO)
-    RegionAddRect(MoveRegions[2], gg_rct_ChurchIn)
-    RegionAddRect(MoveRegions[3], gg_rct_Tavern_Out)
-    RegionAddRect(MoveRegions[4], gg_rct_Tavern_In)
-    RegionAddRect(MoveRegions[5], gg_rct_Devourer_entry)
-    RegionAddRect(MoveRegions[6], gg_rct_Flee_Devourers)
-    RegionAddRect(MoveRegions[7], gg_rct_Enter_Tomb)
-    RegionAddRect(MoveRegions[8], gg_rct_Exit_Tomb)
-    RegionAddRect(MoveRegions[9], gg_rct_CryptO)
-    RegionAddRect(MoveRegions[10], gg_rct_CryptIn)
+    RegionAddRect(REGION_DATA[1], gg_rct_ChurchO)
+    RegionAddRect(REGION_DATA[2], gg_rct_ChurchIn)
+    RegionAddRect(REGION_DATA[3], gg_rct_Tavern_Out)
+    RegionAddRect(REGION_DATA[4], gg_rct_Tavern_In)
+    RegionAddRect(REGION_DATA[5], gg_rct_Devourer_entry)
+    RegionAddRect(REGION_DATA[6], gg_rct_Flee_Devourers)
+    RegionAddRect(REGION_DATA[7], gg_rct_Enter_Tomb)
+    RegionAddRect(REGION_DATA[8], gg_rct_Exit_Tomb)
+    RegionAddRect(REGION_DATA[9], gg_rct_CryptO)
+    RegionAddRect(REGION_DATA[10], gg_rct_CryptIn)
 
-    MoveRegions[MoveRegions[1]]  = { x = 20943., y = 772., facing = 0., vision = gg_rct_ChurchRegion_Vision }
-    MoveRegions[MoveRegions[2]]  = { x = 448.7, y = 1600., facing = 270., vision = MAIN_MAP.vision, extra = function(pid, p) if CANNOT_LOAD[pid] == false then
+    REGION_DATA[REGION_DATA[1]]  = { x = 20943., y = 772., facing = 0., vision = gg_rct_ChurchRegion_Vision }
+    REGION_DATA[REGION_DATA[2]]  = { x = 448.7, y = 1600., facing = 270., vision = MAIN_MAP.vision, extra = function(pid, p) if not CANNOT_LOAD[pid] then
             CANNOT_LOAD[pid] = true
             DisplayTimedTextToPlayer(p, 0, 0, 30., "You may now save.")
         end
     end}
-    MoveRegions[MoveRegions[3]]  = { x = 22191., y = 3441., facing = 180., vision = gg_rct_Tavern_Vision, extra = function(pid, p) ShowHeroCircle(p, false) end }
-    MoveRegions[MoveRegions[4]]  = { x = -690., y = -238., facing = 0., vision = MAIN_MAP.vision, extra = function(pid, p) ShowHeroCircle(p, true) end }
-    MoveRegions[MoveRegions[5]]  = { x = 27145., y = -5489., facing = 0., vision = gg_rct_Devourer_Camera_Bounds, }
-    MoveRegions[MoveRegions[6]]  = { x = -15245., y = -14100., facing = 0., vision = MAIN_MAP.vision, exception = function(u, x, y) if u == velreon_guard then SetUnitPosition(u, x, y) end end }
-    MoveRegions[MoveRegions[7]]  = { x = 19709., y = -20237., facing = 0., vision = gg_rct_TombCameraBounds }
-    MoveRegions[MoveRegions[8]]  = { x = -15426., y = 9535., facing = 225., vision = MAIN_MAP.vision }
-    MoveRegions[MoveRegions[9]]  = { x = 20353., y = 11426., facing = 270., vision = gg_rct_Crypt_Vision }
-    MoveRegions[MoveRegions[10]] = { x = 11793., y = 8501., facing = 180., vision = MAIN_MAP.vision }
+    REGION_DATA[REGION_DATA[3]]  = { x = 22191., y = 3441., facing = 180., extra = function(pid, p) ShowHeroCircle(p, false) end }
+    REGION_DATA[REGION_DATA[4]]  = { x = -690., y = -238., facing = 0., extra = function(pid, p) ShowHeroCircle(p, true) end }
+    REGION_DATA[REGION_DATA[5]]  = { x = 27145., y = -5489., facing = 0.}
+    REGION_DATA[REGION_DATA[6]]  = { x = -15245., y = -14100., facing = 0., exception = function(u, x, y) if u == velreon_guard then SetUnitPosition(u, x, y) end end }
+    REGION_DATA[REGION_DATA[7]]  = { x = 19709., y = -20237., facing = 0.}
+    REGION_DATA[REGION_DATA[8]]  = { x = -15426., y = 9535., facing = 225.}
+    REGION_DATA[REGION_DATA[9]]  = { x = 20353., y = 11426., facing = 270.}
+    REGION_DATA[REGION_DATA[10]] = { x = 11793., y = 8501., facing = 180.}
+    REGION_DATA[MAIN_MAP.rect] = { vision = MAIN_MAP.vision, minimap = "war3mapImported\\minimap_main.dds" }
+    REGION_DATA[gg_rct_Tavern] = { vision = gg_rct_Tavern_Vision, minimap = "war3mapImported\\minimap_tavern.dds" }
+    REGION_DATA[gg_rct_Church] = { vision = gg_rct_ChurchRegion_Vision, minimap = "war3mapImported\\minimap_church.dds" }
+    REGION_DATA[gg_rct_Gods_Arena] = { vision = gg_rct_GodsCameraBounds }
+    REGION_DATA[gg_rct_Cave] = { vision = gg_rct_Devourer_Camera_Bounds, minimap = "war3mapImported\\minimap_cave.dds" }
+    REGION_DATA[gg_rct_Crypt] = { vision = gg_rct_Crypt_Vision }
+    REGION_DATA[gg_rct_Tomb] = { vision = gg_rct_TombCameraBounds }
+    REGION_DATA[gg_rct_Colosseum] = { vision = gg_rct_Colosseum_Camera_Bounds, minimap = "war3mapImported\\minimap_colosseum.dds" }
+    REGION_DATA[gg_rct_Infinite_Struggle] = { vision = gg_rct_InfiniteStruggleCameraBounds }
+    REGION_DATA[gg_rct_Training_Prechaos] = { vision = gg_rct_PrechaosTraining_Vision }
+    REGION_DATA[gg_rct_Training_Chaos] = { vision = gg_rct_ChaosTraining_Vision }
+    REGION_DATA[gg_rct_Arena1] = { vision = gg_rct_Arena1Vision }
+    REGION_DATA[gg_rct_Arena2] = { vision = gg_rct_Arena2Vision }
+    REGION_DATA[gg_rct_Arena3] = { vision = gg_rct_Arena3Vision }
+    REGION_DATA[gg_rct_Naga_Dungeon_Boss] = { vision = gg_rct_Naga_Dungeon_Boss_Vision, minimap = "war3mapImported\\minimap_nagadungeon_boss.dds" }
+    REGION_DATA[gg_rct_Naga_Dungeon_Reward] = { vision = gg_rct_Naga_Dungeon_Reward_Vision, minimap = "war3mapImported\\minimap_nagadungeon.dds" }
+    REGION_DATA[gg_rct_Naga_Dungeon] = { vision = gg_rct_Naga_Dungeon_Vision, minimap = "war3mapImported\\minimap_nagadungeon.dds" }
 
-    colospot[1] = GetRectCenter(gg_rct_Colloseum_Monster_Spawn)
-    colospot[2] = GetRectCenter(gg_rct_Colloseum_Monster_Spawn_2)
-    colospot[3] = GetRectCenter(gg_rct_Colloseum_Monster_Spawn_3)
+    colospot[1] = GetRectCenter(gg_rct_Colosseum_Monster_Spawn)
+    colospot[2] = GetRectCenter(gg_rct_Colosseum_Monster_Spawn_2)
+    colospot[3] = GetRectCenter(gg_rct_Colosseum_Monster_Spawn_3)
 
     RegionCount      = {} ---@type rect[] 
     RegionCount[25]  = gg_rct_Troll_Demon_1
@@ -144,6 +164,24 @@ OnInit.final("Regions", function(require)
     RegionCount[450] = gg_rct_Magnataur_Despair_1
     RegionCount[451] = gg_rct_Magnataur_Despair_2
 
+    ---@type fun(x: number, y: number): rect?
+    function GetRectFromCoords(x, y)
+        for i = 1, #AREAS do
+            if GetRectMinX(AREAS[i]) <= x and x <= GetRectMaxX(AREAS[i]) and GetRectMinY(AREAS[i]) <= y and y <= GetRectMaxY(AREAS[i]) then
+                return AREAS[i]
+            end
+        end
+
+        return nil
+    end
+
+    function LavaRegion()
+        local u = GetFilterUnit()
+
+        Lava:add(u, u)
+        return false
+    end
+
     function LeaveRegions()
         local u = GetFilterUnit() ---@type unit 
 
@@ -196,7 +234,7 @@ OnInit.final("Regions", function(require)
 
         if u == Hero[pid] then
             if NearbyRect(gg_rct_Naga_Waygate, x, y) then --naga dungeon
-                NagaWaygate(pid)
+                NagaWaygate()
             elseif NearbyRect(gg_rct_Key_Quest, x, y) and not CHAOS_MODE and not IsUnitHidden(god_angel) then
                 if (PlayerHasItemType(pid, FourCC('I04J')) or PlayerHasItemType(pid, FourCC('I0NJ')) or GetHeroLevel(Hero[pid]) > 239) and IsQuestCompleted(Key_Quest) == false then
                     DisplayTextToForce(FORCE_PLAYING, "|cffffcc00The portal to the gods has opened.|r")
@@ -235,13 +273,11 @@ OnInit.final("Regions", function(require)
         local r = GetTriggeringRegion()
         local p = GetOwningPlayer(u)
         local pid = GetPlayerId(p) + 1
-        local data = MoveRegions[r]
+        local data = REGION_DATA[r]
 
         if UnitAlive(u) and u == Hero[pid] then
-            SetUnitPosition(u, data.x, data.y)
+            MoveHero(pid, data.x, data.y)
             BlzSetUnitFacingEx(u, data.facing)
-            SetCameraBoundsRectForPlayerEx(p, data.vision)
-            PanCameraToTimedForPlayer(p, data.x, data.y, 0)
             if data.extra then
                 data.extra(pid, p)
             end
@@ -266,34 +302,34 @@ OnInit.final("Regions", function(require)
     local leaveRegion    = CreateRegion()
 
     --Enter church
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[1], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[1], nil)
 
     --Leave church
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[2], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[2], nil)
 
     --Enter tavern
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[3], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[3], nil)
 
     --Leave tavern
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[4], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[4], nil)
 
     --Enter devourer cave
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[5], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[5], nil)
 
     --Leave devourer cave
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[6], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[6], nil)
 
     --Enter wizard tower
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[7], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[7], nil)
 
     --Leave wizard tower
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[8], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[8], nil)
 
     --Enter crypt
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[9], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[9], nil)
 
     --Leave crypt
-    TriggerRegisterEnterRegion(enterTrigger, MoveRegions[10], nil)
+    TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[10], nil)
 
     TriggerAddCondition(enterTrigger, Condition(EnterArea))
 
@@ -310,6 +346,14 @@ OnInit.final("Regions", function(require)
     TriggerRegisterEnterRegion(specialTrigger, specialRegion, Filter(SpecialRegions))
     TriggerRegisterEnterRegion(safeTrigger, safeRegion, Filter(SafeRegions))
     TriggerRegisterEnterRegion(leaveTrigger, leaveRegion, Filter(LeaveRegions))
+
+    local lavaTrigger = CreateTrigger()
+    LAVA_REGION = CreateRegion()
+
+    RegionAddRect(LAVA_REGION, gg_rct_Lava1)
+    RegionAddRect(LAVA_REGION, gg_rct_Lava2)
+
+    TriggerRegisterEnterRegion(lavaTrigger, LAVA_REGION, Filter(LavaRegion))
 end)
 
 if Debug then Debug.endFile() end

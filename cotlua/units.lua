@@ -1,11 +1,11 @@
+if Debug then Debug.beginFile 'Units' end
+
 --[[
     units.lua
 
     A library that spawns units and does any necessary setup related to units.
     Sets up shops, bosses, NPCs, enemy data, etc.
 ]]
-
-if Debug then Debug.beginFile 'Units' end
 
 OnInit.final("Units", function(require)
     require 'Helper'
@@ -17,7 +17,6 @@ OnInit.final("Units", function(require)
     BossTable           = {} ---@type table[]
     BossNearbyPlayers   = __jarray(0) ---@type integer[] 
     REGION_GAP          = 25 ---@type integer 
-    ShopkeeperTrackable = CreateTrigger()
     --group Sins = CreateGroup()
 
 function ShopSetup()
@@ -850,21 +849,6 @@ function ShopSetup()
     ItemAddComponents(FourCC('I050'), "I04Z I04Z I04Z I04Z I04Z I04Z")
 end
 
----@return boolean
-function ShopkeeperClick()
-    local track           = GetTriggeringTrackable() ---@type trackable 
-    local pid         = LoadInteger(MiscHash, GetHandleId(track), FourCC('evil')) ---@type integer 
-
-    if selectingHero[pid] == false then
-        if GetLocalPlayer() == Player(pid - 1) then
-            ClearSelection()
-            SelectUnit(gg_unit_n02S_0098, true)
-        end
-    end
-
-    return false
-end
-
     --ice troll trapper
     local id = FourCC('nitt')
     UnitData[id][UNITDATA_COUNT] = 18
@@ -1143,7 +1127,6 @@ end
     local y      = 0. ---@type number 
     local s        = "" ---@type string 
     local target ---@type unit 
-    local track ---@type trackable 
 
     --velreon guard
     velreon_guard = CreateUnit(Player(PLAYER_TOWN), FourCC('h04A'), 29919., -2419., 225.)
@@ -1154,6 +1137,7 @@ end
     ShowUnit(god_angel, false)
 
     PUNCHING_BAG = gg_unit_h02D_0672 ---@type unit
+    UnitIndex(PUNCHING_BAG)
 
     --quest marker effect
     TalkToMe13 = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl",god_angel,"overhead")
@@ -1172,14 +1156,14 @@ end
     townpaladin = CreateUnit(Player(PLAYER_TOWN), FourCC('H01T'), -176.3, 666, 90.)
     BlzSetUnitMaxMana(townpaladin, 0)
     --prechaos trainer
-    prechaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 29415., 252., 270.)
+    prechaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 26205., 252., 270.)
     local itm = Item.create(CreateItem(FourCC('I0MY'), 30000., 30000.))
     UnitAddItem(prechaosTrainer, itm.obj)
     BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(UnitData[0][0]) .. "|r")
     BlzSetItemIconPath(itm.obj, BlzGetAbilityIcon(UnitData[0][0]))
     itm.spawn = 0
     --chaos trainer
-    chaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 26205., 252., 270.)
+    chaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 29415., 252., 270.)
     itm = Item.create(CreateItem(FourCC('I0MY'), 30000., 30000.))
     UnitAddItem(chaosTrainer, itm.obj)
     BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(UnitData[1][0]) .. "|r")
@@ -1308,23 +1292,34 @@ end
     ShowUnit(BossTable[BOSS_HATE].unit, false)
     ShowUnit(BossTable[BOSS_KNOWLEDGE].unit, false)
 
-    --evil shopkeeper
-    evilshopkeeper = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n01F'), 7284., -13177., 270.)
+    --evil shopkeepers
+    do
+        local onClick = CreateTrigger()
+        evilshopkeeperbrother = gg_unit_n02S_0098
+        evilshopkeeper = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n01F'), 7284., -13177., 270.)
 
-    --shopkeeper
-    for i = 0, PLAYER_CAP - 1 do
-        s = "war3mapImported\\dummy.mdl"
+        --UnitAddAbility(evilshopkeeperbrother, FourCC('Aloc'))
 
-        if GetLocalPlayer() == Player(i) then
-            s = "units\\undead\\Acolyte\\Acolyte.mdl"
+        --[[local track = CreateTrackable("units\\undead\\Acolyte\\Acolyte.mdl", GetUnitX(evilshopkeeperbrother), GetUnitY(evilshopkeeperbrother), 3 * bj_PI / 4.)
+        TriggerRegisterTrackableHitEvent(onClick, track)
+
+        ---@return boolean
+        local function trackableClick()
+            local pid = GetPlayerId(GetTriggerPlayer()) + 1
+
+            if not selectingHero[pid] then
+                if GetLocalPlayer() == Player(pid - 1) then
+                    ClearSelection()
+                    SelectUnit(evilshopkeeperbrother, true)
+                end
+            end
+
+            return false
         end
 
-        track = CreateTrackable(s, GetUnitX(gg_unit_n02S_0098), GetUnitY(gg_unit_n02S_0098), 3 * bj_PI / 4.)
-        SaveInteger(MiscHash, GetHandleId(track), FourCC('evil'), i + 1)
-        TriggerRegisterTrackableHitEvent(ShopkeeperTrackable, track)
+        TriggerAddCondition(onClick, Condition(trackableClick))
+        ]]
     end
-
-    TriggerAddCondition(ShopkeeperTrackable, Condition(ShopkeeperClick))
 
     --hero circle
     HeroCircle[0] = {
@@ -1473,6 +1468,7 @@ end
 
     --shops
     ShopSetup()
+    ShopkeeperMove()
 
     --ashen vat
     ASHEN_VAT = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h05J'), 20485., -20227., 270.)

@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'Keyboard' end
+
 --[[
     keyboard.lua
 
@@ -5,8 +7,6 @@
 
     Future considerations: Custom hotkey system for spells and other GUI
 ]]
-
-if Debug then Debug.beginFile 'Keyboard' end
 
 OnInit.final("Keyboard", function(require)
     require 'Users'
@@ -56,7 +56,7 @@ OnInit.final("Keyboard", function(require)
 
             for i = 0, 5 do
                 if GetLocalPlayer() == GetTriggerPlayer() then
-                    itm = Item[UnitItemInSlot(GetMainSelectedUnitEx(), i)]
+                    itm = Item[UnitItemInSlot(GetMainSelectedUnit(), i)]
 
                     if itm and itm.tooltip then
                         BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)

@@ -1,21 +1,22 @@
+if Debug then Debug.beginFile 'Dev' end
+
 --[[
     dev.lua
 
     A module used for debugging and testing.
 ]]
 
-if Debug then Debug.beginFile 'Dev' end
-
 OnInit.final("Dev", function(require)
     require 'Variables'
-    require 'Users'
-    require 'Helper'
 
     EXTRA_DEBUG    = false ---@type boolean 
-    BUDDHA_MODE    =__jarray(false) ---@type boolean[] 
-    nocd           =__jarray(false) ---@type boolean[] 
-    nocost         =__jarray(false) ---@type boolean[] 
-    SEARCHABLE     =__jarray(false) ---@type boolean[] 
+    DEBUG_HERO    = false ---@type boolean 
+    JUMP_POINT_SEARCH = false ---@type boolean 
+    MS_OVERRIDE = false
+    BUDDHA_MODE    = {} ---@type boolean[] 
+    nocd           = {} ---@type boolean[] 
+    nocost         = {} ---@type boolean[] 
+    SEARCHABLE     = {} ---@type boolean[] 
 
     DEBUG_COUNT      = 0 ---@type integer 
     WEATHER_OVERRIDE = 0 ---@type integer 
@@ -161,9 +162,14 @@ modifiers:
             SetTimeOfDay(17.49)
         end,
         ["si"] = function(p, pid, args)
-            if args[2] then
-                FindItem(args[2], pid)
+            local search = ""
+
+            for i = 2, #args do
+                search = search .. args[i] .. " "
             end
+            search = search:gsub("\x25s+$", "")
+
+            FindItem(search, pid)
         end,
         ["gi"] = function(p, pid, args)
             if args[2] then
@@ -195,7 +201,7 @@ modifiers:
             UnitApplyTimedLife(power_crystal, FourCC('BTLF'), 1.)
         end,
         ["settime"] = function(p, pid, args)
-            TimePlayed[pid] = S2I(args[2])
+            Profile[pid].hero.time = S2I(args[2])
         end,
         ["punchingbags"] = function(p, pid, args)
             local max = S2I(args[2])
@@ -209,7 +215,9 @@ modifiers:
             PingMinimap(GetUnitX(evilshopkeeper), GetUnitY(evilshopkeeper), 3)
         end,
         ["setweather"] = function(p, pid, args)
-            WEATHER_OVERRIDE = S2I(args[2])
+            local w = (args[2] and S2I(args[2])) or 0
+
+            WEATHER_OVERRIDE = w
             WeatherPeriodic()
         end,
         ["noborders"] = function(p, pid, args)
@@ -217,6 +225,7 @@ modifiers:
                 SetCameraField(CAMERA_FIELD_ROTATION, 90., 0)
                 SetCameraBounds(WorldBounds.minX, WorldBounds.minY, WorldBounds.minX, WorldBounds.maxY, WorldBounds.maxX, WorldBounds.maxY, WorldBounds.maxX, WorldBounds.minY)
             end
+            SetMinimapTexture(pid, "war3mapImported\\minimap_noborders.dds")
         end,
         ["displayhint"] = function(p, pid, args)
             DisplayHint()
@@ -394,6 +403,15 @@ modifiers:
         end,
         ["extradebug"] = function(p, pid, args)
             EXTRA_DEBUG = not EXTRA_DEBUG
+        end,
+        ["debughero"] = function(p, pid, args)
+            DEBUG_HERO = not DEBUG_HERO
+        end,
+        ["msoverride"] = function(p, pid, args)
+            MS_OVERRIDE = not MS_OVERRIDE
+        end,
+        ["jps"] = function(p, pid, args)
+            JUMP_POINT_SEARCH = not JUMP_POINT_SEARCH
         end,
         ["currentorder"] = function(p, pid, args)
             print((GetUnitCurrentOrder(PlayerSelectedUnit[pid])))
@@ -626,11 +644,6 @@ function EventSetup(pid)
     local learn   = CreateTrigger()
     local channel = CreateTrigger()
     SetPlayerAbilityAvailable(Player(pid - 1), DETECT_LEAVE_ABILITY, false)
-    SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0JV'), false) --elementalist setup
-    SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0JX'), false)
-    SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0JW'), false)
-    SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0JZ'), false)
-    SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0JY'), false)
     SetPlayerAbilityAvailable(Player(pid - 1), prMulti[0], false) --pr setup
     SetPlayerAbilityAvailable(Player(pid - 1), prMulti[1], false)
     SetPlayerAbilityAvailable(Player(pid - 1), prMulti[2], false)
@@ -684,12 +697,12 @@ function EventSetup(pid)
 
     --order setup
     local ordertarget = CreateTrigger()
-    TriggerRegisterPlayerUnitEvent(pointOrder, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, nil)
-    TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, nil)
-    TriggerRegisterPlayerUnitEvent(pointOrder, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_ORDER, nil)
+    --TriggerRegisterPlayerUnitEvent(pointOrder, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, nil)
+    --TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, nil)
+    TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_ORDER, nil)
 
-    TriggerAddAction(pointOrder, OnOrder)
-    TriggerAddAction(ordertarget, OnTargetOrder)
+    --TriggerAddAction(pointOrder, OnOrder)
+    TriggerAddCondition(ordertarget, OnOrder)
 
     TriggerAddCondition(onpickup, Condition(PickupFilter))
     TriggerAddAction(onpickup, onPickup)

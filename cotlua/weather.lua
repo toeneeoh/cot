@@ -1,14 +1,13 @@
+if Debug then Debug.beginFile 'Weather' end
+
 --[[
     weather.lua
 
     A module that defines random weather behavior and effects.
 ]]
 
-if Debug then Debug.beginFile 'Weather' end
-
 OnInit.global("Weather", function(require)
     require 'Helper'
-    require 'Variables'
     require 'TimerQueue'
     require 'Buffs'
 
@@ -32,149 +31,6 @@ OnInit.global("Weather", function(require)
     WEATHER_SOLAR_FLARE         = 14
     WEATHER_SAND_STORM          = 15
     WEATHER_MAX                 = 15
-
-    donationrate  = 0.1
-    donation      = 1.
-
-    CURRENT_WEATHER     = WEATHER_CLEAR
-    firestormRate       = 4
-    weatherIterations   = 0
-
----@type fun(x: number, y: number)
-function FirestormDamage(x, y)
-    local ug = CreateGroup()
-
-    GroupEnumUnitsInRange(ug, x, y, 300, Condition(isplayerAlly))
-    DestroyTreesInRange(x, y, 300)
-
-    for target in each(ug) do
-        DamageTarget(DummyUnit, target, BlzGetUnitMaxHP(target) * .1, ATTACK_TYPE_NORMAL, PURE, "Firestorm")
-    end
-
-    DestroyGroup(ug)
-end
-
----@type fun(pt: PlayerTimer)
-function FirestormEffect(pt)
-    local ug = CreateGroup()
-    local x  = 0. ---@type number 
-    local y  = 0. ---@type number 
-
-    pt.dur = pt.dur - 3
-
-    if pt.dur > 0 then
-        for _ = 0, firestormRate do
-            repeat
-                x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
-                y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
-                GroupEnumUnitsInRange(ug, x, y, 4000., Condition(isbase))
-            until RectContainsCoords(gg_rct_NoSin, x, y) == false and BlzGroupGetSize(ug) == 0
-            TimerQueue:callDelayed(1.5, FirestormDamage, x, y)
-            DestroyEffect(AddSpecialEffect("Units\\Demon\\Infernal\\InfernalBirth.mdl", x, y))
-        end
-    else
-        pt:destroy()
-    end
-
-    DestroyGroup(ug)
-end
-
----@type fun(weather: integer)
-function GracePeriod(weather)
-    CURRENT_WEATHER = weather
-
-    WeatherBuff.RAWCODE = WeatherTable[weather].abil
-    WeatherTimer:callDelayed(WeatherTable[weather].dur, WeatherPeriodic)
-
-    for i = 1, #WeatherGroup do
-        if GetPlayerId(GetOwningPlayer(WeatherGroup[i])) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
-            WeatherBuff:add(WeatherGroup[i], WeatherGroup[i]):duration(WeatherTable[weather].dur)
-        end
-    end
-
-    if CURRENT_WEATHER == WEATHER_FIRESTORM then
-        local pt = TimerList[0]:add() ---@type PlayerTimer
-        pt.dur = WeatherTable[weather].dur
-        pt.timer:callPeriodically(3., nil, FirestormEffect, pt)
-    end
-end
-
-function WeatherPeriodic()
-    local time = GetTimeOfDay()
-
-    weatherIterations = weatherIterations + 1
-
-    --setup weather pool
-    local pool = {}
-    for i = 1, WEATHER_MAX do
-        local valid = true
-
-        --restrict weather types
-        if (CHAOS_MODE and WeatherTable[i].chaos == -1) or (not CHAOS_MODE and WeatherTable[i].chaos == 1) then
-            valid = false
-        --no sunny weather at night
-        elseif i == WEATHER_SUNNY and (time < 6 or time > 15) then
-            valid = false
-        --do not repeat bad weather
-        elseif WeatherTable[CURRENT_WEATHER].bad == 1 and WeatherTable[i].bad == 1 then
-            valid = false
-        --prevent bad weather for first 5 iterations of lobby
-        elseif weatherIterations <= 5 and WeatherTable[i].bad == 1 then
-            valid = false
-        end
-
-        if valid then
-            pool[#pool + 1] = i
-        end
-    end
-
-    --select weather based on chance
-    local choice = 0
-    repeat
-        choice = pool[GetRandomInt(1, #pool)]
-        local chance = WeatherTable[choice].chance
-
-        if WeatherTable[choice].bad == 1 then
-            chance = chance * donation
-        end
-
-        if GetRandomInt(0, 99) <= chance then
-            choice = 0
-        end
-    until choice > 0
-
-    if DEV_ENABLED then
-        if WEATHER_OVERRIDE > 0 then
-            choice = WEATHER_OVERRIDE
-            WEATHER_OVERRIDE = 0
-        end
-    end
-
-    DisplayTimedTextToForce(FORCE_PLAYING, 30, "|cff6666ff" .. WeatherTable[choice].text .. "|r")
-
-    WeatherBuff:removeAll()
-    WeatherTimer:callDelayed(4., GracePeriod, choice)
-end
-
-local function WeatherFilter()
-    local u = GetFilterUnit()
-
-    if u and GetUnitTypeId(u) ~= DUMMY then
-        if RectContainsUnit(MAIN_MAP.rect, u) then
-            if not TableHas(WeatherGroup, u) then
-                if GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
-                    WeatherBuff:add(u, u):duration(TimerGetRemaining(WeatherTimer.timer))
-                end
-                WeatherGroup[#WeatherGroup + 1] = u
-            end
-        else
-            WeatherBuff:dispel(u, u)
-            TableRemove(WeatherGroup, u)
-        end
-    end
-
-    return false
-end
 
     -- Hurricane
     WeatherTable[WEATHER_HURRICANE] = {
@@ -378,8 +234,151 @@ end
         all = 1,
     }
 
+    donationrate  = 0.1
+    donation      = 1.
+
+    CURRENT_WEATHER     = WEATHER_CLEAR
+    firestormRate       = 4
+    weatherIterations   = 0
+
+---@type fun(x: number, y: number)
+function FirestormDamage(x, y)
+    local ug = CreateGroup()
+
+    GroupEnumUnitsInRange(ug, x, y, 300, Condition(isplayerAlly))
+    DestroyTreesInRange(x, y, 300)
+
+    for target in each(ug) do
+        DamageTarget(DummyUnit, target, BlzGetUnitMaxHP(target) * .1, ATTACK_TYPE_NORMAL, PURE, "Firestorm")
+    end
+
+    DestroyGroup(ug)
+end
+
+---@type fun(pt: PlayerTimer)
+function FirestormEffect(pt)
+    local ug = CreateGroup()
+    local x  = 0. ---@type number 
+    local y  = 0. ---@type number 
+
+    pt.dur = pt.dur - 3
+
+    if pt.dur > 0 then
+        for _ = 0, firestormRate do
+            repeat
+                x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
+                y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
+                GroupEnumUnitsInRange(ug, x, y, 4000., Condition(isbase))
+            until RectContainsCoords(gg_rct_NoSin, x, y) == false and BlzGroupGetSize(ug) == 0
+            TimerQueue:callDelayed(1.5, FirestormDamage, x, y)
+            DestroyEffect(AddSpecialEffect("Units\\Demon\\Infernal\\InfernalBirth.mdl", x, y))
+        end
+    else
+        pt:destroy()
+    end
+
+    DestroyGroup(ug)
+end
+
+---@type fun(weather: integer)
+function GracePeriod(weather)
+    CURRENT_WEATHER = weather
+
+    WeatherBuff.RAWCODE = WeatherTable[weather].abil
+    WeatherTimer:callDelayed(WeatherTable[weather].dur, WeatherPeriodic)
+
+    for i = 1, #WeatherGroup do
+        if GetPlayerId(GetOwningPlayer(WeatherGroup[i])) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
+            WeatherBuff:add(WeatherGroup[i], WeatherGroup[i]):duration(WeatherTable[weather].dur)
+        end
+    end
+
+    if CURRENT_WEATHER == WEATHER_FIRESTORM then
+        local pt = TimerList[0]:add() ---@type PlayerTimer
+        pt.dur = WeatherTable[weather].dur
+        pt.timer:callPeriodically(3., nil, FirestormEffect, pt)
+    end
+end
+
+function WeatherPeriodic()
+    local time = GetTimeOfDay()
+
+    weatherIterations = weatherIterations + 1
+
+    --setup weather pool
+    local pool = {}
     for i = 1, WEATHER_MAX do
-        setmetatable(WeatherTable[i], { __index = function(tbl, key) return 0 end})
+        local valid = true
+
+        --restrict weather types
+        if (CHAOS_MODE and WeatherTable[i].chaos == -1) or (not CHAOS_MODE and WeatherTable[i].chaos == 1) then
+            valid = false
+        --no sunny weather at night
+        elseif i == WEATHER_SUNNY and (time < 6 or time > 15) then
+            valid = false
+        --do not repeat bad weather
+        elseif WeatherTable[CURRENT_WEATHER].bad == 1 and WeatherTable[i].bad == 1 then
+            valid = false
+        --prevent bad weather for first 5 iterations of lobby
+        elseif weatherIterations <= 5 and WeatherTable[i].bad == 1 then
+            valid = false
+        end
+
+        if valid then
+            pool[#pool + 1] = i
+        end
+    end
+
+    --select weather based on chance
+    local choice = 0
+    repeat
+        choice = pool[GetRandomInt(1, #pool)]
+        local chance = WeatherTable[choice].chance
+
+        if WeatherTable[choice].bad == 1 then
+            chance = chance * donation
+        end
+
+        if GetRandomInt(0, 99) <= chance then
+            choice = 0
+        end
+    until choice > 0
+
+    if DEV_ENABLED then
+        if WEATHER_OVERRIDE > 0 then
+            choice = WEATHER_OVERRIDE
+            WEATHER_OVERRIDE = 0
+        end
+    end
+
+    DisplayTimedTextToForce(FORCE_PLAYING, 30, "|cff6666ff" .. WeatherTable[choice].text .. "|r")
+
+    WeatherBuff:removeAll()
+    WeatherTimer:callDelayed(4., GracePeriod, choice)
+end
+
+    local function WeatherFilter()
+        local u = GetFilterUnit()
+
+        if u and GetUnitTypeId(u) ~= DUMMY then
+            if RectContainsUnit(MAIN_MAP.rect, u) then
+                if not TableHas(WeatherGroup, u) then
+                    if GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
+                        WeatherBuff:add(u, u):duration(TimerGetRemaining(WeatherTimer.timer))
+                    end
+                    WeatherGroup[#WeatherGroup + 1] = u
+                end
+            else
+                WeatherBuff:dispel(u, u)
+                TableRemove(WeatherGroup, u)
+            end
+        end
+
+        return false
+    end
+
+    for i = 1, WEATHER_MAX do
+        __jarray(0, WeatherTable[i])
     end
 
     WeatherTimer:callDelayed(WeatherTable[CURRENT_WEATHER].dur, WeatherPeriodic)

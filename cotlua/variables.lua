@@ -1,10 +1,10 @@
+if Debug then Debug.beginFile 'Variables' end
+
 --[[
     variables.lua
 
     A big bucket of defined globals.
 ]]
-
-if Debug then Debug.beginFile 'Variables' end
 
 OnInit.global("Variables", function(require)
     require 'Users'
@@ -268,27 +268,24 @@ OnInit.global("Variables", function(require)
     BuffMovespeed     = __jarray(0) ---@type integer[] 
     ItemMovespeed     = __jarray(0) ---@type integer[] 
     ItemMagicRes      = __jarray(0) ---@type number[] 
-    ItemDamageRes     = __jarray(0) ---@type number[] 
-    ItemSpellboost    = __jarray(0) ---@type number[] 
     ItemGoldRate      = __jarray(0) ---@type integer[] 
 
+    bpmoving      = {} ---@type boolean[] 
+    ITEM_LOOKUP = {}
     DAMAGE_TAG = {}
-    Fleeing = __jarray(false) ---@type boolean[]
+    Fleeing = {} ---@type boolean[]
     ArcTag     = "|cff66FF66Arcadite Lumber|r: " ---@type string 
     PlatTag    = "|cffccccccPlatinum Coins|r: " ---@type string 
     CrystalTag = "|cff6969FFCrystals: |r" ---@type string 
     abc = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" ---@type string 
     afkInt = 0 ---@type integer 
-    Hardcore = __jarray(false) ---@type boolean[]
+    Hardcore = {} ---@type boolean[]
     HARD_MODE = 0 ---@type integer 
-    MiscHash = InitHashtable() ---@type hashtable 
-    PlayerProf = InitHashtable() ---@type hashtable 
     pfoe = Player(PLAYER_NEUTRAL_AGGRESSIVE) ---@type player 
     pboss = Player(PLAYER_BOSS) ---@type player 
     CHAOS_MODE = false ---@type boolean 
     ForcedRevive = false ---@type boolean 
     CHAOS_LOADING = false ---@type boolean 
-    TimePlayed = __jarray(0) ---@type integer[]
     DummyUnit = gg_unit_h05E_0717
 
     --tables
@@ -296,10 +293,9 @@ OnInit.global("Variables", function(require)
     ShopkeeperDirection=__jarray("") ---@type string[] 
     CURRENCY_ICON=__jarray("") ---@type string[] 
     XP_Rate=__jarray(0) ---@type number[]
-    player_fog = __jarray(false)
+    player_fog = {} ---@type boolean[]
 
     SpellTooltips = array2d("") ---@type string[][] 
-    Threat = array2d(0) ---@type table
     KillQuest = array2d(0) ---@type table
     ItemData = array2d(0) ---@type table
     UnitData = array2d(0) ---@type table
@@ -316,21 +312,21 @@ OnInit.global("Variables", function(require)
 
     Zoom = __jarray(0) ---@type integer[]
 
-    selectingHero=__jarray(false) ---@type boolean[] 
-    forgottenTypes=__jarray(0) ---@type integer[] 
+    selectingHero = {} ---@type boolean[] 
+    forgottenTypes = __jarray(0) ---@type integer[] 
     forgottenCount         = 0 ---@type integer 
     forgotten_spawner      = nil ---@type unit 
-    hsdummy={} ---@type unit[] 
-    hslook=__jarray(0) ---@type integer[] 
-    hsstat=__jarray(0) ---@type integer[] 
-    hssort=__jarray(false) ---@type boolean[] 
+    hsdummy = {} ---@type unit[] 
+    hslook = __jarray(0) ---@type integer[] 
+    hsstat = __jarray(0) ---@type integer[] 
+    hssort = {} ---@type boolean[] 
 
     funnyList = {
         -894554765,
         -1291321931,
     }
 
-    altModifier = __jarray(false) ---@type boolean[]
+    altModifier = {} ---@type boolean[]
     charLight={} ---@type effect[] 
 
     RollBoard=nil ---@type leaderboard 
@@ -344,23 +340,17 @@ OnInit.global("Variables", function(require)
     HeroID=__jarray(0) ---@type integer[] 
     Currency=__jarray(0) ---@type integer[] 
     prMulti=__jarray(0) ---@type integer[] 
-    PercentHealBonus=__jarray(0) ---@type integer[] 
-    ItemRegen=__jarray(0) ---@type integer[] 
     ShieldCount=__jarray(0) ---@type integer[] 
     RollChecks=__jarray(0) ---@type integer[] 
     HuntedLevel=__jarray(0) ---@type integer[] 
     Movespeed=__jarray(0) ---@type integer[] 
     CustomLighting=__jarray(0) ---@type integer[] 
 
-    TotalRegen=__jarray(0) ---@type number[] 
-    BuffRegen=__jarray(0) ---@type number[] 
     BoostValue=__jarray(0) ---@type number[] 
-    PhysicalTaken=__jarray(0) ---@type number[] 
-    MagicTaken=__jarray(0) ---@type number[] 
 
-    MultiShot=__jarray(false) ---@type boolean[] 
-    CameraLock=__jarray(false) ---@type boolean[] 
-    forceSaving=__jarray(false) ---@type boolean[] 
+    MultiShot = {} ---@type boolean[] 
+    CameraLock = {} ---@type boolean[] 
+    forceSaving = {} ---@type boolean[] 
 
     BOOST=__jarray(1) ---@type number[] 
     LBOOST=__jarray(1) ---@type number[] 
@@ -368,15 +358,15 @@ OnInit.global("Variables", function(require)
     TownCenter = Location(-250., 160.) ---@type location 
     ColosseumCenter = Location(21710., -4261.) ---@type location 
     StruggleCenter = Location(28030., 4361.) ---@type location 
-    InColo=__jarray(false) ---@type boolean[] 
-    InStruggle=__jarray(false) ---@type boolean[] 
+    InColo = {} ---@type boolean[] 
+    InStruggle = {} ---@type boolean[] 
     StruggleText = CreateTextTag() ---@type texttag 
     ColoText = CreateTextTag() ---@type texttag 
     ColoWaveCount = 0 ---@type integer 
 
     DEFAULT_LIGHTING        = "Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx" ---@type string 
 
-    BP_DESELECT=__jarray(false) ---@type boolean[] 
+    BP_DESELECT = {} ---@type boolean[] 
 
     Struggle_SpawnR = {} ---@type rect[]
     Struggle_WaveU = __jarray(0) ---@type integer[]
@@ -394,10 +384,11 @@ OnInit.global("Variables", function(require)
     god_portal      = nil ---@type unit 
     DeadGods         = 4 ---@type integer 
     BANISH_FLAG         = false ---@type boolean 
+    GODS_GROUP = {} ---@type player[]
 
     ACQUIRE_TRIGGER = CreateTrigger()
-    afkTextVisible =__jarray(false) ---@type boolean[] 
-    hardcoreClicked =__jarray(false) ---@type boolean[] 
+    afkTextVisible = {} ---@type boolean[] 
+    hardcoreClicked = {} ---@type boolean[] 
     votingSelectYes = CreateTrigger()
     votingSelectNo = CreateTrigger()
     hardcoreSelectYes = CreateTrigger()
@@ -415,15 +406,11 @@ OnInit.global("Variables", function(require)
     votingButtonFrame2=nil ---@type framehandle 
     votingButtonIconNo=nil ---@type framehandle 
     votingButtonIconYes=nil ---@type framehandle 
-    fh=nil ---@type framehandle 
     menuButton=nil ---@type framehandle 
     chatButton=nil ---@type framehandle 
     questButton=nil ---@type framehandle 
     allyButton=nil ---@type framehandle 
-    imageTest=nil ---@type framehandle 
     clockText=nil ---@type framehandle 
-    platText=nil ---@type framehandle 
-    arcText=nil ---@type framehandle 
     showhidemenu=nil ---@type framehandle 
     upperbuttonBar=nil ---@type framehandle 
     dummyFrame=nil ---@type framehandle 
@@ -436,13 +423,6 @@ OnInit.global("Variables", function(require)
     shieldText=nil ---@type framehandle 
 
     INVENTORYBACKDROP={} ---@type framehandle[] 
-
-    --for async frame changes
-    containerFrame = BlzFrameGetChild(BlzFrameGetChild(BlzFrameGetChild(BlzGetFrameByName("ConsoleUI", 0), 1), 5), 0)
-    MAIN_SELECT_GROUP = CreateGroup()
-    frames={} ---@type framehandle[] 
-    units={} ---@type unit[] 
-    unitsCount         = 0 ---@type integer 
 
     --warrior limit break frames
     LimitBreakBackdrop             = nil  ---@type framehandle 
@@ -496,6 +476,7 @@ OnInit.global("Variables", function(require)
     StatusPoints             = nil  ---@type framehandle 
     TitleStatus             = nil  ---@type framehandle 
 
+    Struggle_Pcount = 0
     Struggle_WaveN = 0
     Struggle_WaveUCN = 0
     Struggle_SpawnR[1] = gg_rct_InfiniteStruggleSpawn1
@@ -1853,11 +1834,6 @@ OnInit.global("Variables", function(require)
         ForceAddPlayer(FORCE_HINT, U.player)
         U = U.next
     end
-
-    PlatConverter = __jarray(false)
-    ArcaConverter = __jarray(false)
-    PlatConverterBought = __jarray(false)
-    ArcaConverterBought = __jarray(false)
 end)
 
 if Debug then Debug.endFile() end

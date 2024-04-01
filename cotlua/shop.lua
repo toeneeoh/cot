@@ -1,11 +1,11 @@
+if Debug then Debug.beginFile 'Shop' end
+
 --[[
     shop.lua
 
     Used in tandem with shopcomponent.lua to define shop UI and any shop related
     functions.
 ]]
-
-if Debug then Debug.beginFile 'Shop' end
 
 OnInit.final("Shop", function(require)
     require 'ShopComponent'
@@ -119,7 +119,7 @@ OnInit.final("Shop", function(require)
         local ERROR_SOUND                    = "Sound\\Interface\\Error.wav" ---@type string 
 
         -- Main storage table
-        local table = array2d(0) ---@type any[][]
+        local table = array2d() ---@type any[][]
 
     --[[ ----------------------------------------------------------------------------------------- ]]
     --[[                                          API                                              ]]
@@ -221,6 +221,7 @@ OnInit.final("Shop", function(require)
     ShopItem = {}
     do
         local thistype = ShopItem
+        local mt = { __index = ShopItem }
         thistype.trigger  = CreateTrigger()
         thistype.player   = Player(bj_PLAYER_NEUTRAL_EXTRA) ---@type player 
         thistype.unit     = {} ---@type table
@@ -309,12 +310,12 @@ OnInit.final("Shop", function(require)
 
         ---@type fun(self: ShopItem, u: unit, id: integer): boolean
         function thistype:hasType(u, id)
-            return ShopItem.unit[GetHandleId(u)][id] > 0
+            return ShopItem.unit[(u)][id] > 0
         end
 
         ---@type fun(self: ShopItem, u: unit, id: integer): integer
         function thistype:countType(u, id)
-            return ShopItem.unit[GetHandleId(u)][id]
+            return ShopItem.unit[(u)][id]
         end
 
         ---@type fun(id: integer, category: integer): ShopItem | 0
@@ -333,7 +334,7 @@ OnInit.final("Shop", function(require)
                 if itm then
                     ---@diagnostic disable-next-line: missing-fields
                     local self = {} ---@type ShopItem
-                    setmetatable(self, { __index = ShopItem })
+                    setmetatable(self, mt)
                     self.id = id
                     self.categories = category
                     self.name = GetItemName(itm.obj)
@@ -363,7 +364,7 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onPickup()
-            local u = GetHandleId(GetManipulatingUnit()) ---@type integer 
+            local u = (GetManipulatingUnit()) ---@type integer 
             local i = GetItemTypeId(GetManipulatedItem()) ---@type integer 
 
             if not ShopItem.unit[u] then
@@ -373,7 +374,7 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onDrop()
-            local u = GetHandleId(GetManipulatingUnit()) ---@type integer 
+            local u = (GetManipulatingUnit()) ---@type integer 
             local i = GetItemTypeId(GetManipulatedItem()) ---@type integer 
 
             if not ShopItem.unit[u] then
@@ -415,6 +416,7 @@ OnInit.final("Shop", function(require)
     Slot = {}
     do
         local thistype = Slot
+        local mt = { __index = Slot }
         thistype.isVisible=nil ---@type boolean 
 
         function thistype:x(newX)
@@ -483,7 +485,7 @@ OnInit.final("Shop", function(require)
         function thistype.create(parent, i, width, height, x, y, point, simpleTooltip)
             local self = {}
 
-            setmetatable(self, { __index = Slot })
+            setmetatable(self, mt)
 
             self.item = i
             self.xPos = x
@@ -548,7 +550,7 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype:destroy()
-            table[GetHandleId(self.button.frame)] = nil
+            table[(self.button.frame)] = nil
 
             self = nil
         end
@@ -575,14 +577,18 @@ OnInit.final("Shop", function(require)
             end
         end
 
-        ---@type fun(S: Shop, i: ShopItem, row: integer, column: integer):ShopSlot
+        local mt = {
+            __index = function(tbl, key)
+                return rawget(Slot, key) or rawget(ShopSlot, key)
+            end
+        }
+
+        ---@type fun(S: Shop, i: ShopItem, row: integer, column: integer): ShopSlot
         function thistype.create(S, i, row, column)
             local self = Slot.create(S.main, i, ITEM_SIZE, ITEM_SIZE, INITIAL_X_OFFSET + ((SLOT_WIDTH + SLOT_GAP_X) * column), - (INITIAL_Y_OFFSET + ((SLOT_HEIGHT + SLOT_GAP_Y) * row)), FRAMEPOINT_TOPLEFT, false) ---@type ShopSlot
 
             --inherit from both Slot and ShopSlot
-            setmetatable(self, { __index = function(tbl, key)
-                return rawget(Slot, key) or rawget(ShopSlot, key)
-            end})
+            setmetatable(self, mt)
 
             self.shop = S
             self.next = nil
@@ -597,7 +603,7 @@ OnInit.final("Shop", function(require)
             self:onScroll(thistype.onScrolled)
             self:onDoubleClick(thistype.onDoubleClicked)
             self:onRightClick(thistype.onRightClicked)
-            table[GetHandleId(self.button.frame)][0] = self
+            table[(self.button.frame)][0] = self
 
             --currencies
             local j = 0
@@ -642,9 +648,9 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onScrolled()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type ShopSlot
+            local self = table[(BlzGetTriggerFrame())][0] ---@type ShopSlot
 
-            if self ~= 0 then
+            if self then
                 BlzFrameSetEnable(BlzGetTriggerFrame(), false)
                 BlzFrameSetEnable(BlzGetTriggerFrame(), true)
 
@@ -657,9 +663,9 @@ OnInit.final("Shop", function(require)
         function thistype.onClicked()
             local p = GetTriggerPlayer() ---@type player 
             local frame = BlzGetTriggerFrame() ---@type framehandle 
-            local self = table[GetHandleId(frame)][0] ---@type ShopSlot
+            local self = table[(frame)][0] ---@type ShopSlot
 
-            if self ~= 0 then
+            if self then
                 BlzFrameSetEnable(frame, false)
                 BlzFrameSetEnable(frame, true)
 
@@ -668,9 +674,9 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onDoubleClicked()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type ShopSlot
+            local self = table[(BlzGetTriggerFrame())][0] ---@type ShopSlot
 
-            if self ~= 0 then
+            if self then
                 if self.shop:buy(self.item, GetTriggerPlayer()) then
                     if GetLocalPlayer() == GetTriggerPlayer() then
                         self.button:play(SPRITE_MODEL, SPRITE_SCALE, 0)
@@ -680,9 +686,9 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onRightClicked()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type ShopSlot
+            local self = table[(BlzGetTriggerFrame())][0] ---@type ShopSlot
 
-            if self ~= 0 then
+            if self then
                 if self.shop:buy(item, GetTriggerPlayer()) then
                     if GetLocalPlayer() == GetTriggerPlayer() then
                         self.button:play(SPRITE_MODEL, SPRITE_SCALE, 0)
@@ -728,6 +734,7 @@ OnInit.final("Shop", function(require)
     Detail = {}
     do
         local thistype = Detail
+        local mt = { __index = Detail }
         thistype.trigger = CreateTrigger()
 
         thistype.isVisible=nil ---@type boolean 
@@ -748,16 +755,16 @@ OnInit.final("Shop", function(require)
             local i         = 0 ---@type integer 
 
             while u do
-                    table[GetHandleId(self.main[u.id - 1].button.frame)] = __jarray(0)
+                    table[(self.main[u.id - 1].button.frame)] = __jarray(0)
                     self.main[u.id - 1]:destroy()
 
                     i = 0
                     while i ~= INVENTORY_COUNT do
-                        table[GetHandleId(components[u.id - 1][i].button.frame)] = __jarray(0)
+                        table[(components[u.id - 1][i].button.frame)] = __jarray(0)
                         self.components[u.id - 1][i]:destroy()
 
                         if i < DETAIL_USED_COUNT then
-                            table[GetHandleId(button[u.id - 1][i].frame)] = __jarray(0)
+                            table[(button[u.id - 1][i].frame)] = __jarray(0)
                             self.button[u.id - 1][i]:destroy()
                         end
 
@@ -1026,13 +1033,13 @@ OnInit.final("Shop", function(require)
             end
         end
 
-        ---@type fun(s: Shop):Detail
+        ---@type fun(s: Shop): Detail
         function thistype.create(s)
             ---@diagnostic disable-next-line: missing-fields
             local self = {} ---@type Detail
             local u = User.first ---@type User 
 
-            setmetatable(self, { __index = thistype })
+            setmetatable(self, mt)
 
             self.shop = s
             self.isVisible = false
@@ -1064,10 +1071,10 @@ OnInit.final("Shop", function(require)
             self.right:icon(USED_RIGHT)
             self.right:onClick(thistype.onClick)
             self.right.tooltip:text("Scroll Right")
-            table[GetHandleId(self.close.frame)][0] = self
-            table[GetHandleId(self.left.frame)][0] = self
-            table[GetHandleId(self.right.frame)][0] = self
-            table[GetHandleId(self.scrollFrame)][0] = self
+            table[(self.close.frame)][0] = self
+            table[(self.left.frame)][0] = self
+            table[(self.right.frame)][0] = self
+            table[(self.scrollFrame)][0] = self
 
             BlzFrameSetPoint(self.frame, FRAMEPOINT_TOPLEFT, self.shop.main, FRAMEPOINT_TOPLEFT, WIDTH - DETAIL_WIDTH, 0.0000)
             BlzFrameSetPoint(self.scrollFrame, FRAMEPOINT_TOPLEFT, self.frame, FRAMEPOINT_TOPLEFT, 0.022500, - 0.28)
@@ -1099,7 +1106,7 @@ OnInit.final("Shop", function(require)
                 self.main[u.id - 1]:onRightClick(thistype.onRightClick)
                 self.main[u.id - 1]:onDoubleClick(thistype.onDoubleClick)
 
-                table[GetHandleId(self.main[u.id - 1].button.frame)][0] = self
+                table[(self.main[u.id - 1].button.frame)][0] = self
 
                 self.components[u.id - 1] = {}
                 for j = 0, INVENTORY_COUNT - 1 do
@@ -1109,7 +1116,7 @@ OnInit.final("Shop", function(require)
                     self.components[u.id - 1][j]:onRightClick(thistype.onRightClick)
                     self.components[u.id - 1][j]:onDoubleClick(thistype.onDoubleClick)
 
-                    table[GetHandleId(self.components[u.id - 1][j].button.frame)][0] = self
+                    table[(self.components[u.id - 1][j].button.frame)][0] = self
                 end
 
                 self.button[u.id - 1] = {}
@@ -1120,8 +1127,8 @@ OnInit.final("Shop", function(require)
                     self.button[u.id - 1][j]:onScroll(thistype.onScroll)
                     self.button[u.id - 1][j]:onRightClick(thistype.onRightClick)
                     self.button[u.id - 1][j].tooltip:point(FRAMEPOINT_BOTTOMRIGHT)
-                    table[GetHandleId(self.button[u.id - 1][j].frame)][0] = self
-                    table[GetHandleId(self.button[u.id - 1][j].frame)][1] = j
+                    table[(self.button[u.id - 1][j].frame)][0] = self
+                    table[(self.button[u.id - 1][j].frame)][1] = j
                 end
 
                 u = u.next
@@ -1133,22 +1140,22 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onScroll()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Detail
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Detail
 
-            if self ~= 0 then
+            if self then
                 self:shift(BlzGetTriggerFrameValue() < 0, GetTriggerPlayer())
             end
         end
 
         function thistype.onClick()
             local frame = BlzGetTriggerFrame() ---@type framehandle 
-            local self = table[GetHandleId(frame)][0] ---@type Detail
-            local i = table[GetHandleId(frame)][1] ---@type integer 
+            local self = table[(frame)][0] ---@type Detail
+            local i = table[(frame)][1] ---@type integer 
             local j = 0 ---@type integer 
             local id = GetPlayerId(GetTriggerPlayer()) ---@type integer 
             local found = false ---@type boolean 
 
-            if self ~= 0 then
+            if self then
                 BlzFrameSetEnable(frame, false)
                 BlzFrameSetEnable(frame, true)
 
@@ -1182,13 +1189,13 @@ OnInit.final("Shop", function(require)
         function thistype.onRightClick()
             local frame             = BlzGetTriggerFrame() ---@type framehandle 
             local p        = GetTriggerPlayer() ---@type player 
-            local self          = table[GetHandleId(frame)][0] ---@type Detail
-            local i         = table[GetHandleId(frame)][1] ---@type integer 
+            local self          = table[(frame)][0] ---@type Detail
+            local i         = table[(frame)][1] ---@type integer 
             local j         = 0 ---@type integer 
             local id         = GetPlayerId(p) ---@type integer 
             local found         = false ---@type boolean 
 
-            if self ~= 0 then
+            if self then
                 if frame == self.main[id].button.frame then
                     if self.shop:buy(self.main[id].item, p) then
                         if GetLocalPlayer() == p then
@@ -1223,13 +1230,13 @@ OnInit.final("Shop", function(require)
         function thistype.onDoubleClick()
             local frame             = BlzGetTriggerFrame() ---@type framehandle 
             local p        = GetTriggerPlayer() ---@type player 
-            local self          = table[GetHandleId(frame)][0] ---@type Detail
-            local i         = table[GetHandleId(frame)][1] ---@type integer 
+            local self          = table[(frame)][0] ---@type Detail
+            local i         = table[(frame)][1] ---@type integer 
             local j         = 0 ---@type integer 
             local id         = GetPlayerId(p) ---@type integer 
             local found         = false ---@type boolean 
 
-            if self ~= 0 then
+            if self then
                 if frame == self.main[id].button.frame then
                     if self.shop:buy(self.main[id].item, p) then
                         if GetLocalPlayer() == p then
@@ -1278,6 +1285,7 @@ OnInit.final("Shop", function(require)
     Inventory = {}
     do
         local thistype = Inventory
+        local mt = { __index = Inventory }
         thistype.isVisible=nil ---@type boolean 
 
         thistype.shop=nil ---@type Shop 
@@ -1303,7 +1311,7 @@ OnInit.final("Shop", function(require)
                     j = 0
 
                     while j ~= INVENTORY_COUNT do
-                            table[GetHandleId(self.button[i][j].frame)] = __jarray(0)
+                            table[(self.button[i][j].frame)] = __jarray(0)
                             self.button[i][j]:destroy()
                         j = j + 1
                     end
@@ -1367,7 +1375,7 @@ OnInit.final("Shop", function(require)
             end
         end
 
-        ---@type fun(shop: Shop, frame: framehandle):Inventory
+        ---@type fun(shop: Shop, frame: framehandle): Inventory
         function thistype.create(shop, frame)
             ---@diagnostic disable-next-line: missing-fields
             local self = {} ---@type Inventory
@@ -1375,7 +1383,7 @@ OnInit.final("Shop", function(require)
             local x      = 0 ---@type integer 
             local y      = 0 ---@type integer 
 
-            setmetatable(self, { __index = thistype })
+            setmetatable(self, mt)
 
             self.item = array2d(0)
             self.shop = shop
@@ -1401,8 +1409,8 @@ OnInit.final("Shop", function(require)
                     self.button[u.id - 1][j]:onDoubleClick(thistype.onDoubleClick)
                     self.button[u.id - 1][j]:onRightClick(thistype.onRightClick)
                     self.button[u.id - 1][j]:visible(false)
-                    table[GetHandleId(self.button[u.id - 1][j].frame)][0] = self
-                    table[GetHandleId(self.button[u.id - 1][j].frame)][1] = j
+                    table[(self.button[u.id - 1][j].frame)][0] = self
+                    table[(self.button[u.id - 1][j].frame)][1] = j
 
                     x = x + 1
 
@@ -1420,11 +1428,11 @@ OnInit.final("Shop", function(require)
 
         function thistype.onClick()
             local frame     = BlzGetTriggerFrame() ---@type framehandle 
-            local self      = table[GetHandleId(frame)][0] ---@type Inventory
-            local i         = table[GetHandleId(frame)][1] ---@type integer 
+            local self      = table[(frame)][0] ---@type Inventory
+            local i         = table[(frame)][1] ---@type integer 
             local id        = GetPlayerId(GetTriggerPlayer()) ---@type integer 
 
-            if self ~= 0 then
+            if self then
                 self.selected[id] = i
 
                 local s = ShopItem.get(Profile[id + 1].hero.items[i].id)
@@ -1460,6 +1468,7 @@ OnInit.final("Shop", function(require)
     Buyer = {}
     do
         local thistype = Buyer
+        local mt = { __index = Buyer }
         thistype.current={} ---@type table
         thistype.trigger         = CreateTrigger()
 
@@ -1502,7 +1511,7 @@ OnInit.final("Shop", function(require)
                     j = 0
 
                     while j ~= BUYER_COUNT do
-                            table[GetHandleId(self.button[i][j].frame)] = nil
+                            table[(self.button[i][j].frame)] = nil
                             self.button[i][j]:destroy()
                         j = j + 1
                     end
@@ -1538,18 +1547,18 @@ OnInit.final("Shop", function(require)
             end
         end
 
-        ---@type fun(shop: Shop):Buyer
+        ---@type fun(shop: Shop): Buyer
         function thistype.create(shop)
             local self = {}
 
-            setmetatable(self, { __index = thistype })
+            setmetatable(self, mt)
 
             self.shop = shop
             self.isVisible = true
             self.frame = BlzCreateFrame("EscMenuBackdrop", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
             self.scrollFrame = BlzCreateFrameByType("BUTTON", "", self.frame, "", 0)
             self.inventory = Inventory.create(self.shop, self.frame)
-            table[GetHandleId(self.scrollFrame)][0] = self
+            table[(self.scrollFrame)][0] = self
 
             BlzFrameSetPoint(self.frame, FRAMEPOINT_TOP, shop.base, FRAMEPOINT_BOTTOM, 0.42, 0.1605)
             BlzFrameSetSize(self.frame, BUYER_WIDTH, BUYER_HEIGHT)
@@ -1559,26 +1568,26 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onScroll()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Buyer
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Buyer
 
-            if self ~= 0 then
+            if self then
                 self:shift(BlzGetTriggerFrameValue() < 0, GetTriggerPlayer())
             end
         end
 
         function thistype.onClick()
             local frame = BlzGetTriggerFrame() ---@type framehandle 
-            local self = table[GetHandleId(frame)][0] ---@type Buyer
-            local i = table[GetHandleId(frame)][1] ---@type integer 
+            local self = table[(frame)][0] ---@type Buyer
+            local i = table[(frame)][1] ---@type integer 
             local id = GetPlayerId(GetTriggerPlayer()) ---@type integer 
 
-            if self ~= 0 then
+            if self then
                 if frame == self.left.frame then
                     self:shift(false, GetTriggerPlayer())
                 elseif frame == self.right.frame then
                     self:shift(true, GetTriggerPlayer())
                 else
-                    self.current[GetHandleId(self.shop.current[id])] = self
+                    self.current[(self.shop.current[id])] = self
                     self.inventory:show(id)
                     self.inventory.selected:remove(id)
 
@@ -1599,7 +1608,7 @@ OnInit.final("Shop", function(require)
         function thistype.onPickup()
             local u = GetManipulatingUnit() ---@type unit 
             local i = GetPlayerId(GetOwningPlayer(u)) ---@type integer 
-            local self = thistype.current[GetHandleId(u)] ---@type Buyer
+            local self = thistype.current[(u)] ---@type Buyer
 
             if self then
                 if self.shop.current[i] then
@@ -1614,7 +1623,7 @@ OnInit.final("Shop", function(require)
         function thistype.onDrop()
             local u = GetManipulatingUnit() ---@type unit 
             local i = GetPlayerId(GetOwningPlayer(u)) ---@type integer 
-            local self = thistype.current[GetHandleId(u)] ---@type Buyer
+            local self = thistype.current[(u)] ---@type Buyer
 
             if self then
                 if self.shop.current[i] then
@@ -1644,10 +1653,11 @@ OnInit.final("Shop", function(require)
     Category = {}
     do
         local thistype = Category
+        local mt = { __index = Category }
 
         function thistype:destroy()
             while not (self.count == -1) do
-                    table[GetHandleId(self.button[self.count].frame)] = __jarray(0)
+                    table[(self.button[self.count].frame)] = __jarray(0)
                     self.button[self.count] = nil
                 self.count = self.count - 1
             end
@@ -1680,8 +1690,8 @@ OnInit.final("Shop", function(require)
                 self.button[self.count]:enabled(false)
                 self.button[self.count]:onClick(thistype.onClick)
                 self.button[self.count].tooltip:text(description)
-                table[GetHandleId(self.button[self.count].frame)][0] = self
-                table[GetHandleId(self.button[self.count].frame)][1] = self.count
+                table[(self.button[self.count].frame)][0] = self
+                table[(self.button[self.count].frame)][1] = self.count
 
                 return self.value[self.count]
             else
@@ -1691,11 +1701,11 @@ OnInit.final("Shop", function(require)
             return 0
         end
 
-        ---@type fun(shop: Shop):Category
+        ---@type fun(shop: Shop): Category
         function thistype.create(shop)
             local self = {}
 
-            setmetatable(self, { __index = thistype })
+            setmetatable(self, mt)
 
             self.count = -1
             self.active = 0
@@ -1709,10 +1719,10 @@ OnInit.final("Shop", function(require)
 
         function thistype.onClick()
             local frame             = BlzGetTriggerFrame() ---@type framehandle 
-            local self          = table[GetHandleId(frame)][0] ---@type Category
-            local i         = table[GetHandleId(frame)][1] ---@type integer 
+            local self          = table[(frame)][0] ---@type Category
+            local i         = table[(frame)][1] ---@type integer 
 
-            if self ~= 0 then
+            if self then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     self.button[i]:enabled(not self.button[i].isEnabled)
 
@@ -1745,7 +1755,6 @@ OnInit.final("Shop", function(require)
     ---@field aoe number
     ---@field create function
     ---@field current unit[]
-    ---@field tag boolean[]
     ---@field detail function
     ---@field buy function
     ---@field category Category
@@ -1778,25 +1787,22 @@ OnInit.final("Shop", function(require)
     Shop = {}
     do
         local thistype = Shop
-        thistype.search       = CreateTrigger()
-        thistype.keyPress     = CreateTrigger()
-        thistype.escPressed   = CreateTrigger()
-        thistype.update       = CreateTimer() ---@type timer 
-        thistype.count        = -1 ---@type integer 
-        thistype.success=nil ---@type sound 
-        thistype.error=nil ---@type sound 
-        thistype.noGold={} ---@type sound[] 
-        thistype.timer={} ---@type timer[] 
-        thistype.canScroll=__jarray(false) ---@type boolean[] 
-        thistype.tag=__jarray(false) ---@type boolean[] 
-        thistype.current={} ---@type unit[] 
-        thistype.isVisible=nil ---@type boolean 
-        thistype.aoe=1000 ---@type number 
-        thistype.stock={} ---@type table 
+        local mt = { __index = Shop }
+        thistype.search     = CreateTrigger()
+        thistype.keyPress   = CreateTrigger()
+        thistype.escPressed = CreateTrigger()
+        thistype.update     = CreateTimer() ---@type timer 
+        thistype.count      = -1 ---@type integer 
+        thistype.success    = nil ---@type sound 
+        thistype.error      = nil ---@type sound 
+        thistype.noGold     = {} ---@type sound[] 
+        thistype.timer      = {} ---@type timer[] 
+        thistype.canScroll  = {} ---@type boolean[] 
+        thistype.current    = {} ---@type unit[] 
+        thistype.isVisible  = nil ---@type boolean 
+        thistype.aoe        = 1000 ---@type number 
 
-        ---@param id integer
-        ---@param itemid integer
-        ---@param num integer
+        ---@type fun(id: integer, itemid: integer, num: integer)
         function thistype.setStock(id, itemid, num)
             local self = table[id][0] ---@type Shop
             local slot = table[self][itemid] ---@type ShopSlot 
@@ -1833,7 +1839,7 @@ OnInit.final("Shop", function(require)
                 slot = slot.next
             end
 
-            shoppool[self] = nil
+            shoppool[self] = {}
             BlzDestroyFrame(self.rightPanel)
             BlzDestroyFrame(self.leftPanel)
             BlzDestroyFrame(self.main)
@@ -1851,8 +1857,6 @@ OnInit.final("Shop", function(require)
             local component = 0 ---@type ShopItem 
             local cost = __jarray(0) ---@type integer[] 
             local j = 0 ---@type integer 
-            local k = 0 ---@type integer 
-            local l = 0 ---@type integer 
             local id = GetPlayerId(p) ---@type integer 
             local canBuy = false ---@type boolean 
             local hasMoney = true ---@type boolean 
@@ -1862,11 +1866,8 @@ OnInit.final("Shop", function(require)
                 if IsBuyable(i.id) then
                     canBuy = true
 
-                    l = 0
-                    while l ~= CURRENCY_COUNT do
-                        cost[l] = ItemPrices[i.id][l]
-
-                        l = l + 1
+                    for c = 0, CURRENCY_COUNT - 1 do
+                        cost[c] = ItemPrices[i.id][c]
                     end
 
                     --determine if buyable and discount main item based off sum of components owned
@@ -1877,11 +1878,8 @@ OnInit.final("Shop", function(require)
 
                                 if PlayerHasItemType(id + 1, component.id) and counter[component.id] < PlayerCountItemType(id + 1, component.id) then
                                     --currency loop
-                                    l = 0
-                                    while l ~= CURRENCY_COUNT do
-                                        cost[l] = cost[l] - ItemPrices[component.id][l]
-
-                                        l = l + 1
+                                    for c = 0, CURRENCY_COUNT - 1 do
+                                        cost[c] = cost[c] - ItemPrices[component.id][c]
                                     end
                                     counter[component.id] = counter[component.id] + 1
                                 else
@@ -1892,15 +1890,11 @@ OnInit.final("Shop", function(require)
                     end
 
                     --currency loop
-                    l = 0
-                    while l ~= CURRENCY_COUNT do
-
-                        if GetCurrency(id + 1, l) < cost[l] then
+                    for c = 0, CURRENCY_COUNT - 1 do
+                        if GetCurrency(id + 1, c) < cost[c] then
                             hasMoney = false
                             break
                         end
-
-                        l = l + 1
                     end
 
                     --special cases
@@ -1917,52 +1911,32 @@ OnInit.final("Shop", function(require)
 
                     if canBuy and hasMoney then
                         --currency loop
-                        l = 0
-                        while l ~= CURRENCY_COUNT do
-
-                            if cost[l] > 0 then
-                                AddCurrency(id + 1, l, - cost[l])
+                        for c = 0, CURRENCY_COUNT - 1 do
+                            if cost[c] > 0 then
+                                AddCurrency(id + 1, c, - cost[c])
                             end
-                            --set t.currency[l] = cost[l]
-
-                            l = l + 1
                         end
 
                         j = 0
-                        l = 0
 
                         --loop for each component - find owned components and either destroy or reduce charges
                         if componentCount > 0 then
                             while not (j == componentCount) do
-                                    k = 0
-                                    while k ~= INVENTORY_COUNT do
-                                        if Profile[id + 1].hero.items[k] then
-                                            if Profile[id + 1].hero.items[k].id == i.component[j] and counter[i.component[j]] > 0 then
-                                                --call t.add(ShopItem.get(Profile[id + 1].hero.items[k].id))
-                                                l = Profile[id + 1].hero.items[k].charges
+                                for k = 0, INVENTORY_COUNT - 1 do
+                                    local itm = Profile[id + 1].hero.items[k]
 
-                                                for _ = 1, IMinBJ(l, counter[i.component[j]]) do
-                                                    Profile[id + 1].hero.items[k]:consumeCharge()
-                                                end
+                                    if itm and itm.id == i.component[j] and counter[i.component[j]] > 0 then
+                                        local count = math.min(itm.charges, counter[i.component[j]])
 
-                                                --
-                                                --if l > 1 then
-                                                --    Profile[id + 1].hero.items[k].charges = Profile[id + 1].hero.items[k].charges - IMinBJ(l, counter[i.component[j]])
-                                                --    if Profile[id + 1].hero.items[k].charges <= 0 then
-                                                --        Profile[id + 1].hero.items[k]:destroy()
-                                                --        Profile[id + 1].hero.items[k] = nil
-                                                --    end
-                                                --else
-                                                --    Profile[id + 1].hero.items[k]:destroy()
-                                                --    Profile[id + 1].hero.items[k] = nil
-                                                --end
-                                                --
-                                                counter[i.component[j]] = counter[i.component[j]] - l
-                                                break
-                                            end
+                                        for _ = 1, count do
+                                            itm:consumeCharge()
                                         end
-                                        k = k + 1
+
+                                        counter[i.component[j]] = counter[i.component[j]] - count
+
+                                        break
                                     end
+                                end
                                 j = j + 1
                             end
                         end
@@ -1985,8 +1959,8 @@ OnInit.final("Shop", function(require)
                         end
                     else
                         if not hasMoney then
-                            if not GetSoundIsPlaying(self.noGold[GetHandleId(GetPlayerRace(p))]) then
-                                StartSoundForPlayerBJ(p, self.noGold[GetHandleId(GetPlayerRace(p))])
+                            if not GetSoundIsPlaying(self.noGold[(GetPlayerRace(p))]) then
+                                StartSoundForPlayerBJ(p, self.noGold[(GetPlayerRace(p))])
                             end
                         else
                             if not GetSoundIsPlaying(self.error) then
@@ -2131,7 +2105,7 @@ OnInit.final("Shop", function(require)
                     self.lastClicked[id]:display(nil, 0, 0, 0, nil, nil, 0, 0)
                 end
 
-                if table[self][i.id] ~= 0 then
+                if table[self][i.id] then
                     self.lastClicked[id] = table[self][i.id].button
                     self.lastClicked[id]:display(ITEM_HIGHLIGHT, HIGHLIGHT_WIDTH, HIGHLIGHT_HEIGHT, HIGHLIGHT_SCALE, FRAMEPOINT_BOTTOMLEFT, FRAMEPOINT_BOTTOMLEFT, HIGHLIGHT_XOFFSET, HIGHLIGHT_YOFFSET)
                 end
@@ -2165,9 +2139,9 @@ OnInit.final("Shop", function(require)
             end
         end
 
-        ---@type fun(self: Shop, id: integer):boolean
+        ---@type fun(self: Shop, id: integer): boolean
         function thistype:has(id)
-            return table[self][id] ~= 0
+            return table[self][id] ~= nil
         end
 
         ---@type fun(source: string, target: string):boolean
@@ -2192,7 +2166,7 @@ OnInit.final("Shop", function(require)
         function thistype.addCategory(id, icon, description)
             local self = table[id][0] ---@type Shop
 
-            if self ~= 0 then
+            if self then
                 return self.category:add(icon, description)
             end
 
@@ -2204,8 +2178,8 @@ OnInit.final("Shop", function(require)
             local self = table[id][0] ---@type Shop
             local slot ---@type ShopSlot 
 
-            if self ~= 0 then
-                if table[self][itemId] == 0 then
+            if self then
+                if not table[self][itemId] then
                     local itm = ShopItem.create(itemId, categories) ---@type ShopItem
 
                     if itm ~= 0 then
@@ -2255,14 +2229,13 @@ OnInit.final("Shop", function(require)
             end
         end
 
-        ---@type fun(id: integer, aoe: number, returnRate: number):Shop
+        ---@type fun(id: integer, aoe: number, returnRate: number): Shop
         function thistype.create(id, aoe, returnRate)
             local self
             local u = User.first ---@type User 
 
-            if table[id][0] == 0 then
-                self = {}
-                setmetatable(self, { __index = thistype })
+            if not table[id][0] then
+                self = setmetatable({}, mt)
                 self.id = id
                 self.aoe = aoe
                 self.first = 0
@@ -2310,21 +2283,22 @@ OnInit.final("Shop", function(require)
                 self.craftableButton.tooltip:text("Showing uncraftable items")
                 self.craftablesort = false
                 self.lastClicked = {}
+                self.stock = {}
                 table[id][0] = self
-                table[GetHandleId(self.main)][0] = self
-                table[GetHandleId(self.sliderFrame)][0] = self
-                table[GetHandleId(self.close.frame)][0] = self
-                table[GetHandleId(self.clearCategory.frame)][0] = self
-                table[GetHandleId(self.logic.frame)][0] = self
-                table[GetHandleId(self.levelreqButton.frame)][0] = self
-                table[GetHandleId(self.craftableButton.frame)][0] = self
-                table[GetHandleId(self.edit)][0] = self
+                table[(self.main)][0] = self
+                table[(self.sliderFrame)][0] = self
+                table[(self.close.frame)][0] = self
+                table[(self.clearCategory.frame)][0] = self
+                table[(self.logic.frame)][0] = self
+                table[(self.levelreqButton.frame)][0] = self
+                table[(self.craftableButton.frame)][0] = self
+                table[(self.edit)][0] = self
 
                 while u do
                         self.timer[u.id - 1] = CreateTimer()
                         self.canScroll[u.id - 1] = true
-                        table[GetHandleId(u.player)][id] = self
-                        table[GetHandleId(u.player)][self.count] = id
+                        table[(u.player)][id] = self
+                        table[(u.player)][self.count] = id
                     u = u.next
                 end
 
@@ -2360,9 +2334,9 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onSlider()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
 
-            if self ~= 0 then
+            if self then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     local newvalue = BlzFrameGetValue(BlzGetTriggerFrame())
                     local diff = self.sliderValue - newvalue
@@ -2378,9 +2352,9 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onScrolled()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
 
-            if self ~= 0 then
+            if self then
                 BlzFrameSetEnable(BlzGetTriggerFrame(), false)
                 BlzFrameSetEnable(BlzGetTriggerFrame(), true)
 
@@ -2402,17 +2376,19 @@ OnInit.final("Shop", function(require)
             local u = User.first ---@type User 
 
             while u do
-                if table[GetUnitTypeId(thistype.current[u.id - 1])][0] ~= 0 then
-                    table[GetUnitTypeId(thistype.current[u.id - 1])][0].buyer:update(u.id - 1)
+                local self = table[GetUnitTypeId(thistype.current[u.id - 1])][0] ---@type Shop
+
+                if self then
+                    self.buyer:update(u.id - 1)
                 end
                 u = u.next
             end
         end
 
         function thistype.onSearch()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
 
-            if self ~= 0 then
+            if self then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     self:filter(self.category.active, self.category.andLogic)
                 end
@@ -2420,9 +2396,9 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onCraftableSort()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
 
-            if self ~= 0 then
+            if self then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     self.craftableButton:enabled(not self.craftableButton.isEnabled)
                     self.craftablesort = not self.craftablesort
@@ -2442,9 +2418,9 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onSortLevel()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
 
-            if self ~= 0 then
+            if self then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     self.levelreqButton:enabled(not self.levelreqButton.isEnabled)
                     self.levelsort = not self.levelsort
@@ -2464,9 +2440,9 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onLogic()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
 
-            if self ~= 0 then
+            if self then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     self.logic:enabled(not self.logic.isEnabled)
                     self.category.andLogic = not self.category.andLogic
@@ -2487,9 +2463,9 @@ OnInit.final("Shop", function(require)
 
         function thistype.onClear()
             local frame = BlzGetTriggerFrame() ---@type framehandle 
-            local self = table[GetHandleId(frame)][0] ---@type Shop
+            local self = table[(frame)][0] ---@type Shop
 
-            if self ~= 0 then
+            if self then
                 if frame == self.clearCategory.frame then
                     if GetLocalPlayer() == GetTriggerPlayer() then
                         self.category:clear()
@@ -2502,11 +2478,11 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onClose()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
             local p        = GetTriggerPlayer() ---@type player 
             local id         = GetPlayerId(p) ---@type integer 
 
-            if self ~= 0 then
+            if self then
                 if GetLocalPlayer() == p then
                     self:visible(false)
                 end
@@ -2516,10 +2492,10 @@ OnInit.final("Shop", function(require)
         end
 
         function thistype.onScroll()
-            local self = table[GetHandleId(BlzGetTriggerFrame())][0] ---@type Shop
+            local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
             local i = GetPlayerId(GetLocalPlayer()) ---@type integer 
 
-            if self ~= 0 then
+            if self then
                 if GetLocalPlayer() == GetTriggerPlayer() then
                     if self.canScroll[i] then
                         if SCROLL_DELAY > 0 then
@@ -2539,7 +2515,7 @@ OnInit.final("Shop", function(require)
         function thistype.onSelect()
             local self = table[GetUnitTypeId(GetTriggerUnit())][0] ---@type Shop
 
-            if self ~= 0 then
+            if self then
                 local p = GetTriggerPlayer() ---@type player 
                 local id = GetPlayerId(p) ---@type integer 
 
@@ -2560,10 +2536,6 @@ OnInit.final("Shop", function(require)
             end
         end
 
-        function thistype.onKey()
-            thistype.tag[GetPlayerId(GetTriggerPlayer())] = BlzGetTriggerPlayerIsKeyDown()
-        end
-
         function thistype.onEsc()
             local p = GetTriggerPlayer() ---@type player 
             local id = GetPlayerId(p) ---@type integer 
@@ -2571,7 +2543,7 @@ OnInit.final("Shop", function(require)
             if table[GetUnitTypeId(thistype.current[id])] then
                 local self = table[GetUnitTypeId(thistype.current[id])][0]; ---@type Shop
 
-                if self ~= 0 then
+                if self then
                     if GetLocalPlayer() == p then
                         self:visible(false)
                     end
@@ -2582,35 +2554,34 @@ OnInit.final("Shop", function(require)
         end
 
         local i         = 0 ---@type integer 
-        local id ---@type integer 
+        local id
 
         thistype.success = CreateSound(SUCCESS_SOUND, false, false, false, 10, 10, "")
         SetSoundDuration(thistype.success, 1600)
         thistype.error = CreateSound(ERROR_SOUND, false, false, false, 10, 10, "")
         SetSoundDuration(thistype.error, 614)
-        id = GetHandleId(RACE_HUMAN)
+        id = (RACE_HUMAN)
         thistype.noGold[id] = CreateSound("Sound\\Interface\\Warning\\Human\\KnightNoGold1.wav", false, false, false, 10, 10, "")
         SetSoundParamsFromLabel(thistype.noGold[id], "NoGoldHuman")
         SetSoundDuration(thistype.noGold[id], 1618)
-        thistype.id = GetHandleId(RACE_ORC)
+        thistype.id = (RACE_ORC)
         thistype.noGold[id] = CreateSound("Sound\\Interface\\Warning\\Orc\\GruntNoGold1.wav", false, false, false, 10, 10, "")
         SetSoundParamsFromLabel(thistype.noGold[id], "NoGoldOrc")
         SetSoundDuration(thistype.noGold[id], 1450)
-        thistype.id = GetHandleId(RACE_NIGHTELF)
+        thistype.id = (RACE_NIGHTELF)
         thistype.noGold[id] = CreateSound("Sound\\Interface\\Warning\\NightElf\\SentinelNoGold1.wav", false, false, false, 10, 10, "")
         SetSoundParamsFromLabel(thistype.noGold[id], "NoGoldNightElf")
         SetSoundDuration(thistype.noGold[id], 1229)
-        thistype.id = GetHandleId(RACE_UNDEAD)
+        thistype.id = (RACE_UNDEAD)
         thistype.noGold[id] = CreateSound("Sound\\Interface\\Warning\\Undead\\NecromancerNoGold1.wav", false, false, false, 10, 10, "")
         SetSoundParamsFromLabel(thistype.noGold[id], "NoGoldUndead")
         SetSoundDuration(thistype.noGold[id], 2005)
-        thistype.id = GetHandleId(ConvertRace(11))
+        thistype.id = (ConvertRace(11))
         thistype.noGold[id] = CreateSound("Sound\\Interface\\Warning\\Naga\\NagaNoGold1.wav", false, false, false, 10, 10, "")
         SetSoundParamsFromLabel(thistype.noGold[id], "NoGoldNaga")
         SetSoundDuration(thistype.noGold[id], 2690)
 
         while i < bj_MAX_PLAYER_SLOTS do
-                thistype.tag[i] = false
                 TriggerRegisterPlayerEventEndCinematic(thistype.escPressed, Player(i))
             i = i + 1
         end
@@ -2618,7 +2589,6 @@ OnInit.final("Shop", function(require)
         TimerStart(thistype.update, UPDATE_PERIOD, true, thistype.onPeriod)
         TriggerAddAction(thistype.trigger, thistype.onScroll)
         TriggerAddCondition(thistype.search, Condition(thistype.onSearch))
-        --call TriggerAddCondition(keyPress, Condition(function thistype.onKey))
         TriggerAddCondition(thistype.escPressed, Condition(thistype.onEsc))
         RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_SELECTED, thistype.onSelect)
         RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DESELECTED, thistype.onSelect)

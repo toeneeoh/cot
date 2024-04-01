@@ -33,8 +33,8 @@ function OnTrainCancel()
     ExperienceControl(pid)
 end
 
-    local cancel         = CreateTrigger() ---@type trigger 
-    local u      = User.first ---@type User 
+    local cancel = CreateTrigger()
+    local u = User.first ---@type User 
 
     while u do
         TriggerRegisterPlayerUnitEvent(cancel, u.player, EVENT_PLAYER_UNIT_TRAIN_CANCEL, nil)

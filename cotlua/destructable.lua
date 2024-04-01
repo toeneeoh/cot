@@ -71,7 +71,7 @@ function DestructableDeath()
     return false
 end
 
-    local t = CreateTrigger() ---@type trigger 
+    local t = CreateTrigger()
 
     AddResourceAmount(gg_unit_ngol_0009, 49500000)
     AddResourceAmount(gg_unit_ngol_0019, 49500000)

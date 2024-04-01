@@ -19,7 +19,7 @@ function StompPeriodic(pt)
         DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(pt.source), GetUnitY(pt.source)))
 
         for target in each(ug) do
-            UnitDamageTarget(pt.source, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, pt.tag)
         end
 
         DestroyGroup(ug)
@@ -45,11 +45,11 @@ end
 
 ---@type fun(target: unit, dur: number)
 function BossTeleport(target, dur)
-    local guy = (ChaosMode and BossTable[BOSS_LEGION].unit) or BossTable[BOSS_DEATH_KNIGHT].unit
-    local msg = (ChaosMode and "Shadow Step") or "Death March"
+    local guy = (CHAOS_MODE and BossTable[BOSS_LEGION].unit) or BossTable[BOSS_DEATH_KNIGHT].unit
+    local msg = (CHAOS_MODE and "Shadow Step") or "Death March"
     local pid = GetPlayerId(GetOwningPlayer(target)) + 1 ---@type integer 
 
-    if ChaosMode then
+    if CHAOS_MODE then
         BlzStartUnitAbilityCooldown(guy, FourCC('A0AV'), 2040. - (User.AmountPlaying * 240))
     else
         BlzStartUnitAbilityCooldown(guy, FourCC('A0AU'), 2040. - (User.AmountPlaying * 240))
@@ -64,19 +64,19 @@ function BossTeleport(target, dur)
         pt.y = GetUnitY(target)
         pt.tag = FourCC('tpin')
         pt.target = guy
-        local dummy = GetDummy(pt.x, pt.y, 0, 0, dur)
-        BlzSetUnitSkin(dummy, GetUnitTypeId(guy))
-        SetUnitVertexColor(dummy, BlzGetUnitIntegerField(dummy, UNIT_IF_TINTING_COLOR_RED), BlzGetUnitIntegerField(dummy, UNIT_IF_TINTING_COLOR_GREEN), BlzGetUnitIntegerField(dummy, UNIT_IF_TINTING_COLOR_BLUE), 0)
-        Fade(dummy, dur, false)
-        BlzSetUnitFacingEx(dummy, 270.)
-        PauseUnit(dummy, true)
+        local dummy = Dummy.create(pt.x, pt.y, 0, 0, dur)
+        BlzSetUnitSkin(dummy.unit, GetUnitTypeId(guy))
+        SetUnitVertexColor(dummy.unit, BlzGetUnitIntegerField(dummy.unit, UNIT_IF_TINTING_COLOR_RED), BlzGetUnitIntegerField(dummy.unit, UNIT_IF_TINTING_COLOR_GREEN), BlzGetUnitIntegerField(dummy.unit, UNIT_IF_TINTING_COLOR_BLUE), 0)
+        Fade(dummy.unit, dur, false)
+        BlzSetUnitFacingEx(dummy.unit, 270.)
+        PauseUnit(dummy.unit, true)
         pt.timer:callDelayed(dur, ShadowStepTeleport, pt)
         if dur >= 4 then
            PlaySound("Sound\\Interface\\CreepAggroWhat1.flac")
-            if ChaosMode then
-                DisplayTimedTextToForce(FORCE_PLAYING, 20., "|cffffcc00Legion:|r There is no escape " + User[pid - 1].nameColored .. "..")
+            if CHAOS_MODE then
+                DisplayTimedTextToForce(FORCE_PLAYING, 20., "|cffffcc00Legion:|r There is no escape " .. User[pid - 1].nameColored .. "..")
             else
-                DisplayTimedTextToForce(FORCE_PLAYING, 20., "|cffffcc00Death Knight:|r Prepare yourself " + User[pid - 1].nameColored .. "!")
+                DisplayTimedTextToForce(FORCE_PLAYING, 20., "|cffffcc00Death Knight:|r Prepare yourself " .. User[pid - 1].nameColored .. "!")
             end
         end
     end
@@ -86,12 +86,12 @@ end
 function ShadowStepExpire()
     local ug  = CreateGroup()
     local g   = CreateGroup()
-    local guy = (ChaosMode and BossTable[BOSS_LEGION].unit) or BossTable[BOSS_DEATH_KNIGHT].unit
+    local guy = (CHAOS_MODE and BossTable[BOSS_LEGION].unit) or BossTable[BOSS_DEATH_KNIGHT].unit
 
     GroupEnumUnitsInRect(ug, MAIN_MAP.rect, Condition(ischar))
     GroupEnumUnitsInRect(g, gg_rct_NoSin, Condition(ischar))
 
-    for i = 1, #BossTable do
+    for i = BOSS_OFFSET, #BossTable do
         GroupEnumUnitsInRangeEx(BOSS_ID, g, GetLocationX(BossTable[i].loc), GetLocationY(BossTable[i].loc), 2000., Condition(ischar))
     end
 
@@ -131,7 +131,7 @@ function DeathStrike(pt)
     MakeGroupInRange(BOSS_ID, ug, pt.x, pt.y, 180., Condition(FilterEnemy))
 
     for target in each(ug) do
-        UnitDamageTarget(BossTable[BOSS_DEATH_KNIGHT].unit, target, 15000., true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+        DamageTarget(BossTable[BOSS_DEATH_KNIGHT].unit, target, 15000., ATTACK_TYPE_NORMAL, MAGIC, DEATHSTRIKE.tag)
     end
 
     DestroyGroup(ug)
@@ -150,7 +150,7 @@ function FrostNova()
 
         for target in each(ug) do
             Freeze:add(BossTable[BOSS_ARKADEN].unit, target):duration(3.)
-            UnitDamageTarget(BossTable[BOSS_ARKADEN].unit, target, 15000., true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(BossTable[BOSS_ARKADEN].unit, target, 15000., ATTACK_TYPE_NORMAL, MAGIC, "Frost Nova")
         end
 
         DestroyGroup(ug)
@@ -168,7 +168,7 @@ function SunStrike(pt)
     DestroyEffect(AddSpecialEffect("war3mapImported\\OrbitalRay.mdx", pt.x, pt.y))
 
     for target in each(ug) do
-        UnitDamageTarget(BossTable[BOSS_LIFE].unit, target, 25000., true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+        DamageTarget(BossTable[BOSS_LIFE].unit, target, 25000., ATTACK_TYPE_NORMAL, MAGIC, "Sun Strike")
     end
 
     pt:destroy()
@@ -184,7 +184,7 @@ function HolyWard(holyward)
         KillUnit(holyward)
 
         for target in each(ug) do
-            HP(target, 100000)
+            HP(holyward, target, 100000)
             HolyBlessing:add(target, target):duration(30.)
             TimerQueue:callDelayed(2, DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", target, "origin"))
         end
@@ -200,7 +200,9 @@ function GhostShroud(pt)
         MakeGroupInRange(BOSS_ID, ug, GetUnitX(BossTable[BOSS_KNOWLEDGE].unit), GetUnitY(BossTable[BOSS_KNOWLEDGE].unit), 500., Condition(FilterEnemy))
 
         for target in each(ug) do
-            UnitDamageTarget(BossTable[BOSS_KNOWLEDGE].unit, target, math.max(0, GetHeroInt(BossTable[BOSS_KNOWLEDGE].unit, true) - GetHeroInt(target, true)), true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            local dmg = math.max(0, GetHeroInt(BossTable[BOSS_KNOWLEDGE].unit, true) - GetHeroInt(target, true))
+
+            DamageTarget(BossTable[BOSS_KNOWLEDGE].unit, target, dmg, ATTACK_TYPE_NORMAL, MAGIC, "Ghost Shroud")
         end
 
         DestroyGroup(ug)
@@ -214,7 +216,7 @@ end
 function ZeppelinKill()
     local ug = CreateGroup()
 
-    for index = 1, #BossTable do
+    for index = BOSS_OFFSET, #BossTable do
         if UnitAlive(BossTable[index].unit) and IsUnitInRangeLoc(BossTable[index].unit, BossTable[index].loc, 1500.) then
             GroupEnumUnitsInRange(ug, GetUnitX(BossTable[index].unit), GetUnitY(BossTable[index].unit), 900., Condition(iszeppelin))
 
@@ -253,7 +255,7 @@ function TrueStealth(pt)
         local target = BlzGroupUnitAt(ug, GetRandomInt(0, count - 1))
         local heal = GetWidgetLife(target)
         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", target, "origin"))
-        UnitDamageTarget(BossTable[BOSS_ABSOLUTE_HORROR].unit, target, 80000. + BlzGetUnitMaxHP(target) * 0.3, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+        DamageTarget(BossTable[BOSS_ABSOLUTE_HORROR].unit, target, 80000. + BlzGetUnitMaxHP(target) * 0.3, ATTACK_TYPE_NORMAL, MAGIC, "True Stealth")
         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAuraTarget.mdl", BossTable[BOSS_ABSOLUTE_HORROR].unit, "chest"))
         heal = math.max(0, heal - GetWidgetLife(target))
         SetUnitState(BossTable[BOSS_ABSOLUTE_HORROR].unit, UNIT_STATE_LIFE, GetWidgetLife(BossTable[BOSS_ABSOLUTE_HORROR].unit) + heal)
@@ -292,7 +294,7 @@ function CloudOfDespair(pt)
         MakeGroupInRange(BOSS_ID, ug, pt.x, pt.y, 300., Condition(FilterEnemy))
 
         for target in each(ug) do
-            UnitDamageTarget(BossTable[BOSS_ORSTED].unit, target, BlzGetUnitMaxHP(target) * 0.05, true, false, ATTACK_TYPE_NORMAL, PURE, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(BossTable[BOSS_ORSTED].unit, target, BlzGetUnitMaxHP(target) * 0.05, ATTACK_TYPE_NORMAL, PURE, "Cloud of Despair")
         end
 
         DestroyGroup(ug)
@@ -336,10 +338,10 @@ function DarkSoulAbility(pt)
             DestroyGroup(ug)
         --mortify
         elseif pt.spell == 1 then
-            BossPlusSpell(pt.source, 1000000, 1, "Abilities\\Spells\\Undead\\AnimateDead\\AnimateDeadTarget.mdl")
+            BossPlusSpell(pt.source, 1000000, 1, "Abilities\\Spells\\Undead\\AnimateDead\\AnimateDeadTarget.mdl", "Mortify")
         --terrify
         elseif pt.spell == 2 then
-            BossXSpell(pt.source, 1000000,1, "Abilities\\Spells\\Undead\\AnimateDead\\AnimateDeadTarget.mdl")
+            BossXSpell(pt.source, 1000000,1, "Abilities\\Spells\\Undead\\AnimateDead\\AnimateDeadTarget.mdl", "Terrify")
         end
     end
 
@@ -354,10 +356,10 @@ end
 
 ---@type fun(x: number, y: number)
 function SatanFlameStrike(x, y)
-    local dummy = GetDummy(GetUnitX(BossTable[BOSS_SATAN].unit), GetUnitY(BossTable[BOSS_SATAN].unit), FourCC('A0DN'), 1, DUMMY_RECYCLE_TIME)  ---@type unit 
+    local dummy = Dummy.create(GetUnitX(BossTable[BOSS_SATAN].unit), GetUnitY(BossTable[BOSS_SATAN].unit), FourCC('A0DN'), 1)
 
-    SetUnitOwner(dummy, pboss, false)
-    IssuePointOrder(dummy, "flamestrike", x, y)
+    SetUnitOwner(dummy.unit, pboss, false)
+    IssuePointOrder(dummy.unit, "flamestrike", x, y)
 end
 
 --Thanatos
@@ -375,12 +377,12 @@ function ThanatosAbility(pt)
 
             for target in each(ug) do
                 DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Coup de Grace.mdx", target, "chest"))
-                UnitDamageTarget(pt.source, target, 1500000, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                DamageTarget(pt.source, target, 1500000, ATTACK_TYPE_NORMAL, MAGIC, "Swift Hunt")
             end
 
             DestroyGroup(ug)
         elseif pt.spell == 2 then
-            BossBlastTaper(pt.source, 1000000, FourCC('A0A4'), 750)
+            BossBlastTaper(pt.source, 1000000, FourCC('A0A4'), 750, "Death Beckons")
         end
     end
 
@@ -395,21 +397,21 @@ function ExistenceAbility(pt)
 
     if pt.dur == 3 then
         if pt.spell == 3 then
-            BossInnerRing(pt.source, 1000000, 2, 400, "Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl")
+            BossInnerRing(pt.source, 1000000, 2, 400, "Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", "Implosion")
         elseif pt.spell == 4 then
-            BossOuterRing(pt.source, 500000, 2, 400, 900, "war3mapImported\\NeutralExplosion.mdx")
+            BossOuterRing(pt.source, 500000, 2, 400, 900, "war3mapImported\\NeutralExplosion.mdx", "Explosion")
         end
     elseif pt.dur == 2 then
         if pt.spell == 1 then
-            BossXSpell(pt.source, 500000, 2, "Abilities\\Spells\\Undead\\ReplenishMana\\ReplenishManaCasterOverhead.mdl")
+            BossXSpell(pt.source, 500000, 2, "Abilities\\Spells\\Undead\\ReplenishMana\\ReplenishManaCasterOverhead.mdl", "Extermination")
         end
     elseif pt.dur == 1 then
         if pt.spell == 2 then
-            BossBlastTaper(pt.source, 1500000, FourCC('A0AB'), 800)
+            BossBlastTaper(pt.source, 1500000, FourCC('A0AB'), 800, "Devastation")
         end
     elseif pt.dur == 0 then
         if pt.spell == 1 then
-            BossPlusSpell(pt.source, 500000, 2, "Abilities\\Spells\\Undead\\ReplenishMana\\ReplenishManaCasterOverhead.mdl")
+            BossPlusSpell(pt.source, 500000, 2, "Abilities\\Spells\\Undead\\ReplenishMana\\ReplenishManaCasterOverhead.mdl", "Extermination")
         end
     end
 
@@ -425,7 +427,7 @@ end
 function SpawnLegionIllusions()
     if UnitAlive(BossTable[BOSS_LEGION].unit) then
         for _ = 0, 6 do
-            Item.create(UnitAddItemById(BossTable[BOSS_LEGION].unit, FourCC('I06V')))
+            UnitAddItemById(BossTable[BOSS_LEGION].unit, FourCC('I06V'))
         end
     end
 end
@@ -514,14 +516,14 @@ function FireballProjectile(pt)
         local target = FirstOfGroup(ug)
 
         if target then
-            UnitDamageTarget(BossTable[BOSS_XALLARATH].unit, target, pt.dmg, true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+            DamageTarget(BossTable[BOSS_XALLARATH].unit, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, "Fireball")
 
             pt.dur = 0.
         end
 
         DestroyGroup(ug)
 
-        pt2.timer:callDelayed(FPS_32, FireballProjectile, pt2)
+        pt.timer:callDelayed(FPS_32, FireballProjectile, pt)
     else
         SetUnitAnimation(pt.source, "death")
         pt:destroy()
@@ -545,7 +547,7 @@ function Fireball(pt)
             local pt2 = TimerList[BOSS_ID]:add()
             pt2.target = BlzGroupUnitAt(ug, GetRandomInt(0, size - 1))
             pt2.angle = Atan2(GetUnitY(pt2.target) - y, GetUnitX(pt2.target) - x)
-            pt2.source = GetDummy(x, y, 0, 0, 21.)
+            pt2.source = Dummy.create(x, y, 0, 0, 21.).unit
             pt2.x = GetUnitX(pt2.target)
             pt2.y = GetUnitY(pt2.target)
             pt2.speed = 7.
@@ -611,7 +613,7 @@ function FocusFire(pt)
                 end
 
                 if pt.time >= 5 then
-                    UnitDamageTarget(pt.target, pt.source, 0.001, true, false, ATTACK_TYPE_NORMAL, PHYSICAL, WEAPON_TYPE_WHOKNOWS)
+                    DamageTarget(pt.target, pt.source, 0.001, ATTACK_TYPE_NORMAL, PHYSICAL, "Focus Fire")
                     IssueTargetOrder(pt.source, "attack", pt.target)
                     UnitSetBonus(pt.source, BONUS_ATTACK_SPEED, 8.)
                     BlzSetUnitFacingEx(pt.source, bj_RADTODEG * Atan2(GetUnitY(pt.target) - y, GetUnitX(pt.target) - x))
@@ -636,7 +638,7 @@ function UnstoppableForceMovement(pt)
         for target in each(ug) do
             if IsUnitInGroup(target, pt.ug) == false then
                 GroupAddUnit(pt.ug, target)
-                UnitDamageTarget(BossTable[BOSS_XALLARATH].unit, target, 50000000., true, false, ATTACK_TYPE_NORMAL, MAGIC, WEAPON_TYPE_WHOKNOWS)
+                DamageTarget(BossTable[BOSS_XALLARATH].unit, target, 50000000., ATTACK_TYPE_NORMAL, MAGIC, "Unstoppable Force")
             end
         end
 
@@ -720,7 +722,7 @@ function BossSpellCasting(source, target)
 
     --prechaos bosses
     --hellfire magi
-    if not ChaosMode then
+    if not CHAOS_MODE then
         if target == BossTable[BOSS_HELLFIRE].unit and UnitAlive(BossTable[BOSS_HELLFIRE].unit) then
             --frost armor
             if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A02M')) <= 0 then
@@ -754,13 +756,14 @@ function BossSpellCasting(source, target)
                 IssuePointOrder(BossTable[BOSS_TAUREN].unit, "carrionswarm", GetUnitX(source), GetUnitY(source))
             --war stomp
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A09J')) <= 0 and UnitDistance(source, target) < 300. then
-                FloatingTextUnit("War Stomp", BossTable[BOSS_TAUREN].unit, 2., 60., 0, 12, 255, 255, 255, 0, true)
                 SpellCast(target, FourCC('A09J'), 1., 4, 1.)
                 pt = TimerList[BOSS_ID]:add()
                 pt.dmg = 4000.
                 pt.source = target
                 pt.dur = 8.
+                pt.tag = "War Stomp"
                 pt.timer:callDelayed(1., StompPeriodic, pt)
+                FloatingTextUnit(pt.tag, BossTable[BOSS_TAUREN].unit, 2., 60., 0, 12, 255, 255, 255, 0, true)
             end
 
         --mystic
@@ -787,13 +790,14 @@ function BossSpellCasting(source, target)
                     IssueImmediateOrder(BossTable[BOSS_DWARF].unit, "avatar")
                 --thunder clap
                 elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A0A2')) <= 0 then
-                    FloatingTextUnit("Thunder Clap", BossTable[BOSS_DWARF].unit, 2., 60., 0, 12, 0, 255, 255, 0, true)
                     SpellCast(target, FourCC('A0A2'), 1., 4, 1.)
                     pt = TimerList[BOSS_ID]:add()
                     pt.dmg = 8000.
                     pt.source = target
                     pt.dur = 8.
+                    pt.tag = "Thunder Clap"
                     pt.timer:callDelayed(1., StompPeriodic, pt)
+                    FloatingTextUnit(pt.tag, BossTable[BOSS_DWARF].unit, 2., 60., 0, 12, 0, 255, 255, 0, true)
                 end
             end
 
@@ -813,10 +817,10 @@ function BossSpellCasting(source, target)
                     pt = TimerList[BOSS_ID]:add()
                     pt.x = GetUnitX(u)
                     pt.y = GetUnitY(u)
-                    pt.source = GetDummy(pt.x, pt.y, 0, 0, DUMMY_RECYCLE_TIME)
+                    pt.source = Dummy.create(pt.x, pt.y, 0, 0).unit
                     SetUnitScale(pt.source, 4., 4., 4.)
                     BlzSetUnitSkin(pt.source, FourCC('e01F'))
-                    pt.timer:callDelayed(3., DeathStrike)
+                    pt.timer:callDelayed(3., DeathStrike, pt)
                     count = count + 1
                 end
             end
@@ -826,7 +830,7 @@ function BossSpellCasting(source, target)
             IssueTargetOrder(target, "holybolt", target)
 
         --arkaden
-        elseif target == BossTable[BOSS_ARKADEN].unit and UnitAlive(BossTable[BOSS_ARKADEN].unit) then
+        elseif GetType(target) == BossTable[BOSS_ARKADEN].id and UnitAlive(BossTable[BOSS_ARKADEN].unit) then
             --meta
             if GetWidgetLife(target) < BlzGetUnitMaxHP(target) * 0.5 then
                 IssueImmediateOrder(target, "metamorphosis")
@@ -878,7 +882,7 @@ function BossSpellCasting(source, target)
                 --ghost shroud
                 if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A0A8')) <= 0 then
                     SpellCast(target, FourCC('A0A8'), 0.25, 8, 1.5)
-                    DummyCastTarget(pboss, target, FourCC('A08I'), 1, GetUnitX(target), GetUnitY(target), "banish")
+                    Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A0A8'), 1):cast(pboss, "banish", target)
                     pt = TimerList[BOSS_ID]:add()
                     pt.timer:callPeriodically(1., nil, GhostShroud, pt)
                 --silence
@@ -909,7 +913,7 @@ function BossSpellCasting(source, target)
 
             for u in each(ug) do
                 if count >= 3 then break end
-                local dummy = GetDummy(GetUnitX(u), GetUnitY(u), 0, 0, 3.)
+                local dummy = Dummy.create(GetUnitX(u), GetUnitY(u), 0, 0, 3.).unit
                 SetUnitScale(dummy, 4., 4., 4.)
                 BlzSetUnitFacingEx(dummy, 270)
                 BlzSetUnitSkin(dummy, FourCC('e01F'))
@@ -931,7 +935,7 @@ function BossSpellCasting(source, target)
             if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A0AX')) <= 0 then
                 BlzStartUnitAbilityCooldown(target, FourCC('A0AX'), 60.)
                 DemonPrinceBloodlust:add(target, target):duration(60.)
-                DummyCastTarget(Player(PLAYER_BOSS), target, FourCC('A041'), 1, GetUnitX(target), GetUnitY(target), "bloodlust")
+                Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A041'), 1):cast(pboss, "bloodlust", target)
             end
 
         --Absolute Horror
@@ -981,8 +985,8 @@ function BossSpellCasting(source, target)
 
         --Slaughter
         elseif target == BossTable[BOSS_SLAUGHTER_QUEEN].unit and UnitAlive(target) then
-            SetUnitAbilityLevel(BossTable[BOSS_SLAUGHTER_QUEEN].unit, FourCC('A064'), HARDMODE + 1)
-            SetUnitAbilityLevel(BossTable[BOSS_SLAUGHTER_QUEEN].unit, FourCC('A040'), HARDMODE + 1)
+            SetUnitAbilityLevel(BossTable[BOSS_SLAUGHTER_QUEEN].unit, FourCC('A064'), HARD_MODE + 1)
+            SetUnitAbilityLevel(BossTable[BOSS_SLAUGHTER_QUEEN].unit, FourCC('A040'), HARD_MODE + 1)
 
             if GetRandomInt(0, 99) < 13 and BlzGetUnitAbilityCooldownRemaining(BossTable[BOSS_SLAUGHTER_QUEEN].unit, FourCC('A040')) <= 0 then
                 SpellCast(target, FourCC('A040'), 0., -1, 1.)
@@ -1030,7 +1034,7 @@ function BossSpellCasting(source, target)
                 BossTeleport(source, 1.5)
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A08C')) <= 0 and TimerList[BOSS_ID]:has(FourCC('tpin')) == false and UnitDistance(source, target) < 800 then
                 SpellCast(target, FourCC('A08C'), 0.5, 12, 1.)
-                TimerQueue:callDelayed(2, DestroyEffect, AddSpecialEffect("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageCaster.mdl", BossTable[BOSS_LEGION].unit, BossTable[BOSS_LEGION].unit))
+                TimerQueue:callDelayed(2, DestroyEffect, AddSpecialEffect("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageCaster.mdl", GetUnitX(BossTable[BOSS_LEGION].unit), GetUnitY(BossTable[BOSS_LEGION].unit)))
                 RemoveLocation(BossTable[BOSS_LEGION].loc)
                 BossTable[BOSS_LEGION].loc = Location(GetUnitX(source), GetUnitY(source))
                 TimerQueue:callDelayed(0.5, SpawnLegionIllusions)
@@ -1109,7 +1113,7 @@ function BossSpellCasting(source, target)
                     SpellCast(target, FourCC('A01J'), 2.5, 1, 1.)
                     FloatingTextUnit("Unstoppable Force", target, 1.75, 100, 0, 12, 255, 0, 0, 0, true)
                     local u = BlzGroupUnitAt(ug, GetRandomInt(0, BlzGroupGetSize(ug) - 1))
-                    local dummy = GetDummy(GetUnitX(u), GetUnitY(u), 0, 0, 4.)
+                    local dummy = Dummy.create(GetUnitX(u), GetUnitY(u), 0, 0, 4.).unit
                     SetUnitScale(dummy, 10., 10., 10.)
                     BlzSetUnitFacingEx(dummy, 270.)
                     BlzSetUnitSkin(dummy, FourCC('e01F'))
@@ -1144,7 +1148,8 @@ function BossSpellCasting(source, target)
                 pt.dur = MathClamp(GetWidgetLife(target) // BlzGetUnitMaxHP(target), 0.35, 0.75)
                 pt.angle = GetUnitFacing(BossTable[BOSS_AZAZOTH].unit)
                 pt.source = target
-                FloatingTextUnit("Astral Devastation", pt.source, 3, 70, 0, 12, 255, 255, 255, 0, true)
+                pt.tag = "Astral Devastation"
+                FloatingTextUnit(pt.tag, pt.source, 3, 70, 0, 12, 255, 255, 255, 0, true)
                 pt.timer:callDelayed(pt.dur, AstralDevastation, pt)
                 SpellCast(target, FourCC('A01B'), pt.dur * 4, 4, 1.)
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A00K')) <= 0 then
@@ -1154,7 +1159,8 @@ function BossSpellCasting(source, target)
                 pt.dur = MathClamp(GetWidgetLife(target) // BlzGetUnitMaxHP(target), 0.35, 0.75)
                 pt.dmg = 2000000.
                 pt.source = target
-                FloatingTextUnit("Astral Annihilation", pt.source, 3, 70, 0, 12, 255, 255, 255, 0, true)
+                pt.tag = "Astral Annihilation"
+                FloatingTextUnit(pt.tag, pt.source, 3, 70, 0, 12, 255, 255, 255, 0, true)
                 pt.timer:callDelayed(pt.dur, AstralAnnihilation, pt)
                 SpellCast(target, FourCC('A00K'), pt.dur * 4, 4, 1.)
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A01C')) <= 0 then
@@ -1168,7 +1174,7 @@ function BossSpellCasting(source, target)
     DestroyGroup(ug)
 end
 
-    local t = CreateTrigger() ---@type trigger 
+    local t = CreateTrigger()
 
     TriggerRegisterPlayerUnitEvent(t, pboss, EVENT_PLAYER_UNIT_SUMMON, nil)
     TriggerAddCondition(t, Filter(PositionLegionIllusions))

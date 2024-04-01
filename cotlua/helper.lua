@@ -1,54 +1,83 @@
+if Debug then Debug.beginFile "Helper" end
+
 --[[
     helper.lua
 
     A general purpose module with a myriad of useful helper functions and structs used across files.
 ]]
 
-if Debug then Debug.beginFile "Helper" end
+do
+    --iterator for groups with counter
+    ---@param ug group
+    ---@return fun(): integer?, unit?
+    function ieach(ug)
+        local index = -1
+        local length = BlzGroupGetSize(ug)
 
---iterator for groups with counter
----@param ug group
----@return fun(): integer?, unit?
-function ieach(ug)
-    local index = -1
-    local length = BlzGroupGetSize(ug)
-
-    return function()
-        index = index + 1
-        if index < length then
-            return index, BlzGroupUnitAt(ug, index)
+        return function()
+            index = index + 1
+            if index < length then
+                return index, BlzGroupUnitAt(ug, index)
+            end
         end
     end
-end
 
---iterator for groups
----@param ug group
----@return fun(): unit?
-function each(ug)
-    local index = -1
-    local length = BlzGroupGetSize(ug)
+    --iterator for groups
+    ---@param ug group
+    ---@return fun(): unit?
+    function each(ug)
+        local index = -1
+        local length = BlzGroupGetSize(ug)
 
-    return function()
-        index = index + 1
-        if index < length then
-            return BlzGroupUnitAt(ug, index)
+        return function()
+            index = index + 1
+            if index < length then
+                return BlzGroupUnitAt(ug, index)
+            end
         end
     end
-end
 
---returns a 2d array with default value val or nil if empty
----@type fun(val: any): table
-function array2d(val)
-    local self = {}
+    --credits: Bribe
+    local mts = {}
+    local weakKeys = {__mode="k"} --ensures tables with non-nilled objects as keys will be garbage collected.
 
-    setmetatable(self, { __index = function(tbl, key)
-        local new = (val == nil and {}) or __jarray(val)
+    ---Re-define __jarray.
+    ---@param default? any
+    ---@param tab? table
+    ---@return table
+    __jarray = function(default, tab)
+        local mt
+        if default then
+            mts[default]=mts[default] or {
+                __index=function()
+                    return default
+                end,
+                __mode="k"
+            }
+            mt=mts[default]
+        else
+            mt=weakKeys
+        end
+        return setmetatable(tab or {}, mt)
+    end
 
-        rawset(tbl, key, new)
-        return new
-    end})
+    local nested_mts = {}
 
-    return self
+    --returns a 2d array with a default value
+    ---@type fun(val: any): table
+    function array2d(val)
+        local key = val or "___"
+
+        nested_mts[key] = nested_mts[key] or {
+            __index = function(t, k)
+                local new = (val and __jarray(val)) or {}
+
+                rawset(t, k, new)
+                return new
+            end}
+
+        return setmetatable({}, nested_mts[key])
+    end
 end
 
 OnInit.global("Helper", function(require)
@@ -70,6 +99,7 @@ OnInit.global("Helper", function(require)
     CircularArrayList = {}
     do
         local thistype = CircularArrayList
+        local mt = { __index = thistype }
         thistype.count = 0
         thistype.START = 0
         thistype.END   = 0
@@ -93,7 +123,7 @@ OnInit.global("Helper", function(require)
             self = nil
         end
 
-        ---@type fun(size: integer):CircularArrayList
+        ---@type fun(size: integer): CircularArrayList
         function thistype.create(size)
             local self = {
                 data = {},
@@ -103,7 +133,7 @@ OnInit.global("Helper", function(require)
                 self.MAXSIZE = size
             end
 
-            setmetatable(self, { __index = CircularArrayList })
+            setmetatable(self, mt)
 
             return self
         end
@@ -226,18 +256,6 @@ function DamageTarget(source, target, dmg, attack_type, damage_type, tag)
     UnitDamageTarget(source, target, dmg, true, false, attack_type, damage_type, WEAPON_TYPE_WHOKNOWS)
 end
 
----@param u unit
----@return integer
-function GetUnitOrderValue(u)
-    --heroes use the handleId
-    if IsUnitType(u, UNIT_TYPE_HERO) then
-        return GetHandleId(u)
-    else
-    --units use unitCode
-        return GetUnitTypeId(u)
-    end
-end
-
 ---@type fun():boolean
 function onPlayerLeave()
     local p   = GetTriggerPlayer()
@@ -246,86 +264,74 @@ function onPlayerLeave()
     -- clean up
     DisplayTextToForce(FORCE_PLAYING, (User[p].nameColored .. " has left the game"))
 
-    PlayerCleanup(pid)
+    if Profile[pid] then
+        PlayerCleanup(pid)
+        Profile[pid]:destroy()
+    end
 
     return false
 end
 
---[[Taysen's GetMainSelectedUnitEx module]]
-do
-    ---@return boolean
-    local function FilterFunction()
-        local u     = GetFilterUnit() ---@type unit 
-        local prio  = BlzGetUnitRealField(u, UNIT_RF_PRIORITY) ---@type number 
-        local found = false ---@type boolean 
+--[[Tasyen/Bribes's GetMainSelectedUnit]]
+function GetMainSelectedUnit(...)
+    --initialize on the first call...        group frame:      bottom UI:               console:
+    local containerFrame = BlzFrameGetChild(BlzFrameGetChild(BlzFrameGetChild(BlzGetFrameByName("ConsoleUI", 0), 1), 5), 0)
 
-        for i = 1, unitsCount do
-            if BlzGetUnitRealField(units[i], UNIT_RF_PRIORITY) < prio then
-                unitsCount = unitsCount + 1
-                for j = unitsCount, i + 1, -1 do
-                    units[j] = units[j - 1]
-                end
-                units[i] = u
-                found = true
-                break
-            --equal prio and better colisions value
-            elseif BlzGetUnitRealField(units[i], UNIT_RF_PRIORITY) == prio and GetUnitOrderValue(units[i]) > GetUnitOrderValue(u) then
-                unitsCount = unitsCount + 1
-                for j = unitsCount, i + 1, -1 do
-                    units[j] = units[j - 1]
-                end
-                units[i] = u
-                found = true
+    local function getUnitSortValue(unit)
+                --heroes use handleId                                    units use type ID
+        return IsUnitType(unit, UNIT_TYPE_HERO) and GetHandleId(unit) or GetUnitTypeId(unit)
+    end
+    local units
+    local function getUnitAt(index)
+        return units[index + 1]
+    end
+    local filter        = Filter(function()
+        local unit      = GetFilterUnit()
+        local prio      = BlzGetUnitRealField(unit, UNIT_RF_PRIORITY)
+        local pos       = #units + 1
+        -- compare the current unit with already found, to place it in the right slot
+        for i = 1, pos - 1 do
+            local value = units[i]
+            -- higher prio than this; take it's slot                    equal prio and better colisions Value
+            if BlzGetUnitRealField(value, UNIT_RF_PRIORITY) < prio or (BlzGetUnitRealField(value, UNIT_RF_PRIORITY) == prio and getUnitSortValue(value) > getUnitSortValue(unit)) then
+                pos = i
                 break
             end
         end
-
-        -- not found add it at the end
-        if not found then
-            unitsCount = unitsCount + 1
-            units[unitsCount] = u
-        end
-
-        return false
+        table.insert(units, pos, unit)
+    end)
+    -- give each frame a unique ID
+    local frames = {}
+    for int = 0, BlzFrameGetChildrenCount(containerFrame) - 1 do
+        local buttonContainer = BlzFrameGetChild(containerFrame, int)
+        frames[int + 1] = BlzFrameGetChild(buttonContainer, 0)
     end
-
-    ---@return integer
-    local function GetSelectedUnitIndex()
-        -- local player is in group selection?
-        if BlzFrameIsVisible(containerFrame) then
-            -- find the first visible yellow Background Frame
-            for i = 0, 11 do
-                if BlzFrameIsVisible(frames[i]) then
-                    return i
+    ---@param atIndex? integer
+    ---@param async? boolean --if no atIndex is specified but this is true, returns the local current main selected unit's index. Beware: using it in a sync gamestate relevant manner breaks the game.
+    function GetMainSelectedUnit(atIndex, async) --re-declare itself once it was called the first time.
+        if async and not atIndex then
+            -- local player is in group selection?
+            if BlzFrameIsVisible(containerFrame) then
+                -- find the first visible yellow Background Frame
+                for i,frame in ipairs(frames) do
+                    if BlzFrameIsVisible(frame) then
+                        atIndex = i - 1
+                        break
+                    end
                 end
             end
         end
-        return -1
-    end
-
-    ---@param index integer
-    ---@return unit
-    local function GetMainSelectedUnit(index)
-        if index >= 0 then
-            GroupEnumUnitsSelected(MAIN_SELECT_GROUP, GetLocalPlayer(), Filter(FilterFunction))
-            local u = units[index + 1]
-            --clear table
-            while unitsCount > 0 do
-                units[unitsCount] = nil
-                unitsCount = unitsCount - 1
-            end
-            return u
-        else
-            GroupEnumUnitsSelected(MAIN_SELECT_GROUP, GetLocalPlayer(), nil)
-            return FirstOfGroup(MAIN_SELECT_GROUP)
+        local whichFilter
+        local getUnit   = FirstOfGroup
+        if atIndex then
+            units       = {}
+            whichFilter = filter
+            getUnit     = getUnitAt
         end
+        GroupEnumUnitsSelected(bj_lastCreatedGroup, GetLocalPlayer(), whichFilter)
+        return getUnit(atIndex or bj_lastCreatedGroup)
     end
-
-    --async
-    ---@return unit
-    function GetMainSelectedUnitEx()
-        return GetMainSelectedUnit(GetSelectedUnitIndex())
-    end
+    return GetMainSelectedUnit(...) --return the product of the newly-declared function.
 end
 
 --[[Damage number pop-up text]]
@@ -433,6 +439,7 @@ do
     shieldtimer = {}
     do
         local thistype = shieldtimer
+        local mt = { __index = thistype }
 
         function thistype:destroy()
             self.queue:destroy()
@@ -457,7 +464,7 @@ do
         function thistype.create(shield, amount, dur)
             local self = {}
 
-            setmetatable(self, { __index = shieldtimer })
+            setmetatable(self, mt)
 
             self.shield = shield
             self.amount = amount
@@ -491,6 +498,8 @@ do
     shield = {}
     do
         local thistype = shield
+        local mt = { __index = thistype }
+
         thistype.list = {}
         thistype.shieldheight = {
             HERO_ELEMENTALIST = 200,
@@ -507,7 +516,7 @@ do
         }
 
         --shieldheight default value
-        setmetatable(thistype.shieldheight, {__index = function() return 250 end})
+        __jarray(250, thistype.shieldheight)
 
         function thistype:color(c)
             self.c = c
@@ -548,7 +557,7 @@ do
         end
 
         local function update()
-            local u = GetMainSelectedUnitEx() ---@type unit 
+            local u = GetMainSelectedUnit() ---@type unit 
 
             if shield[u] then
                 BlzFrameSetVisible(shieldBackdrop, true)
@@ -638,7 +647,7 @@ do
             ---@diagnostic disable-next-line: missing-fields
             local self = {} ---@type shield
 
-            setmetatable(self, { __index = thistype })
+            setmetatable(self, mt)
 
             --setup
             self.max = amount
@@ -684,6 +693,8 @@ end
 DialogWindow = {}
 do
     local thistype = DialogWindow
+    local mt = { __index = thistype }
+
     thistype.OPTIONS_PER_PAGE = 7 ---@type integer 
     thistype.BUTTON_MAX       = 100 ---@type integer 
     thistype.MENU_BUTTON_MAX  = 5 ---@type integer 
@@ -814,7 +825,7 @@ do
         self.MenuButton = {}
         self.MenuButtonName = __jarray("")
 
-        setmetatable(self, { __index = thistype })
+        setmetatable(self, mt)
 
         DialogSetMessage(self.dialog, self.title)
         TriggerRegisterDialogEvent(self.trig, self.dialog)
@@ -845,6 +856,7 @@ end
 TimerFrame = {}
 do
     local thistype = TimerFrame
+    local mt = { __index = thistype }
 
     function thistype:run()
         self.time = self.time - 1
@@ -909,7 +921,7 @@ do
             end
         end)
 
-        setmetatable(self, { __index = TimerFrame })
+        setmetatable(self, mt)
 
         BlzFrameSetTextAlignment(self.text, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_CENTER)
         BlzFrameSetPoint(self.minimize, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_CENTER, 0, -0.154)
@@ -930,6 +942,160 @@ do
 
         return self
     end
+end
+
+--misc helper functions
+
+-- Priority queue implementation
+local PriorityQueue = {}
+PriorityQueue.__index = PriorityQueue
+
+function PriorityQueue.new()
+    local self = setmetatable({}, PriorityQueue)
+    self.heap = {}
+    self.currentSize = 0
+    return self
+end
+
+function PriorityQueue:push(value, priority)
+    local node = {value = value, priority = priority}
+    self.currentSize = self.currentSize + 1
+    local i = self.currentSize
+    self.heap[i] = node
+    while i > 1 do
+        local parentIndex = math.floor(i / 2)
+        if self.heap[parentIndex].priority <= priority then
+            break
+        end
+        self.heap[i] = self.heap[parentIndex]
+        self.heap[parentIndex] = node
+        i = parentIndex
+    end
+end
+
+function PriorityQueue:pop()
+    local minNode = self.heap[1]
+    local lastNode = self.heap[self.currentSize]
+    self.currentSize = self.currentSize - 1
+    local i = 1
+    while true do
+        local childIndex = 2 * i
+        if childIndex > self.currentSize then
+            break
+        end
+        if childIndex + 1 <= self.currentSize and self.heap[childIndex + 1].priority < self.heap[childIndex].priority then
+            childIndex = childIndex + 1
+        end
+        if lastNode.priority <= self.heap[childIndex].priority then
+            break
+        end
+        self.heap[i] = self.heap[childIndex]
+        i = childIndex
+    end
+    self.heap[i] = lastNode
+    return minNode.value
+end
+
+function PriorityQueue:isEmpty()
+    return self.currentSize == 0
+end
+
+function printCoordinates(coordinates)
+    if coordinates then
+        local printed = {}
+        for i, coord in ipairs(coordinates) do
+            if ModuloInteger(i, 2) == 1 or i == #coordinates then
+                local x, y = coord[1], coord[2]
+                table.insert(printed, string.format("(\x25d, \x25d)", x, y))
+            end
+        end
+        print(table.concat(printed, " "))
+    end
+end
+
+function QueueCoordinates(u, coordinates)
+    if coordinates then
+        BlzUnitClearOrders(u, false)
+        for _, v in ipairs(coordinates) do
+            BlzQueuePointOrderById(u, 851986, v[1], v[2])
+        end
+    end
+end
+
+local function heuristicEstimate(x, y, endX, endY)
+    -- Simple Euclidean distance heuristic
+    return math.sqrt((endX - x)^2 + (endY - y)^2)
+end
+
+-- Path reconstruction function
+local function reconstructPath(cameFrom, current)
+    local path = {}
+    while current do
+        table.insert(path, 1, {64 * (current.x + 0.5), 64 * (current.y + 0.5)}) -- Insert at the beginning
+        current = cameFrom[current.y][current.x]
+    end
+    return path
+end
+
+local grid = array2d()
+local INFINITY = 2^30
+
+function jps(startX, startY, endX, endY)
+    local offset = 64
+    startX = startX // offset
+    startY = startY // offset
+    endX = endX // offset
+    endY = endY // offset
+
+    local minX = math.min(startX, endX) - 4
+    local minY = math.min(startY, endY) - 4
+    local maxX = math.max(startX, endX) + 4
+    local maxY = math.max(startY, endY) + 4
+
+    local gScore = array2d(INFINITY)
+    local fScore = array2d(INFINITY)
+    local openSet = PriorityQueue.new()
+    local cameFrom = array2d()
+
+    gScore[startY][startX] = 0
+    fScore[startY][startX] = heuristicEstimate(startX, startY, endX, endY)
+    openSet:push({x = startX, y = startY}, fScore[startY][startX])
+
+    while not openSet:isEmpty() do
+        local current = openSet:pop()
+
+        if current.x == endX and current.y == endY then
+            return reconstructPath(cameFrom, current)
+        end
+
+        local tentativeGScore = gScore[current.y][current.x] + 1
+
+        for dx = -1, 1 do
+            for dy = -1, 1 do
+                if dx ~= 0 or dy ~= 0 then
+                    local x, y = current.x + dx, current.y + dy
+
+                    -- Check if the neighbor is within the grid boundaries and walkable
+                    if x >= minX and x <= maxX and y >= minY and y <= maxY then
+                        if grid[y][x] == nil then
+                            grid[y][x] = IsTerrainWalkable(offset * (x + 0.5), offset * (y + 0.5))
+                        end
+
+                        if grid[y][x] then
+                            if tentativeGScore < gScore[y][x] then
+                                cameFrom[y][x] = {x = current.x, y = current.y}
+                                gScore[y][x] = tentativeGScore
+                                fScore[y][x] = tentativeGScore + heuristicEstimate(x, y, endX, endY)
+                                openSet:push({x = x, y = y}, fScore[y][x]) -- Push start node with priority 0
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return nil
 end
 
 ---@type fun(sfx: effect)
@@ -1057,7 +1223,8 @@ end
 ---@type fun(tbl: table, text: string)
 function DisplayTextToTable(tbl, text)
     for i = 1, #tbl do
-        DisplayTextToPlayer(tbl[i], 0, 0, text)
+        local p = (type(tbl[i]) == "number" and Player(tbl[i] - 1)) or tbl[i]
+        DisplayTextToPlayer(p, 0, 0, text)
     end
 end
 
@@ -1215,7 +1382,12 @@ end
 function ChaosTransition()
     local i = GetPlayerId(GetOwningPlayer(GetFilterUnit())) ---@type integer 
 
-    return (UnitAlive(GetFilterUnit()) and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and (i ==10 or i ==11 or i ==PLAYER_NEUTRAL_AGGRESSIVE) and RectContainsUnit(gg_rct_Colosseum, GetFilterUnit()) == false and RectContainsUnit(gg_rct_Infinite_Struggle, GetFilterUnit()) == false)
+    return (GetFilterUnit() ~= PUNCHING_BAG and
+    UnitAlive(GetFilterUnit()) and
+    GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and
+    (i == 10 or i == 11 or i == PLAYER_NEUTRAL_AGGRESSIVE) and
+    RectContainsUnit(gg_rct_Colosseum, GetFilterUnit()) == false and
+    RectContainsUnit(gg_rct_Infinite_Struggle, GetFilterUnit()) == false)
 end
 
 ---@return boolean
@@ -1574,10 +1746,12 @@ function SpawnWispSelector(pid)
     SetUnitPathing(hsdummy[pid], false)
     UnitRemoveAbility(hsdummy[pid], FourCC('Amov'))
     BlzUnitHideAbility(hsdummy[pid], FourCC('Aatk'), true)
-    SetCameraBoundsRectForPlayerEx(Player(pid - 1), gg_rct_Tavern_Vision)
+    SetCamera(pid, gg_rct_Tavern)
 
     if (GetLocalPlayer() == Player(pid - 1)) then
-        ClearSelection()
+        EnablePreSelect(false, false)
+        EnableSelect(false, false)
+        --ClearSelection()
         SelectUnit(hsdummy[pid], true)
         SetDayNightModels("Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx","Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx")
         SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 500, 0)
@@ -1755,36 +1929,33 @@ end
 
 ---@param arena integer
 function ResetArena(arena)
-    if arena == 0 then
+    if not arena or arena == ARENA_FFA then
         return
     end
 
     local U = User.first
 
     while U do
-        if IsUnitInGroup(Hero[U.id], Arena[arena]) then
+        if TableHas(Arena[arena], U.id) then
             PauseUnit(Hero[U.id], false)
             UnitRemoveAbility(Hero[U.id], FourCC('Avul'))
             SetUnitAnimation(Hero[U.id], "stand")
-            SetUnitPositionLoc(Hero[U.id], TownCenter)
-            SetCameraBoundsRectForPlayerEx(GetOwningPlayer(Hero[U.id]), gg_rct_Main_Map_Vision)
-            PanCameraToTimedForPlayer(GetOwningPlayer(Hero[U.id]), GetUnitX(Hero[U.id]), GetUnitY(Hero[U.id]), 0)
+            MoveHeroLoc(U.id, TownCenter)
         end
 
         U = U.next
     end
 end
 
----@param pid integer
----@return integer
+---@type fun(pid: integer): integer?
 function GetArena(pid)
-    for i = 0, ArenaMax do
-        if IsUnitInGroup(Hero[pid], Arena[i]) then
+    for i, v in ipairs(Arena) do
+        if TableHas(v, pid) then
             return i
         end
     end
 
-    return 0
+    return nil
 end
 
 function ClearStruggle()
@@ -1867,8 +2038,6 @@ function ShowHeroCircle(p, show)
             BlzSetUnitSkin(gg_unit_E008_0587, FourCC('eRez'))
             BlzSetUnitSkin(gg_unit_E00X_0611, FourCC('eRez'))
         end
-        ShowUnit(gg_unit_n02S_0098, false)
-        ShowUnit(gg_unit_n02S_0098, true)
     end
 end
 
@@ -1918,38 +2087,33 @@ function PlayerCleanup(pid)
     end
 
     Profile[pid].hero:wipeData()
+
+    if Profile[pid].autosave == true then
+        Profile[pid]:toggleAutoSave()
+        Profile[pid].save_timer:reset()
+    end
     TimerList[pid]:stopAllTimers()
 
     PlayerBase[pid] = nil
     GroupRemoveUnit(HeroGroup, Hero[pid])
     RemovePlayerUnits(pid)
 
+    BLOODBANK.bank[pid] = 0
+
     Hero[pid] = nil
     HeroID[pid] = 0
     Backpack[pid] = nil
+    ArcaConverter[pid] = false
+    PlatConverter[pid] = false
     SetCurrency(pid, GOLD, 0)
     SetCurrency(pid, LUMBER, 0)
     SetCurrency(pid, PLATINUM, 0)
     SetCurrency(pid, ARCADITE, 0)
     SetCurrency(pid, CRYSTAL, 0)
-    ArcaConverter[pid] = false
-    ArcaConverterBought[pid] = false
-    PlatConverter[pid] = false
-    PlatConverterBought[pid] = false
-    ItemRegen[pid] = 0
-    BuffRegen[pid] = 0.
-    PercentHealBonus[pid] = 0
-    ItemSpellboost[pid] = 0
     ItemMovespeed[pid] = 0
     BuffMovespeed[pid] = 0
-    ItemMagicRes[pid] = 1
-    ItemDamageRes[pid] = 1
-    TotalRegen[pid] = 0
     ItemGoldRate[pid] = 0
-    TimePlayed[pid] = 0
     HeartBlood[pid] = 0
-    BaseID[pid] = 0
-    BloodBank[pid] = 0
     BardSong[pid] = 0
     hardcoreClicked[pid] = false
     CameraLock[pid] = false
@@ -1962,15 +2126,17 @@ function PlayerCleanup(pid)
     hounds[pid * 10 + 4] = nil
     hounds[pid * 10 + 5] = nil
     CustomLighting[pid] = 1 --default
-    masterElement[pid] = 0
     PhantomSlashing[pid] = false
     BodyOfFireCharges[pid] = 5 --default
     limitBreak[pid] = 0
     limitBreakPoints[pid] = 0
     metamorphosis[pid] = 0.
     Fleeing[pid] = false
+    ConverterBought[pid] = false
+    BoostValue[pid] = 0
 
     if GetLocalPlayer() == p then
+        BlzFrameSetVisible(CONVERTER_FRAME, false)
         BlzFrameSetVisible(dummyFrame, false)
         BlzFrameSetVisible(LimitBreakBackdrop, false)
         BlzSetAbilityIcon(PARRY.id, "ReplaceableTextures\\CommandButtons\\BTNReflex.blp")
@@ -1983,7 +2149,6 @@ function PlayerCleanup(pid)
         BlzFrameSetText(MULTIBOARD.DAMAGE:get(2, 1).frame, " ")
     end
 
-    DestroyEffect(lightningeffect[pid])
     DestroyEffect(songeffect[pid])
 
     --reset unit limit
@@ -2007,11 +2172,6 @@ function PlayerCleanup(pid)
 
     tempplayer = p
     EnumItemsInRect(bj_mapInitialPlayableArea, nil, ItemRepickRemove)
-
-    if autosave[pid] then
-        autosave[pid] = false
-        DisplayTextToPlayer(p, 0, 0, "|cffffcc00Autosave disabled.|r")
-    end
 end
 
 ---@param u1 unit
@@ -2114,15 +2274,15 @@ function StatTome(pid, bonus, type, plat)
     }
 
     if type == 1 then
-        SetHeroStr(Hero[pid], GetHeroStr(Hero[pid], false) + trueBonus, true)
+        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_STR, GetHeroStr(Hero[pid], false) + trueBonus)
     elseif type == 2 then
-        SetHeroAgi(Hero[pid], GetHeroAgi(Hero[pid], false) + trueBonus, true)
+        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_AGI, GetHeroAgi(Hero[pid], false) + trueBonus)
     elseif type == 3 then
-        SetHeroInt(Hero[pid], GetHeroInt(Hero[pid], false) + trueBonus, true)
+        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_INT, GetHeroInt(Hero[pid], false) + trueBonus)
     elseif type == 4 then
-        SetHeroStr(Hero[pid], GetHeroStr(Hero[pid], false) + trueBonus, true)
-        SetHeroAgi(Hero[pid], GetHeroAgi(Hero[pid], false) + trueBonus, true)
-        SetHeroInt(Hero[pid], GetHeroInt(Hero[pid], false) + trueBonus, true)
+        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_STR, GetHeroStr(Hero[pid], false) + trueBonus)
+        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_AGI, GetHeroAgi(Hero[pid], false) + trueBonus)
+        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_INT, GetHeroInt(Hero[pid], false) + trueBonus)
     end
 
     DisplayTextToPlayer(p, 0, 0, msg .. trueBonus .. statText[type])
@@ -2401,7 +2561,7 @@ function BuyHome(u, plat, arc, id)
         PlayerAddItemById(pid, id)
         AddCurrency(pid, PLATINUM, -plat)
         AddCurrency(pid, ARCADITE, -arc)
-        DisplayTimedTextToPlayer(GetOwningPlayer(u), 0, 0, 20, "You have purchased a " + GetObjectName(id) .. ".")
+        DisplayTimedTextToPlayer(GetOwningPlayer(u), 0, 0, 20, "You have purchased a " .. GetObjectName(id) .. ".")
         DisplayTimedTextToPlayer(GetOwningPlayer(u), 0, 0, 10, PlatTag + (GetCurrency(pid, PLATINUM)))
         DisplayTimedTextToPlayer(GetOwningPlayer(u), 0, 0, 10, ArcTag + (GetCurrency(pid, ARCADITE)))
     end
@@ -2579,7 +2739,6 @@ function InCombat(u)
         end
     end
 
-
     DestroyGroup(ug)
     return false
 end
@@ -2710,64 +2869,6 @@ end
 ---@type fun(u: unit, id: integer, index: integer):number
 function GetAbilityField(u, id, index)
     return BlzGetAbilityRealLevelField(BlzGetUnitAbility(u, id), SPELL_FIELD[index], 0)
-end
-
-local backpack_allowed = {
-    [FourCC('A0E2')] = 1, --sea ward
-    [FourCC('A0D3')] = 1, --jewel of the horde
-    [FourCC('AIcd')] = 1, --command aura (warsong battle drums)
-    [FourCC('A03F')] = 1, --endurance aura (blood elf war drums)
-    [FourCC('A018')] = 1, --drum of war
-    [FourCC('A03H')] = 1, --blood shield (vampiric aura)
-    [FourCC('A03G')] = 1, --blood horn (unholy aura)
-}
-
----@type fun(itm: Item)
-function ItemAddSpellDelayed(itm)
-    for index = ITEM_ABILITY, ITEM_ABILITY2 do
-        local abilid = ItemData[itm.id][index * ABILITY_OFFSET]
-
-        --don't add ability if backpack is not allowed
-        if GetUnitTypeId(itm.holder) == BACKPACK and not backpack_allowed[abilid] then
-            abilid = 0
-        end
-
-        if abilid ~= 0 then --ability exists
-            BlzItemAddAbility(itm.obj, abilid)
-
-            if abilid == FourCC('Aarm') then --armor aura
-                BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_ARMOR_BONUS_HAD1, 0, itm:getValue(index, 0))
-            elseif abilid == FourCC('Abas') then --bash
-                BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_CHANCE_TO_BASH, 0, itm:getValue(index, 0))
-                BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_DURATION_NORMAL, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
-                BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_DURATION_HERO, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
-            elseif abilid == FourCC('A018') or abilid == FourCC('A01S') then --blink
-                BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
-            elseif abilid == FourCC('A00D') then --thanatos wings
-                local tbl = ItemData[itm.id].sfx[itm:getValue(index, 0)]
-
-                DestroyEffect(itm.sfx)
-                itm.sfx = AddSpecialEffectTarget(tbl.path, itm.holder, tbl.attach)
-            elseif abilid == FourCC('HPOT') then --healing potion
-                BlzSetAbilityIntegerLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_ILF_HIT_POINTS_GAINED_IHPG, 0, itm:getValue(index, 0))
-            else --channel
-                BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), SPELL_FIELD[0], 0, itm:getValue(index, 0))
-
-                for i = 0, SPELL_FIELD_TOTAL do
-                    local count = 1
-                    local value = ItemData[itm.id][index * ABILITY_OFFSET + count]
-
-                    if value ~= 0 then
-                        BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), SPELL_FIELD[i], 0, value)
-                        count = count + 1
-                    end
-                end
-            end
-
-            IncUnitAbilityLevel(itm.holder, abilid)
-            DecUnitAbilityLevel(itm.holder, abilid)
-        end
-    end
 end
 
 ---@type fun(itm: Item, index: integer, value: integer, lower: integer, upper: integer): string
@@ -2903,7 +3004,7 @@ function GetSpellTooltip(spell)
     local calc = {} ---@type number[]
 
     for i, v in ipairs(spell.values) do
-        calc[i] = type(v) == "number" and v or type(v) == "function" and v(spell.pid) or 0
+        calc[i] = (type(v) == "number" and v) or (type(v) == "function" and v(spell.pid)) or (type(v) == "table" and v[spell.pid]) or 0
     end
 
     if #calc > 0 then
@@ -2971,40 +3072,48 @@ function UpdateSpellTooltips(pid)
     SetPlayerAbilityAvailable(pfoe, FourCC('Agyv'), false)
 end
 
----@param pid integer
----@param loc location
+function SetCamera(pid, r)
+    local data = REGION_DATA[r]
+
+    if data.vision then
+        SetCameraBoundsRectForPlayerEx(Player(pid - 1), data.vision)
+    end
+
+    if Hero[pid] then
+        PanCameraToTimedForPlayer(Player(pid - 1), GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 0.)
+    end
+
+    if data.minimap then
+        SetMinimapTexture(pid, data.minimap)
+    end
+end
+
+---@type fun(pid: integer, x: number, y: number)
+function MoveHero(pid, x, y)
+    SetUnitXBounded(Hero[pid], x)
+    SetUnitYBounded(Hero[pid], y)
+    SetUnitXBounded(HeroGrave[pid], x)
+    SetUnitYBounded(HeroGrave[pid], y)
+    BlzUnitClearOrders(Hero[pid], false)
+
+    local r = GetRectFromCoords(x, y)
+
+    if r then
+        SetCamera(pid, r)
+    end
+end
+
+---@type fun(pid: integer, loc: location)
 function MoveHeroLoc(pid, loc)
     SetUnitPositionLoc(Hero[pid], loc)
-    if IsUnitHidden(HeroGrave[pid]) == false then
-        SetUnitPositionLoc(HeroGrave[pid], loc)
+    SetUnitPositionLoc(HeroGrave[pid], loc)
+    BlzUnitClearOrders(Hero[pid], false)
+
+    local r = GetRectFromCoords(GetLocationX(loc), GetLocationY(loc))
+
+    if r then
+        SetCamera(pid, r)
     end
-end
-
-function AzazothExit()
-    local U = User.first
-
-    while U do
-        if TableHas(AZAZOTH_GROUP, U.player) then
-            TableRemove(AZAZOTH_GROUP, U.player)
-
-            MoveHeroLoc(U.id, TownCenter)
-            SetCameraBoundsRectForPlayerEx(U.player, gg_rct_Main_Map_Vision)
-            PanCameraToTimedLocForPlayer(U.player, TownCenter, 0)
-        end
-
-        U = U.next
-    end
-end
-
----@type fun(x: number, y: number): rect?
-function getRect(x, y)
-    for i = 1, #AREAS do
-        if GetRectMinX(AREAS[i]) <= x and x <= GetRectMaxX(AREAS[i]) and GetRectMinY(AREAS[i]) <= y and y <= GetRectMaxY(AREAS[i]) then
-            return AREAS[i]
-        end
-    end
-
-    return nil
 end
 
 ---@param pid integer
@@ -3013,13 +3122,13 @@ function ExperienceControl(pid)
     local xpRate = 0 ---@type number 
 
     --get multiple of 5 from hero level
-    if BaseID[pid] > 0 then
-        xpRate = BaseExperience[(HeroLevel // 5) * 5] * HomeTable[BaseID[pid]].rate
+    if Profile[pid].hero.base > 0 then
+        xpRate = BaseExperience[(HeroLevel // 5) * 5] * HomeTable[Profile[pid].hero.base].rate
     elseif HeroLevel < 15 then
         xpRate = 100
     end
 
-    if BaseID[pid] <= 4 and HeroLevel >= 180 then
+    if Profile[pid].hero.base <= 4 and HeroLevel >= 180 then
         xpRate = 0
     end
 
@@ -3030,6 +3139,13 @@ function ExperienceControl(pid)
     end
 
     XP_Rate[pid] = math.max(0, xpRate * (1. + 0.04 * PrestigeTable[pid][0]))
+end
+
+---@type fun(pid: integer, texture: string)
+function SetMinimapTexture(pid, texture)
+    if GetLocalPlayer() == Player(pid - 1) then
+        BlzChangeMinimapTerrainTex(texture)
+    end
 end
 
 ---@type fun(pid: integer)
@@ -3090,9 +3206,7 @@ end
 
 ---@type fun(source: unit, target: unit, hp: number, tag: string|nil)
 function HP(source, target, hp, tag)
-    local tpid = GetPlayerId(GetOwningPlayer(target)) + 1 ---@type integer 
-
-    hp = hp * (1. + PercentHealBonus[tpid] * 0.01)
+    hp = hp * Unit[target].healamp
 
     local text = RealToString(hp)
 
@@ -3109,13 +3223,12 @@ function HP(source, target, hp, tag)
     LogDamage(source, target, "|cff7dff7d" .. text .. "|r", true, tag)
 end
 
----@param u unit
----@param hp number
-function MP(u, hp)
-    --local pid = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
-
-    SetUnitState(u, UNIT_STATE_MANA, GetUnitState(u, UNIT_STATE_MANA) + hp)
-    FloatingTextUnit(RealToString(hp), u, 2, 50, -70, 10, 0, 255, 255, 0, true)
+---@type fun(source: unit, mp: number)
+function MP(source, mp)
+    if GetUnitTypeId(source) ~= HERO_VAMPIRE then
+        SetUnitState(source, UNIT_STATE_MANA, GetUnitState(source, UNIT_STATE_MANA) + mp)
+        FloatingTextUnit(RealToString(mp), source, 2, 50, -70, 10, 0, 255, 255, 0, true)
+    end
 end
 
 ---@param b boolean
@@ -3158,6 +3271,8 @@ function PaladinAggroExpire(pt)
             PaladinEnrage(false)
         end
     end
+
+    pt.timer:callDelayed(0.5, PaladinAggroExpire, pt)
 end
 
 ---@param pid integer
@@ -3203,6 +3318,7 @@ end
 BezierCurve = {}
 do
     local thistype = BezierCurve
+    local mt = { __index = thistype }
 
     ---@type fun():BezierCurve
     function thistype.create()
@@ -3213,7 +3329,7 @@ do
             Y = 0.
         }
 
-        setmetatable(self, { __index = thistype })
+        setmetatable(self, mt)
 
         return self
     end
@@ -3318,6 +3434,44 @@ function FadeSFX(sfx, fade)
     end
 
     TimerQueue:callDelayed(FPS_32, applyFade, sfx, fade, count)
+end
+
+function ShopkeeperMove()
+    if UnitAlive(evilshopkeeper) then
+        local x = 0. ---@type number 
+        local y = 0. ---@type number 
+
+        repeat
+            x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
+            y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
+
+            if GetRandomInt(0, 99) < 5 then
+                x = GetRandomReal(GetRectMinX(gg_rct_Tavern), GetRectMaxX(gg_rct_Tavern))
+                y = GetRandomReal(GetRectMinY(gg_rct_Tavern), GetRectMaxY(gg_rct_Tavern))
+            end
+
+        until IsTerrainWalkable(x, y)
+
+        evilshop:visible(false)
+        ShowUnit(evilshopkeeper, false)
+        ShowUnit(evilshopkeeper, true)
+        SetUnitPosition(evilshopkeeper, x, y) --random starting spot
+        BlzStartUnitAbilityCooldown(evilshopkeeper, FourCC('A017'), 300.)
+
+        ShopSetStock(FourCC('n01F'), FourCC('I02B'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I02C'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I0EY'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I074'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I03U'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I07F'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I03P'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I0F9'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I079'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I0FC'), 1)
+        ShopSetStock(FourCC('n01F'), FourCC('I00A'), 1)
+
+        TimerQueue:callDelayed(300., ShopkeeperMove)
+    end
 end
 
 ---@type fun(pt: PlayerTimer)
@@ -3516,14 +3670,28 @@ function FilterAlive()
     return false
 end
 
----@type fun(frame: framehandle, text: string)
-function FrameAddSimpleTooltip(frame, text)
+---@type fun(enemy: unit, player: player): boolean
+function IsHittable(enemy, player)
+    return UnitAlive(enemy) and GetUnitAbilityLevel(enemy, FourCC('Avul')) == 0 and IsUnitEnemy(enemy, player)
+end
+
+---@type fun(frame: framehandle, text: string, below: boolean)
+function FrameAddSimpleTooltip(frame, text, below)
     local box = BlzCreateFrame("Leaderboard", frame, 0, 0)
     local tooltip = BlzCreateFrameByType("TEXT", "", box, "", 0)
 
-    BlzFrameSetPoint(tooltip, FRAMEPOINT_TOP, frame, FRAMEPOINT_BOTTOM, 0, -0.008)
-    BlzFrameSetPoint(box, FRAMEPOINT_TOPLEFT, tooltip, FRAMEPOINT_TOPLEFT, -0.008, 0.008)
-    BlzFrameSetPoint(box, FRAMEPOINT_BOTTOMRIGHT, tooltip, FRAMEPOINT_BOTTOMRIGHT, 0.008, -0.008)
+    if below then
+        BlzFrameSetPoint(tooltip, FRAMEPOINT_TOP, frame, FRAMEPOINT_BOTTOM, 0, -0.008)
+        BlzFrameSetPoint(box, FRAMEPOINT_TOPLEFT, tooltip, FRAMEPOINT_TOPLEFT, -0.008, 0.008)
+        BlzFrameSetPoint(box, FRAMEPOINT_BOTTOMRIGHT, tooltip, FRAMEPOINT_BOTTOMRIGHT, 0.008, -0.008)
+    else
+        BlzFrameSetPoint(tooltip, FRAMEPOINT_BOTTOMRIGHT, BlzGetFrameByName("CommandButton_3", 0), FRAMEPOINT_TOPRIGHT, 0.008, 0.034)
+        BlzFrameSetTextAlignment(tooltip, TEXT_JUSTIFY_TOP, TEXT_JUSTIFY_LEFT)
+        BlzFrameSetSize(tooltip, 0.275, 0)
+        BlzFrameSetPoint(box, FRAMEPOINT_TOPLEFT, tooltip, FRAMEPOINT_TOPLEFT, -0.008, 0.008)
+        BlzFrameSetPoint(box, FRAMEPOINT_BOTTOMRIGHT, tooltip, FRAMEPOINT_BOTTOMRIGHT, 0.008, -0.008)
+    end
+
     BlzFrameSetText(tooltip, text)
     BlzFrameSetTooltip(frame, box)
 end
@@ -3532,14 +3700,14 @@ end
 ---@param count integer
 function SpawnColoUnits(uid, count)
     local u ---@type unit 
-    local rand         = 0 ---@type integer 
+    local rand = 0 ---@type integer 
 
     count = count * IMinBJ(2, ColoPlayerCount)
 
     while count >= 1 do
 
         rand = GetRandomInt(1,3)
-        u = CreateUnit(pboss, uid, GetRectCenterX(gg_rct_Colloseum_Player_Spawn), GetRectCenterY(gg_rct_Colloseum_Player_Spawn), 270)
+        u = CreateUnit(pboss, uid, GetRectCenterX(gg_rct_Colosseum_Player_Spawn), GetRectCenterY(gg_rct_Colosseum_Player_Spawn), 270)
         SetUnitXBounded(u, GetLocationX(colospot[rand]))
         SetUnitYBounded(u, GetLocationY(colospot[rand]))
         BlzSetUnitMaxHP(u, R2I(BlzGetUnitMaxHP(u) * (0.5 + 0.5 * ColoPlayerCount)))
@@ -3565,8 +3733,6 @@ function AdvanceColo()
                 EnableItems(U.id)
                 AwardGold(U.id, ColoGoldWon, true)
                 MoveHeroLoc(U.id, TownCenter)
-                SetCameraBoundsRectForPlayerEx(U.player, gg_rct_Main_Map_Vision)
-                PanCameraToTimedLocForPlayer(U.player, TownCenter, 0)
                 DisplayTextToPlayer(U.player, 0, 0, "You escaped the Colosseum successfully.")
                 Colosseum_XP[U.id] = (Colosseum_XP[U.id] - 0.05)
                 ExperienceControl(U.id)
@@ -3602,8 +3768,6 @@ function AdvanceColo()
 
                     AwardGold(U.id, ColoGoldWon, true)
                     MoveHeroLoc(U.id, TownCenter)
-                    SetCameraBoundsRectForPlayerEx(U.player, gg_rct_Main_Map_Vision)
-                    PanCameraToTimedLocForPlayer(U.player, TownCenter, 0)
                     RecallSummons(U.id)
                     ExperienceControl(U.id)
                 end
@@ -3619,10 +3783,11 @@ end
 
 ---@type fun(tbl: table, fadedur: number, fade: boolean)
 local applyblackmask = function(tbl, fadedur, fade)
-    for i = 1, #tbl do
-        player_fog[GetPlayerId(tbl[i]) + 1] = false
+    for _, pid in ipairs(tbl) do
+        pid = (type(pid) == "userdata" and GetPlayerId(pid) + 1) or pid
+        player_fog[pid] = false
 
-        if GetLocalPlayer() == tbl[i] then
+        if GetLocalPlayer() == Player(pid - 1) then
             SetCineFilterTexture("ReplaceableTextures\\CameraMasks\\Black_mask.blp")
             if fade then
                 SetCineFilterStartColor(0,0,0,0)
@@ -3643,14 +3808,12 @@ function BlackMask(tbl, fadein, fadeout)
     TimerQueue:callDelayed(fadein, applyblackmask, tbl, fadeout, false)
 end
 
----@type fun(tbl: table, x: number, y: number, cam: rect)
-function MovePlayers(tbl, x, y, cam)
-    for i = 1, #tbl do
-        local pid = GetPlayerId(tbl[i]) + 1
-        SetUnitPosition(Hero[pid], x, y)
+---@type fun(tbl: table, x: number, y: number)
+function MovePlayers(tbl, x, y)
+    for _, pid in ipairs(tbl) do
+        pid = (type(pid) == "userdata" and GetPlayerId(pid) + 1) or pid
+        MoveHero(pid, x, y)
         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportCaster.mdl", Hero[pid], "origin"))
-        SetCameraBoundsRectForPlayerEx(tbl[i], cam)
-        PanCameraToTimedForPlayer(tbl[i], GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 0)
     end
 end
 
@@ -3670,8 +3833,6 @@ function AdvanceStruggle(flag)
             Struggle_Pcount = Struggle_Pcount - 1
             EnableItems(U.id)
             MoveHeroLoc(U.id, TownCenter)
-            SetCameraBoundsRectForPlayerEx(U.player, gg_rct_Main_Map_Vision)
-            PanCameraToTimedLocForPlayer(U.player, TownCenter, 0)
             ExperienceControl(U.id)
             DisplayTextToPlayer(U.player, 0, 0, "You escaped Struggle with your life.")
             AwardGold(U.id, GoldWon_Struggle, true)
@@ -3706,9 +3867,6 @@ function AdvanceStruggle(flag)
                     DisplayTextToPlayer(U.player, 0, 0, "50\x25 bonus gold for victory!")
                     MoveHeroLoc(U.id, TownCenter)
                     EnableItems(U.id)
-                    SetUnitPositionLoc(Backpack[U.id], TownCenter)
-                    SetCameraBoundsRectForPlayerEx(U.player, gg_rct_Main_Map_Vision)
-                    PanCameraToTimedLocForPlayer(U.player, TownCenter, 0)
                     if Struggle_WaveN < 40 then
                         DisplayTextToPlayer(U.player,0,0, "You received a lesser ring of struggle for completing struggle.")
                         PlayerAddItemById(U.id, FourCC('I00T'))
@@ -3961,14 +4119,10 @@ function Votekick()
     DisplayTimedTextToForce(FORCE_PLAYING, 30, "Voting to kick player " + User[votekickPlayer - 1].nameColored .. " has begun.")
     BlzFrameSetTexture(votingBG, "war3mapImported\\afkUI_3.dds", 0, true)
 
-    while U do
-        if U.id ~= votekickPlayer and U.id ~= votekickingPlayer then
-            if GetLocalPlayer() == U.player then
-                BlzFrameSetVisible(votingBG, true)
-            end
-        end
+    local id = GetPlayerId(GetLocalPlayer()) + 1
 
-        U = U.next
+    if id ~= votekickPlayer and id ~= votekickingPlayer then
+        BlzFrameSetVisible(votingBG, true)
     end
 end
 
@@ -4016,7 +4170,7 @@ function UpdateItemTooltips(pid)
     --update 6 visible item slot tooltips
     local modifier = altModifier[pid]
 
-    if GetLocalPlayer() == Player(pid - 1) then
+    if Profile[pid] and GetLocalPlayer() == Player(pid - 1) then
         for i = 0, 5 do
             local itm = Profile[pid].hero.items[i]
 

@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'CodeGen' end
+
 --[[
     codegen.lua
 
@@ -6,8 +8,6 @@
     This module provides functions to encode a table of integers into one string of characters that may be decoded and loaded in future games.
     Used for save / load functionality in playerdata.lua
 ]]
-
-if Debug then Debug.beginFile 'CodeGen' end
 
 OnInit.global("CodeGen", function()
 

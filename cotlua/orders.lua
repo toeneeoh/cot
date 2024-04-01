@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'Orders' end
+
 --[[
     orders.lua
 
@@ -7,20 +9,24 @@
         EVENT_PLAYER_UNIT_ISSUED_ORDER)
 ]]
 
-if Debug then Debug.beginFile 'Orders' end
-
 OnInit.final("Orders", function(require)
     require 'Users'
     require 'Units'
 
-    bpmoving      = __jarray(false) ---@type boolean[] 
     metamorphosis = __jarray(0) ---@type number[] 
     LAST_TARGET   = {} ---@type unit[] 
-    Moving        = __jarray(false) ---@type boolean[] 
+    LAST_ORDER_TARGET = {} ---@type unit[] 
+    Moving        = {} ---@type boolean[] 
 
     local OrderTable = {
+        --issued hold position
+        [851972] = function(id, source, p, pid)
+        end,
+        --issued stop
+        [851993] = function(id, source, p, pid)
+        end,
         --issued smart order
-        [851971] = function(id, source, p, pid)
+        [851971] = function(id, source, p, pid, target)
             local pt = TimerList[pid]:get('aggr', source)
             --after 3 seconds drop aggro from nearby enemies and redirect to allies if possible
             if not pt then
@@ -29,15 +35,11 @@ OnInit.final("Orders", function(require)
                 pt.tag = 'aggr'
                 TimerQueue:callDelayed(3., RunDropAggro, pt)
             end
-
-            Moving[pid] = true
         end,
 
         --issued undefend order
         [852056] = function(id, source, p, pid)
             if GetPlayerController(GetOwningPlayer(source)) ~= MAP_CONTROL_USER then
-                --flush threat level and acquired target
-                Threat[source] = __jarray(0)
                 --if unit is removed
                 if GetUnitAbilityLevel(source, DETECT_LEAVE_ABILITY) == 0 then
                     UnitDeindex(source)
@@ -123,13 +125,13 @@ OnInit.final("Orders", function(require)
         --issued immolation on order
         [852177] = function(id, source, p, pid)
             --phoenix ranger multishot
-            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and IS_TELEPORTING[pid] == false then
+            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not IS_TELEPORTING[pid] then
                 SetPlayerAbilityAvailable(p, prMulti[IMinBJ(4, GetHeroLevel(source) // 50)], true)
                 MultiShot[pid] = true
 
             --assassin phantomslash
             elseif GetUnitAbilityLevel(source, PHANTOMSLASH.id) > 0 and not IsUnitStunned(source) then
-                if MouseX[pid] ~= 0 and MouseY[pid] ~= 0 and PhantomSlashing[pid] == false then
+                if MouseX[pid] ~= 0 and MouseY[pid] ~= 0 and not PhantomSlashing[pid] then
                     local spell = PHANTOMSLASH:create(pid) ---@type PHANTOMSLASH
                     spell.caster = source
                     spell.targetX = MouseX[pid]
@@ -142,14 +144,14 @@ OnInit.final("Orders", function(require)
 
             --vampire blood mist
             elseif GetUnitAbilityLevel(source, BLOODMIST.id) > 0 then
-                BloodMistBuff:add(source, source):duration(99999.)
+                BloodMistBuff:add(source, source)
             end
         end,
 
         --issued immolation off order
         [852178] = function(id, source, p, pid)
             --phoenix ranger multishot
-            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and IS_TELEPORTING[pid] == false then
+            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not IS_TELEPORTING[pid] then
                 SetPlayerAbilityAvailable(p, prMulti[0], false)
                 SetPlayerAbilityAvailable(p, prMulti[1], false)
                 SetPlayerAbilityAvailable(p, prMulti[2], false)
@@ -190,29 +192,27 @@ function OnOrder()
     local p      = GetTriggerPlayer() ---@type player 
     local pid    = GetPlayerId(p) + 1 ---@type integer 
     local id     = GetIssuedOrderId() ---@type integer 
-
-    if DEV_ENABLED then
-        if EXTRA_DEBUG then
-            print(OrderId2String(id))
-            print(id)
-        end
-    end
+    local itm    = Item[GetOrderTargetItem()]
+    local x      = GetOrderPointX()
+    local y      = GetOrderPointY()
+    local target = GetOrderTargetUnit() ---@type unit 
+    local targetX = target and GetUnitX(target)
+    local targetY = target and GetUnitY(target)
 
     --lookup table
     if OrderTable[id] then
-        OrderTable[id](id, source, p, pid)
+        OrderTable[id](id, source, p, pid, target)
     end
 
     --backpack ai
     if source == Backpack[pid] and id ~= 851972 and id ~= 851993 then --not stopping or holding position
         bpmoving[pid] = true
-        local pt = TimerList[pid]:get('bkpk', source, nil)
+        local pt = TimerList[pid]:get('bkpk')
 
         if not pt then
             pt = TimerList[pid]:add()
             pt.dur = 4.
             pt.tag = 'bkpk'
-            pt.source = source
 
             TimerQueue:callDelayed(1., MoveExpire, pt)
         else
@@ -255,45 +255,24 @@ function OnOrder()
         end
     end
 
-    --store order location
+    --cache issued point / target
     if source == Hero[pid] then
-        LAST_TARGET[pid] = nil
+        if target or (x ~= 0 and y ~= 0) then
+            clickedPoint[pid] = { targetX or x, targetY or y }
 
-        if GetOrderPointX() ~= 0 and GetOrderPointY() ~= 0 then
-            clickedPoint[pid] = { GetOrderPointX(), GetOrderPointY() }
+            if Movespeed[pid] > 522 then
+                BlzSetUnitFacingEx(source, bj_RADTODEG * Atan2(clickedPoint[pid][2] - GetUnitY(source), clickedPoint[pid][1] - GetUnitX(source)))
+            end
         end
 
-        --stop order holdposition
-        if id == 851972 or id == 851993 then
-            Moving[pid] = false
-        end
-    end
+        LAST_ORDER_TARGET[pid] = target
 
-    if DEV_ENABLED then
-        if nocd[pid] then --No Cooldowns
-            TimerQueue:callDelayed(0.1, ResetCD, pid)
-        end
-
-        if nocost[pid] and HeroID[pid] ~= HERO_VAMPIRE then --No Manacost
-            SetUnitState(Hero[pid], UNIT_STATE_MANA, GetUnitState(Hero[pid], UNIT_STATE_MAX_MANA))
-        end
-    end
-end
-
-function OnTargetOrder()
-    local source  = GetTriggerUnit() ---@type unit 
-    local target  = GetOrderTargetUnit() ---@type unit 
-    local id      = GetIssuedOrderId() ---@type integer 
-    local pid     = GetPlayerId(GetOwningPlayer(source)) + 1 ---@type integer 
-    local itm     = Item[GetOrderTargetItem()]
-
-    if DEV_ENABLED then
-        if EXTRA_DEBUG then
-            print(OrderId2String(id))
-            print((id))
+        if IsUnitEnemy(target, Player(pid - 1)) then
+            LAST_TARGET[pid] = target
         end
     end
 
+    --item target
     if itm then
         local oldSlot = GetItemSlot(itm, source) ---@type integer 
 
@@ -332,30 +311,36 @@ function OnTargetOrder()
         end
     end
 
-    --hero targets enemy
-    if source == Hero[pid] then
-        clickedPoint[pid] = { GetUnitX(target), GetUnitY(target) }
+    --debug
+    if DEV_ENABLED then
+        if EXTRA_DEBUG then
+            if DEBUG_HERO and source == Hero[pid] then
+                print(GetUnitName(source) .. " " .. OrderId2String(id) .. " " .. id)
+            elseif not DEBUG_HERO then
+                print(GetUnitName(source) .. " " .. OrderId2String(id) .. " " .. id)
+            end
+        end
 
-        if IsUnitEnemy(target, Player(pid - 1)) then
-            LAST_TARGET[pid] = target
-            Moving[pid] = true
+        local x2, y2 = GetUnitX(source), GetUnitY(source)
+        local dist = DistanceCoords(x, y, x2, y2)
+
+        if source == Hero[pid] and #CoordinateQueue[pid] == 0 and JUMP_POINT_SEARCH and dist < 2000 and x ~= 0 and y ~= 0 then
+            QueueCoordinates(source, jps(x2, y2, x, y))
+        end
+
+        if nocd[pid] then
+            TimerQueue:callDelayed(0.1, ResetCD, pid)
+        end
+
+        if nocost[pid] and HeroID[pid] ~= HERO_VAMPIRE then
+            SetUnitState(Hero[pid], UNIT_STATE_MANA, GetUnitState(Hero[pid], UNIT_STATE_MAX_MANA))
         end
     end
 end
 
-    pointOrder = CreateTrigger()
-    local ordertarget = CreateTrigger()
-    local u = User.first ---@type User 
-
-    while u do
-        TriggerRegisterPlayerUnitEvent(pointOrder, u.player, EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, nil)
-        TriggerRegisterPlayerUnitEvent(ordertarget, u.player, EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, nil)
-        TriggerRegisterPlayerUnitEvent(pointOrder, u.player, EVENT_PLAYER_UNIT_ISSUED_ORDER, nil)
-        u = u.next
-    end
-
-    TriggerAddAction(pointOrder, OnOrder)
-    TriggerAddAction(ordertarget, OnTargetOrder)
+    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_ORDER, OnOrder)
+    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, OnOrder)
+    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, OnOrder)
 end)
 
 if Debug then Debug.endFile() end

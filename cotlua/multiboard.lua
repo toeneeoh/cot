@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'Multiboard' end
+
 --[[
     multiboard.lua
 
@@ -10,8 +12,6 @@
         -Boss stats / threat meter
         -Damage log
 ]]
-
-if Debug then Debug.beginFile 'Multiboard' end
 
 OnInit.final("Multiboard", function()
 
@@ -61,7 +61,7 @@ OnInit.final("Multiboard", function()
             local self = {
                 index = #MB.bodies + 1,
                 frame = BlzCreateFrame("ListBoxWar3", MB.main, 0, 0),
-                available = __jarray(false),
+                available = {}, ---@type boolean[]
                 rows = {},
                 rowCount = 0,
                 columnCount = columns,
@@ -107,6 +107,54 @@ OnInit.final("Multiboard", function()
                 BlzFrameSetSize(self.frame, 0.3, height + INITIAL_ROW_Y_OFFSET)
             end
 
+            --method operators for initializing different UI elements
+            local mt = {
+                __newindex = function(column, key, val)
+                local frame
+
+                --val[1] = x-offset, val[2] = y-offset, val[3] = width, val[4] = height
+                if key == "text" then
+                    frame = BlzCreateFrameByType("TEXT", "name", column.body.frame, "", 0)
+                    BlzFrameSetText(frame, "")
+                    BlzFrameSetEnable(frame, false)
+                elseif key == "textarea" then
+                    frame = BlzCreateFrame("MBTextArea", column.body.frame, 0, 0)
+                    --BlzFrameSetEnable(frame, false)
+                elseif key == "icon" then
+                    frame = BlzCreateFrameByType("BACKDROP", "name", column.body.frame, "", 0)
+                    BlzFrameSetEnable(frame, false)
+                    BlzFrameSetTexture(frame, "TransparentTexture.blp", 0, true)
+                elseif key == "radiobutton" then --checked by default
+                    frame = BlzCreateFrame("RadioCheckedButton", column.body.frame, 0, 0)
+                elseif key == "button" then
+                    frame = BlzCreateFrameByType("GLUETEXTBUTTON", "", column.body.frame, "ScriptDialogButton", 0)
+                    BlzFrameSetScale(frame, 0.7)
+                elseif key == "checkbox" then --unchecked by default
+                    frame = BlzCreateFrame("EscMenuCheckBoxTemplate", column.body.frame, 0, 0)
+                end
+
+                if frame ~= nil then
+                    BlzFrameSetSize(frame, val[3], val[4])
+
+                    local height = (column.parent.pos == 1 and INITIAL_ROW_Y_OFFSET) or ROW_SPACING
+                    column.parent.height = math.max(column.parent.height, val[4] + val[2] + height)
+
+                    for j = 1, column.parent.pos - 1 do
+                        height = height + column.body.rows[j].height
+                    end
+
+                    --align frame with topleft of body frame using x-offset and y-offset of previous rows' height
+                    BlzFrameSetPoint(frame, FRAMEPOINT_TOPLEFT, column.body.frame, FRAMEPOINT_TOPLEFT, val[1], -val[2] - height)
+
+                    --two name references
+                    rawset(column, key, frame)
+                    rawset(column, "frame", frame)
+                else
+                    rawset(column, key, val)
+                    end
+                end
+            }
+
             --adds set number of rows to a body
             ---@type fun(self: self, num: integer)
             function self:addRows(num)
@@ -128,51 +176,7 @@ OnInit.final("Multiboard", function()
                             parent = row,
                         }
 
-                        setmetatable(row.columns[i], { __newindex = function(column, key, val)
-                            local frame
-
-                            --operators for initializing different UI elements
-                            --val[1] = x-offset, val[2] = y-offset, val[3] = width, val[4] = height
-                            if key == "text" then
-                                frame = BlzCreateFrameByType("TEXT", "name", column.body.frame, "", 0)
-                                BlzFrameSetText(frame, "")
-                                BlzFrameSetEnable(frame, false)
-                            elseif key == "textarea" then
-                                frame = BlzCreateFrame("MBTextArea", column.body.frame, 0, 0)
-                                --BlzFrameSetEnable(frame, false)
-                            elseif key == "icon" then
-                                frame = BlzCreateFrameByType("BACKDROP", "name", column.body.frame, "", 0)
-                                BlzFrameSetEnable(frame, false)
-                                BlzFrameSetTexture(frame, "TransparentTexture.blp", 0, true)
-                            elseif key == "radiobutton" then --checked by default
-                                frame = BlzCreateFrame("RadioCheckedButton", column.body.frame, 0, 0)
-                            elseif key == "button" then
-                                frame = BlzCreateFrameByType("GLUETEXTBUTTON", "", column.body.frame, "ScriptDialogButton", 0)
-                                BlzFrameSetScale(frame, 0.7)
-                            elseif key == "checkbox" then --unchecked by default
-                                frame = BlzCreateFrame("EscMenuCheckBoxTemplate", column.body.frame, 0, 0)
-                            end
-
-                            if frame ~= nil then
-                                BlzFrameSetSize(frame, val[3], val[4])
-
-                                local height = (column.parent.pos == 1 and INITIAL_ROW_Y_OFFSET) or ROW_SPACING
-                                column.parent.height = math.max(column.parent.height, val[4] + val[2] + height)
-
-                                for j = 1, column.parent.pos - 1 do
-                                    height = height + column.body.rows[j].height
-                                end
-
-                                --align frame with topleft of body frame using x-offset and y-offset of previous rows' height
-                                BlzFrameSetPoint(frame, FRAMEPOINT_TOPLEFT, column.body.frame, FRAMEPOINT_TOPLEFT, val[1], -val[2] - height)
-
-                                --two name references
-                                rawset(column, key, frame)
-                                rawset(column, "frame", frame)
-                            else
-                                rawset(column, key, val)
-                            end
-                        end})
+                        setmetatable(row.columns[i], mt)
                     end --end column loop
                 end
             end
@@ -226,7 +230,7 @@ OnInit.final("Multiboard", function()
 
             repeat
                 MB.lookingAt[pid] = (MB.lookingAt[pid] + 1 > #MB.bodies and 1) or MB.lookingAt[pid] + 1
-            until MB.bodies[MB.lookingAt[pid]].available[pid] == true
+            until MB.bodies[MB.lookingAt[pid]].available[pid]
 
             MB.bodies[MB.lookingAt[pid]]:display(pid)
         end
@@ -258,7 +262,7 @@ OnInit.final("Multiboard", function()
         BlzFrameClearAllPoints(MB.minimize_button)
         BlzFrameSetPoint(MB.minimize_button, FRAMEPOINT_RIGHT, MB.main, FRAMEPOINT_RIGHT, -0.04, 0)
         BlzFrameSetSize(MB.minimize_button, 0.015, 0.015)
-        FrameAddSimpleTooltip(MB.minimize_button, "Minimize '.'")
+        FrameAddSimpleTooltip(MB.minimize_button, "Minimize '.'", true)
 
         MB.minimize_backdrop = BlzCreateFrameByType("BACKDROP", "name", MB.minimize_button, "", 0)
         BlzFrameClearAllPoints(MB.minimize_backdrop)
@@ -274,7 +278,7 @@ OnInit.final("Multiboard", function()
         BlzFrameClearAllPoints(MB.next_button)
         BlzFrameSetPoint(MB.next_button, FRAMEPOINT_RIGHT, MB.main, FRAMEPOINT_RIGHT, -0.0175, 0)
         BlzFrameSetSize(MB.next_button, 0.015, 0.015)
-        FrameAddSimpleTooltip(MB.next_button, "Next page '/'")
+        FrameAddSimpleTooltip(MB.next_button, "Next page '/'", true)
 
         MB.next_backdrop = BlzCreateFrameByType("BACKDROP", "name", MB.next_button, "", 0)
         BlzFrameClearAllPoints(MB.next_backdrop)
@@ -315,7 +319,7 @@ OnInit.final("Multiboard", function()
                 if u then
                     --main
                     local nameText = (isdonator[pid] and u.nameColored .. "|r|cffffcc00*|r") or u.nameColored
-                    local hcIcon = (Hardcore[pid] == true and "ReplaceableTextures\\CommandButtons\\BTNBirial.blp") or "TransparentTexture.blp"
+                    local hcIcon = (Hardcore[pid] and "ReplaceableTextures\\CommandButtons\\BTNBirial.blp") or "TransparentTexture.blp"
                     local heroIcon = (HeroID[pid] > 0 and BlzGetAbilityIcon(HeroID[pid])) or "TransparentTexture.blp"
                     local hp = (HeroID[pid] > 0 and GetWidgetLife(Hero[pid]) / BlzGetUnitMaxHP(Hero[pid]) * 100.) or 0
                     local heroText = (HeroID[pid] > 0 and GetObjectName(HeroID[pid])) or ""
@@ -334,7 +338,7 @@ OnInit.final("Multiboard", function()
 
                     --ready
                     if TableHas(QUEUE_GROUP, Player(pid - 1)) then
-                        local readyIcon = (QUEUE_READY[pid] == true and "ReplaceableTextures\\CommandButtons\\BTNcheck.blp") or "ReplaceableTextures\\CommandButtons\\BTNCancel.blp"
+                        local readyIcon = (QUEUE_READY[pid] and "ReplaceableTextures\\CommandButtons\\BTNcheck.blp") or "ReplaceableTextures\\CommandButtons\\BTNCancel.blp"
 
                         BlzFrameSetText(MULTIBOARD.QUEUE:get(readyIndex, 1).text, nameText)
                         BlzFrameSetTexture(MULTIBOARD.QUEUE:get(readyIndex, 2).icon, readyIcon, 0, true)

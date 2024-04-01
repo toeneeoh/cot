@@ -1,8 +1,15 @@
 if Debug then Debug.beginFile 'Attacked' end
 
+--[[
+    attacked.lua
+
+    This library handles instances of EVENT_PLAYER_UNIT_ATTACKED,
+    where a unit is about to begin attacking a target.
+]]
+
 OnInit.final("Attacked", function(require)
-    require 'Users'
     require 'Variables'
+    require 'UnitEvent'
 
     ---@return boolean
     function OnAttack()
@@ -15,11 +22,6 @@ OnInit.final("Attacked", function(require)
         local y       = GetUnitY(source) ---@type number 
         local targetX = GetUnitX(target) ---@type number 
         local targetY = GetUnitY(target) ---@type number 
-
-        --turn off moving flag
-        if source == Hero[pid] and Moving[pid] then
-            Moving[pid] = false
-        end
 
         --prevent team killing
         if (pid <= PLAYER_CAP and tpid <= PLAYER_CAP and pid ~= tpid and IsUnitAlly(source, GetOwningPlayer(target))) then
@@ -80,19 +82,7 @@ OnInit.final("Attacked", function(require)
         return false
     end
 
-    local attacked = CreateTrigger() ---@type trigger 
-    local U = User.first ---@type User 
-
-    while U do
-        TriggerRegisterPlayerUnitEvent(attacked, U.player, EVENT_PLAYER_UNIT_ATTACKED, nil)
-        U = U.next
-    end
-
-    TriggerRegisterPlayerUnitEvent(attacked, Player(PLAYER_TOWN), EVENT_PLAYER_UNIT_ATTACKED, nil)
-    TriggerRegisterPlayerUnitEvent(attacked, pboss, EVENT_PLAYER_UNIT_ATTACKED, nil)
-    TriggerRegisterPlayerUnitEvent(attacked, pfoe, EVENT_PLAYER_UNIT_ATTACKED, nil)
-
-    TriggerAddCondition(attacked, Condition(OnAttack))
+    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ATTACKED, OnAttack)
 end)
 
 if Debug then Debug.endFile() end
