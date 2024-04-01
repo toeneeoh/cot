@@ -3,28 +3,29 @@ if Debug then Debug.beginFile 'F9' end
 OnInit.final("F9", function()
 
     CreateQuestBJ(bj_QUESTTYPE_REQ_DISCOVERED, "|c008000ffNevermore|r", [[The Nevermore Series is developed by: Mayday & lcm.
-    \nThanks to previous contributors:
-    Waugriff
-    darkchaos
-    Hotwer
-    afis
-    CanFight]], "ReplaceableTextures\\CommandButtons\\BTNTheCaptain.blp")
+
+Thanks to previous contributors:
+Waugriff
+darkchaos
+Hotwer
+afis
+CanFight]], "ReplaceableTextures\\CommandButtons\\BTNTheCaptain.blp")
     CreateQuestBJ(bj_QUESTTYPE_REQ_DISCOVERED, "|c00ff0000Beta Testers|r", [[Special thanks to the Nevermore Beta Testers:
-    |cff0b6623Kristian
-    Bud-Bus-|r
-    |cff7c0a02Ash
-    Sagmariasus
-    Aru_Azif
-    Orion
-    AgentCody
-    Anna Kendrick
-    Charles Barkley's Tulpa
-    Peacee'
-    ReefyPuffs
-    Saken
-    Samaki1000
-    Triggis
-    Maiev|r]], "ReplaceableTextures\\CommandButtons\\BTNJaina.blp")
+|cff0b6623Kristian
+Bud-Bus-|r
+|cff7c0a02Ash
+Sagmariasus
+Aru_Azif
+Orion
+AgentCody
+Anna Kendrick
+Charles Barkley's Tulpa
+Peacee'
+ReefyPuffs
+Saken
+Samaki1000
+Triggis
+Maiev|r]], "ReplaceableTextures\\CommandButtons\\BTNJaina.blp")
 
     CreateQuestBJ(bj_QUESTTYPE_REQ_DISCOVERED, "Commands", [[-info (displays submenu info list)
     -stats # (displays your current characters stats)
@@ -33,26 +34,18 @@ OnInit.final("F9", function()
     -zm (L to lock, i.e. -zml will set your camera to 2500, locked distance)
     -lock (locks camera distance)
     -unlock (unlock camera distance so that it can be reset by scroll wheel)
-    -roll (rolls a number 1-100 for_ an item)
+    -roll (rolls a number 1-100 for an item)
     -suicide (kills your hero if you get stuck)
     -db (destroy base)
-    -rv (revive)
     -clear (clears text on screen)
-    -pa (show platinum / arcadite)
     -pf (proficiencies)
     -save (saves your character, this game uses a codeless save system)
-    -load (loads your profile/heroes to be selected from in_ your current game)
+    -load (loads your profile/heroes to be selected from in your current game)
     -forcesave (after a timer/prompt, your character will be removed & saved)
     -autosave (automatically saves your hero every 30 minutes)
-    -savetime (time until_ you can save again)
-    -restime (time until_ you can recharge your ankh again)]], "ReplaceableTextures\\PassiveButtons\\PASBTNStatUp.blp")
-    CreateQuestBJ(bj_QUESTTYPE_REQ_DISCOVERED, "Commands 2",    [[-st (show time until_ next save)
-    -bppc (buy platinum converter)
-    -bpac (buy arcadite converter)
-    -pcon (enables automatic platinum conversion)
-    -pcoff (disables)
-    -acon (enables automatic arcadite conversion)
-    -acoff (disables)
+    -savetime (time until you can save again)
+    -restime (time until you can recharge your ankh again)]], "ReplaceableTextures\\PassiveButtons\\PASBTNStatUp.blp")
+    CreateQuestBJ(bj_QUESTTYPE_REQ_DISCOVERED, "Commands 2", [[-st (show time until next save)
     -xp (displays current xp values)
     -flee (leave an instance)
     -hardmode (enables increased boss difficulty)
@@ -68,35 +61,35 @@ OnInit.final("F9", function()
     -aa (toggles auto attacking)]], "ReplaceableTextures\\PassiveButtons\\PASBTNStatUp.blp")
 
     CreateQuestBJ(bj_QUESTTYPE_REQ_DISCOVERED, "Colors", [[1 |c00FF0303Red|r
-    2 |c000042FFBlue|r
-    3 |c001CE6B9Teal|r
-    4 |c00540081Purple|r
-    5 |c00FFFC01Yellow|r
-    6 |c00fEBA0EOrange|r
-    7 |c0020C000Green|r
-    8 |c00E55BB0Pink|r
-    9 |c00959697Gray|r
-    10 |c007EBFF1Light Blue|r
-    11 |c00106246Dark Green|r
-    12 |c004E2A04Brown|r
-    13 |cff9B0000Maroon|r
-    14 |cff0000C3Navy|r
-    15 |cff00EAFFTurquoise|r
-    16 |cffBE00FEViolet|r
-    17 |cffEBCD87Wheat|r
-    18 |cffF8A48BPeach|r
-    19 |cffBFFF80Mint|r
-    20 |cffDCB9EBLavender|r
-    21 |cff282828Coal|r
-    22 |cffEBF0FFSnow|r
-    23 |cff00781EEmerald|r
-    24 |cffA46F33Peanut|r
-    25 Black]], "ReplaceableTextures\\PassiveButtons\\PASBTNScatterRockets.blp")
+2 |c000042FFBlue|r
+3 |c001CE6B9Teal|r
+4 |c00540081Purple|r
+5 |c00FFFC01Yellow|r
+6 |c00fEBA0EOrange|r
+7 |c0020C000Green|r
+8 |c00E55BB0Pink|r
+9 |c00959697Gray|r
+10 |c007EBFF1Light Blue|r
+11 |c00106246Dark Green|r
+12 |c004E2A04Brown|r
+13 |cff9B0000Maroon|r
+14 |cff0000C3Navy|r
+15 |cff00EAFFTurquoise|r
+16 |cffBE00FEViolet|r
+17 |cffEBCD87Wheat|r
+18 |cffF8A48BPeach|r
+19 |cffBFFF80Mint|r
+20 |cffDCB9EBLavender|r
+21 |cff282828Coal|r
+22 |cffEBF0FFSnow|r
+23 |cff00781EEmerald|r
+24 |cffA46F33Peanut|r
+25 Black]], "ReplaceableTextures\\PassiveButtons\\PASBTNScatterRockets.blp")
 
     -- optional quests
-    Bum_Stage               = CreateQuestBJ(bj_QUESTTYPE_OPT_DISCOVERED, "Bum Stage", "After you’ve picked a hero of your choice, you should buy a house or a nation sold by the salesmen located in_ a corner of the town. Place your nation/house near one of the goldmines located around the map. A house has higher XP rate then a nation, while_ a nation has better resource gathering and units.", "ReplaceableTextures\\CommandButtons\\BTNTaurenHut.blp")
-    Dark_Savior_Quest       = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Dark Savior", "The Dark Savior has Found his way to Medea and now he is prepared to slaughter all in_ his way.  Kill him and bring back peace to the land before he destroys all in_ his path.", "ReplaceableTextures\\CommandButtons\\BTNTheCaptain.tga")
-    Ogre_King_Quest         = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The King of Ogres", "The Ogres and Taurens have taken control of the forest to the south of town. Slay their King and bring his head to the Huntsman for_ your reward.", "ReplaceableTextures\\CommandButtons\\BTNOneHeadedOgre.tga")
+    Bum_Stage               = CreateQuestBJ(bj_QUESTTYPE_OPT_DISCOVERED, "Bum Stage", "After you’ve picked a hero of your choice, you should buy a house or a nation sold by the salesmen located in a corner of the town. Place your nation/house near one of the goldmines located around the map. A house has higher XP rate then a nation, while a nation has better resource gathering and units.", "ReplaceableTextures\\CommandButtons\\BTNTaurenHut.blp")
+    Dark_Savior_Quest       = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Dark Savior", "The Dark Savior has Found his way to Medea and now he is prepared to slaughter all in his way.  Kill him and bring back peace to the land before he destroys all in his path.", "ReplaceableTextures\\CommandButtons\\BTNTheCaptain.tga")
+    Ogre_King_Quest         = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The King of Ogres", "The Ogres and Taurens have taken control of the forest to the south of town. Slay their King and bring his head to the Huntsman for your reward.", "ReplaceableTextures\\CommandButtons\\BTNOneHeadedOgre.tga")
     Nerubian_Quest          = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Nerubian Empress", "The Nerubian Empress control the lesser spiders, forcing them to viciously attack wanderers. Although she can't use swords and shields, there's a collection of them in her lair. Nerubians like shiny things. Defeat her and bring her head for your reward.", "ReplaceableTextures\\CommandButtons\\BTNOneHeadedOgre.tga")
     Paladin_Quest           = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "Vengeful Test Paladin", "Over a thousand of my fellow paladins have been slain by your evil testing ambitions!!!  And you dare drink my whiskey and swing my hammer?!  -One Test Paladin remained on the map and he turned hostile after the evil Map Maker Waugriff set all the Creeps AI's. Now he is sworn to destroy any players that cross his path!", "ReplaceableTextures\\CommandButtons\\BTNHeroPaladin.tga")
     Sasquatch_Quest         = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Yeti", "The mighty happy Yeti of Medea is known to harrass local hunting parties. Though usually no one is slain they all return home naked, with sore behinds and empty bottles of ale screaming about soap and not dropping it. Though nobody knows exactly what these foul Yeti have done to these men, one could only imagine. Slay the beast and bring its head to the Huntsman for your reward.", "ReplaceableTextures\\CommandButtons\\BTNWendigo.tga")

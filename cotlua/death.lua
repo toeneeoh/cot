@@ -1,11 +1,11 @@
+if Debug then Debug.beginFile 'Death' end
+
 --[[
     death.lua
 
-    An all encompassing lib to handle death events (i.e. EVENT_PLAYER_UNIT_DEATH or EVENT_UNIT_DEATH)
+    This library handles death events (i.e. EVENT_PLAYER_UNIT_DEATH or EVENT_UNIT_DEATH)
     and provides related functions and globals
 ]]
-
-if Debug then Debug.beginFile 'Death' end
 
 OnInit.final("Death", function(require)
     require 'Users'
@@ -58,7 +58,7 @@ OnInit.final("Death", function(require)
         [FourCC('n01F')] = function()
             QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_COMPLETED, "|cffffcc00OPTIONAL QUEST COMPLETED|r\nThe Evil Shopkeeper")
             QuestSetCompleted(Evil_Shopkeeper_Quest_1, true)
-            QuestItemSetCompleted(Quest_Req[10], true)
+            --? QuestItemSetCompleted(Quest_Req[10], true)
         end,
 
         --forest corruption
@@ -111,41 +111,15 @@ function DeathHandler(pid)
 
     CleanupSummons(p)
 
-    --clear training area if no heroes remain
-    if RectContainsCoords(gg_rct_PrechaosTrainingSpawn, x, y) then
-        GroupEnumUnitsInRect(ug, gg_rct_PrechaosTrainingSpawn, Condition(isplayerAlly))
-        for hero in each(ug) do
-            if UnitAlive(hero) and hero == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
-                GroupEnumUnitsInRect(ug, gg_rct_PrechaosTrainingSpawn, Condition(ishostile))
-                for target in each(ug) do
-                    RemoveUnit(target)
-                end
-                break
-            end
-        end
-
-    --clear chaos training area if no heroes remain
-    elseif RectContainsCoords(gg_rct_ChaosTrainingSpawn, x, y) then
-        GroupEnumUnitsInRect(ug, gg_rct_ChaosTrainingSpawn, Condition(isplayerAlly))
-        for hero in each(ug) do
-            if UnitAlive(hero) and hero == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
-                GroupEnumUnitsInRect(ug, gg_rct_PrechaosTrainingSpawn, Condition(ishostile))
-                for target in each(ug) do
-                    RemoveUnit(target)
-                end
-                break
-            end
-        end
+    --dungeons
+    DungeonFail(pid)
 
     --colosseum
-    elseif InColo[pid] then
+    if InColo[pid] then
         ColoPlayerCount = ColoPlayerCount - 1
         InColo[pid] = false
         Fleeing[pid] = false
-        EnableItems(pid)
         AwardGold(pid, ColoGoldWon / 1.5, true)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-        PanCameraToTimedLocForPlayer(p, TownCenter, 0)
         ExperienceControl(pid)
         if ColoPlayerCount == 0 then --clear colo
             ClearColo()
@@ -156,45 +130,14 @@ function DeathHandler(pid)
         Struggle_Pcount = Struggle_Pcount - 1
         InStruggle[pid] = false
         Fleeing[pid] = false
-        EnableItems(pid)
-        SetCameraBoundsRectForPlayerEx(p, MAIN_MAP.rect)
-        PanCameraToTimedLocForPlayer(p, TownCenter, 0)
         ExperienceControl(pid)
         AwardGold(pid, GoldWon_Struggle * 0.1, true)
         if Struggle_Pcount == 0 then --clear struggle
             ClearStruggle()
         end
-
-    --azazoth reset / gods area
-    elseif TableHas(AZAZOTH_GROUP, p) then
-        TableRemove(AZAZOTH_GROUP, p)
-
-        if CHAOS_MODE then
-            DisplayTimedTextToForce(FORCE_PLAYING, 20.00, "|c00ff3333Azazoth: Mortal weakling, begone! Your flesh is not even worth annihilation.")
-
-            if #AZAZOTH_GROUP == 0 then
-                UnitRemoveBuffsBJ(bj_REMOVEBUFFS_ALL, BossTable[BOSS_AZAZOTH].unit)
-                SetUnitLifePercentBJ(BossTable[BOSS_AZAZOTH].unit, 100)
-                SetUnitManaPercentBJ(BossTable[BOSS_AZAZOTH].unit, 100)
-                SetUnitPosition(BossTable[BOSS_AZAZOTH].unit, GetRectCenterX(gg_rct_Azazoth_Boss_Spawn), GetRectCenterY(gg_rct_Azazoth_Boss_Spawn))
-                BlzSetUnitFacingEx(BossTable[BOSS_AZAZOTH].unit, 90.00)
-            end
-        end
-
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-        PanCameraToTimedLocForPlayer(p, TownCenter, 0)
-
-    --naga dungeon
-    elseif TableHas(NAGA_GROUP, p) then
-        TableRemove(NAGA_GROUP, p)
-        EnableItems(pid)
-
-        if #NAGA_GROUP <= 0 then
-            NAGA_TIMER:destroy()
-            for target in each(NAGA_ENEMIES) do
-                RemoveUnit(target)
-            end
-        end
+    --gods area
+    elseif TableHas(GODS_GROUP, p) then
+        TableRemove(GODS_GROUP, p)
     end
 
     DestroyGroup(ug)
@@ -235,9 +178,9 @@ function HeroGraveExpire(pt)
 
             DeathHandler(pid)
 
+            EnableItems(pid)
             RevivePlayer(pid, GetLocationX(TownCenter), GetLocationY(TownCenter), 1, 1)
-            SetCameraBoundsRectForPlayerEx(p, MAIN_MAP.rect)
-            PanCameraToTimedLocForPlayer(p, TownCenter, 0)
+            SetCamera(pid, MAIN_MAP.rect)
         end
 
         --cleanup
@@ -370,14 +313,16 @@ end
 function ReviveGods()
     local ug = CreateGroup()
 
-    GroupEnumUnitsInRect(ug, gg_rct_Gods_Vision, Filter(isplayerunitRegion))
+    GroupEnumUnitsInRect(ug, gg_rct_Gods_Arena, Filter(isplayerunitRegion))
 
     for target in each(ug) do
-        SetUnitPositionLoc(target, TownCenter)
-        if target == Hero[GetPlayerId(GetOwningPlayer(target)) + 1] then
-            TableRemove(AZAZOTH_GROUP, GetOwningPlayer(target))
-            SetCameraBoundsRectForPlayerEx(GetOwningPlayer(target), gg_rct_Main_Map_Vision)
-            PanCameraToTimedLocForPlayer(GetOwningPlayer(target), TownCenter, 0)
+        local pid = GetPlayerId(GetOwningPlayer(target)) + 1
+
+        if target == Hero[pid] then
+            TableRemove(GODS_GROUP, GetOwningPlayer(target))
+            MoveHeroLoc(pid, TownCenter)
+        else
+            SetUnitPositionLoc(target, TownCenter)
         end
     end
 
@@ -472,9 +417,12 @@ function BossHandler(uid)
         delay = delay // 2
     end
 
+    --azazoth
     if uid == FourCC('O02T') then
-        DisplayTimedTextToForce(FORCE_PLAYING, 50, "Type -flee to exit the area, or wait 60 seconds.")
-        TimerQueue:callDelayed(60., AzazothExit)
+        DungeonComplete(DUNGEON_AZAZOTH)
+    --naga boss
+    elseif uid == FourCC('O006') then
+        DungeonComplete(DUNGEON_NAGA)
     elseif uid == FourCC('E00B') or uid == FourCC('E00D') or uid == FourCC('E00C') then
         DeadGods = DeadGods + 1
 
@@ -592,38 +540,9 @@ function OnDeath()
             if (Struggle_WaveUCN == 0) and BlzGroupGetSize(StruggleWaveGroup) == 0 then
                 TimerQueue:callDelayed(3., AdvanceStruggle, 0)
             end
-        elseif IsUnitInGroup(killed, NAGA_ENEMIES) then --naga dungeon
+        elseif TableHas(NAGA_ENEMIES, killed) then --naga dungeon
             dropflag = false
-            GroupRemoveUnit(NAGA_ENEMIES, killed)
-
-            if BlzGroupGetSize(NAGA_ENEMIES) <= 0 then
-                if NAGA_FLOOR < 3 then
-                    nagachest = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h002'), -23000, -3750, 270)
-                    nagatp = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n00O'), -21894, -4667, 270)
-                    MovePlayers(NAGA_GROUP, -24000, -4700, gg_rct_Naga_Dungeon_Reward_Vision)
-                else --naga boss
-                    nagachest = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h002'), -22141, -10500, 0)
-                    nagatp = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n00O'), -20865, -10500, 270)
-                    DisplayTextToTable(NAGA_GROUP, "You have vanquished the Ancient Nagas!")
-                    StartSound(bj_questCompletedSound)
-                    if NAGA_TIMER then --time restriction
-                        NAGA_TIMER:destroy()
-                        Item.create(CreateItem(FourCC('I0NN'), x, y)) --token
-                        if DungeonTable[DUNGEON_NAGA][DUNGEON_PLAYER_COUNT] > 3 and GetRandomInt(0, 99) < 50 then
-                            Item.create(CreateItem(FourCC('I0NN'), x, y))
-                        end
-                    end
-                    for i = 0, PLAYER_CAP do
-                        if TableHas(NAGA_GROUP, Player(i)) then
-                            local XP = R2I(Experience_Table[500] / 700. * XP_Rate[i + 1])
-                            AwardXP(i + 1, XP)
-                            EnableItems(i + 1)
-                        end
-                    end
-                end
-                WaygateSetDestination(nagatp, -27637, -7440)
-                WaygateActivate(nagatp, true)
-            end
+            AdvanceNagaDungeon(killed)
         elseif uid == FourCC('h04S') then --power crystal
             dropflag = false
             BeginChaos() --chaos
@@ -732,7 +651,7 @@ function OnDeath()
             DisplayTimedTextToForce(FORCE_PLAYING, 45, User[pid - 1].nameColored .. "'s base has been destroyed.")
         end
 
-        BaseID[pid] = 0
+        Profile[pid].hero.base = 0
         PlayerBase[pid] = nil
         if destroyBaseFlag[pid] then
             destroyBaseFlag[pid] = false
@@ -797,7 +716,7 @@ function OnDeath()
     elseif killed == Hero[pid] then
 
         --pvp death
-        if GetArena(pid) > 0 then --PVP DEATH
+        if GetArena(pid) then --PVP DEATH
             RevivePlayer(pid, x, y, 1, 1)
             UnitRemoveBuffs(killed, true, true)
             DisplayTextToForce(FORCE_PLAYING, User[pid - 1].nameColored .. " has been slain by " + User[kpid - 1].nameColored .. "!")

@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'WorldBounds' end
+
 --[[
     worldbounds.lua
     https://www.hiveworkshop.com/threads/330669/
@@ -44,8 +46,6 @@
             - Checks if the bounds contain the input coordinate
 
 ]]
-
-if Debug then Debug.beginFile 'WorldBounds' end
 
 OnInit.global("WorldBounds", function()
 

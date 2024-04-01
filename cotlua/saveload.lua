@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'SaveLoad' end
+
 --[[
     saveload.lua
 
@@ -6,8 +8,6 @@
 
     Automatically loads players' profiles at map start.
 ]]
-
-if Debug then Debug.beginFile 'SaveLoad' end
 
 OnInit.final("SaveLoad", function(require)
     require 'Variables'
@@ -72,7 +72,7 @@ OnInit.final("SaveLoad", function(require)
 
     ---@param whichPlayer player
     function ForceSave(whichPlayer)
-        local pid         = GetPlayerId(whichPlayer) + 1 ---@type integer 
+        local pid = GetPlayerId(whichPlayer) + 1 ---@type integer 
 
         if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or UnitAlive(Hero[pid]) == false then
             DisplayTextToPlayer(whichPlayer, 0, 0, "An error occured while attempting to save.")
@@ -119,9 +119,9 @@ OnInit.final("SaveLoad", function(require)
     ---@param p player
     ---@return boolean
     function ActionSave(p)
-        local pid         = GetPlayerId(p) + 1 ---@type integer 
+        local pid = GetPlayerId(p) + 1 ---@type integer 
 
-        if CANNOT_LOAD[pid] == false then
+        if not CANNOT_LOAD[pid] then
             DisplayTextToPlayer(p, 0, 0, "You must leave the church to save.")
             return false
         end
@@ -133,10 +133,6 @@ OnInit.final("SaveLoad", function(require)
 
         if DEV_ENABLED then
             GAME_STATE = 2
-        end
-
-        if autosave[pid] or Hardcore[pid] then
-            TimerStart(SaveTimer[pid], 1800, false, nil)
         end
 
         if GetLocalPlayer() == p then
@@ -159,7 +155,7 @@ OnInit.final("SaveLoad", function(require)
         local pid         = GetPlayerId(p) + 1 ---@type integer 
         local pt ---@type PlayerTimer 
 
-        if CANNOT_LOAD[pid] == false then
+        if not CANNOT_LOAD[pid] then
             DisplayTextToPlayer(p, 0, 0, "You must leave the church to save.")
             return
         end
@@ -212,8 +208,8 @@ OnInit.final("SaveLoad", function(require)
                 ActionSaveForce(p, true)
             end
         elseif (cmd == "-save") then
-            if TimerGetRemaining(SaveTimer[pid]) > 1 and Hardcore[pid] then
-                DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(SaveTimer[pid]) .. " until you can save again.")
+            if TimerGetRemaining(Profile[pid].save_timer.timer) > 1 and Hardcore[pid] then
+                DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(Profile[pid].save_timer.timer) .. " until you can save again.")
             elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) == false and Hardcore[pid] then
                 DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffFF0000You're playing in hardcore mode, you may only save inside the church in town.|r")
             else

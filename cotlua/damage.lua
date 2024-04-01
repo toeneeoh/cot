@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'Damage' end
+
 --[[
     damage.lua
 
@@ -7,20 +9,16 @@
     TODO: Migrate dps testing dummy to another file?
 ]]
 
-if Debug then Debug.beginFile 'Damage' end
-
 OnInit.final("Damage", function(require)
-    require 'Users'
     require 'Variables'
-    require 'Helper'
-    require 'UnitIndex'
+    require 'UnitTable'
 
     THREAT_CAP  = 4000 ---@type integer 
 
-    HeroInvul  =__jarray(false) ---@type boolean[] 
-    HeartBlood =__jarray(0) ---@type integer[] 
-    BossDamage =__jarray(0) ---@type integer[] 
-    ignoreflag =__jarray(0) ---@type integer[] 
+    HeroInvul  = {} ---@type boolean[] 
+    HeartBlood = __jarray(0) ---@type integer[] 
+    BossDamage = __jarray(0) ---@type integer[] 
+    ignoreflag = __jarray(0) ---@type integer[] 
 
     DUMMY_TIMER = CreateTimer() ---@type timer 
 
@@ -48,15 +46,22 @@ OnInit.final("Damage", function(require)
     }
 
 ---@return boolean
-function AcquireTarget()
+function OnAcquire()
     local target = GetEventTargetUnit() ---@type unit 
-    local enemy = GetTriggerUnit() ---@type unit 
+    local attacker = GetTriggerUnit() ---@type unit 
+    local pid = GetPlayerId(GetOwningPlayer(attacker)) + 1
 
-    if GetUnitTypeId(enemy) == DUMMY then
-        BlzSetUnitWeaponBooleanField(enemy, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
-    elseif GetPlayerController(GetOwningPlayer(enemy)) ~= MAP_CONTROL_USER then
-        Threat[enemy].target = AcquireProximity(enemy, target, 800.)
-        TimerQueue:callDelayed(FPS_32, SwitchAggro, enemy, target)
+    if GetUnitTypeId(attacker) == DUMMY then
+        BlzSetUnitWeaponBooleanField(attacker, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
+    elseif GetPlayerController(Player(pid - 1)) ~= MAP_CONTROL_USER then
+        Threat[attacker].target = AcquireProximity(attacker, target, 800.)
+        TimerQueue:callDelayed(FPS_32, SwitchAggro, attacker, target)
+    elseif attacker == Hero[pid] then
+        LAST_TARGET[pid] = target
+        LAST_ORDER_TARGET[pid] = target
+        if Movespeed[pid] > 522 then
+            BlzSetUnitFacingEx(attacker, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(attacker), GetUnitX(target) - GetUnitX(attacker)))
+        end
     end
 
     return false
@@ -139,10 +144,10 @@ function ReduceArmorCalc(dmg, source, target)
 end
 
 ---@type fun(dmg: number, source: unit, target: unit, TYPE: damagetype):number
-function CalcAfterReductions(dmg, source, target, TYPE) --after
-    local armor      = BlzGetUnitArmor(target) ---@type number 
-    local dtype         = BlzGetUnitIntegerField(target, UNIT_IF_DEFENSE_TYPE) ---@type integer 
-    local atype         = BlzGetUnitWeaponIntegerField(source, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0) ---@type integer 
+function CalcAfterReductions(dmg, source, target, TYPE)
+    local armor = BlzGetUnitArmor(target) ---@type number 
+    local dtype = BlzGetUnitIntegerField(target, UNIT_IF_DEFENSE_TYPE) ---@type integer 
+    local atype = BlzGetUnitWeaponIntegerField(source, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0) ---@type integer 
 
     if TYPE ~= PURE then
         if (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) then --chaos armor
@@ -345,7 +350,7 @@ function OnDamage()
         end
 
         --player hero is hit
-        if target == Hero[tpid] and amount > 0.00 then --hitting a hero
+        if target == Hero[tpid] and amount > 0.00 then
             --heart of demon prince damage taken
             if GetUnitLevel(source) >= 170 and IsUnitEnemy(source, GetOwningPlayer(target)) and UnitHasItemType(target, FourCC('I04Q')) then
                 HeartBlood[tpid] = HeartBlood[tpid] + 1
@@ -369,7 +374,7 @@ function OnDamage()
 
             --vampire blood bank
             if uid == HERO_VAMPIRE then
-                BloodBank[pid] = math.min(BloodBank[pid] + BLOODBANK.gain(pid), BLOODBANK.max(pid))
+                BLOODBANK.add(pid, BLOODBANK.gain(pid))
 
                 --vampire blood lord
                 if BloodLordBuff:has(source, source) then
@@ -455,9 +460,7 @@ function OnDamage()
 
                 --instant death
                 if GetUnitAbilityLevel(source, INSTANTDEATH.id) > 0 then
-                    if HiddenGuise[pid] then
-                        HiddenGuise[pid] = false
-                    end
+                    HiddenGuise[pid] = false
 
                     crit = crit + INSTANTDEATH.crit(pid, angle, target)
                 end
@@ -905,18 +908,21 @@ function OnDamage()
             --triggered invulnerability
             if HeroInvul[tpid] then
                 amount = 0.00
-            elseif damageType == PHYSICAL then
-                amount = amount * PhysicalTaken[tpid]
-            elseif damageType == MAGIC then
-                amount = amount * MagicTaken[tpid]
             end
 
             --cancel force save
             if forceSaving[tpid] then
                 forceSaving[tpid] = false
             end
-        --damage resist modifiers for non main heroes
-        else
+        end
+
+        --unit resistances
+        amount = amount * Unit[target].dr
+
+        if damageType == PHYSICAL then
+            amount = amount * Unit[target].pr
+        elseif damageType == MAGIC then
+            amount = amount * Unit[target].mr
         end
     end
 
@@ -1180,38 +1186,23 @@ function OnDamage()
             DestroyGroup(ug)
 
             TimerQueue:callDelayed(120., GaiaArmorCD, tpid)
-            TimerQueue:callDelayed(FPS_32, GaiaArmorPush, pt)
+            pt.timer:callDelayed(FPS_32, GaiaArmorPush, pt)
         end
     end
 
     --attack count based health
-    if Unit[target] then
-        if Unit[target].attackCount > 0 then
-            Unit[target].attackCount = Unit[target].attackCount - 1
-            BlzSetEventDamage(0.00)
-            SetWidgetLife(target, GetWidgetLife(target) - 1)
-        end
+    if Unit[target].attackCount > 0 then
+        Unit[target].attackCount = Unit[target].attackCount - 1
+        BlzSetEventDamage(0.00)
+        SetWidgetLife(target, GetWidgetLife(target) - 1)
     end
 
     return false
 end
 
-    local U = User.first ---@type User 
-    local beforearmor = CreateTrigger()
+    TriggerAddCondition(ACQUIRE_TRIGGER, Filter(OnAcquire))
 
-    TriggerAddCondition(ACQUIRE_TRIGGER, Filter(AcquireTarget))
-
-    while U do
-        TriggerRegisterPlayerUnitEvent(beforearmor, U.player, EVENT_PLAYER_UNIT_DAMAGING, nil)
-        U = U.next
-    end
-
-    TriggerRegisterPlayerUnitEvent(beforearmor, Player(PLAYER_TOWN), EVENT_PLAYER_UNIT_DAMAGING, nil)
-    TriggerRegisterPlayerUnitEvent(beforearmor, pboss, EVENT_PLAYER_UNIT_DAMAGING, nil)
-    TriggerRegisterPlayerUnitEvent(beforearmor, Player(PLAYER_NEUTRAL_PASSIVE), EVENT_PLAYER_UNIT_DAMAGING, nil)
-    TriggerRegisterPlayerUnitEvent(beforearmor, pfoe, EVENT_PLAYER_UNIT_DAMAGING, nil)
-
-    TriggerAddCondition(beforearmor, Condition(OnDamage))
+    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DAMAGING, OnDamage)
 end)
 
 if Debug then Debug.endFile() end

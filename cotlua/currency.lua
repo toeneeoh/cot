@@ -1,13 +1,182 @@
+if Debug then Debug.beginFile 'Currency' end
+
 --[[
     currency.lua
 
     This library provides general purpose money related functions for use elsewhere.
 ]]
 
-if Debug then Debug.beginFile 'Currency' end
-
 OnInit.final("Currency", function(require)
     require 'Users'
+    require 'UI'
+
+    PlatConverter = {} ---@type boolean[]
+    ArcaConverter = {} ---@type boolean[]
+    ConverterBought = {} ---@type boolean[]
+
+    --ORIGIN_FRAME_UBERTOOLTIP
+
+    BlzFrameSetVisible(CONVERTER_FRAME, false)
+
+    --map item currency exchange purchases to functions
+
+    --purchase auto converter
+    local function BuyConverter()
+        local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+        local dw    = DialogWindow[pid]
+        local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
+
+        --converter
+        if index == 0 then
+            if GetCurrency(pid, PLATINUM) >= 2 and GetCurrency(pid, ARCADITE) >= 2 then
+                ConverterBought[pid] = true
+                AddCurrency(pid, PLATINUM, -2)
+                AddCurrency(pid, ARCADITE, -2)
+                if GetLocalPlayer() == GetTriggerPlayer() then
+                    BlzFrameSetVisible(CONVERTER_FRAME, true)
+                end
+            else
+                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "You cannot afford this!")
+            end
+
+            dw:destroy()
+        end
+
+        return false
+    end
+
+    ITEM_LOOKUP[FourCC('I084')] = function(p, pid)
+        if not ConverterBought[pid] then
+            local dw = DialogWindow.create(pid, "Purchase cost: |n|cffffffff2 |cffe3e2e2Platinum|r|nand |cffffffff2 |cff66FF66Arcadite|r", BuyConverter)
+
+            dw:addButton("Purchase")
+
+            dw:display()
+        end
+    end
+
+    --crystal to gold & platinum
+    ITEM_LOOKUP[FourCC('I0ME')] = function(p, pid)
+        if GetCurrency(pid, CRYSTAL) >= 1 then
+            AddCurrency(pid, CRYSTAL, -1)
+            AddCurrency(pid, GOLD, 500000)
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 1 crystal to buy this.")
+        end
+    end
+
+    --platinum to crystal
+    ITEM_LOOKUP[FourCC('I0MF')] = function(p, pid)
+        if GetCurrency(pid, PLATINUM) >= 3 then
+            AddCurrency(pid, PLATINUM, -3)
+            AddCurrency(pid, CRYSTAL, 1)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, CrystalTag + (GetCurrency(pid, CRYSTAL)))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 3 platinum to buy this.")
+        end
+    end
+
+    ITEM_LOOKUP[FourCC('I04G')] = function(p, pid)
+        if GetCurrency(pid, GOLD) >= 1000000 then
+            AddCurrency(pid, PLATINUM, 1)
+            AddCurrency(pid, GOLD, -1000000)
+            ConversionEffect(pid)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag .. (GetCurrency(pid, PLATINUM)))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffee0000You do not have a million gold to convert.")
+        end
+    end
+
+    ITEM_LOOKUP[FourCC('I04H')] = function(p, pid)
+        if GetCurrency(pid, LUMBER) >= 1000000 then
+            AddCurrency(pid, ARCADITE, 1)
+            AddCurrency(pid, LUMBER, -1000000)
+            ConversionEffect(pid)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag .. (GetCurrency(pid, ARCADITE)))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffee0000You do not have a million lumber to convert.")
+        end
+    end
+
+    ITEM_LOOKUP[FourCC('I054')] = function(p, pid)
+        if GetCurrency(pid, ARCADITE) >0 then
+            ConversionEffect(pid)
+            AddCurrency(pid, PLATINUM, 1)
+            AddCurrency(pid, ARCADITE, -1)
+            AddCurrency(pid, GOLD, 200000)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag .. (GetCurrency(pid, ARCADITE)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag .. (GetCurrency(pid, PLATINUM)))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Arcadite Lumber.")
+        end
+    end
+
+    ITEM_LOOKUP[FourCC('I053')] = function(p, pid)
+        if GetCurrency(pid, PLATINUM) > 0 then
+            ConversionEffect(pid)
+            AddCurrency(pid, PLATINUM, -1)
+            AddCurrency(pid, ARCADITE, 1)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag .. (GetCurrency(pid, ARCADITE)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag .. (GetCurrency(pid, PLATINUM)))
+        else
+            AddCurrency(pid, GOLD, 350000)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Platinum Coins.")
+        end
+    end
+
+    ITEM_LOOKUP[FourCC('I0PA')] = function(p, pid)
+        if GetCurrency(pid, PLATINUM) >= 4 then
+            ConversionEffect(pid)
+            AddCurrency(pid, PLATINUM, -4)
+            AddCurrency(pid, ARCADITE, 3)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag .. (GetCurrency(pid, ARCADITE)))
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag .. (GetCurrency(pid, PLATINUM)))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Platinum Coins.")
+        end
+    end
+
+    ITEM_LOOKUP[FourCC('I051')] = function(p, pid)
+        if GetCurrency(pid, ARCADITE) > 0 then
+            ConversionEffect(pid)
+            AddCurrency(pid, ARCADITE, -1)
+            AddCurrency(pid, LUMBER, 1000000)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, ArcTag .. (GetCurrency(pid, ARCADITE)))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Arcadite Lumber.")
+        end
+    end
+
+    ITEM_LOOKUP[FourCC('I052')] = function(p, pid)
+        if GetCurrency(pid, PLATINUM) >0 then
+            ConversionEffect(pid)
+            AddCurrency(pid, PLATINUM, -1)
+            AddCurrency(pid, GOLD, 1000000)
+            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag .. (GetCurrency(pid, PLATINUM)))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Platinum Coins.")
+        end
+    end
+
+    ITEM_LOOKUP[FourCC('I03R')] = function(p, pid)
+        if GetCurrency(pid, LUMBER) >= 25000 then
+            AddCurrency(pid, GOLD, 25000)
+            AddCurrency(pid, LUMBER, -25000)
+            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", u, "origin"))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 25,000 lumber to buy this.")
+        end
+    end
+
+    ITEM_LOOKUP[FourCC('I05C')] = function(p, pid)
+        if GetCurrency(pid, GOLD) >= 32000 then
+            AddCurrency(pid, LUMBER, 25000)
+            AddCurrency(pid, GOLD, -32000)
+            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", u, "origin"))
+        else
+            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 32,000 gold to buy this.")
+        end
+    end
 
     ---@type fun(pid: integer, index: integer, amount: integer)
     function SetCurrency(pid, index, amount)
@@ -19,11 +188,11 @@ OnInit.final("Currency", function(require)
             SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_LUMBER, Currency[pid * CURRENCY_COUNT + index])
         elseif index == PLATINUM then
             if GetLocalPlayer() == Player(pid - 1) then
-                BlzFrameSetText(platText, tostring(Currency[pid * CURRENCY_COUNT + index]))
+                BlzFrameSetText(PLAT_TEXT, tostring(Currency[pid * CURRENCY_COUNT + index]))
             end
         elseif index == ARCADITE then
             if GetLocalPlayer() == Player(pid - 1) then
-                BlzFrameSetText(arcText, tostring(Currency[pid * CURRENCY_COUNT + index]))
+                BlzFrameSetText(ARC_TEXT, tostring(Currency[pid * CURRENCY_COUNT + index]))
             end
         elseif index == CRYSTAL then
             SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_FOOD_USED, Currency[pid * CURRENCY_COUNT + index])
@@ -57,14 +226,14 @@ OnInit.final("Currency", function(require)
 
         if displaymessage then
             if platWon > 0 then
-                DisplayTimedTextToPlayer(p, 0, 0, 10, "|c00ebeb15You have gained " .. (goldWon) .. " gold and " .. (platWon) .. " platinum coins.")
+                DisplayTimedTextToPlayer(p, 0, 0, 10, "|c00ebeb15You have gained " .. (goldWon) .. " gold and " .. (platWon) .. " platinum coins.|r")
                 DisplayTimedTextToPlayer(p, 0, 0, 10, PlatTag .. (GetCurrency(pid, PLATINUM)))
             else
-                DisplayTimedTextToPlayer(p, 0, 0, 10, "|c00ebeb15You have gained " .. (goldWon) .. " gold.")
+                DisplayTimedTextToPlayer(p, 0, 0, 10, "|c00ebeb15You have gained " .. (goldWon) .. " gold.|r")
             end
         end
 
-        local s = string.format(goldWon)
+        local s = "+" .. goldWon
 
         if goldWon >= 100000 then
             s = "+" .. (goldWon // 1000) .. "K"

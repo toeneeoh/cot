@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'SpellView' end
+
 --[[
     spellview.lua
 
@@ -7,8 +9,6 @@
     A library that allows players to view spells of units they do not own on the command card with
     custom UI.
 ]]
-
-if Debug then Debug.beginFile 'SpellView' end
 
 OnInit.final("SpellView", function()
 
@@ -93,10 +93,6 @@ OnInit.final("SpellView", function()
         [FourCC('A0IX')] = 1,
         [FourCC('A0IY')] = 1,
         [FourCC('A0IZ')] = 1,
-        [FourCC('A0JZ')] = 1,
-        [FourCC('A0JV')] = 1,
-        [FourCC('A0JY')] = 1,
-        [FourCC('A0JW')] = 1,
         [FourCC('A00N')] = 1,
         [FourCC('A01A')] = 1,
         [FourCC('A09X')] = 1,

@@ -19,7 +19,7 @@ do
     -- item size used in z collision
     local ITEM_SIZE  = 16.
     -- Raw code of the dummy unit used for vision
-    local DUMMY = FourCC('dumi')
+    local DUMMY = FourCC('eRez')
     -- Needed, dont touch. Seriously, dont touch!
     local location = Location(0., 0.)
     local rect = Rect(0., 0., 0., 0.)
@@ -178,6 +178,11 @@ do
     ---@field launch function
     ---@field move function
     ---@field create function
+    ---@field scale function
+    ---@field curve function
+    ---@field arc function
+    ---@field x number
+    ---@field y number
     Missiles = setmetatable({}, {})
     local mt = getmetatable(Missiles)
     mt.__index = mt

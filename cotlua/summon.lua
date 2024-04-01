@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'Summon' end
+
 --[[
     summon.lua
 
@@ -6,8 +8,6 @@
 
     TODO: disassemble this file
 ]]
-
-if Debug then Debug.beginFile 'Summon' end
 
 OnInit.final("Summon", function(require)
     require 'Users'
@@ -110,9 +110,7 @@ OnInit.final("Summon", function(require)
             local y = GetUnitY(Hero[pid]) + 60. * Sin(bj_DEGTORAD * (heliangle[pid] + GetUnitFacing(Hero[pid])))
 
             if DistanceCoords(x, y, GetUnitX(helicopter[pid]), GetUnitY(helicopter[pid])) > 75. then
-                DisableTrigger(pointOrder)
                 IssuePointOrder(helicopter[pid], "move", x, y)
-                EnableTrigger(pointOrder)
             end
 
             if UnitAlive(LAST_TARGET[pid]) then

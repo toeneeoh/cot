@@ -4,19 +4,18 @@ OnInit.final("Mouse", function(require)
     require 'Users'
     require 'Variables'
 
-    rightclickactivator       = CreateForce() ---@type force 
-    rightclicked       = CreateForce() ---@type force 
-    clickedpointX=__jarray(0) ---@type number[] 
-    clickedpointY=__jarray(0) ---@type number[] 
-    well={} ---@type unit[] 
-    wellcount         = 0 ---@type integer 
-    wellheal=__jarray(0) ---@type integer[] 
-    MouseX=__jarray(0) ---@type number[] 
-    MouseY=__jarray(0) ---@type number[] 
-    moveCounter=__jarray(0) ---@type integer[] 
-    panCounter=__jarray(0) ---@type integer[] 
-    clickCounter=__jarray(0) ---@type integer[] 
-    PlayerSelectedUnit={} ---@type unit[] 
+    rightclickmovement = {} ---@type boolean[]
+    rightclickdown     = {} ---@type boolean[]
+    clickedPoint       = __jarray({0, 0})
+    well               = {} ---@type unit[] 
+    wellcount          = 0 ---@type integer 
+    wellheal           = __jarray(0) ---@type integer[] 
+    MouseX             = __jarray(0) ---@type number[] 
+    MouseY             = __jarray(0) ---@type number[] 
+    moveCounter        = __jarray(0) ---@type integer[] 
+    panCounter         = __jarray(0) ---@type integer[] 
+    clickCounter       = __jarray(0) ---@type integer[] 
+    PlayerSelectedUnit = {} ---@type unit[] 
 
 ---@type fun(pid: integer)
 function UnselectBP(pid)
@@ -31,23 +30,16 @@ end
 
 ---@return boolean
 function MouseUp()
-    local pid         = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-    local x      = BlzGetTriggerPlayerMouseX() ---@type number 
+    local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+    local x   = BlzGetTriggerPlayerMouseX() ---@type number 
     local x2 ---@type number 
-    local y      = BlzGetTriggerPlayerMouseY() ---@type number 
+    local y   = BlzGetTriggerPlayerMouseY() ---@type number 
     local y2 ---@type number 
     local heal ---@type number 
 
     if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_LEFT then
         if BP_DESELECT[pid] then
             TimerQueue:callDelayed(0., UnselectBP, pid)
-        end
-
-        if selectingHero[pid] then
-            if GetLocalPlayer() == GetTriggerPlayer() then
-                ClearSelection()
-                SelectUnit(hsdummy[pid], true)
-            end
         end
     end
 
@@ -59,7 +51,7 @@ function MouseUp()
             if SquareRoot(Pow(x2 - x, 2) + Pow(y2 - y, 2)) < 110 and SquareRoot(Pow(x2 - GetUnitX(Hero[pid]), 2) + Pow(y2 - GetUnitY(Hero[pid]), 2)) < 250 then
                 if wellheal[i] < 100 then --hp
                     heal = BlzGetUnitMaxHP(Hero[pid]) * wellheal[i] // 100
-                    HP(Hero[pid], heal)
+                    HP(well[i], Hero[pid], heal)
                 else
                     heal = GetUnitState(Hero[pid], UNIT_STATE_MAX_MANA) * (wellheal[i] - 100) // 100
                     MP(Hero[pid], heal)
@@ -71,7 +63,7 @@ function MouseUp()
             end
         end
 
-        ForceRemovePlayer(rightclicked, GetTriggerPlayer())
+        rightclickdown[pid] = false
     end
 
     return false
@@ -102,11 +94,7 @@ function MouseDown()
     end
 
     if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_RIGHT then
-        if PlayerSelectedUnit[pid] == Hero[pid] and Movespeed[pid] >= 600 then
-            BlzSetUnitFacingEx(Hero[pid], bj_RADTODEG * Atan2(MouseY[pid] - GetUnitY(Hero[pid]), MouseX[pid] - GetUnitX(Hero[pid])))
-        end
-
-        ForceAddPlayer(rightclicked, p)
+        rightclickdown[pid] = true
     end
 
     return false
@@ -123,16 +111,16 @@ function MoveMouse()
         return false
     end
 
-    local dist = DistanceCoords(x, y, MouseX[pid], MouseY[pid])
-
-    if dist < 100 then
-        moveCounter[pid] = moveCounter[pid] + 1
-    elseif dist > 1000 then
-        panCounter[pid] = panCounter[pid] + 1
-    end
-
     if HeroID[pid] > 0 then
-        if IsPlayerInForce(p, rightclickactivator) and IsPlayerInForce(p, rightclicked) and IsUnitSelected(Hero[pid], p) then
+        local dist = DistanceCoords(x, y, MouseX[pid], MouseY[pid])
+
+        if dist < 100 then
+            moveCounter[pid] = moveCounter[pid] + 1
+        elseif dist > 1000 then
+            panCounter[pid] = panCounter[pid] + 1
+        end
+
+        if rightclickmovement[pid] and rightclickdown[pid] and IsUnitSelected(Hero[pid], p) then
             if dist >= 3 then
                 local ug = CreateGroup()
                 GroupEnumUnitsInRange(ug, x, y, 15.0, Condition(ishostile))
@@ -157,18 +145,19 @@ end
 
 ---@return boolean
 function Select()
+    local u   = GetTriggerUnit()
     local p   = GetTriggerPlayer() ---@type player 
     local pid = GetPlayerId(p) + 1 ---@type integer 
 
-    PlayerSelectedUnit[pid] = GetTriggerUnit()
+    PlayerSelectedUnit[pid] = u
 
     return false
 end
 
-    local click     = CreateTrigger() ---@type trigger 
-    local move      = CreateTrigger() ---@type trigger 
-    local mousedown = CreateTrigger() ---@type trigger 
-    local mouseup   = CreateTrigger() ---@type trigger 
+    local click     = CreateTrigger()
+    local move      = CreateTrigger()
+    local mousedown = CreateTrigger()
+    local mouseup   = CreateTrigger()
     local u         = User.first ---@type User 
 
     while u do
@@ -183,7 +172,6 @@ end
     TriggerAddCondition(move, Filter(MoveMouse))
     TriggerAddCondition(mousedown, Filter(MouseDown))
     TriggerAddCondition(mouseup, Filter(MouseUp))
-
 end)
 
 if Debug then Debug.endFile() end

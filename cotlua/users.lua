@@ -1,11 +1,11 @@
+if Debug then Debug.beginFile 'Users' end
+
 --[[
     users.lua
 
     A module that creates a User interface and a linked structure such that
     player manipulation is simpler.
 ]]
-
-if Debug then Debug.beginFile 'Users' end
 
 OnInit.global("Users", function()
 
@@ -63,24 +63,18 @@ OnInit.global("Users", function()
     ---@field nameColored string
     ---@field onLeave function
     ---@field create function
-    User = {
-        first = nil,
-        AmountPlaying = 0
-    }
-
+    User = setmetatable({},
+        -- handle player reference (User[Player(1)])
+        { __index = function(tbl, key)
+            if type(key) == "userdata" then
+                return rawget(tbl, GetPlayerId(key))
+            end
+        end})
     do
         local thistype = User
-
-        -- handle player reference (User[Player(1)])
-        local mt = {
-            __index = function(tbl, key)
-                if type(key) == "userdata" then
-                    return rawget(tbl, GetPlayerId(key))
-                end
-            end
-        }
-
-        setmetatable(thistype, mt)
+        local mt = { __index = User }
+        thistype.first = nil
+        thistype.AmountPlaying = 0
 
         function thistype:colorUnits()
             local ug = CreateGroup()
@@ -131,10 +125,8 @@ OnInit.global("Users", function()
             return false
         end
 
-        local p ---@type player 
-
         for i = 0, bj_MAX_PLAYERS - 1 do
-            p = Player(i)
+            local p = Player(i)
 
             if (GetPlayerController(p) == MAP_CONTROL_USER and GetPlayerSlotState(p) == PLAYER_SLOT_STATE_PLAYING) then
                 local self = {
@@ -149,7 +141,7 @@ OnInit.global("Users", function()
                 self.nameColored = self.hex .. self.name .. "|r"
 
                 thistype[i] = self
-                setmetatable(self, { __index = thistype })
+                setmetatable(self, mt)
 
                 thistype.last = self
 

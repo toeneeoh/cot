@@ -1,3 +1,5 @@
+if Debug then Debug.beginFile 'PlayerData' end
+
 --[[
     playerdata.lua
 
@@ -7,12 +9,11 @@
     TODO: move playertimers to another file
 ]]
 
-if Debug then Debug.beginFile 'PlayerData' end
-
 OnInit.global("PlayerData", function(require)
     require 'CodeGen'
+    require 'TimerQueue'
 
-    LOAD_FLAG = __jarray(false) ---@type boolean[] 
+    LOAD_FLAG = {} ---@type boolean[] 
 
     MAX_TIME_PLAYED     = 1000000  ---@type integer --max minutes - 16666 hours
     MAX_PLAT_ARC_CRYS   = 100000 ---@type integer 
@@ -22,10 +23,10 @@ OnInit.global("PlayerData", function(require)
     MAX_SLOTS           = 29 ---@type integer 
     MAX_INVENTORY_SLOTS = 24 ---@type integer 
 
-    deleteMode      =__jarray(false) ---@type boolean[] 
+    deleteMode      = {} ---@type boolean[] 
 
-    newcharacter    =__jarray(false) ---@type boolean[] 
-    CANNOT_LOAD     =__jarray(false) ---@type boolean[] 
+    newcharacter    = {} ---@type boolean[] 
+    CANNOT_LOAD     = {} ---@type boolean[] 
 
     ---@class HeroData
     ---@field pid integer
@@ -49,9 +50,12 @@ OnInit.global("PlayerData", function(require)
     ---@field wipeData function
     ---@field create function
     ---@field destroy function
+    ---@field base integer
     HeroData = {}
     do
         local thistype = HeroData
+        local mt = { __index = HeroData }
+
         thistype.SKIN_DEFAULT = 26 --wisp
 
         ---@type fun(pid: integer):HeroData
@@ -64,9 +68,11 @@ OnInit.global("PlayerData", function(require)
                 teleport = 0,
                 hardcore = 0,
                 prestige = 0,
+                base = 0,
+                time = 0,
             }
 
-            setmetatable(self, { __index = HeroData })
+            setmetatable(self, mt)
 
             return self
         end
@@ -87,7 +93,8 @@ OnInit.global("PlayerData", function(require)
             self.level = 0
             self.hardcore = 0
             self.prestige = 0
-            self.skin = 26
+            self.skin = thistype.SKIN_DEFAULT
+            self.base = 0
 
             for i = 0, MAX_INVENTORY_SLOTS - 1 do
                 if self.items[i] then
@@ -128,9 +135,15 @@ OnInit.global("PlayerData", function(require)
     ---@field saveCharacter function
     ---@field loadCharacter function
     ---@field create function
+    ---@field saveCooldown function
+    ---@field toggleAutoSave function
+    ---@field save_timer TimerQueue
+    ---@field autosave boolean
+    ---@field destroy function
     Profile = {} ---@type Profile | Profile[]
     do
         local thistype = Profile
+        local mt = { __index = Profile }
         thistype.sync_event = CreateTrigger()
         thistype.savecode   =__jarray("") ---@type string[] [PLAYER_CAP]
 
@@ -142,12 +155,50 @@ OnInit.global("PlayerData", function(require)
                 profileHash = GetRandomInt(500000, 510000),
                 phtl = __jarray(0),
                 hero = HeroData.create(pid),
-                timers = {}
+                timers = {},
+                save_timer = TimerQueue.create(),
             }
 
-            setmetatable(self, { __index = Profile })
+            setmetatable(self, mt)
 
             return self
+        end
+
+        ---@type fun(self: Profile)
+        local function SaveTimerExpire(self)
+            local success = ActionSave(Player(self.pid - 1))
+
+            if not success then
+                self.save_timer:callDelayed(30., SaveTimerExpire, self)
+            elseif success then
+                self.save_timer:callDelayed(1800., DoNothing)
+            end
+        end
+
+        ---@type fun(self: Profile)
+        function thistype:toggleAutoSave()
+            local time = TimerGetRemaining(self.save_timer.timer)
+            self.save_timer:reset()
+
+            if self.autosave == true then
+                self.save_timer:callDelayed(time, DoNothing)
+                DisplayTextToPlayer(Player(self.pid - 1), 0, 0, "|cffffcc00Autosave disabled.|r")
+            else
+                self.save_timer:callDelayed(time, SaveTimerExpire, self)
+                DisplayTextToPlayer(Player(self.pid - 1), 0, 0, "|cffffcc00Autosave is now enabled -- you will save every 30 minutes or when your next save is available as Hardcore.|r")
+            end
+
+            self.autosave = not self.autosave
+        end
+
+        ---Displays save cooldown
+        ---@type fun(self: Profile)
+        function thistype:saveCooldown()
+            if self.autosave == true then
+                DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 20, "Your next autosave is in " .. RemainingTimeString(self.save_timer.timer) .. ".")
+            elseif Hardcore[self.pid] then
+                DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 20, RemainingTimeString(self.save_timer.timer) .. " until you can save again.")
+            end
         end
 
         ---@type fun(s: string, pid: integer): Profile | nil
@@ -315,7 +366,7 @@ OnInit.global("PlayerData", function(require)
             data[#data + 1] = self.hero.arcadite
             self.hero.crystal = IMinBJ(GetCurrency(self.pid, CRYSTAL), MAX_PLAT_ARC_CRYS)
             data[#data + 1] = self.hero.crystal
-            self.hero.time = IMinBJ(TimePlayed[self.pid], MAX_TIME_PLAYED)
+            self.hero.time = IMinBJ(self.hero.time, MAX_TIME_PLAYED)
             data[#data + 1] = self.hero.time
             self.hero.gold = IMinBJ(GetCurrency(self.pid, GOLD), MAX_GOLD_LUMB)
             data[#data + 1] = self.hero.gold
@@ -404,12 +455,14 @@ OnInit.global("PlayerData", function(require)
 
         function thistype:onDestroy()
             self.hero:destroy()
+            self.save_timer:destroy()
         end
 
         function thistype:destroy()
             self:onDestroy()
 
             thistype[self] = nil
+            self = nil
         end
     end
 
@@ -453,6 +506,7 @@ OnInit.global("PlayerData", function(require)
     PlayerTimer = {}
     do
         local thistype = PlayerTimer
+        local mt = { __index = PlayerTimer }
 
         ---@type fun(): PlayerTimer
         function thistype.create()
@@ -463,7 +517,7 @@ OnInit.global("PlayerData", function(require)
                 timer = TimerQueue.create()
             }
 
-            setmetatable(self, { __index = PlayerTimer })
+            setmetatable(self, mt)
 
             return self
         end
@@ -506,20 +560,18 @@ OnInit.global("PlayerData", function(require)
     TimerList = {} ---@type TimerList | TimerList[] | PlayerTimer[][]
     do
         local thistype = TimerList
+        local mt = { __index = TimerList }
 
         -- Set metatable for the TimerList table
-        setmetatable(thistype, { __index = function(tbl, key)
-                if rawget(tbl, key) then
-                    return rawget(tbl, key)
-                else
-                    local new = {
-                        pid = key,
-                        timers = {}
-                    }
-                    rawset(tbl, key, new)
-                    setmetatable(new, { __index = thistype })
-                    return new
-                end
+        setmetatable(thistype, {
+            __index = function(tbl, key)
+                local new = {
+                    pid = key,
+                    timers = {}
+                }
+                rawset(tbl, key, new)
+                setmetatable(new, mt)
+                return new
             end
         })
 
@@ -588,13 +640,9 @@ OnInit.global("PlayerData", function(require)
         local myHero = Profile[pid].hero ---@type HeroData 
         local p = Player(pid - 1) ---@type player 
 
-        ItemMagicRes[pid] = 1
-        ItemDamageRes[pid] = 1
-
         if load then
             Hero[pid] = CreateUnit(p, SAVE_UNIT_TYPE[myHero.id], GetRectCenterX(gg_rct_ChurchSpawn), GetRectCenterY(gg_rct_ChurchSpawn), 270.)
             HeroID[pid] = GetUnitTypeId(Hero[pid])
-            BaseID[pid] = 0
             selectingHero[pid] = false
             Hardcore[pid] = (myHero.hardcore > 0)
 
@@ -607,7 +655,6 @@ OnInit.global("PlayerData", function(require)
             LOAD_FLAG[pid] = true
             SetHeroLevelBJ(Hero[pid], myHero.level, false)
             LOAD_FLAG[pid] = false
-            TimePlayed[pid] = myHero.time
             ModifyHeroStat(bj_HEROSTAT_STR, Hero[pid], bj_MODIFYMETHOD_SET, myHero.str)
             ModifyHeroStat(bj_HEROSTAT_AGI, Hero[pid], bj_MODIFYMETHOD_SET, myHero.agi)
             ModifyHeroStat(bj_HEROSTAT_INT, Hero[pid], bj_MODIFYMETHOD_SET, myHero.int)
@@ -615,7 +662,7 @@ OnInit.global("PlayerData", function(require)
             if GetLocalPlayer() == p then
                 SetDayNightModels("Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx","Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx")
             end
-            SetCameraBoundsRectForPlayerEx(p, gg_rct_Church)
+            SetCamera(pid, gg_rct_Church)
             SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]))
             SetUnitState(Hero[pid], UNIT_STATE_MANA, BlzGetUnitMaxMana(Hero[pid]))
         else
@@ -623,6 +670,27 @@ OnInit.global("PlayerData", function(require)
             CANNOT_LOAD[pid] = true
             --set hero values here?
         end
+
+        --hero proficiencies / inner resistances
+        if HeroID[pid] == HERO_ARCANIST then
+            UnitRemoveAbility(Hero[pid], ARCANECOMETS.id)
+        elseif HeroID[pid] == HERO_ROYAL_GUARDIAN then
+            BlzUnitHideAbility(Hero[pid], FourCC('A06K'), true)
+        elseif HeroID[pid] == HERO_OBLIVION_GUARD then
+            BodyOfFireCharges[pid] = 5 --default
+
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
+            end
+        elseif HeroID[pid] == HERO_ASSASSIN then
+            UnitRemoveAbility(Hero[pid], BLADESPIN.id)
+        elseif HeroID[pid] == HERO_VAMPIRE then
+            EVENT_STAT_CHANGE[Hero[pid]] = BLOODBANK.refresh
+        end
+
+        Unit[Hero[pid]].dr = 1 --default
+        Unit[Hero[pid]].mr = HeroStats[HeroID[pid]].magic_resist
+        Unit[Hero[pid]].pr = HeroStats[HeroID[pid]].phys_resist
 
         GroupAddUnit(HeroGroup, Hero[pid])
         SetPrestigeEffects(pid)
@@ -638,6 +706,8 @@ OnInit.global("PlayerData", function(require)
 
         --show backpack hero panel only for player
         if GetLocalPlayer() == p then
+            EnablePreSelect(true, true)
+            EnableSelect(true, true)
             ClearSelection()
             SelectUnit(Hero[pid], true)
             ResetToGameCamera(0)
@@ -662,35 +732,25 @@ OnInit.global("PlayerData", function(require)
         UnitAddAbility(Backpack[pid], FourCC('A0DT'))
         UnitAddAbility(Backpack[pid], FourCC('A05N'))
 
-        UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A03C')) --prevent actions disappearing on meta
+        --prevent actions disappearing on meta
+        UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A03C'))
         UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A03V'))
         UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A0L0'))
         UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A0GD'))
         UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A06X'))
         UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A00F'))
         UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A08Y'))
+        UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A00I'))
+        UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A00B'))
+        UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A02T'))
+        UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A031'))
+        UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A067'))
 
         UpdatePrestigeTooltips()
 
         SetUnitAbilityLevel(Backpack[pid], FourCC('A0FV'), IMaxBJ(1, myHero.teleport))
         SetUnitAbilityLevel(Backpack[pid], FourCC('A02J'), IMaxBJ(1, myHero.teleport))
         SetUnitAbilityLevel(Backpack[pid], FourCC('A0FK'), IMaxBJ(1, myHero.reveal))
-
-        --hero proficiencies / inner resistances
-
-        if HeroID[pid] == HERO_ARCANIST then
-            UnitRemoveAbility(Hero[pid], ARCANECOMETS.id)
-        elseif HeroID[pid] == HERO_ROYAL_GUARDIAN then
-            BlzUnitHideAbility(Hero[pid], FourCC('A06K'), true)
-        elseif HeroID[pid] == HERO_OBLIVION_GUARD then
-            BodyOfFireCharges[pid] = 5 --default
-
-            if GetLocalPlayer() == Player(pid - 1) then
-                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
-            end
-        elseif HeroID[pid] == HERO_ASSASSIN then
-            UnitRemoveAbility(Hero[pid], BLADESPIN.id)
-        end
 
         --load items
         if load then
@@ -714,7 +774,7 @@ OnInit.global("PlayerData", function(require)
 
         --heal to max
         SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]))
-        SetUnitState(Hero[pid], UNIT_STATE_MANA, BlzGetUnitMaxMana(Hero[pid]))
+        SetUnitState(Hero[pid], UNIT_STATE_MANA, (HeroID[pid] ~= HERO_VAMPIRE and BlzGetUnitMaxMana(Hero[pid])) or 0)
     end
 
 end)

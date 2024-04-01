@@ -1,10 +1,10 @@
+if Debug then Debug.beginFile 'UI' end
+
 --[[
     UI.lua
 
     A library that modifies the base game's UI and creates extra UI for use elsewhere.
 ]]
-
-if Debug then Debug.beginFile 'UI' end
 
 OnInit.final("UI", function(require)
     require 'HeroSelect'
@@ -276,39 +276,31 @@ OnInit.final("UI", function(require)
     BlzFrameSetText(BlzGetFrameByName("QuestAcceptButton", 0), "×")
     BlzFrameSetSize(BlzGetFrameByName("QuestAcceptButton", 0), 0.03, 0.03)
 
-    --Hiding clock UI and creating new frame bar
-    imageTest = BlzCreateFrameByType("BACKDROP", "image", BlzGetFrameByName("ConsoleUIBackdrop", 0), "ButtonBackdropTemplate", 0)
-    BlzFrameSetTexture(imageTest, "UI\\ResourceBar.tga", 0, true)
-    BlzFrameSetPoint(imageTest, FRAMEPOINT_TOP, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0, 0)
-    BlzFrameSetSize(imageTest, 0.44, 0.0421)
+    --Hiding clock UI and creating new resource bar
+    RESOURCE_BAR = BlzCreateFrameByType("BACKDROP", "image", BlzGetFrameByName("ConsoleUIBackdrop", 0), "ButtonBackdropTemplate", 0)
+    BlzFrameSetTexture(RESOURCE_BAR, "UI\\ResourceBar.tga", 0, true)
+    BlzFrameSetPoint(RESOURCE_BAR, FRAMEPOINT_TOP, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0, 0)
+    BlzFrameSetSize(RESOURCE_BAR, 0.44, 0.0421)
     BlzFrameSetVisible(BlzFrameGetChild(BlzFrameGetChild(BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 5), 0), false)
-    BlzFrameSetLevel(imageTest, 1)
+    BlzFrameSetLevel(RESOURCE_BAR, 1)
 
     --create clock text
-    clockText = BlzCreateFrameByType("TEXT", "clockText", imageTest, "CText_18", 0)
-    BlzFrameSetPoint(clockText, FRAMEPOINT_TOPLEFT, imageTest, FRAMEPOINT_TOPLEFT, 0.05, - 0.009)
+    clockText = BlzCreateFrameByType("TEXT", "clockText", RESOURCE_BAR, "CText_18", 0)
+    BlzFrameSetPoint(clockText, FRAMEPOINT_TOPLEFT, RESOURCE_BAR, FRAMEPOINT_TOPLEFT, 0.05, - 0.009)
     BlzFrameSetFont(clockText, "Fonts\\frizqt__.ttf", 0.036, 0)
 
-    --create plat text
-    platText = BlzCreateFrameByType("TEXT", "platText", imageTest, "CText_18", 0)
-    BlzFrameSetPoint(platText, FRAMEPOINT_TOP, imageTest, FRAMEPOINT_TOP, - 0.0625, - 0.028)
-    BlzFrameSetFont(platText, "Fonts\\frizqt__.ttf", 0.035, 0)
-    BlzFrameSetText(platText, "0")
-
-    --create arcadite text
-    arcText = BlzCreateFrameByType("TEXT", "arcText", imageTest, "CText_18", 0)
-    BlzFrameSetTextAlignment(arcText, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
-    BlzFrameSetPoint(arcText, FRAMEPOINT_TOP, imageTest, FRAMEPOINT_TOP, 0.0775, - 0.028)
-    BlzFrameSetFont(arcText, "Fonts\\frizqt__.ttf", 0.035, 0)
-    BlzFrameSetText(arcText, "0")
-
     --Upkeep
-    fh = BlzGetFrameByName("ResourceBarUpkeepText", 0)
+    local fh = BlzGetFrameByName("ResourceBarUpkeepText", 0)
     BlzFrameSetFont(fh, "", 0, 0)
 
     --Upkeep Hover Box
     fh = BlzFrameGetChild(BlzGetFrameByName("ResourceBarFrame", 0), 2)
     BlzFrameSetVisible(fh, false)
+
+    --FPS/Ping/APM
+    fh = BlzGetFrameByName("ResourceBarFrame", 0)
+    BlzFrameClearAllPoints(fh)
+    BlzFrameSetAbsPoint(fh, FRAMEPOINT_CENTER, .42, .615)
 
     --Food
     fh = BlzGetFrameByName("ResourceBarSupplyText", 0)
@@ -496,6 +488,42 @@ OnInit.final("UI", function(require)
         TriggerAddAction(buttonClick, BUTTON_CLICK)
         BlzTriggerRegisterFrameEvent(buttonClick, PUNCHING_BAG_BUTTON_1, FRAMEEVENT_CONTROL_CLICK)
         BlzTriggerRegisterFrameEvent(buttonClick, PUNCHING_BAG_BUTTON_2, FRAMEEVENT_CONTROL_CLICK)
+    end
+
+    --currency frames
+    do
+        CONVERTER_FRAME = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
+        BlzFrameSetTexture(CONVERTER_FRAME, "TransparentTexture.blp", 0, true)
+
+        PLAT_FRAME = BlzCreateFrameByType("BUTTON", "", RESOURCE_BAR, "", 0)
+        BlzFrameSetTexture(PLAT_FRAME, "TransparentTexture.blp", 0, true)
+        BlzFrameSetPoint(PLAT_FRAME, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, - 0.0625, - 0.024)
+        BlzFrameSetSize(PLAT_FRAME, 0.06, 0.02)
+        BlzFrameSetLevel(PLAT_FRAME, 1)
+
+        ARC_FRAME = BlzCreateFrameByType("BUTTON", "", RESOURCE_BAR, "", 0)
+        BlzFrameSetTexture(ARC_FRAME, "TransparentTexture.blp", 0, true)
+        BlzFrameSetPoint(ARC_FRAME, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, 0.075, - 0.024)
+        BlzFrameSetSize(ARC_FRAME, 0.06, 0.02)
+        BlzFrameSetLevel(ARC_FRAME, 1)
+
+        --create plat text
+        PLAT_TEXT = BlzCreateFrameByType("TEXT", "", RESOURCE_BAR, "CText_18", 0)
+        BlzFrameSetPoint(PLAT_TEXT, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, - 0.0625, - 0.028)
+        BlzFrameSetFont(PLAT_TEXT, "Fonts\\frizqt__.ttf", 0.035, 0)
+        BlzFrameSetText(PLAT_TEXT, "0")
+        BlzFrameSetEnable(PLAT_TEXT, false)
+
+        --create arcadite text
+        ARC_TEXT = BlzCreateFrameByType("TEXT", "", RESOURCE_BAR, "CText_18", 0)
+        BlzFrameSetTextAlignment(ARC_TEXT, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
+        BlzFrameSetPoint(ARC_TEXT, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, 0.0775, - 0.028)
+        BlzFrameSetFont(ARC_TEXT, "Fonts\\frizqt__.ttf", 0.035, 0)
+        BlzFrameSetText(ARC_TEXT, "0")
+        BlzFrameSetEnable(ARC_TEXT, false)
+
+        FrameAddSimpleTooltip(PLAT_FRAME, "Platinum Coin|n|nObtained by supplying 1,000,000 gold at a trader or with a converter.", false)
+        FrameAddSimpleTooltip(ARC_FRAME, "Arcadite Lumber|n|nObtained by supplying 1,000,000 lumber at a trader or with a converter.", false)
     end
 end)
 

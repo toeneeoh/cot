@@ -6,30 +6,27 @@ OnInit.final("HeroSelect", function(require)
 
 ---@param pid integer
 function StartGame(pid)
-    local p        = Player(pid - 1) ---@type player 
+    local p = Player(pid - 1) ---@type player 
 
     PauseUnit(Hero[pid], false)
 
     if (GetLocalPlayer() == p) then
-        --call SetDayNightModels("Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx","Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx")
         ClearSelection()
         SelectUnit(Hero[pid], true)
         ResetToGameCamera(0)
     end
 
-    SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-    PanCameraToTimedForPlayer(p, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 0)
+    SetCamera(pid, MAIN_MAP.rect)
 
-    --call MultiboardMinimizeBJ(false, MULTI_BOARD)
     ExperienceControl(pid)
     CharacterSetup(pid, false)
 end
 
 ---@return boolean
 function HardcoreMenu()
-    local pid         = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+    local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-    if hardcoreClicked[pid] == false then
+    if not hardcoreClicked[pid] then
         hardcoreClicked[pid] = true
         return true
     end
@@ -39,7 +36,9 @@ end
 
 function HardcoreYes()
     local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+    --TODO remove Hardcore global?
     Hardcore[pid] = true
+    Profile[pid].hero.hardcore = 1
     PlayerAddItemById(pid, FourCC('I03N'))
 
     StartGame(pid)
@@ -52,7 +51,7 @@ function HardcoreYes()
 end
 
 function HardcoreNo()
-    local pid         = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+    local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
     StartGame(pid)
 
     if GetLocalPlayer() == GetTriggerPlayer() then
@@ -74,7 +73,7 @@ end
 ---@param currentPlayer player
 ---@param direction integer
 function Scroll(currentPlayer, direction)
-    local pid         = GetPlayerId(currentPlayer) + 1 ---@type integer 
+    local pid = GetPlayerId(currentPlayer) + 1 ---@type integer 
 
     UnitRemoveAbility(hsdummy[pid], HeroCircle[hslook[pid]].select)
     UnitRemoveAbility(hsdummy[pid], HeroCircle[hslook[pid]].passive)
@@ -128,7 +127,12 @@ function Scroll(currentPlayer, direction)
     BlzUnitHideAbility(hsdummy[pid], FourCC('Aatk'), true)
 
     if (GetLocalPlayer() == currentPlayer) then
-        SetCameraTargetController(HeroCircle[hslook[pid]].unit, 0, 0, false)
+        SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 500, 0)
+        SetCameraField(CAMERA_FIELD_ANGLE_OF_ATTACK, 340, 0)
+        SetCameraField(CAMERA_FIELD_FIELD_OF_VIEW, 60, 0)
+        SetCameraField(CAMERA_FIELD_ZOFFSET, 200, 0)
+        SetCameraField(CAMERA_FIELD_ROTATION, GetUnitFacing(HeroCircle[hslook[pid]].unit) + 180, 0)
+        SetCameraTargetController(gg_unit_h00T_0511, 0, 0, false)
         ClearSelection()
         SelectUnit(hsdummy[pid], true)
     end
@@ -137,7 +141,7 @@ end
 ---@param pid integer
 ---@param id integer
 function Selection(pid, id)
-    local p        = Player(pid - 1) ---@type player 
+    local p = Player(pid - 1) ---@type player 
 
     UnitRemoveAbility(hsdummy[pid], HeroCircle[hslook[pid]].select)
     UnitRemoveAbility(hsdummy[pid], HeroCircle[hslook[pid]].passive)
@@ -145,8 +149,6 @@ function Selection(pid, id)
 
     Hero[pid] = CreateUnit(p, id, -690., -238., 0.)
     HeroID[pid] = id
-    BaseID[pid] = 0
-    TimePlayed[pid] = 0
     PlayerSelectedUnit[pid] = Hero[pid]
     selectingHero[pid] = false
 
@@ -160,32 +162,35 @@ end
 
 ---@return boolean
 local function IsSelecting()
-    return selectingHero[GetPlayerId(GetTriggerPlayer()) + 1]
+    local p = GetTriggerPlayer()
+
+    if selectingHero[GetPlayerId(p) + 1] then
+        if BlzGetTriggerPlayerKey() == OSKEY_LEFT then
+            Scroll(p, -1)
+        else
+            Scroll(p, 1)
+        end
+    end
+
+    return false
 end
 
-local function ScrollLeft()
-    Scroll(GetTriggerPlayer(), -1)
-end
+    local arrow = CreateTrigger()
+    local u = User.first ---@type User 
 
-local function ScrollRight()
-    Scroll(GetTriggerPlayer(), 1)
-end
-
-    local leftarrow         = CreateTrigger() ---@type trigger 
-    local rightarrow         = CreateTrigger() ---@type trigger 
-    local u      = User.first ---@type User 
-
+    --[[meta keys:
+    none: 0
+    shift: 1
+    ctrl: 2
+    alt: 4
+    windows key: 8]]
     while u do
-        TriggerRegisterPlayerEvent(leftarrow, u.player, EVENT_PLAYER_ARROW_LEFT_DOWN)
-        TriggerRegisterPlayerEvent(rightarrow, u.player, EVENT_PLAYER_ARROW_RIGHT_DOWN)
+        BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_LEFT, 0, true)
+        BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_RIGHT, 0, true)
         u = u.next
     end
 
-    TriggerAddCondition(leftarrow, Condition(IsSelecting))
-    TriggerAddCondition(rightarrow, Condition(IsSelecting))
-    TriggerAddAction(leftarrow, ScrollLeft)
-    TriggerAddAction(rightarrow, ScrollRight)
-
+    TriggerAddCondition(arrow, Condition(IsSelecting))
 end)
 
 if Debug then Debug.endFile() end

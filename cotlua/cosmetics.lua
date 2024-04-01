@@ -1,10 +1,10 @@
+if Debug then Debug.beginFile 'Cosmetics' end
+
 --[[
     cosmetics.lua
 
     A module that defines both unlockable and donator cosmetics in the game.
 ]]
-
-if Debug then Debug.beginFile 'Cosmetics' end
 
 OnInit.final("Cosmetics", function(require)
     require 'Users'
@@ -13,7 +13,7 @@ OnInit.final("Cosmetics", function(require)
 
     DONATOR_AURA_OFFSET = 1000 ---@type integer 
 
-    isdonator = __jarray(false) ---@type boolean[] 
+    isdonator = {} ---@type boolean[] 
     local donator = {
         "lcm#1458 11111111111111111111111 1111111111111111111",
         "Mayday#12613 01 0",

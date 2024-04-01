@@ -1,26 +1,25 @@
+if Debug then Debug.beginFile 'Commands' end
+
 --[[
     commands.lua
 
     A library to handle player chat commands with related functions.
 ]]
 
-if Debug then Debug.beginFile 'Commands' end
-
 OnInit.final("Commands", function(require)
     require 'Users'
 
-    autosave           = __jarray(false) ---@type boolean[] 
     VoteYay            = 0
     VoteNay            = 0
-    autoAttackDisabled = __jarray(false) ---@type boolean[] 
+    autoAttackDisabled = {} ---@type boolean[] 
     fullItemStacking   = __jarray(true) ---@type boolean[] 
     bossResMod         = 1.
-    destroyBaseFlag    = __jarray(false) ---@type boolean[] 
+    destroyBaseFlag    = {} ---@type boolean[] 
     votekickPlayer     = 0
     votekickingPlayer  = 0
 
     VOTING_TYPE = 0
-    I_VOTED     =__jarray(false) ---@type boolean[] 
+    I_VOTED     = {} ---@type boolean[] 
 
     CMD_LIST = {
         ["-commands"] = function(p, pid, args)
@@ -76,7 +75,7 @@ OnInit.final("Commands", function(require)
             myRoll(pid)
         end,
         ["-estats"] = function(p, pid, args)
-            if Unit[PlayerSelectedUnit[pid]] then
+            if PlayerSelectedUnit[pid] then
                 local atkspeed = 1. / BlzGetUnitAttackCooldown(PlayerSelectedUnit[pid], 0)
                 if IsUnitType(PlayerSelectedUnit[pid], UNIT_TYPE_HERO) then
                     atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(PlayerSelectedUnit[pid], true) + R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
@@ -99,7 +98,7 @@ OnInit.final("Commands", function(require)
             if GetCurrency(pid, PLATINUM) > 0 then
                 AddCurrency(pid, PLATINUM, -1)
                 AddCurrency(pid, GOLD, 1000000)
-                DisplayTimedTextToPlayer(p, 0, 0, 10, PlatTag + (GetCurrency(pid, PLATINUM)))
+                DisplayTimedTextToPlayer(p, 0, 0, 10, PlatTag .. (GetCurrency(pid, PLATINUM)))
             else
                 DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 1 Platinum Coin to buy this")
             end
@@ -108,7 +107,7 @@ OnInit.final("Commands", function(require)
             if GetCurrency(pid, ARCADITE) > 0 then
                 AddCurrency(pid, ARCADITE, -1)
                 AddCurrency(pid, LUMBER, 1000000)
-                DisplayTimedTextToPlayer(p, 0, 0, 10, ArcTag + (GetCurrency(pid, ARCADITE)))
+                DisplayTimedTextToPlayer(p, 0, 0, 10, ArcTag .. (GetCurrency(pid, ARCADITE)))
             else
                 DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 1 Arcadite Lumber to buy this")
             end
@@ -116,11 +115,11 @@ OnInit.final("Commands", function(require)
         ["-pa"] = function(p, pid, args)
             local num = tonumber(args[2])
             if num and num <= PLAYER_CAP then
-                DisplayTimedTextToPlayer(p, 0, 0, 30, PlatTag + (GetCurrency(num, PLATINUM)))
-                DisplayTimedTextToPlayer(p, 0, 0, 30, ArcTag + (GetCurrency(num, ARCADITE)))
+                DisplayTimedTextToPlayer(p, 0, 0, 30, PlatTag .. (GetCurrency(num, PLATINUM)))
+                DisplayTimedTextToPlayer(p, 0, 0, 30, ArcTag .. (GetCurrency(num, ARCADITE)))
             else
-                DisplayTimedTextToPlayer(p, 0, 0, 30, PlatTag + (GetCurrency(num, PLATINUM)))
-                DisplayTimedTextToPlayer(p, 0, 0, 30, ArcTag + (GetCurrency(num, ARCADITE)))
+                DisplayTimedTextToPlayer(p, 0, 0, 30, PlatTag .. (GetCurrency(num, PLATINUM)))
+                DisplayTimedTextToPlayer(p, 0, 0, 30, ArcTag .. (GetCurrency(num, ARCADITE)))
             end
         end,
         ["-xp"] = function(p, pid, args)
@@ -204,10 +203,8 @@ OnInit.final("Commands", function(require)
             end)
         end,
         ["-st"] = function(p, pid, args)
-            if autosave[pid] then
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "Your next autosave is in " .. RemainingTimeString(SaveTimer[pid]) .. ".")
-            elseif Hardcore[pid] then
-                DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(SaveTimer[pid]) .. " until you can save again.")
+            if Profile[pid] then
+                Profile[pid]:saveCooldown()
             end
         end,
         ["-restime"] = function(p, pid, args)
@@ -218,13 +215,8 @@ OnInit.final("Commands", function(require)
             end
         end,
         ["-autosave"] = function(p, pid, args)
-            if not autosave[pid] then
-                autosave[pid] = true
-                DisplayTextToPlayer(p, 0, 0, "|cffffcc00Autosave is now enabled -- you will save every 30 minutes or when your next save is available as Hardcore.|r")
-                TimerStart(SaveTimer[pid], 1800, false, nil)
-            else
-                autosave[pid] = false
-                DisplayTextToPlayer(p, 0, 0, "|cffffcc00Autosave disabled.|r")
+            if Profile[pid] then
+                Profile[pid]:toggleAutoSave()
             end
         end,
         ["-cancel"] = function(p, pid, args)
@@ -362,25 +354,23 @@ function ShowExpRate(user, pid)
     end
 end
 
----@type fun(user: player, pid: integer)
+---@type fun(user: player, pid: integer?)
 function StatsInfo(user, pid)
-    if pid == 0 then
-        pid = GetPlayerId(user) + 1
-    end
+    pid = pid or GetPlayerId(user) + 1
 
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffFB4915Health: |r" .. RealToString(GetWidgetLife(Hero[pid])) .. " / " .. RealToString(BlzGetUnitMaxHP(Hero[pid])) .. " |cff6584edMana: |r" .. RealToString(GetUnitState(Hero[pid],UNIT_STATE_MANA)) .. " / " .. RealToString(GetUnitState(Hero[pid],UNIT_STATE_MAX_MANA)))
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffff0b11Strength: |r" .. RealToString(GetHeroStr(Hero[pid], true)) .. "|cff00ff40 Agility: |r" .. RealToString(GetHeroAgi(Hero[pid], true)) .. "|cff0080ff Intelligence: |r" .. RealToString(GetHeroInt(Hero[pid], true)))
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff800040Regeneration: |r" .. RealToString(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) .. " health per second")
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff008080Evasion: |r" .. IMinBJ(100, (Unit[Hero[pid]].evasion)) .. "\x25")
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffff8040Physical Damage Taken: |r" .. R2S(PhysicalTaken[pid] * 100) .. "\x25")
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff8000ffMagic Damage Taken: |r" .. R2S(MagicTaken[pid] * 100) .. "\x25")
+    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffff8040Physical Damage Taken: |r" .. (Unit[Hero[pid]].dr * Unit[Hero[pid]].pr * 100) .. "\x25")
+    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff8000ffMagic Damage Taken: |r" .. (Unit[Hero[pid]].dr * Unit[Hero[pid]].mr * 100) .. "\x25")
     if ShieldCount[pid] > 0 and HeroID[pid] == HERO_ROYAL_GUARDIAN then
         DisplayTimedTextToPlayer(user, 0, 0, 30, "Shield: " .. (ShieldCount[pid]))
     end
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff00ffffSpellboost: |r" .. R2S(BoostValue[pid] * 100) .. "\x25")
     DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffffcc00Gold Rate:|r +" .. (ItemGoldRate[pid]) .. "\x25")
     ShowExpRate(user, pid)
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff808000Time Played: |r" .. (R2I(TimePlayed[pid] / 60.)) .. " hours and " .. ModuloInteger(TimePlayed[pid], 60) .. " minutes")
+    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff808000Time Played: |r" .. (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes")
 end
 
 function ApplyHardmode()
@@ -408,7 +398,7 @@ end
 function VotingMenu()
     local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-    if I_VOTED[pid] == false then
+    if not I_VOTED[pid] then
         I_VOTED[pid] = true
         return true
     end
@@ -481,7 +471,7 @@ function Hardmode()
     ResetVote()
     DisplayTimedTextToForce(FORCE_PLAYING, 30, "Voting for Hardmode has begun and will conclude in 30 seconds.")
     BlzFrameSetVisible(votingBG, true)
-    BlzFrameSetTexture(votingBG, "war4mapImported\\hardmode.dds", 0, true)
+    BlzFrameSetTexture(votingBG, "war3mapImported\\hardmode.dds", 0, true)
 
     TimerQueue:callDelayed(30., HardmodeVoteExpire)
 end
@@ -494,31 +484,27 @@ function FleeCommand(p)
     if InStruggle[pid] or InColo[pid] then
         Fleeing[pid] = true
         DisplayTimedTextToPlayer(p, 0, 0, 10, "You will escape once the current wave is complete.")
-    elseif TableHas(AZAZOTH_GROUP, p) then
-        if (not CHAOS_MODE and DeadGods == 4) or (CHAOS_MODE and not UnitAlive(BossTable[BOSS_AZAZOTH].unit)) then
-            TableRemove(AZAZOTH_GROUP, p)
+    elseif TableHas(GODS_GROUP, p) then
+        if DeadGods == 4 then
+            TableRemove(GODS_GROUP, p)
             MoveHeroLoc(pid, TownCenter)
-            SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-            PanCameraToTimedLocForPlayer(p, TownCenter, 0)
         else
             DisplayTimedTextToPlayer(p, 0, 0, 10, "You cannot escape.")
         end
-    elseif IsUnitInGroup(Hero[pid], Arena[0]) then
-        GroupRemoveUnit(Arena[0], Hero[pid])
+    elseif TableHas(Arena[ARENA_FFA], pid) then
         MoveHeroLoc(pid, TownCenter)
-        SetCameraBoundsRectForPlayerEx(p, gg_rct_Main_Map_Vision)
-        PanCameraToTimedLocForPlayer(p, TownCenter, 0)
         ArenaQueue[pid] = 0
+        TableRemove(Arena[ARENA_FFA], pid)
 
         while U do
                 SetPlayerAllianceStateBJ(U.player, Player(pid - 1), bj_ALLIANCE_ALLIED_VISION)
                 SetPlayerAllianceStateBJ(Player(pid - 1), U.player, bj_ALLIANCE_ALLIED_VISION)
 
-                if hero_panel_on[pid * PLAYER_CAP + U.id] == true then
+                if hero_panel_on[pid * PLAYER_CAP + U.id] then
                     ShowHeroPanel(Player(pid - 1), U.player, true)
                 end
 
-                if hero_panel_on[U.id * PLAYER_CAP + pid] == true then
+                if hero_panel_on[U.id * PLAYER_CAP + pid] then
                     ShowHeroPanel(U.player, Player(pid - 1), true)
                 end
             U = U.next
@@ -547,7 +533,7 @@ end
 
 ---@type fun(pid: integer)
 function MainRepick(pid)
-    --cancel if in hero selection or have not created a profile yet
+    --return if in hero selection or have not created a profile yet
     if selectingHero[pid] or not Profile[pid] then
         return
     end
@@ -567,7 +553,7 @@ function MainRepick(pid)
         end
     end
 
-    TimerStart(SaveTimer[pid], 1, false, nil)
+    Profile[pid].save_timer:reset()
     PlayerCleanup(pid)
     SpawnWispSelector(pid)
 end
@@ -628,7 +614,7 @@ function CustomCommands()
     end
 
     --afk text
-    if cmd:sub(2, #cmd) == AFK_TEXT and afkTextVisible[pid] == true then
+    if cmd:sub(2, #cmd) == AFK_TEXT and afkTextVisible[pid] then
         if GetLocalPlayer() == p then
             BlzFrameSetVisible(AFK_FRAME_BG, false)
         end

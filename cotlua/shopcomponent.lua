@@ -1,10 +1,10 @@
+if Debug then Debug.beginFile 'ShopComponent' end
+
 --[[
     shopcomponent.lua
 
     A module that provides button and tooltip functionality for shop.lua UI.
 ]]
-
-if Debug then Debug.beginFile 'ShopComponent' end
 
 OnInit.final("ShopComponent", function()
 
@@ -31,6 +31,7 @@ OnInit.final("ShopComponent", function()
     Tooltip = {}
     do
         local thistype = Tooltip
+        local mt = { __index = Tooltip }
         thistype.box=nil ---@type framehandle 
         thistype.line=nil ---@type framehandle 
         thistype.tooltip=nil ---@type framehandle 
@@ -136,9 +137,7 @@ OnInit.final("ShopComponent", function()
 
         ---@type fun(owner: framehandle, width: number, point: framepointtype, simpleTooltip: boolean):Tooltip
         function thistype.create(owner, width, point, simpleTooltip)
-            local self = {}
-
-            setmetatable(self, { __index = Tooltip })
+            local self = setmetatable({}, mt)
 
             self.parent = owner
             self.simple = simpleTooltip
@@ -181,7 +180,7 @@ OnInit.final("ShopComponent", function()
         end
     end
 
-    canScroll = __jarray(false) ---@type boolean[] 
+    canScroll = {} ---@type boolean[] 
     local doubleTime = array2d(0)
 
     ---@class Button
@@ -215,6 +214,7 @@ OnInit.final("ShopComponent", function()
     Button = {}
     do
         local thistype = Button
+        local mt = { __index = Button }
         thistype.clicked         = CreateTrigger()
         thistype.scrolled         = CreateTrigger()
         thistype.rightClicked         = CreateTrigger()
@@ -415,7 +415,7 @@ OnInit.final("ShopComponent", function()
         end
 
         function thistype:destroy()
-            thistype.table[GetHandleId(self.frame)] = nil
+            thistype.table[(self.frame)] = nil
             DestroyTrigger(self.click)
             DestroyTrigger(self.scroll)
             DestroyTrigger(self.doubleClick)
@@ -480,11 +480,9 @@ OnInit.final("ShopComponent", function()
             end
         end
 
-        ---@type fun(owner: framehandle, width: number, height: number, x: number, y: number, simpleTooltip: boolean):Button
+        ---@type fun(owner: framehandle, width: number, height: number, x: number, y: number, simpleTooltip: boolean): Button
         function thistype.create(owner, width, height, x, y, simpleTooltip)
-            local self = {}
-            setmetatable(self, { __index = thistype })
-            local i = 0 ---@type integer 
+            local self = setmetatable({}, mt)
 
             self.parent = owner
             self.xPos = x
@@ -504,7 +502,7 @@ OnInit.final("ShopComponent", function()
             self.tagFrame = BlzCreateFrameByType("SPRITE", "", self.frame, "WarCraftIIILogo", 0)
             self.spriteFrame = BlzCreateFrameByType("SPRITE", "", self.frame, "", 0)
             self.tooltip = Tooltip.create(self.frame, TOOLTIP_SIZE, FRAMEPOINT_TOPLEFT, simpleTooltip)
-            thistype.table[GetHandleId(self.frame)] = self
+            thistype.table[(self.frame)] = self
 
             BlzFrameSetPoint(self.iconFrame, FRAMEPOINT_TOPLEFT, owner, FRAMEPOINT_TOPLEFT, x, y)
             BlzFrameSetSize(self.iconFrame, width, height)
@@ -521,12 +519,6 @@ OnInit.final("ShopComponent", function()
             BlzTriggerRegisterFrameEvent(self.scrolled, self.frame, FRAMEEVENT_MOUSE_WHEEL)
             BlzTriggerRegisterFrameEvent(self.rightClicked, self.frame, FRAMEEVENT_MOUSE_UP)
 
-            while i < bj_MAX_PLAYER_SLOTS do
-                    self.timer[i] = CreateTimer()
-                    canScroll[i] = true
-                i = i + 1
-            end
-
             return self
         end
 
@@ -535,13 +527,13 @@ OnInit.final("ShopComponent", function()
         end
 
         function thistype.onScrolled()
-            local self = thistype.table[GetHandleId(BlzGetTriggerFrame())] ---@type Button
-            local i = GetPlayerId(GetLocalPlayer()) ---@type integer 
+            local self = thistype.table[(BlzGetTriggerFrame())] ---@type Button
+            local pid = GetPlayerId(GetLocalPlayer()) + 1 ---@type integer 
 
             if self then
-                if canScroll[i] and self.scroll ~= nil then
+                if canScroll[pid] and self.scroll ~= nil then
                     if SCROLL_DELAY > 0 then
-                        canScroll[i] = false
+                        canScroll[pid] = false
                     end
 
                     TriggerEvaluate(self.scroll)
@@ -549,12 +541,12 @@ OnInit.final("ShopComponent", function()
             end
 
             if SCROLL_DELAY > 0 then
-                TimerStart(self.timer[i], TimerGetRemaining(self.timer[i]), false, thistype.onExpire)
+                TimerStart(self.timer[pid], TimerGetRemaining(self.timer[pid]), false, thistype.onExpire)
             end
         end
 
         function thistype.onRightClicked()
-            local self = thistype.table[GetHandleId(BlzGetTriggerFrame())] ---@type Button
+            local self = thistype.table[(BlzGetTriggerFrame())] ---@type Button
 
             if self then
                 if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_RIGHT and self.rightClick ~= nil then
@@ -565,7 +557,7 @@ OnInit.final("ShopComponent", function()
 
         function thistype.onClicked()
             local i = GetPlayerId(GetTriggerPlayer()) ---@type integer 
-            local j = GetHandleId(BlzGetTriggerFrame()) ---@type integer 
+            local j = (BlzGetTriggerFrame()) ---@type integer 
             local self = thistype.table[j] ---@type Button
 
             if self then
@@ -588,6 +580,11 @@ OnInit.final("ShopComponent", function()
                     doubleTime[i][j] = self.time[i][j]
                 end
             end
+        end
+
+        for i = 1, PLAYER_CAP do
+            Button.timer[i] = CreateTimer()
+            canScroll[i] = true
         end
 
         TimerStart(thistype.double, 10000000., false, nil)

@@ -29,7 +29,7 @@ end
 function ZeknenExpire()
     UnitRemoveAbility(zeknen, FourCC('Avul'))
     PauseUnit(zeknen, false)
-    DoTransmissionBasicsXYBJ(GetUnitTypeId(zeknen), GetPlayerColor(pboss), GetUnitX(zeknen), GetUnitY(zeknen), nil, "Zeknen", "Very well.", 4)
+	SetCinematicScene(GetUnitTypeId(zeknen), GetPlayerColor(pboss), "Zeknen", "Very well.", 5, 4)
 end
 
 function SetupChaos()
@@ -43,7 +43,7 @@ function SetupChaos()
     --crypt coffin
     RemoveDestructable(gg_dest_B003_1936)
 
-    SoundHandler("Sound\\Interface\\BattleNetWooshStereo1.flac", false, nil, nil)
+    SoundHandler("Sound\\Interface\\BattleNetWooshStereo1.flac", false)
 
     DestroyQuest(Dark_Savior_Quest)
     DestroyQuest(Defeat_The_Horde_Quest)
@@ -96,8 +96,11 @@ function SetupChaos()
 
     GroupEnumUnitsInRect(ug, bj_mapInitialPlayableArea, Condition(ChaosTransition)) --need exception for struggle / colo
     GroupEnumUnitsOfPlayer(g, Player(PLAYER_NEUTRAL_PASSIVE), Condition(isvillager))
-    BlzGroupAddGroupFast(despawnGroup, ug)
     BlzGroupAddGroupFast(g, ug)
+
+    for i = 1, #despawnGroup do
+        RemoveUnit(despawnGroup[i])
+    end
 
     for target in each(ug) do
         if target ~= gg_unit_H01Y_0099 then
@@ -108,22 +111,9 @@ function SetupChaos()
     DestroyGroup(ug)
     DestroyGroup(g)
 
-    --replace punching bags
-    local pbag = {}
-
-    for _, v in ipairs(PunchingBag) do
-        pbag[#pbag + 1] = GetUnitX(v)
-        pbag[#pbag + 1] = GetUnitY(v)
-        pbag[#pbag + 1] = GetUnitFacing(v)
-        RemoveUnit(v)
-    end
-
-    PunchingBag[1] = CreateUnit(pfoe, FourCC('h02F'), pbag[1], pbag[2], pbag[3])
-    PunchingBag[2] = CreateUnit(pfoe, FourCC('h02G'), pbag[4], pbag[5], pbag[6])
-
-    -- ------------------
-    -- town
-    -- ------------------
+    --------------------
+    --town
+    --------------------
 
     --chaos merchant
     CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n0A2'), 1344., 1472., 270.)
@@ -139,10 +129,8 @@ function SetupChaos()
         x = GetUnitX(Hero[u.id])
         y = GetUnitY(Hero[u.id])
         if not selectingHero[u.id] and RectContainsCoords(gg_rct_Colosseum, x, y) == false and RectContainsCoords(gg_rct_Infinite_Struggle, x, y) == false and RectContainsCoords(gg_rct_Church, x, y) == false then
-            TableRemove(AZAZOTH_GROUP, u.player)
+            TableRemove(GODS_GROUP, u.player)
             MoveHeroLoc(u.id, TownCenter)
-            PanCameraToTimedForPlayer(u.player, GetUnitX(Hero[u.id]), GetUnitY(Hero[u.id]), 0.)
-            SetCameraBoundsRectForPlayerEx(u.player, gg_rct_Main_Map_Vision)
         end
 
         u = u.next
@@ -164,10 +152,9 @@ function SetupChaos()
     SetDoodadAnimation(7810., 1203., 1000., FourCC('D05Q'), false, "death", false)
 
     --clean up bosses
-    for i = 1, #BossTable do
+    for i = BOSS_OFFSET, #BossTable do
         RemoveUnit(BossTable[i].unit)
         RemoveLocation(BossTable[i].loc)
-        BossTable[i] = nil
     end
 
     -- Demon Prince
@@ -204,18 +191,19 @@ function SetupChaos()
     CreateBossEntry(BOSS_XALLARATH, GetRectCenter(gg_rct_Forgotten_Leader_Boss_Spawn), 135.00, FourCC('O03G'), "Xallarath", 360,
     {FourCC('I0O1'), FourCC('I0OB'), FourCC('I0CH'), 0, 0, 0}, 12, 4000)
 
+    BOSS_OFFSET = BOSS_DEMON_PRINCE
+
     -- ------------------
     -- chaos boss items
     -- ------------------
 
-    for i = 1, #BossTable do
+    for i = BOSS_OFFSET, #BossTable do
         BossNearbyPlayers[i] = 0
         SetHeroLevel(BossTable[i].unit, BossTable[i].level, false)
 
         for j = 1, 6 do
             if BossTable[i].item[j] ~= 0 then
-                local itm = Item.create(CreateItem(BossTable[i].item[j], 30000., 30000.))
-                UnitAddItem(BossTable[i].unit, itm.obj)
+                local itm = UnitAddItemById(BossTable[i].unit, BossTable[i].item[j])
                 itm:lvl(ItemData[itm.id][ITEM_UPGRADE_MAX])
             end
         end
@@ -246,12 +234,18 @@ function SetupChaos()
 
     forgotten_spawner = CreateUnit(pboss, FourCC('o02E'), 15100., -12650., bj_UNIT_FACING)
     SetUnitAnimation(forgotten_spawner, "Stand Work")
-    for _ = 0, 4 do
-        SpawnForgotten()
-    end
-    TimerQueue:callPeriodically(60., not UnitAlive(forgotten_spawner), SpawnForgotten)
+    SpawnForgotten(5)
+    TimerQueue:callDelayed(60., SpawnForgotten, 1)
 
-    CinematicFadeBJ(bj_CINEFADETYPE_FADEIN, 2.5, "ReplaceableTextures\\CameraMasks\\Black_mask.blp", 0, 0, 0, 0)
+	SetCineFilterTexture("ReplaceableTextures\\CameraMasks\\Black_mask.blp")
+	SetCineFilterBlendMode(BLEND_MODE_BLEND)
+	SetCineFilterTexMapFlags(TEXMAP_FLAG_NONE)
+	SetCineFilterStartUV(0, 0, 1, 1)
+	SetCineFilterEndUV(0, 0, 1, 1)
+	SetCineFilterStartColor(0, 0, 0, 255)
+	SetCineFilterEndColor(0, 0, 0, 0)
+	SetCineFilterDuration(2.5)
+	TimerQueue:callDelayed(2.5, DisplayCineFilter, false)
 
     CHAOS_LOADING = false
 end
@@ -265,10 +259,9 @@ function BeginChaos()
     TimerStart(wanderingTimer, 2040. - (User.AmountPlaying * 240), true, ShadowStepExpire)
 
     CHAOS_LOADING = true
-    ChaosMode = true
+    CHAOS_MODE = true
 
     RemoveUnit(power_crystal)
-    power_crystal = nil
 
     RemoveUnit(god_portal)
     god_portal = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n00N'), -1409., -15255., 270)
@@ -276,7 +269,15 @@ function BeginChaos()
     DisplayTimedTextToForce(FORCE_PLAYING, 100, "|cff800807Without the Goddess of Life, unspeakable chaos walks the land and wreaks havoc on all life. Chaos spreads across the land and thus the chaotic world is born.")
     SoundHandler("Sound\\Interface\\GlueScreenEarthquake1.flac", false, nil, nil)
 
-    CinematicFadeBJ(bj_CINEFADETYPE_FADEOUT, 3.0, "ReplaceableTextures\\CameraMasks\\Black_mask.blp", 0, 0, 0, 0)
+	SetCineFilterTexture("ReplaceableTextures\\CameraMasks\\Black_mask.blp")
+	SetCineFilterBlendMode(BLEND_MODE_BLEND)
+	SetCineFilterTexMapFlags(TEXMAP_FLAG_NONE)
+	SetCineFilterStartUV(0, 0, 1, 1)
+	SetCineFilterEndUV(0, 0, 1, 1)
+	SetCineFilterStartColor(0, 0, 0, 0)
+	SetCineFilterEndColor(0, 0, 0, 255)
+	SetCineFilterDuration(3.0)
+	DisplayCineFilter(true)
 
     TimerQueue:callDelayed(3., SetupChaos)
 end
