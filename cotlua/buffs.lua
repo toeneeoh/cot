@@ -266,7 +266,7 @@ OnInit.global("Buffs", function(require)
                 local u = BlzGroupUnitAt(ug, i)
                 local angle = Atan2(GetUnitY(target) - GetUnitY(u), GetUnitX(target) - GetUnitX(u))
                 UnitWakeUp(u)
-                if GetUnitMoveSpeed(u) > 0 and (GetUnitCurrentOrder(u) == 0 or GetUnitCurrentOrder(u) == 851971) and IsTerrainWalkable(GetUnitX(u) + (3. * Cos(angle)), GetUnitY(u) + (3. * Sin(angle))) and UnitDistance(u, target) > 100. then
+                if GetUnitMoveSpeed(u) > 0 and (GetUnitCurrentOrder(u) == 0 or GetUnitCurrentOrder(u) == ORDER_ID_SMART) and IsTerrainWalkable(GetUnitX(u) + (3. * Cos(angle)), GetUnitY(u) + (3. * Sin(angle))) and UnitDistance(u, target) > 100. then
                     SetUnitXBounded(u, GetUnitX(u) + (3. * Cos(angle)))
                     SetUnitYBounded(u, GetUnitY(u) + (3. * Sin(angle)))
                 end
