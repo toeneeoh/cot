@@ -3,7 +3,7 @@ if Debug then Debug.beginFile "Helper" end
 --[[
     helper.lua
 
-    A general purpose module with a myriad of useful helper functions and structs used across files.
+    A general purpose module with a myriad of useful helper functions and structs for use across files.
 ]]
 
 do
@@ -944,159 +944,76 @@ do
     end
 end
 
+--simple priority queue
+
+---@class PriorityQueue
+---@field create function
+---@field push function
+---@field pop function
+---@field clear function
+---@field isEmpty function
+PriorityQueue = {}
+do
+    local thistype = PriorityQueue
+    thistype.__index = thistype
+
+    function thistype.create()
+        local self = setmetatable({}, thistype)
+        self.heap = {}
+        self.currentSize = 0
+        return self
+    end
+
+    function thistype:push(value, priority)
+        local node = {value = value, priority = priority}
+        self.currentSize = self.currentSize + 1
+        local i = self.currentSize
+        self.heap[i] = node
+        while i > 1 do
+            local parentIndex = math.floor(i / 2)
+            if self.heap[parentIndex].priority <= priority then
+                break
+            end
+            self.heap[i] = self.heap[parentIndex]
+            self.heap[parentIndex] = node
+            i = parentIndex
+        end
+    end
+
+    function thistype:pop()
+        local minNode = self.heap[1]
+        local lastNode = self.heap[self.currentSize]
+        self.currentSize = self.currentSize - 1
+        local i = 1
+        while true do
+            local childIndex = 2 * i
+            if childIndex > self.currentSize then
+                break
+            end
+            if childIndex + 1 <= self.currentSize and self.heap[childIndex + 1].priority < self.heap[childIndex].priority then
+                childIndex = childIndex + 1
+            end
+            if lastNode.priority <= self.heap[childIndex].priority then
+                break
+            end
+            self.heap[i] = self.heap[childIndex]
+            i = childIndex
+        end
+        self.heap[i] = lastNode
+        return minNode.value
+    end
+
+    function thistype:isEmpty()
+        return self.currentSize == 0
+    end
+
+    function thistype:clear()
+        self.heap = {}
+        self.currentSize = 0
+    end
+end
+
 --misc helper functions
-
--- Priority queue implementation
-local PriorityQueue = {}
-PriorityQueue.__index = PriorityQueue
-
-function PriorityQueue.new()
-    local self = setmetatable({}, PriorityQueue)
-    self.heap = {}
-    self.currentSize = 0
-    return self
-end
-
-function PriorityQueue:push(value, priority)
-    local node = {value = value, priority = priority}
-    self.currentSize = self.currentSize + 1
-    local i = self.currentSize
-    self.heap[i] = node
-    while i > 1 do
-        local parentIndex = math.floor(i / 2)
-        if self.heap[parentIndex].priority <= priority then
-            break
-        end
-        self.heap[i] = self.heap[parentIndex]
-        self.heap[parentIndex] = node
-        i = parentIndex
-    end
-end
-
-function PriorityQueue:pop()
-    local minNode = self.heap[1]
-    local lastNode = self.heap[self.currentSize]
-    self.currentSize = self.currentSize - 1
-    local i = 1
-    while true do
-        local childIndex = 2 * i
-        if childIndex > self.currentSize then
-            break
-        end
-        if childIndex + 1 <= self.currentSize and self.heap[childIndex + 1].priority < self.heap[childIndex].priority then
-            childIndex = childIndex + 1
-        end
-        if lastNode.priority <= self.heap[childIndex].priority then
-            break
-        end
-        self.heap[i] = self.heap[childIndex]
-        i = childIndex
-    end
-    self.heap[i] = lastNode
-    return minNode.value
-end
-
-function PriorityQueue:isEmpty()
-    return self.currentSize == 0
-end
-
-function printCoordinates(coordinates)
-    if coordinates then
-        local printed = {}
-        for i, coord in ipairs(coordinates) do
-            if ModuloInteger(i, 2) == 1 or i == #coordinates then
-                local x, y = coord[1], coord[2]
-                table.insert(printed, string.format("(\x25d, \x25d)", x, y))
-            end
-        end
-        print(table.concat(printed, " "))
-    end
-end
-
-function QueueCoordinates(u, coordinates)
-    if coordinates then
-        BlzUnitClearOrders(u, false)
-        for _, v in ipairs(coordinates) do
-            BlzQueuePointOrderById(u, 851986, v[1], v[2])
-        end
-    end
-end
-
-local function heuristicEstimate(x, y, endX, endY)
-    -- Simple Euclidean distance heuristic
-    return math.sqrt((endX - x)^2 + (endY - y)^2)
-end
-
--- Path reconstruction function
-local function reconstructPath(cameFrom, current)
-    local path = {}
-    while current do
-        table.insert(path, 1, {64 * (current.x + 0.5), 64 * (current.y + 0.5)}) -- Insert at the beginning
-        current = cameFrom[current.y][current.x]
-    end
-    return path
-end
-
-local grid = array2d()
-local INFINITY = 2^30
-
-function jps(startX, startY, endX, endY)
-    local offset = 64
-    startX = startX // offset
-    startY = startY // offset
-    endX = endX // offset
-    endY = endY // offset
-
-    local minX = math.min(startX, endX) - 4
-    local minY = math.min(startY, endY) - 4
-    local maxX = math.max(startX, endX) + 4
-    local maxY = math.max(startY, endY) + 4
-
-    local gScore = array2d(INFINITY)
-    local fScore = array2d(INFINITY)
-    local openSet = PriorityQueue.new()
-    local cameFrom = array2d()
-
-    gScore[startY][startX] = 0
-    fScore[startY][startX] = heuristicEstimate(startX, startY, endX, endY)
-    openSet:push({x = startX, y = startY}, fScore[startY][startX])
-
-    while not openSet:isEmpty() do
-        local current = openSet:pop()
-
-        if current.x == endX and current.y == endY then
-            return reconstructPath(cameFrom, current)
-        end
-
-        local tentativeGScore = gScore[current.y][current.x] + 1
-
-        for dx = -1, 1 do
-            for dy = -1, 1 do
-                if dx ~= 0 or dy ~= 0 then
-                    local x, y = current.x + dx, current.y + dy
-
-                    -- Check if the neighbor is within the grid boundaries and walkable
-                    if x >= minX and x <= maxX and y >= minY and y <= maxY then
-                        if grid[y][x] == nil then
-                            grid[y][x] = IsTerrainWalkable(offset * (x + 0.5), offset * (y + 0.5))
-                        end
-
-                        if grid[y][x] then
-                            if tentativeGScore < gScore[y][x] then
-                                cameFrom[y][x] = {x = current.x, y = current.y}
-                                gScore[y][x] = tentativeGScore
-                                fScore[y][x] = tentativeGScore + heuristicEstimate(x, y, endX, endY)
-                                openSet:push({x = x, y = y}, fScore[y][x]) -- Push start node with priority 0
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    return nil
-end
 
 ---@type fun(sfx: effect)
 function HideEffect(sfx)

@@ -601,7 +601,7 @@ function FocusFire(pt)
                 pt.time = 0.
                 pt.agi = 0
                 MoveLightningEx(pt.lfx, false, 30000., 30000., 0., 30000., 30000., 0.)
-                IssueImmediateOrder(pt.source, "stop")
+                IssueImmediateOrderById(pt.source, ORDER_ID_STOP)
                 UnitSetBonus(pt.source, BONUS_ATTACK_SPEED, -8.)
                 BlzStartUnitAbilityCooldown(pt.source, FourCC('A02G'), 0.001)
             else

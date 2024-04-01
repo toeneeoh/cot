@@ -13,20 +13,28 @@ OnInit.final("Orders", function(require)
     require 'Users'
     require 'Units'
 
+    --define frequently used ids
+    ORDER_ID_MOVE           = 851986
+    ORDER_ID_HOLD_POSITION  = 851972
+    ORDER_ID_STOP           = 851993
+    ORDER_ID_SMART          = 851971
+    ORDER_ID_ATTACK         = 851983
+    ORDER_ID_UNDEFEND       = 852056
+    ORDER_ID_MANA_SHIELD    = 852589
+    ORDER_ID_IMMOLATION     = 852177
+    ORDER_ID_UNIMMOLATION   = 852178
+
     metamorphosis = __jarray(0) ---@type number[] 
     LAST_TARGET   = {} ---@type unit[] 
     LAST_ORDER_TARGET = {} ---@type unit[] 
     Moving        = {} ---@type boolean[] 
 
     local OrderTable = {
-        --issued hold position
-        [851972] = function(id, source, p, pid)
+        [ORDER_ID_HOLD_POSITION] = function(id, source, p, pid)
         end,
-        --issued stop
-        [851993] = function(id, source, p, pid)
+        [ORDER_ID_STOP] = function(id, source, p, pid)
         end,
-        --issued smart order
-        [851971] = function(id, source, p, pid, target)
+        [ORDER_ID_SMART] = function(id, source, p, pid, target)
             local pt = TimerList[pid]:get('aggr', source)
             --after 3 seconds drop aggro from nearby enemies and redirect to allies if possible
             if not pt then
@@ -37,8 +45,7 @@ OnInit.final("Orders", function(require)
             end
         end,
 
-        --issued undefend order
-        [852056] = function(id, source, p, pid)
+        [ORDER_ID_UNDEFEND] = function(id, source, p, pid)
             if GetPlayerController(GetOwningPlayer(source)) ~= MAP_CONTROL_USER then
                 --if unit is removed
                 if GetUnitAbilityLevel(source, DETECT_LEAVE_ABILITY) == 0 then
@@ -82,7 +89,7 @@ OnInit.final("Orders", function(require)
         end,
 
         --issued mana shield on order
-        [852589] = function(id, source, p, pid)
+        [ORDER_ID_MANA_SHIELD] = function(id, source, p, pid)
             --warrior parry
             if GetUnitAbilityLevel(source, PARRY.id) > 0 then
                 UnitDisableAbility(source, PARRY.id, true)
@@ -123,7 +130,7 @@ OnInit.final("Orders", function(require)
         end,
 
         --issued immolation on order
-        [852177] = function(id, source, p, pid)
+        [ORDER_ID_IMMOLATION] = function(id, source, p, pid)
             --phoenix ranger multishot
             if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not IS_TELEPORTING[pid] then
                 SetPlayerAbilityAvailable(p, prMulti[IMinBJ(4, GetHeroLevel(source) // 50)], true)
@@ -205,7 +212,7 @@ function OnOrder()
     end
 
     --backpack ai
-    if source == Backpack[pid] and id ~= 851972 and id ~= 851993 then --not stopping or holding position
+    if source == Backpack[pid] and id ~= ORDER_ID_STOP and id ~= ORDER_ID_HOLD_POSITION then
         bpmoving[pid] = true
         local pt = TimerList[pid]:get('bkpk')
 
@@ -277,8 +284,8 @@ function OnOrder()
         local oldSlot = GetItemSlot(itm, source) ---@type integer 
 
         -- prevent other units from attacking a bound item
-        if id == 851983 and itm.owner ~= Player(pid - 1) then
-            TimerQueue:callDelayed(0., IssueImmediateOrderById, source, 851972)
+        if id == ORDER_ID_ATTACK and itm.owner ~= Player(pid - 1) then
+            TimerQueue:callDelayed(0., IssueImmediateOrderById, source, ORDER_ID_HOLD_POSITION)
         end
 
         --move item slot
@@ -322,10 +329,15 @@ function OnOrder()
         end
 
         local x2, y2 = GetUnitX(source), GetUnitY(source)
-        local dist = DistanceCoords(x, y, x2, y2)
 
-        if source == Hero[pid] and #CoordinateQueue[pid] == 0 and JUMP_POINT_SEARCH and dist < 2000 and x ~= 0 and y ~= 0 then
-            QueueCoordinates(source, jps(x2, y2, x, y))
+        if source == Hero[pid] then
+            if id ~= ORDER_ID_MOVE and CoordinateQueue[pid] then
+                CoordinateQueue[pid]:clear()
+            end
+
+            if A_STAR_PATHING and x ~= 0 and y ~= 0 then
+                QueuePathing(source, x2, y2, x, y)
+            end
         end
 
         if nocd[pid] then
