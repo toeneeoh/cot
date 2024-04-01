@@ -1508,7 +1508,7 @@ local ImportantItems = {
 
 ---@type fun(itm: item): boolean
 function isImportantItem(itm)
-    return ImportantItems[GetItemTypeId(itm)] ~= nil or itm == PathItem
+    return ImportantItems[GetItemTypeId(itm)] ~= nil or itm == PATH_ITEM
 end
 
 function ClearItems()

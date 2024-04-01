@@ -542,10 +542,10 @@ OnInit.global("Buffs", function(require)
             self.hp = GetWidgetLife(self.target)
             self.mana = GetUnitState(self.target, UNIT_STATE_MANA)
 
-            BlzSetItemSkin(PathItem, BlzGetUnitSkin(self.target))
-            self.sfx = AddSpecialEffect(BlzGetItemStringField(PathItem, ITEM_SF_MODEL_USED), x, y)
+            BlzSetItemSkin(PATH_ITEM, BlzGetUnitSkin(self.target))
+            self.sfx = AddSpecialEffect(BlzGetItemStringField(PATH_ITEM, ITEM_SF_MODEL_USED), x, y)
             self.lfx = AddLightningEx("HCHA", false, x, y, BlzGetUnitZ(self.target) + 75., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 75.)
-            BlzSetItemSkin(PathItem, BlzGetUnitSkin(DummyUnit))
+            BlzSetItemSkin(PATH_ITEM, BlzGetUnitSkin(DummyUnit))
 
             DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIil\\AIilTarget.mdl", x, y))
 
