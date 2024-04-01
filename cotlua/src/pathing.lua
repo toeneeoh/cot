@@ -1,10 +1,17 @@
 if Debug then Debug.beginFile 'Pathing' end
 
+--[[
+    pathing.lua
+
+    This module provides utilities for determining what kind of
+    pathing an (x, y) coordinate on the map has.
+]]
+
 OnInit.global("Pathing", function()
 
-    PathItem        = CreateItem(FourCC('wolg'), 30000., 30000.)
-    TERRAIN_X       = 0.
-    TERRAIN_Y       = 0.
+    PATH_ITEM = CreateItem(FourCC('wolg'), 30000., 30000.)
+    TERRAIN_X = 0.
+    TERRAIN_Y = 0.
 
     local MAX_RANGE     = 10.
     local Find          = Rect(0., 0., 128., 128.)
@@ -44,12 +51,12 @@ function IsTerrainWalkable(x, y)
     MoveRectTo(Find, x, y)
     EnumItemsInRect(Find, nil, HideItems)
 
-    SetItemPosition(PathItem, x, y)
+    SetItemPosition(PATH_ITEM, x, y)
 
-    TERRAIN_X = GetItemX(PathItem)
-    TERRAIN_Y = GetItemY(PathItem)
+    TERRAIN_X = GetItemX(PATH_ITEM)
+    TERRAIN_Y = GetItemY(PATH_ITEM)
 
-    SetItemPosition(PathItem, 30000., 30000.)
+    SetItemPosition(PATH_ITEM, 30000., 30000.)
 
     for i, v in ipairs(HiddenItems) do
         SetItemVisible(v, true)

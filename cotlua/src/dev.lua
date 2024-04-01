@@ -11,7 +11,7 @@ OnInit.final("Dev", function(require)
 
     EXTRA_DEBUG    = false ---@type boolean 
     DEBUG_HERO    = false ---@type boolean 
-    JUMP_POINT_SEARCH = false ---@type boolean 
+    A_STAR_PATHING = false ---@type boolean 
     MS_OVERRIDE = false
     BUDDHA_MODE    = {} ---@type boolean[] 
     nocd           = {} ---@type boolean[] 
@@ -410,8 +410,8 @@ modifiers:
         ["msoverride"] = function(p, pid, args)
             MS_OVERRIDE = not MS_OVERRIDE
         end,
-        ["jps"] = function(p, pid, args)
-            JUMP_POINT_SEARCH = not JUMP_POINT_SEARCH
+        ["astar"] = function(p, pid, args)
+            A_STAR_PATHING = not A_STAR_PATHING
         end,
         ["currentorder"] = function(p, pid, args)
             print((GetUnitCurrentOrder(PlayerSelectedUnit[pid])))

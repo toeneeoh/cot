@@ -651,10 +651,8 @@ function Tick()
 
     --determine if a player hero is moving
     Moving[id] = (UnitAlive(Hero[id]) and not IsUnitStunned(Hero[id]) and GetUnitAbilityLevel(Hero[id], FourCC('BEer')) == 0)
-    --stop, holdposition, or nil
-    and (order ~= 851972 and order ~= 851993 and order ~= 0)
-    --attack or smart
-    if (order == 851983 or order == 851971) then
+    and (order ~= ORDER_ID_STOP and order ~= ORDER_ID_HOLD_POSITION and order ~= 0)
+    if (order == ORDER_ID_ATTACK or order == ORDER_ID_SMART) then
         if LAST_ORDER_TARGET[id] and UnitDistance(Hero[id], LAST_ORDER_TARGET[id]) - BlzGetUnitCollisionSize(LAST_ORDER_TARGET[id]) <= BlzGetUnitWeaponRealField(Hero[id], UNIT_WEAPON_RF_ATTACK_RANGE, 0) then
             Moving[id] = false
         end

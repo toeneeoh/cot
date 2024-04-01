@@ -247,7 +247,7 @@ OnInit.final("SaveLoad", function(require)
 
                 for _, v in ipairs(funnyList) do
                     if StringHash(u.name) == v then
-                        DisplayTimedTextToForce(FORCE_PLAYING, 120., BlzGetItemDescription(PathItem) .. u.nameColored .. BlzGetItemExtendedTooltip(PathItem))
+                        DisplayTimedTextToForce(FORCE_PLAYING, 120., BlzGetItemDescription(PATH_ITEM) .. u.nameColored .. BlzGetItemExtendedTooltip(PATH_ITEM))
                         load = false
                         break
                     end

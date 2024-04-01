@@ -1984,7 +1984,7 @@ OnInit.final("Spells", function(require)
                 SetUnitTimeScale(pt.source, 1.)
                 AddUnitAnimationProperties(pt.source, "spin", false)
                 SetUnitPathing(pt.source, true)
-                IssueImmediateOrder(pt.source, "stop")
+                IssueImmediateOrderById(pt.source, ORDER_ID_STOP)
                 pt:destroy()
             end
         end
@@ -2012,7 +2012,7 @@ OnInit.final("Spells", function(require)
                 SetUnitTimeScale(pt.source, 1.)
                 AddUnitAnimationProperties(pt.source, "spin", false)
                 SetUnitPathing(pt.source, true)
-                IssueImmediateOrder(pt.source, "stop")
+                IssueImmediateOrderById(pt.source, ORDER_ID_STOP)
 
                 BlzStartUnitAbilityCooldown(pt.source, thistype.id, 3. + TimerGetRemaining(pt.timer.timer))
                 BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(pt.source, thistype.id), ABILITY_ILF_TARGET_TYPE, GetUnitAbilityLevel(pt.source, thistype.id) - 1, 2)
@@ -2287,7 +2287,7 @@ OnInit.final("Spells", function(require)
             pt.time = pt.time + 0.5
 
             if pt.time >= pt.dur then
-                IssueImmediateOrder(pt.target, "stop")
+                IssueImmediateOrderById(pt.target, ORDER_ID_STOP)
                 SetUnitAnimation(pt.target, "death")
                 pt:destroy()
             else
@@ -4850,7 +4850,7 @@ OnInit.final("Spells", function(require)
 
             IssueImmediateOrderById(pt.source, 852178)
             if pt.dur - pt.speed <= 0 then
-                IssueImmediateOrder(pt.source, "stop")
+                IssueImmediateOrderById(pt.source, ORDER_ID_STOP)
             end
 
             if pt.dur > 0. then
@@ -6517,82 +6517,82 @@ OnInit.final("Spells", function(require)
 
         if sid == FourCC('AImt') or sid == FourCC('A02J') or sid == FourCC('A018') then --God Blink / Backpack Teleport
             if UnitAlive(Hero[pid]) == false then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport while dead.")
             elseif sid == FourCC('A018') and CHAOS_MODE then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTimedTextToPlayer(p, 0, 0, 20.00, "With the Gods dead, these items no longer have the ability to move around the map with free will. Their powers are dead, however their innate fighting powers are left unscathed.")
             elseif r ~= MAIN_MAP.rect then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTimedTextToPlayer(p, 0, 0, 5., "Unable to teleport there.")
             elseif r ~= r2 then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTimedTextToPlayer(p, 0, 0, 5., "Unable to teleport there.")
             elseif TableHas(QUEUE_GROUP, p) then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport while queueing for a dungeon.")
             elseif TableHas(NAGA_GROUP, pid) then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport while in a dungeon.")
             end
         elseif sid == FourCC('A01S') or sid == FourCC('A03D') or sid == FourCC('A061') then --Short blink
             if r ~= r2 then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport there.")
             end
 
         elseif sid == FourCC('A0FV') then --Teleport Home
             if UnitAlive(Hero[pid]) == false then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport while dead.")
             elseif TableHas(QUEUE_GROUP, p) then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport while queueing for a dungeon.")
             elseif TableHas(NAGA_GROUP, pid) then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport while in a dungeon.")
             elseif TableHas(AZAZOTH_GROUP, p) then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport out of here.")
             elseif r == MAIN_MAP.rect or r == gg_rct_Cave or r == gg_rct_Gods_Arena or r == gg_rct_Tavern then
             else
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Unable to teleport out of here.")
             end
         elseif sid == RESURRECTION.id then --Resurrection
             if target ~= HeroGrave[tpid] then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "You must target a tombstone!")
             elseif GetUnitAbilityLevel(HeroGrave[tpid], FourCC('A045')) > 0 then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "This player is already being revived!")
             end
         elseif sid == BLOODNOVA.id then --Blood Nova
             if BLOODBANK.get(pid) < BLOODNOVA.cost(pid) then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "Not enough blood.")
             end
         --valid cast point
         elseif sid == WHIRLPOOL.id or sid == BLOODLEAP.id or sid == SPINDASH.id or sid == METEOR.id or sid == STEEDCHARGE.id or sid == BLINKSTRIKE.id or sid == PHOENIXFLIGHT.id then
             if (not IsTerrainWalkable(targetX, targetY) or r2 ~= r) and (targetX ~= 0 and targetY ~= 0) then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, INVALID_TARGET_MESSAGE)
             end
         elseif sid == ARCANESHIFT.id then
             local pt = TimerList[pid]:get(ARCANESHIFT.id, caster)
 
             if not IsTerrainWalkable(targetX, targetY) then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, INVALID_TARGET_MESSAGE)
             elseif pt then
                 if DistanceCoords(targetX, targetY, pt.x, pt.y) > 1500. then
-                    IssueImmediateOrder(caster, "stop")
+                    IssueImmediateOrderById(caster, ORDER_ID_STOP)
                     DisplayTextToPlayer(p, 0, 0, "|cffff0000Target point is too far away!")
                 end
             end
         elseif sid == DEMONICSACRIFICE.id then
             if GetOwningPlayer(target) ~= p then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTextToPlayer(p, 0, 0, "You must target your own summons!")
             end
         elseif sid == METAMORPHOSIS.id then
@@ -7043,7 +7043,7 @@ OnInit.final("Spells", function(require)
         --Castle of the Gods
         elseif sid == FourCC('A0A9') or sid == FourCC('A0A7') or sid == FourCC('A0A6') or sid == FourCC('S001') or sid == FourCC('A0A5') then
             if CHAOS_MODE then
-                IssueImmediateOrder(caster, "stop")
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
                 DisplayTimedTextToPlayer(p, 0, 0, 10.00, "With the Gods dead, the Castle of Gods can no longer draw enough power from them in order to use its abilities.")
             end
 
