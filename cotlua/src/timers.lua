@@ -290,11 +290,11 @@ function WanderingGuys()
         end
     end
 
-    if UnitAlive(gg_unit_H01Y_0099) then
+    if UnitAlive(udg_SPONSOR) then
         x = GetRandomReal(GetRectMinX(gg_rct_Town_Boundry) + 500, GetRectMaxX(gg_rct_Town_Boundry) - 500)
         y = GetRandomReal(GetRectMinY(gg_rct_Town_Boundry) + 500, GetRectMaxY(gg_rct_Town_Boundry) - 500)
 
-        IssuePointOrder(gg_unit_H01Y_0099, "move", x, y)
+        IssuePointOrder(udg_SPONSOR, "move", x, y)
     end
 end
 

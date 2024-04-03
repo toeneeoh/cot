@@ -103,7 +103,7 @@ function SetupChaos()
     end
 
     for target in each(ug) do
-        if target ~= gg_unit_H01Y_0099 then
+        if target ~= udg_SPONSOR then
             RemoveUnit(target)
         end
     end

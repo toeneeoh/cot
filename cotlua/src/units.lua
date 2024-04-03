@@ -1149,8 +1149,8 @@ end
     UnitAddAbility(zeknen, FourCC('Avul'))
 
     --sponsor
-    BlzSetUnitMaxHP(gg_unit_H01Y_0099, 1)
-    BlzSetUnitMaxMana(gg_unit_H01Y_0099, 0)
+    BlzSetUnitMaxHP(udg_SPONSOR, 1)
+    BlzSetUnitMaxMana(udg_SPONSOR, 0)
     --town paladin
     townpaladin = CreateUnit(Player(PLAYER_TOWN), FourCC('H01T'), -176.3, 666, 90.)
     BlzSetUnitMaxMana(townpaladin, 0)
