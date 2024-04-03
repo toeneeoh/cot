@@ -801,7 +801,6 @@ OnInit.final("Spells", function(require)
 
             ShowUnit(self.caster, false)
             UnitAddAbility(self.caster, FourCC('Avul'))
-            BlzUnitClearOrders(self.caster, false)
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl", self.caster, "chest"))
 
             local missile = Missiles:create(self.x, self.y, 100., self.x + range * Cos(angle), self.y + range * Sin(angle), 100.) ---@type Missiles
@@ -830,6 +829,7 @@ OnInit.final("Spells", function(require)
                 ShowUnit(missile.source, true)
                 reselect(missile.source)
                 SetUnitPathing(missile.source, true)
+                BlzUnitClearOrders(missile.source, false)
             end
 
             missile.onPeriod = function()
@@ -5363,15 +5363,8 @@ OnInit.final("Spells", function(require)
             b:duration(self.dur * LBOOST[self.pid])
             b.x = self.targetX
             b.y = self.targetY
-            b.sfx = Dummy.create(b.x, b.y, 0, 0, 0).unit
-
-            BlzSetUnitSkin(b.sfx, FourCC('h03X'))
-            UnitDisableAbility(b.sfx, FourCC('Amov'), true)
-            SetUnitScale(b.sfx, 6.1, 6.1, 6.1)
-            BlzSetUnitFacingEx(b.sfx, 270)
-            SetUnitAnimation(b.sfx, "birth")
-            SetUnitTimeScale(b.sfx, 0.8)
-            DelayAnimation(b.tpid, b.sfx, 1., 0, 1., false)
+            SetUnitXBounded(b.sfx, b.x)
+            SetUnitYBounded(b.sfx, b.y)
         end
     end
 
@@ -5504,7 +5497,7 @@ OnInit.final("Spells", function(require)
             DestroyEffect(AddSpecialEffect("war3mapImported\\AquaSpikeVersion2.mdx", self.targetX, self.targetY))
 
             for target in each(ug) do
-                Freeze:add(Hero[self.pid], target):duration(self.freeze * LBOOST[self.pid])
+                Freeze:add(self.caster, target):duration(self.freeze * LBOOST[self.pid])
                 if IsUnitInRangeXY(target, self.targetX, self.targetY, self.aoe * LBOOST[self.pid]) == true and b then
                     DamageTarget(self.caster, target, self.dmg * 2 * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 else

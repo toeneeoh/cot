@@ -2008,7 +2008,7 @@ OnInit.global("Buffs", function(require)
             self.count = math.min(5. + GetHeroLevel(self.source) // 100 * 10, self.count)
 
             self:refresh()
-            self.timer:callDelayed(0.5, self.periodic, self)
+            self.timer:callDelayed(0.5, thistype.periodic, self)
         end
 
         --reapplies spellboost and bat bonus
@@ -2037,6 +2037,17 @@ OnInit.global("Buffs", function(require)
             self.bat = 1
             self.ug = CreateGroup()
             self.count = 0.
+
+            self.sfx = Dummy.create(0, 0, 0, 0, 0).unit
+
+            BlzSetUnitSkin(self.sfx, FourCC('h03X'))
+            UnitDisableAbility(self.sfx, FourCC('Amov'), true)
+            SetUnitScale(self.sfx, 6.1, 6.1, 6.1)
+            BlzSetUnitFacingEx(self.sfx, 270)
+            SetUnitAnimation(self.sfx, "birth")
+            SetUnitTimeScale(self.sfx, 0.8)
+            DelayAnimation(self.tpid, self.sfx, 1., 0, 1., false)
+
             self.timer = TimerQueue:create()
             self.timer:callDelayed(0.01, thistype.refresh, self)
         end
