@@ -825,10 +825,17 @@ OnInit.final("Spells", function(require)
                 return false
             end
 
+            missile.onRemove = function()
+                UnitRemoveAbility(missile.source, FourCC('Avul'))
+                ShowUnit(missile.source, true)
+                reselect(missile.source)
+                SetUnitPathing(missile.source, true)
+            end
+
             missile.onPeriod = function()
                 local stopped = false
 
-                if not UnitAlive(missile.source) or missile.travel >= missile.origin.distance - 0.0001 then
+                if not UnitAlive(missile.source) then
                     stopped = true
                 else
                     SetUnitXBounded(missile.source, missile.x)
@@ -859,13 +866,6 @@ OnInit.final("Spells", function(require)
 
                         stopped = true
                     end
-                end
-
-                if stopped then
-                    UnitRemoveAbility(missile.source, FourCC('Avul'))
-                    ShowUnit(missile.source, true)
-                    reselect(missile.source)
-                    SetUnitPathing(missile.source, true)
                 end
 
                 return stopped
