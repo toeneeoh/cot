@@ -272,7 +272,7 @@ OnInit.final("Commands", function(require)
             end
         end,
         ["-prestige"] = function(p, pid, args)
-            PrestigeInfo(p, S2I(SubString(cmd, 10, 12)))
+            PrestigeInfo(p, args[2])
         end,
         ["-quests"] = function(p, pid, args)
             DisplayQuestProgress(p)
@@ -561,7 +561,7 @@ end
 ---@param p player
 ---@param pid integer
 function PrestigeInfo(p, pid)
-    if pid == 0 then
+    if not pid then
         pid = GetPlayerId(p) + 1
     end
 
