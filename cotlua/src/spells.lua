@@ -804,7 +804,7 @@ OnInit.final("Spells", function(require)
             BlzUnitClearOrders(self.caster, false)
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl", self.caster, "chest"))
 
-            local missile = Missiles:create(self.x, self.y, 150., self.x + range * Cos(angle), self.y + range * Sin(angle), 150.) ---@type Missiles
+            local missile = Missiles:create(self.x, self.y, 100., self.x + range * Cos(angle), self.y + range * Sin(angle), 100.) ---@type Missiles
             missile:model("war3mapImported\\LightningSphere_FX.mdl")
             missile:scale(1.5)
             missile:speed(1120)
@@ -856,9 +856,9 @@ OnInit.final("Spells", function(require)
                         end
 
                         DestroyGroup(ug)
-                    end
 
-                    stopped = true
+                        stopped = true
+                    end
                 end
 
                 if stopped then
