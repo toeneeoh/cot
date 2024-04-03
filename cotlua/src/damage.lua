@@ -1002,9 +1002,10 @@ function OnDamage()
     end
 
     --body of fire
-    if target == Hero[tpid] and damageType == PHYSICAL and IsUnitEnemy(target, GetOwningPlayer(source)) and GetUnitAbilityLevel(target, BODYOFFIRE.id) > 0 then
-        dmg = (CalcAfterReductions(amount, target, source, damageType) * 0.05 * GetUnitAbilityLevel(target, BODYOFFIRE.id) + BODYOFFIRE.dmg(pid))
-        DamageTarget(target, source, dmg * BOOST[tpid], ATTACK_TYPE_NORMAL, MAGIC, BODYOFFIRE.tag)
+    local ablev = GetUnitAbilityLevel(target, BODYOFFIRE.id)
+    if ablev > 0 and damageType == PHYSICAL and IsUnitEnemy(target, GetOwningPlayer(source)) then
+        local returnDmg = (damageCalc * 0.05 * ablev) + BODYOFFIRE.dmg(tpid)
+        DamageTarget(target, source, returnDmg * BOOST[tpid], ATTACK_TYPE_NORMAL, MAGIC, BODYOFFIRE.tag)
     end
 
     --zero damage flag
