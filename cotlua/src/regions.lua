@@ -185,7 +185,7 @@ OnInit.final("Regions", function(require)
     function LeaveRegions()
         local u = GetFilterUnit() ---@type unit 
 
-        if u == gg_unit_H01Y_0099 or u == townpaladin then --prevent paladin and sponsor from leaving
+        if u == udg_SPONSOR or u == townpaladin then --prevent paladin and sponsor from leaving
             IssuePointOrderLoc(u, "move", TownCenter)
         end
     end
