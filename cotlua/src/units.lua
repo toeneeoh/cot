@@ -1125,7 +1125,6 @@ end
 
     local x      = 0. ---@type number 
     local y      = 0. ---@type number 
-    local s        = "" ---@type string 
     local target ---@type unit 
 
     --velreon guard

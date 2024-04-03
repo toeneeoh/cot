@@ -7,6 +7,7 @@ if Debug then Debug.beginFile 'Bonus' end
 ]]
 
 OnInit.global("Bonus", function()
+
     BONUS_ARMOR                    = 1
     BONUS_DAMAGE                   = 2
     BONUS_HERO_STR                 = 3
