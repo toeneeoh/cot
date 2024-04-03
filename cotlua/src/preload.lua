@@ -1,6 +1,6 @@
 if Debug then Debug.beginFile 'Preload' end
 
-OnInit.main("Preload", function()
+OnInit.final("Preloader", function()
     Preload("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdx")
     Preload("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdx")
     Preload("Abilities\\Weapons\\Bolt\\BoltImpact.mdx")
@@ -37,7 +37,9 @@ OnInit.main("Preload", function()
     Preload("war3mapImported\\Reapers Claws Red.mdx")
     Preload("Abilities\\Spells\\Orc\\Devour\\DevourEffectArt.mdl")
 
-    BlzLoadTOCFile("war3mapImported\\FDF.toc")
+    if BlzLoadTOCFile("war3mapImported\\FDF.toc") then
+        print("TOC loaded!")
+    end
 
     SetMapFlag(MAP_FOG_HIDE_TERRAIN, false)
     SetMapFlag(MAP_FOG_MAP_EXPLORED, true)

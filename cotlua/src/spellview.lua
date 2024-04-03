@@ -11,42 +11,42 @@ if Debug then Debug.beginFile 'SpellView' end
 ]]
 
 OnInit.final("SpellView", function(require)
-        require 'Preload'
+    require 'Preloader'
 
-        REFORGED         = true  ---@type boolean -- have BlzGetAbilityId? otherwise false
-        local UpdateTime      = 0.1 ---@type number 
-        local ShowCooldown         = true  ---@type boolean -- can be set async, needs BlzGetAbilityId for ability by index 
+    local REFORGED         = true  ---@type boolean -- have BlzGetAbilityId? otherwise false
+    local UpdateTime      = 0.1 ---@type number 
+    local ShowCooldown         = true  ---@type boolean -- can be set async, needs BlzGetAbilityId for ability by index 
 
-        --ToolTip
-        local ToolTipSizeX      = 0.26 ---@type number 
-        local ToolTipPosX      = 0.79 ---@type number 
-        local ToolTipPosY      = 0.165 ---@type number 
-        local ToolTipPos                = FRAMEPOINT_BOTTOMRIGHT ---@type framepointtype 
+    --ToolTip
+    local ToolTipSizeX      = 0.26 ---@type number 
+    local ToolTipPosX      = 0.79 ---@type number 
+    local ToolTipPosY      = 0.165 ---@type number 
+    local ToolTipPos                = FRAMEPOINT_BOTTOMRIGHT ---@type framepointtype 
 
-        -- currentSelected
-        local DataCount         = -1 ---@type integer 
-        local DataMod         = 0 ---@type integer 
-        local DataAbiCode=__jarray(0) ---@type integer[] 
-        local DataMana=__jarray(0) ---@type integer[] 
-        local DataRange=__jarray(0) ---@type number[]         
-        local DataAoe=__jarray(0) ---@type number[] 
-        local DataCool=__jarray(0) ---@type number[] 
-        local DataName=__jarray("") ---@type string[] 
-        local DataText=__jarray("") ---@type string[] 
-        local DataIcon=__jarray("") ---@type string[] 
+    -- currentSelected
+    local DataCount         = -1 ---@type integer 
+    local DataMod         = 0 ---@type integer 
+    local DataAbiCode=__jarray(0) ---@type integer[] 
+    local DataMana=__jarray(0) ---@type integer[] 
+    local DataRange=__jarray(0) ---@type number[]         
+    local DataAoe=__jarray(0) ---@type number[] 
+    local DataCool=__jarray(0) ---@type number[] 
+    local DataName=__jarray("") ---@type string[] 
+    local DataText=__jarray("") ---@type string[] 
+    local DataIcon=__jarray("") ---@type string[] 
 
-        local ParentSimple ---@type framehandle 
-        local Parent ---@type framehandle 
+    local ParentSimple ---@type framehandle 
+    local Parent ---@type framehandle 
 
-        local LastUnit      = nil ---@type unit 
-        local SPELL_VIEW_GROUP ---@type group 
+    local LastUnit      = nil ---@type unit 
+    local SPELL_VIEW_GROUP = CreateGroup()---@type group 
 
-        local MOD_ABI         = 1 ---@type integer 
-        local MOD_ABI_CODE         = 0 ---@type integer 
+    local MOD_ABI         = 1 ---@type integer 
+    local MOD_ABI_CODE         = 0 ---@type integer 
 
-        local UnitCodeText=__jarray("") ---@type string[] 
-        local UnitCodeType=__jarray(0) ---@type integer[] 
-        local UnitCodeCount         = 0 ---@type integer 
+    local UnitCodeText=__jarray("") ---@type string[] 
+    local UnitCodeType=__jarray(0) ---@type integer[] 
+    local UnitCodeCount         = 0 ---@type integer 
 
     ---@return framehandle
     local function ParentFuncSimple()
@@ -355,7 +355,7 @@ OnInit.final("SpellView", function(require)
             BlzGetFrameByName("TasSpellViewButtonChargeText", i)
         end
         if GetHandleId(BlzGetFrameByName("TasSpellViewButtonBackdrop", 1)) == 0 then
-            print("Error: TasSpellViewButton asset not found|r")
+            print("Error: TasSpellViewButton not found|r")
         end
 
         -- create one ToolTip which shows data for current hovered inside a timer.
@@ -380,12 +380,11 @@ OnInit.final("SpellView", function(require)
         BlzFrameSetVisible(ParentSimple, false)
         BlzFrameSetVisible(Parent, false)
         if GetHandleId(BlzGetFrameByName("TasSpellViewTooltipFrame", 0)) == 0 then
-            print("Error: TasSpellView asset not found|r")
+            print("Error: TasSpellView not found|r")
         end
     end
 
     local t = CreateTimer()
-    SPELL_VIEW_GROUP = CreateGroup()
     TimerStart(t, UpdateTime, true, Update)
 
     InitFrames()

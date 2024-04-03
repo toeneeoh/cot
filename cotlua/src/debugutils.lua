@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-field, cast-local-type
 do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils begins.
 --[[
  --------------------------
