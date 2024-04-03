@@ -183,6 +183,7 @@ do
     ---@field arc function
     ---@field x number
     ---@field y number
+    ---@field travel number
     Missiles = setmetatable({}, {})
     local mt = getmetatable(Missiles)
     mt.__index = mt

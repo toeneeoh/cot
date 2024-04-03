@@ -789,86 +789,89 @@ OnInit.final("Spells", function(require)
         thistype.aoe = 260. ---@type number
         thistype.values = {thistype.range, thistype.dmg, thistype.aoe}
 
-        ---@type fun(pt: PlayerTimer)
-        function thistype.periodic(pt)
-            local x = GetUnitX(pt.source)
-            local y = GetUnitY(pt.source)
-
-            pt.dur = pt.dur - pt.speed
-
-            if pt.dur > 0. and IsUnitInRangeXY(pt.source, pt.x, pt.y, pt.dur + 500.) then
-                --movement
-                SetUnitXBounded(pt.target, x + pt.speed * Cos(pt.angle))
-                SetUnitYBounded(pt.target, y + pt.speed * Sin(pt.angle))
-                SetUnitXBounded(pt.source, x + pt.speed * Cos(pt.angle))
-                SetUnitYBounded(pt.source, y + pt.speed * Sin(pt.angle))
-
-                BlzSetUnitFacingEx(pt.target, pt.angle * bj_RADTODEG)
-
-                if pt.dur < (GetUnitAbilityLevel(pt.source, THUNDERDASH.id) + 3) * 150 - 200 then
-                    local ug = CreateGroup()
-                    MakeGroupInRange(pt.pid, ug, x, y, 100.00, Condition(FilterEnemy))
-                    --check for impact
-                    if BlzGroupGetSize(ug) > 0 or not IsTerrainWalkable(x + pt.speed * Cos(pt.angle), y + pt.speed * Sin(pt.angle)) then
-                        SetUnitXBounded(pt.source, x)
-                        SetUnitYBounded(pt.source, y)
-                        pt.dur = 0.
-                        DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", x, y))
-                        DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", x + 140, y + 140))
-                        DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", x + 140, y - 140))
-                        DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", x - 140, y + 140))
-                        DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", x - 140, y - 140))
-                        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x, y))
-                        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x + 100, y + 100))
-                        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x + 100, y - 100))
-                        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x - 100, y + 100))
-                        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", x - 100, y - 100))
-                        MakeGroupInRange(pt.pid, ug, x, y, pt.aoe, Condition(FilterEnemy))
-
-                        for target in each(ug) do
-                            DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                        end
-                    end
-
-                    DestroyGroup(ug)
-                end
-
-                pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
-            else
-                UnitRemoveAbility(pt.source, FourCC('Avul'))
-                ShowUnit(pt.source, true)
-                reselect(pt.source)
-                SetUnitPathing(pt.source, true)
-                SetUnitAnimation(pt.target, "death")
-                pt:destroy()
-            end
-        end
-
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()
-
             TimerList[self.pid]:stopAllTimers(OMNISLASH.id)
 
-            pt.angle = self.angle
-            pt.source = self.caster
-            pt.target = Dummy.create(self.x, self.y, 0, 0).unit
-            pt.speed = 35.
-            pt.x = self.x + pt.dur * Cos(pt.angle)
-            pt.y = self.y + pt.dur * Sin(pt.angle)
-            pt.dur = self.range * LBOOST[self.pid]
-            pt.dmg = self.dmg * BOOST[self.pid]
-            pt.aoe = self.aoe * LBOOST[self.pid]
+            local range = self.range * LBOOST[self.pid]
+            local angle = self.angle
 
+            --reset omnislash visual
             SetUnitVertexColor(self.caster, 255, 255, 255, 255)
             SetUnitTimeScale(self.caster, 1.)
+
             ShowUnit(self.caster, false)
             UnitAddAbility(self.caster, FourCC('Avul'))
-            BlzSetUnitSkin(pt.target, FourCC('h00B'))
-            SetUnitScale(pt.target, 1.5, 1.5, 1.5)
-            SetUnitFlyHeight(pt.target, 150.00, 0.00)
-            DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl", self.x, self.y))
+            BlzUnitClearOrders(self.caster, false)
+            DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl", self.caster, "chest"))
 
-            pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
+            local missile = Missiles:create(self.x, self.y, 150., self.x + range * Cos(angle), self.y + range * Sin(angle), 150.) ---@type Missiles
+            missile:model("war3mapImported\\LightningSphere_FX.mdl")
+            missile:scale(1.5)
+            missile:speed(1120)
+            missile.source = self.caster
+            missile.owner = Player(self.pid - 1)
+            missile:vision(400)
+            missile.collision = 100
+            missile.damage = self.dmg * BOOST[self.pid]
+            missile.aoe = self.aoe * LBOOST[self.pid]
+            missile.pid = self.pid
+
+            --unit impact
+            missile.onHit = function(enemy)
+                if IsHittable(enemy, missile.owner) then
+                    missile.impacted = true
+                end
+
+                return false
+            end
+
+            missile.onPeriod = function()
+                local stopped = false
+
+                if not UnitAlive(missile.source) then
+                    stopped = true
+                else
+                    SetUnitXBounded(missile.source, missile.x)
+                    SetUnitYBounded(missile.source, missile.y)
+
+                    --terrain impact
+                    if not IsTerrainWalkable(missile.x, missile.y) then
+                        missile.impacted = true
+                    end
+
+                    if missile.travel >= 200 and missile.impacted then
+                        for i = -1, 1 do
+                            for j = -1, 1 do
+                                if (i == 0 and j == 0) or (i ~= 0 and j ~= 0) then
+                                    DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", missile.x + 140 * i, missile.y + 140 * j))
+                                    DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", missile.x + 100 * i, missile.y + 100 * j))
+                                end
+                            end
+                        end
+                        local ug = CreateGroup()
+                        MakeGroupInRange(missile.pid, ug, missile.x, missile.y, missile.aoe, Condition(FilterEnemy))
+
+                        for target in each(ug) do
+                            DamageTarget(missile.source, target, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, THUNDERDASH.tag)
+                        end
+
+                        DestroyGroup(ug)
+                    end
+
+                    stopped = true
+                end
+
+                if stopped then
+                    UnitRemoveAbility(missile.source, FourCC('Avul'))
+                    ShowUnit(missile.source, true)
+                    reselect(missile.source)
+                    SetUnitPathing(missile.source, true)
+                end
+
+                return stopped
+            end
+
+            missile:launch()
         end
     end
 
