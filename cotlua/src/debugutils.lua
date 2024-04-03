@@ -174,14 +174,14 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
     Debug = {
         --BEGIN OF SETTINGS--
         settings = {
-                SHOW_TRACE_ON_ERROR = true                      ---Set to true to show a stack trace on every error in addition to the regular message (msg sources: automatic error handling, Debug.try, Debug.throwError, ...)
+                SHOW_TRACE_ON_ERROR = false                      ---Set to true to show a stack trace on every error in addition to the regular message (msg sources: automatic error handling, Debug.try, Debug.throwError, ...)
             ,   USE_TRY_ON_TRIGGERADDACTION = true              ---Set to true for automatic error handling on TriggerAddAction (applies Debug.try on every trigger action).
             ,   USE_TRY_ON_CONDITION = true                     ---Set to true for automatic error handling on boolexpressions created via Condition() or Filter() (essentially applies Debug.try on every trigger condition).
             ,   USE_TRY_ON_TIMERSTART = true                    ---Set to true for automatic error handling on TimerStart (applies Debug.try on every timer callback).
             ,   USE_TRY_ON_COROUTINES = true                    ---Set to true for improved stack traces on errors within coroutines (applies Debug.try on coroutine.create and coroutine.wrap). This lets stack traces point to the erroneous function executed within the coroutine (instead of the function creating the coroutine).
             ,   ALLOW_INGAME_CODE_EXECUTION = true              ---Set to true to enable IngameConsole and -exec command.
             ,   WARNING_FOR_UNDECLARED_GLOBALS = true           ---Set to true to print warnings upon accessing undeclared globals (i.e. globals with nil-value). This is technically the case after having misspelled on a function name (like CraeteUnit instead of CreateUnit).
-            ,   SHOW_TRACE_FOR_UNDECLARED_GLOBALS = true       ---Set to true to include a stack trace into undeclared global warnings. Only takes effect, if WARNING_FOR_UNDECLARED_GLOBALS is also true.
+            ,   SHOW_TRACE_FOR_UNDECLARED_GLOBALS = false       ---Set to true to include a stack trace into undeclared global warnings. Only takes effect, if WARNING_FOR_UNDECLARED_GLOBALS is also true.
             ,   USE_PRINT_CACHE = true                          ---Set to true to let print()-calls during loading screen be cached until the game starts.
             ,   PRINT_DURATION = nil                            ---Adjust the duration in seconds that values printed by print() last on screen. Set to nil to use default duration (which depends on string length).
             ,   USE_NAME_CACHE = true                           ---Set to true to let tostring/print output the string-name of an object instead of its memory location (except for booleans/numbers/strings). E.g. print(CreateUnit) will output "function: CreateUnit" instead of "function: 0063A698".
