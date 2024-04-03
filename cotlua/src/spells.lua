@@ -828,7 +828,7 @@ OnInit.final("Spells", function(require)
             missile.onPeriod = function()
                 local stopped = false
 
-                if not UnitAlive(missile.source) then
+                if not UnitAlive(missile.source) or missile.travel >= missile.origin.distance - 0.0001 then
                     stopped = true
                 else
                     SetUnitXBounded(missile.source, missile.x)

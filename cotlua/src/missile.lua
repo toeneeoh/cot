@@ -103,6 +103,10 @@ do
     end
 
     do
+        ---@class Coordinates
+        ---@field create function
+        ---@field link function
+        ---@field distance number
         Coordinates = setmetatable({}, {})
         local mt = getmetatable(Coordinates)
         mt.__index = mt
@@ -184,6 +188,7 @@ do
     ---@field x number
     ---@field y number
     ---@field travel number
+    ---@field origin Coordinates
     Missiles = setmetatable({}, {})
     local mt = getmetatable(Missiles)
     mt.__index = mt
