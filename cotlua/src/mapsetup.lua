@@ -21,16 +21,6 @@ OnInit.final("MapSetup", function(require)
     SetTextTagColor(StruggleText, 235, 235, 21, 255)
     SetTextTagPermanent(StruggleText, true)
 
-    --welcome message
-    DisplayTimedTextToForce(FORCE_PLAYING, 15.00, "Welcome to Curse of Time RPG: |c009966ffNevermore|r")
-    DisplayTextToForce(FORCE_PLAYING, " ")
-    DisplayTextToForce(FORCE_PLAYING, " ")
-    DisplayTimedTextToForce(FORCE_PLAYING, 45.00, "Official Site for updates, bug reports, and official non-hacked downloads:\n|c009ebef5https://curseoftime.wordpress.com/|r\nAlso, don't forget to join our |c000080c0Discord|r server:\n|c009ebef5https://discord.gg/peSTvTd|r")
-    DisplayTextToForce(FORCE_PLAYING, " ")
-    DisplayTextToForce(FORCE_PLAYING, " ")
-    DisplayTimedTextToForce(FORCE_PLAYING, 600.0, "\nType |c006969ff-new profile|r if you are completely new\nor |c00ff7f00-load|r if you want to load your hero or start a new one.")
-    DisplayTimedTextToForce(FORCE_PLAYING, 15.00, "Please read the Quests Menu for updates.")
-
     --ally enemies and bosses
     SetPlayerAllianceStateBJ(pboss, pfoe, bj_ALLIANCE_ALLIED)
     SetPlayerAllianceStateBJ(pfoe, pboss, bj_ALLIANCE_ALLIED)
@@ -113,8 +103,12 @@ OnInit.final("MapSetup", function(require)
     SetSkyModel("war3mapImported\\StarSphere.mdx")
     SetCameraBoundsToRect(gg_rct_Tavern_Vision)
     PanCameraToTimed(21645, 3430, 0)
+
     FogMaskEnable(true)
     FogEnable(true)
+    ShowInterface(true, 0)
+    EnableUserControl(true)
+    TimerQueue:callDelayed(0., DisplayCineFilter, false)
 end)
 
 if Debug then Debug.endFile() end
