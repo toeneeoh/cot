@@ -1,6 +1,6 @@
 if Debug then Debug.beginFile 'Preload' end
 
-OnInit.main(function()
+OnInit.main("Preload", function()
     Preload("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdx")
     Preload("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdx")
     Preload("Abilities\\Weapons\\Bolt\\BoltImpact.mdx")

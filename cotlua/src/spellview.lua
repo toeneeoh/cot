@@ -10,11 +10,10 @@ if Debug then Debug.beginFile 'SpellView' end
     custom UI.
 ]]
 
-OnInit.final("SpellView", function()
+OnInit.final("SpellView", function(require)
+        require 'Preload'
 
         REFORGED         = true  ---@type boolean -- have BlzGetAbilityId? otherwise false
-        local AutoRun         = true  ---@type boolean --(true) will create Itself at 0s, (false) you need to InitSpellView()
-
         local UpdateTime      = 0.1 ---@type number 
         local ShowCooldown         = true  ---@type boolean -- can be set async, needs BlzGetAbilityId for ability by index 
 
@@ -38,7 +37,6 @@ OnInit.final("SpellView", function()
 
         local ParentSimple ---@type framehandle 
         local Parent ---@type framehandle 
-        local Timer ---@type timer 
 
         local LastUnit      = nil ---@type unit 
         local SPELL_VIEW_GROUP ---@type group 
@@ -386,14 +384,11 @@ OnInit.final("SpellView", function()
         end
     end
 
-    if AutoRun then
-        Timer = CreateTimer()
-        SPELL_VIEW_GROUP = CreateGroup()
-        TimerStart(Timer, UpdateTime, true, Update)
+    local t = CreateTimer()
+    SPELL_VIEW_GROUP = CreateGroup()
+    TimerStart(t, UpdateTime, true, Update)
 
-        InitFrames()
-    end
-
+    InitFrames()
 end)
 
 if Debug then Debug.endFile() end
