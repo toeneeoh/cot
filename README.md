@@ -1,4 +1,4 @@
-# Curse of Time: Nevermore
+# Curse of Time RPG: Nevermore
 https://www.hiveworkshop.com/threads/curse-of-time-rpg-nevermore-v1-35c.294239/
 
 Curse of Time is a RPG series built in Warcraft III almost two decades ago (2005). The game has been passed down to several owners / groups of people who have created their own spins on the series and now it has been left to me and another collaborator.
