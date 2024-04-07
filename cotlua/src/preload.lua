@@ -1,6 +1,12 @@
 if Debug then Debug.beginFile 'Preload' end
 
 OnInit.final("Preloader", function()
+    --set preplaced unit globals
+    Trig_map_preplaced_Actions()
+    Trig_map_preplaced_Actions = nil
+    DestroyTrigger(gg_trg_map_preplaced)
+    gg_trg_map_preplaced = nil
+
     Preload("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdx")
     Preload("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdx")
     Preload("Abilities\\Weapons\\Bolt\\BoltImpact.mdx")
@@ -36,6 +42,9 @@ OnInit.final("Preloader", function()
     Preload("Units\\Demon\\Infernal\\InfernalBirth.mdl")
     Preload("war3mapImported\\Reapers Claws Red.mdx")
     Preload("Abilities\\Spells\\Orc\\Devour\\DevourEffectArt.mdl")
+    Preload("war3mapImported\\DustWindFaster3.mdx")
+    Preload("war3mapImported\\SuperLightningBall.mdl")
+    Preload("war3mapImported\\EMPBubble.mdx")
 
     if BlzLoadTOCFile("war3mapImported\\FDF.toc") then
         print("TOC loaded!")
