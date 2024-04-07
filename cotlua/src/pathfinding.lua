@@ -11,6 +11,7 @@ OnInit.global("PathFinding", function(require)
     require 'Pathing'
 
     CoordinateQueue = {} ---@type PriorityQueue[]
+    TurnQueue = {}
     local GRID = array2d()
     local INFINITY = 2^30
 
@@ -27,6 +28,14 @@ OnInit.global("PathFinding", function(require)
         end
     end
 
+    ---@type fun(start: table, turn: table, finish: table): boolean
+    local function IsTurn(start, turn, finish)
+        local one = Atan2(start.y - turn.y, start.x - turn.x)
+        local two = Atan2(turn.y - finish.y, turn.x - finish.x)
+
+        return math.abs(one - two) > 0.03
+    end
+
     --take a unit with start/end points and queue the movement
     ---@type fun(u: unit, x: number, y: number, x2: number, y2: number)
     function QueuePathing(u, x, y, x2, y2)
@@ -34,15 +43,22 @@ OnInit.global("PathFinding", function(require)
 
         if not CoordinateQueue[pid] then
             CoordinateQueue[pid] = PriorityQueue.create()
+            TurnQueue[pid] = {}
         end
 
         if CoordinateQueue[pid]:isEmpty() then
-            local coords = A_STAR(x, y, x2, y2)
+            local coordinates = A_STAR(x, y, x2, y2) ---@type table[]
 
-            if coords then
+            if coordinates then
                 BlzUnitClearOrders(u, false)
-                for _, v in ipairs(coords) do
-                    BlzQueuePointOrderById(u, ORDER_ID_MOVE, v[1], v[2])
+                BlzQueuePointOrderById(u, ORDER_ID_MOVE, x2, y2) --final point
+                for i, coord in ipairs(coordinates) do
+                    if i > 1 and i < #coordinates then
+                        if IsTurn(coordinates[i - 1], coord, coordinates[i + 1]) then
+                            TurnQueue[pid][#TurnQueue[pid] + 1] = coord
+                            BlzQueuePointOrderById(u, ORDER_ID_MOVE, coord.x, coord.y)
+                        end
+                    end
                 end
             end
         end
@@ -50,30 +66,34 @@ OnInit.global("PathFinding", function(require)
 
     local function heuristicEstimate(startX, startY, endX, endY)
         -- Simple Euclidean distance heuristic
-        return math.sqrt((endX - startX)^2 + (endY - startY)^2)
+        --return math.sqrt((endX - startX)^2 + (endY - startY)^2)
+        -- Manhattan distance heuristic
+        return math.abs(endX - startX) + math.abs(endY - startY)
     end
 
-    -- Path reconstruction function
+    local offset = 16
+
+    -- Path reconstruction function (reverse order because BlzQueuePointOrderById puts orders in front of the queue)
     local function reconstructPath(cameFrom, current)
         local path = {}
         while current do
-            table.insert(path, 1, {64 * (current.x + 0.5), 64 * (current.y + 0.5)}) -- Insert at the beginning
+            path[#path + 1] = {x = offset * (current.x + 0.5), y = offset * (current.y + 0.5)}
             current = cameFrom[current.y][current.x]
         end
+        --PrintCoordinates(path)
         return path
     end
 
     function A_STAR(startX, startY, endX, endY)
-        local offset = 64
         startX = startX // offset
         startY = startY // offset
         endX = endX // offset
         endY = endY // offset
 
-        local minX = math.min(startX, endX) - 4
-        local minY = math.min(startY, endY) - 4
-        local maxX = math.max(startX, endX) + 4
-        local maxY = math.max(startY, endY) + 4
+        local minX = math.min(startX, endX) - 6
+        local minY = math.min(startY, endY) - 6
+        local maxX = math.max(startX, endX) + 6
+        local maxY = math.max(startY, endY) + 6
 
         local gScore = array2d(INFINITY)
         local fScore = array2d(INFINITY)
@@ -101,7 +121,7 @@ OnInit.global("PathFinding", function(require)
                         -- Check if the neighbor is within the grid boundaries and walkable
                         if x >= minX and x <= maxX and y >= minY and y <= maxY then
                             if GRID[y][x] == nil then
-                                GRID[y][x] = IsTerrainWalkable(offset * (x + 0.5), offset * (y + 0.5))
+                                GRID[y][x] = IsTerrainWalkable(offset * (x + 0.5), offset * (y + 0.5), true)
                             end
 
                             if GRID[y][x] then

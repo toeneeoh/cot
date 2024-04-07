@@ -9,6 +9,7 @@ if Debug then Debug.beginFile 'Pathing' end
 
 OnInit.global("Pathing", function()
 
+    local PATH_UNIT = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('u001'), 30000., 30000., 0)
     PATH_ITEM = CreateItem(FourCC('wolg'), 30000., 30000.)
     TERRAIN_X = 0.
     TERRAIN_Y = 0.
@@ -46,8 +47,7 @@ local function HideItems()
     end
 end
 
----@type fun(x: number, y: number):boolean
-function IsTerrainWalkable(x, y)
+local function IsCoordWalkable(x, y)
     MoveRectTo(Find, x, y)
     EnumItemsInRect(Find, nil, HideItems)
 
@@ -64,6 +64,25 @@ function IsTerrainWalkable(x, y)
     end
 
     return (TERRAIN_X - x) ^ 2 + (TERRAIN_Y - y) ^ 2 <= MAX_RANGE ^ 2 and not IsTerrainPathable(x, y, PATHING_TYPE_WALKABILITY)
+end
+
+---@type fun(x: number, y: number, collision: number?):boolean
+function IsTerrainWalkable(x, y, collision)
+    local walkable = true
+
+    if collision then
+        --ShowUnit(PATH_UNIT, true)
+        if GetUnitAbilityLevel(PATH_UNIT, FourCC('B02Q')) == 0 then
+            UnitAddItemById(PATH_UNIT, PHASED_MOVEMENT)
+        end
+        SetUnitPosition(PATH_UNIT, x, y)
+        local x2, y2 = GetUnitX(PATH_UNIT), GetUnitY(PATH_UNIT)
+        print("(" .. x .. ", " .. y .. ") (" .. x2 .. ", " .. y2 .. ")")
+        --ShowUnit(PATH_UNIT, false)
+        walkable = math.abs(x - x2) < 2. and math.abs(y - y2) < 2.
+        SetUnitPosition(PATH_UNIT, 30000., 30000.)
+    end
+    return IsCoordWalkable(x, y) and walkable
 end
 
 end)
