@@ -15,7 +15,7 @@ do
     -- process all missiles at once every period.
     local SWEET_SPOT = 600
     -- the avarage collision size compensation when detecting collisions
-    local COLLISION_SIZE = 128.
+    local COLLISION_SIZE = 16.
     -- item size used in z collision
     local ITEM_SIZE  = 16.
     -- Raw code of the dummy unit used for vision
