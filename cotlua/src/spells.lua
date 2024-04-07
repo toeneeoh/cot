@@ -810,14 +810,14 @@ OnInit.final("Spells", function(require)
             missile.source = self.caster
             missile.owner = Player(self.pid - 1)
             missile:vision(400)
-            missile.collision = 100
+            missile.collision = 80
             missile.damage = self.dmg * BOOST[self.pid]
             missile.aoe = self.aoe * LBOOST[self.pid]
             missile.pid = self.pid
 
             --unit impact
             missile.onHit = function(enemy)
-                if IsHittable(enemy, missile.owner) then
+                if IsHittable(enemy, missile.owner) and missile.travel >= 200 then
                     missile.impacted = true
                 end
 
@@ -993,8 +993,8 @@ OnInit.final("Spells", function(require)
 
         ---@type fun(pt: PlayerTimer)
         function thistype.periodic(pt)
-            local x = GetUnitX(Hero[pt.pid])
-            local y = GetUnitY(Hero[pt.pid])
+            local x = GetUnitX(pt.source)
+            local y = GetUnitY(pt.source)
 
             pt.dur = pt.dur - 1
 
@@ -1005,12 +1005,12 @@ OnInit.final("Spells", function(require)
                 local target = FirstOfGroup(ug)
 
                 if target then
-                    SetUnitAnimation(Hero[pt.pid], "Attack Slam")
-                    SetUnitXBounded(Hero[pt.pid], GetUnitX(target) + 60. * Cos(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
-                    SetUnitYBounded(Hero[pt.pid], GetUnitY(target) + 60. * Sin(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
-                    BlzSetUnitFacingEx(Hero[pt.pid], GetUnitFacing(target))
-                    DamageTarget(Hero[pt.pid], target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                    DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Blink\\BlinkHero[pt.pid].mdl", Hero[pt.pid], "chest"))
+                    SetUnitAnimation(pt.source, "Attack Slam")
+                    SetUnitXBounded(pt.source, GetUnitX(target) + 60. * Cos(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
+                    SetUnitYBounded(pt.source, GetUnitY(target) + 60. * Sin(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
+                    BlzSetUnitFacingEx(pt.source, GetUnitFacing(target))
+                    DamageTarget(pt.source, target, thistype.dmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", Hero[pt.pid], "chest"))
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", target, "chest"))
                 else
                     pt.dur = 0.
@@ -1020,10 +1020,6 @@ OnInit.final("Spells", function(require)
 
                 pt.timer:callDelayed(0.4, thistype.periodic, pt)
             else
-                reselect(Hero[pt.pid])
-                SetUnitVertexColor(Hero[pt.pid], 255, 255, 255, 255)
-                SetUnitTimeScale(Hero[pt.pid], 1.)
-                OmnislashBuff:dispel(self.caster, self.caster)
                 pt:destroy()
             end
         end
@@ -1032,7 +1028,14 @@ OnInit.final("Spells", function(require)
             local pt = TimerList[self.pid]:add()
 
             pt.dur = self.times * LBOOST[self.pid] - 1
+            pt.source = self.caster
             pt.tag = OMNISLASH.id
+            pt.onRemove = function(this)
+                reselect(Hero[this.pid])
+                SetUnitVertexColor(Hero[this.pid], 255, 255, 255, 255)
+                SetUnitTimeScale(Hero[this.pid], 1.)
+                OmnislashBuff:dispel(this.source, this.source)
+            end
 
             SetUnitTimeScale(self.caster, 2.5)
             SetUnitVertexColorBJ(self.caster, 100, 100, 100, 50.00)
@@ -1040,7 +1043,7 @@ OnInit.final("Spells", function(require)
             SetUnitYBounded(self.caster, GetUnitY(self.target) + 60. * Sin(bj_DEGTORAD * (GetUnitFacing(self.target) - 180.)))
             BlzSetUnitFacingEx(self.caster, GetUnitFacing(self.target))
             DamageTarget(self.caster, self.target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Blink\\Blinkcaster.mdl", self.caster, "chest"))
+            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", self.caster, "chest"))
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", self.target, "chest"))
 
             pt.timer:callDelayed(0.4, thistype.periodic, pt)
@@ -2459,7 +2462,7 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.dmg, thistype.aoe, thistype.dur}
 
         function thistype:onCast()
-            local missile = Missiles:create(self.x, self.y, 20., GetUnitX(self.target), GetUnitY(self.target), 20.) ---@type Missiles
+            local missile = Missiles:create(self.x, self.y, 20., 0, 0, 0) ---@type Missiles
             missile:model("Abilities\\Spells\\Other\\FrostBolt\\FrostBoltMissile.mdl")
             missile:scale(1.1)
             missile:speed(1200)
@@ -2467,7 +2470,6 @@ OnInit.final("Spells", function(require)
             missile.target = self.target
             missile.owner = Player(self.pid - 1)
             missile:vision(400)
-            missile.collision = 45
             missile.damage = self.dmg * BOOST[self.pid]
 
             missile.onHit = function(target)
@@ -4718,7 +4720,7 @@ OnInit.final("Spells", function(require)
                     missile.source = pt.source
                     missile.owner = Player(pt.pid - 1)
                     missile:vision(400)
-                    missile.collision = 45
+                    missile.collision = 50
                     missile.damage = pt.dmg * BOOST[pt.pid]
 
                     missile.onHit = function(enemy)
@@ -5040,7 +5042,7 @@ OnInit.final("Spells", function(require)
                 missile.source = pt.source
                 missile.owner = Player(pt.pid - 1)
                 missile:vision(400)
-                missile.collision = 125
+                missile.collision = 100
                 missile.damage = pt.dmg * BOOST[pt.pid]
 
                 missile.onHit = function(target)
@@ -5415,7 +5417,7 @@ OnInit.final("Spells", function(require)
                 local b = DarkSealBuff:get(pt.source, pt.source)
 
                 if b then
-                    BlzGroupAddGroupFast(b.ug, ug)
+                    BlzGroupAddGroupFast(ug, b.ug)
                     local count = BlzGroupGetSize(ug)
 
                     if count > 0 then
@@ -5450,7 +5452,7 @@ OnInit.final("Spells", function(require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
 
             pt.time = R2I(self.targets * LBOOST[self.pid])
             pt.aoe = self.aoe * LBOOST[self.pid]
@@ -5487,7 +5489,7 @@ OnInit.final("Spells", function(require)
 
             --dark seal
             if b then
-                BlzGroupAddGroupFast(b.ug, ug)
+                BlzGroupAddGroupFast(ug, b.ug)
 
                 local sfx = AddSpecialEffect("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", b.x, b.y)
                 BlzSetSpecialEffectScale(sfx, 5)
