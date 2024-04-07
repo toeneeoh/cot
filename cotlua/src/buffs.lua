@@ -10,6 +10,8 @@ OnInit.global("Buffs", function(require)
     require 'BuffSystem'
     require 'UnitTable'
 
+    PHASED_MOVEMENT = FourCC('I0OE')
+
     local mt = { __index = Buff }
 
     ---@class Disarm : Buff
@@ -59,18 +61,20 @@ OnInit.global("Buffs", function(require)
         function thistype:onRemove()
             UnitRemoveAbility(self.target, FourCC('ARal'))
             ToggleCommandCard(self.target, true)
+            BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(self.target, FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, 1)
 
             Unit[self.target].attack = true
         end
 
         function thistype:onApply()
             local angle = Atan2(GetUnitY(self.target) - GetUnitY(self.source), GetUnitX(self.target) - GetUnitX(self.source)) ---@type number 
+            self.x = GetUnitX(self.target) + 2000. * Cos(angle)
+            self.y = GetUnitY(self.target) + 2000. * Sin(angle)
 
-            IssuePointOrder(self.target, "move", GetUnitX(self.target) + 2000. * Cos(angle), GetUnitY(self.target) + 2000. * Sin(angle))
+            IssuePointOrder(self.target, "move", self.x, self.y)
             ToggleCommandCard(self.target, false)
             UnitAddAbility(self.target, FourCC('ARal'))
-
-            Unit[self.target].attack = false
+            BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(self.target, FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, 0)
         end
     end
 
@@ -702,7 +706,7 @@ OnInit.global("Buffs", function(require)
                 if self.ms == 0 then
                     self.ms = 50 + 50 * GetUnitAbilityLevel(self.source, BLOODMIST.id)
                     BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] + self.ms
-                    PlayerAddItemById(self.tpid, FourCC('I0OE'))
+                    PlayerAddItemById(self.tpid, PHASED_MOVEMENT)
                     BlzSetSpecialEffectColor(self.sfx, 255, 255, 255)
                 end
             else
@@ -1998,11 +2002,7 @@ OnInit.global("Buffs", function(require)
             --count units in seal
             self.count = 0.
             for target in each(self.ug) do
-                if IsUnitType(target, UNIT_TYPE_HERO) then
-                    self.count = self.count + 10.
-                else
-                    self.count = self.count + 1.
-                end
+                self.count = self.count + ((IsUnitType(target, UNIT_TYPE_HERO) and 10) or 1)
                 DarkSealDebuff:add(self.source, target):duration(1.)
             end
             self.count = math.min(5. + GetHeroLevel(self.source) // 100 * 10, self.count)
@@ -2049,7 +2049,7 @@ OnInit.global("Buffs", function(require)
             DelayAnimation(self.tpid, self.sfx, 1., 0, 1., false)
 
             self.timer = TimerQueue:create()
-            self.timer:callDelayed(0.01, thistype.refresh, self)
+            self.timer:callDelayed(0.01, thistype.periodic, self)
         end
     end
 
