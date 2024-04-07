@@ -702,7 +702,7 @@ function EventSetup(pid)
     TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_ORDER, nil)
 
     --TriggerAddAction(pointOrder, OnOrder)
-    TriggerAddCondition(ordertarget, OnOrder)
+    TriggerAddCondition(ordertarget, Condition(OnOrder))
 
     TriggerAddCondition(onpickup, Condition(PickupFilter))
     TriggerAddAction(onpickup, onPickup)
