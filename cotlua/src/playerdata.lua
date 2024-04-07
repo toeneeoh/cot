@@ -503,6 +503,7 @@ OnInit.global("PlayerData", function(require)
     ---@field pause boolean
     ---@field index integer
     ---@field flag integer
+    ---@field onRemove function
     PlayerTimer = {}
     do
         local thistype = PlayerTimer
@@ -523,6 +524,10 @@ OnInit.global("PlayerData", function(require)
         end
 
         function thistype:destroy()
+            if self.onRemove then
+                self:onRemove()
+            end
+
             if self.ug then
                 DestroyGroup(self.ug)
             end
