@@ -43,6 +43,12 @@ OnInit.final("Orders", function(require)
                 pt.tag = 'aggr'
                 TimerQueue:callDelayed(3., RunDropAggro, pt)
             end
+
+            local b = Fear:get(nil, source)
+
+            if b then
+                IssuePointOrder(source, "move", b.x, b.y)
+            end
         end,
 
         [ORDER_ID_UNDEFEND] = function(id, source, p, pid)
@@ -331,11 +337,12 @@ function OnOrder()
         local x2, y2 = GetUnitX(source), GetUnitY(source)
 
         if source == Hero[pid] then
-            if id ~= ORDER_ID_MOVE and CoordinateQueue[pid] then
+            if (id == ORDER_ID_SMART or id == ORDER_ID_ATTACK) and CoordinateQueue[pid] then
                 CoordinateQueue[pid]:clear()
+                TurnQueue[pid] = {}
             end
 
-            if A_STAR_PATHING and x ~= 0 and y ~= 0 then
+            if A_STAR_PATHING and (id == ORDER_ID_SMART or id == ORDER_ID_ATTACK) and x ~= 0 and y ~= 0 then
                 QueuePathing(source, x2, y2, x, y)
             end
         end
