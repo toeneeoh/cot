@@ -1,14 +1,12 @@
-if Debug then Debug.beginFile 'Buffs' end
-
 --[[
     buffs.lua
 
     A module that contains most of the triggered buffs and debuffs in the game.
 ]]
 
-OnInit.global("Buffs", function(require)
-    require 'BuffSystem'
-    require 'UnitTable'
+OnInit.global("Buffs", function(Require)
+    Require('BuffSystem')
+    Require('UnitTable')
 
     PHASED_MOVEMENT = FourCC('I0OE')
 
@@ -107,6 +105,74 @@ OnInit.global("Buffs", function(require)
         function thistype:onApply()
             self.timer = TimerQueue.create()
             self.timer:callDelayed(0.5, thistype.periodic, self)
+        end
+    end
+
+    ---@class InfusedWaterBuff : Buff
+    InfusedWaterBuff = setmetatable({}, mt)
+    do
+        local thistype = InfusedWaterBuff
+        thistype.RAWCODE         = FourCC('Aiwa') ---@type integer 
+        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].flatMS = Unit[self.target].flatMS - 150
+        end
+
+        function thistype:onApply()
+            Unit[self.target].flatMS = Unit[self.target].flatMS + 150
+        end
+    end
+
+    ---@class EmpyreanSongBuff : Buff
+    EmpyreanSongBuff = setmetatable({}, mt)
+    do
+        local thistype = EmpyreanSongBuff
+        thistype.RAWCODE         = FourCC('Aeso') ---@type integer 
+        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].flatMS = Unit[self.target].flatMS - 150
+        end
+
+        function thistype:onApply()
+            Unit[self.target].flatMS = Unit[self.target].flatMS + 150
+        end
+    end
+
+    ---@class BloodHornBuff : Buff
+    BloodHornBuff = setmetatable({}, mt)
+    do
+        local thistype = BloodHornBuff
+        thistype.RAWCODE         = FourCC('A03G') ---@type integer 
+        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].flatMS = Unit[self.target].flatMS - 75
+        end
+
+        function thistype:onApply()
+            Unit[self.target].flatMS = Unit[self.target].flatMS + 75
+        end
+    end
+
+    ---@class ArcaneBarrageBuff : Buff
+    ArcaneBarrageBuff = setmetatable({}, mt)
+    do
+        local thistype = ArcaneBarrageBuff
+        thistype.RAWCODE         = FourCC('Aacb') ---@type integer 
+        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].flatMS = Unit[self.target].flatMS - 150
+        end
+
+        function thistype:onApply()
+            Unit[self.target].flatMS = Unit[self.target].flatMS + 150
         end
     end
 
@@ -366,16 +432,32 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('Aarc') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * 0.75
+            self.ms = 0.75 * (math.min(1, Unit[self.target].percentMS))
 
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+        end
+    end
+
+    ---@class ArcanosphereBuff : Buff
+    ArcanosphereBuff = setmetatable({}, mt)
+    do
+        local thistype = ArcanosphereBuff
+        thistype.RAWCODE         = FourCC('Aaca') ---@type integer 
+        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].overmovespeed = nil
+        end
+
+        function thistype:onApply()
+            Unit[self.target].overmovespeed = 1000
         end
     end
 
@@ -403,12 +485,11 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('Amar') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
             SetUnitPathing(self.target, true)
 
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
 
             BlzSetSpecialEffectScale(self.sfx, 0)
             DestroyEffect(self.sfx)
@@ -417,8 +498,9 @@ OnInit.global("Buffs", function(require)
         function thistype:onApply()
             SetUnitPathing(self.target, false)
 
-            self.ms = GetUnitMoveSpeed(self.target) * 0.5
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
+            self.ms = 0.5 * (math.min(1, Unit[self.target].percentMS))
+
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
 
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Human\\Banish\\BanishTarget.mdl", self.target, "chest")
         end
@@ -686,12 +768,11 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('Abmi') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms = 0
 
         function thistype:onRemove()
             DestroyEffect(self.sfx)
 
-            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] - self.ms
+            Unit[self.target].flatMS = Unit[self.target].flatMS - self.ms
             UnitRemoveAbility(self.target, FourCC('B02Q'))
 
             self.timer:destroy()
@@ -705,12 +786,12 @@ OnInit.global("Buffs", function(require)
                 HP(self.target, self.target, BLOODMIST.heal(self.tpid) * BOOST[self.tpid], BLOODMIST.tag)
                 if self.ms == 0 then
                     self.ms = 50 + 50 * GetUnitAbilityLevel(self.source, BLOODMIST.id)
-                    BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] + self.ms
+                    Unit[self.target].flatMS = Unit[self.target].flatMS + self.ms
                     PlayerAddItemById(self.tpid, PHASED_MOVEMENT)
                     BlzSetSpecialEffectColor(self.sfx, 255, 255, 255)
                 end
             else
-                BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] - self.ms
+                Unit[self.target].flatMS = Unit[self.target].flatMS + self.ms
                 self.ms = 0
                 UnitRemoveAbility(self.target, FourCC('B02Q'))
                 BlzSetSpecialEffectColor(self.sfx, 0, 0, 0)
@@ -724,7 +805,7 @@ OnInit.global("Buffs", function(require)
 
             if BLOODBANK.get(self.tpid) >= BLOODMIST.cost(self.tpid, ablev) then
                 self.ms = 50 + 50 * GetUnitAbilityLevel(self.target, BLOODMIST.id)
-                BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] + self.ms
+                Unit[self.target].flatMS = Unit[self.target].flatMS + self.ms
             end
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Chumpool.mdx", self.target, "origin")
@@ -1035,14 +1116,14 @@ OnInit.global("Buffs", function(require)
         thistype.timer        = nil ---@type TimerQueue
 
         function thistype:onRemove()
-            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] - 100
+            Unit[self.target].flatMS = Unit[self.target].flatMS - 100
 
             self.timer:destroy()
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] + 100
+            Unit[self.target].flatMS = Unit[self.target].flatMS + 100
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Windwalk Blood.mdx", self.source, "origin")
 
@@ -1064,17 +1145,16 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('Afde') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms = 0 ---@type integer 
 
         function thistype:onRemove()
-            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] + self.ms
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / 1.25, 0)
         end
 
         function thistype:onApply()
-            self.ms = R2I(Movespeed[self.tpid] * 0.25)
+            self.ms = 0.25 * (math.min(1, Unit[self.target].percentMS))
 
-            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] - self.ms
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * 1.25, 0)
         end
     end
@@ -1304,18 +1384,17 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('A950') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * 0.5
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Cripple\\CrippleTarget.mdl", self.target, "chest")
+            self.ms = 0.5 * (math.min(1, Unit[self.target].percentMS))
 
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
         end
     end
 
@@ -1326,16 +1405,15 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('A01O') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms = 0. ---@type number 
 
         function thistype:onRemove()
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * 0.3
+            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
 
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
         end
     end
 
@@ -1418,17 +1496,16 @@ OnInit.global("Buffs", function(require)
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
         thistype.regen      = 0. ---@type number 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_LIFE_REGEN, self.regen)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * SANCTIFIEDGROUND.ms * 0.01
+            self.ms = SANCTIFIEDGROUND.ms * 0.01 * (math.min(1, Unit[self.target].percentMS))
 
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
 
             if IsBoss(self.target) < 0 then
                 self.regen = UnitGetBonus(self.target, BONUS_LIFE_REGEN)
@@ -1444,16 +1521,15 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('Adiv') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms         = 0 ---@type integer 
 
         function thistype:onRemove()
-            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] - self.ms
+            Unit[self.target].flatMS = Unit[self.target].flatMS - self.ms
         end
 
         function thistype:onApply()
             self.ms = 25 + 25 * GetUnitAbilityLevel(self.source, DIVINELIGHT.id)
 
-            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] + self.ms
+            Unit[self.target].flatMS = Unit[self.target].flatMS + self.ms
         end
     end
 
@@ -1488,16 +1564,15 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('A03S') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * (0.28 + 0.02 * GetUnitAbilityLevel(self.source, SMOKEBOMB.id))
+            self.ms = (0.28 + 0.02 * GetUnitAbilityLevel(self.source, SMOKEBOMB.id)) * (math.min(1, Unit[self.target].percentMS))
 
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
         end
     end
 
@@ -1550,7 +1625,6 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('Agas') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
         thistype.armor         = 0 ---@type integer 
 
         function thistype.periodic(self)
@@ -1563,19 +1637,20 @@ OnInit.global("Buffs", function(require)
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
             UnitAddBonus(self.target, BONUS_ARMOR, self.armor)
             DestroyEffect(self.sfx)
             self.timer:destroy()
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * 0.3
+            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
+
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
             self.armor = R2I(BlzGetUnitArmor(self.target) * 0.2)
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\AcidBomb\\BottleImpact.mdl", self.target, "chest")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.3)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
             UnitAddBonus(self.target, BONUS_ARMOR, -self.armor)
 
             self.timer = TimerQueue.create()
@@ -1590,18 +1665,18 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('Ablo') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.75)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * .5
+            self.ms = 0.5 * (math.min(1, Unit[self.target].percentMS))
+
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .75)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
         end
     end
 
@@ -1685,6 +1760,7 @@ OnInit.global("Buffs", function(require)
             DestroyEffect(self.sfx)
             DestroyEffect(self.sfx2)
             self.timer:destroy()
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
         end
 
         function thistype:onApply()
@@ -1694,6 +1770,10 @@ OnInit.global("Buffs", function(require)
 
             self.timer = TimerQueue.create()
             self.timer:callDelayed(5., self.periodic, self)
+
+            self.ms = 0.4 * (math.min(1, Unit[self.target].percentMS))
+
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
         end
     end
 
@@ -1727,20 +1807,20 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('Aice') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .25)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * .35
+            self.ms = 0.35 * (math.min(1, Unit[self.target].percentMS))
+
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\FrostDamage\\FrostDamage.mdl", self.target, "chest")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.25)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
         end
     end
 
@@ -1761,20 +1841,20 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('A01G') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * .5
+            self.ms = 0.5 * (math.min(1, Unit[self.target].percentMS))
+
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\FrostDamage\\FrostDamage.mdl", self.target, "chest")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.3)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
         end
     end
 
@@ -1785,20 +1865,20 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('A00X') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * 0.3
+            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
+
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Human\\slow\\slowtarget.mdl", self.target, "origin")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.3)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
         end
     end
 
@@ -1809,20 +1889,20 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('A00C') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * 0.3
+            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
+
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\StasisTrap\\StasisTotemTarget.mdl", self.target, "overhead")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.3)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
         end
     end
 
@@ -1833,20 +1913,20 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('A013') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .35)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) + self.ms)
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * 0.35
+            self.ms = 0.35 * (math.min(1, Unit[self.target].percentMS))
+
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\StasisTrap\\StasisTotemTarget.mdl", self.target, "overhead")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.35)
-            SetUnitMoveSpeed(self.target, GetUnitMoveSpeed(self.target) - self.ms)
         end
     end
 
@@ -1910,13 +1990,13 @@ OnInit.global("Buffs", function(require)
         thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
-            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] + self.ms
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
         end
 
         function thistype:onApply()
-            self.ms = GetUnitMoveSpeed(self.target) * 0.3
+            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
 
-            BuffMovespeed[self.tpid] = BuffMovespeed[self.tpid] - self.ms
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
         end
     end
 
@@ -2215,7 +2295,6 @@ OnInit.global("Buffs", function(require)
         thistype.RAWCODE         = FourCC('Wcle') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NONE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.ms      = 0. ---@type number 
         thistype.as      = 0. ---@type number 
         thistype.atk      = 0. ---@type number 
         thistype.weather         = 0 ---@type integer 
@@ -2236,6 +2315,7 @@ OnInit.global("Buffs", function(require)
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.as, 0)
             BoostValue[self.tpid] = BoostValue[self.tpid] - self.spellboost
             Unit[self.target].dr = Unit[self.target].dr / self.dr
+            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
         end
 
         function thistype:onApply()
@@ -2260,8 +2340,9 @@ OnInit.global("Buffs", function(require)
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / self.as, 0)
             BoostValue[self.tpid] = BoostValue[self.tpid] + self.spellboost
             Unit[self.target].dr = Unit[self.target].dr * self.dr
+
+            self.ms = WeatherTable[CURRENT_WEATHER].ms * 0.01 * (math.min(1, Unit[self.target].percentMS))
+            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
         end
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
