@@ -1,6 +1,5 @@
-if Debug then Debug.beginFile 'Preload' end
-
-OnInit.final("Preloader", function()
+OnInit.map("Preloader", function()
+    local preload = load
     --set preplaced unit globals
     Trig_map_preplaced_Actions()
     Trig_map_preplaced_Actions = nil
@@ -46,15 +45,13 @@ OnInit.final("Preloader", function()
     Preload("war3mapImported\\SuperLightningBall.mdl")
     Preload("war3mapImported\\EMPBubble.mdx")
 
-    if BlzLoadTOCFile("war3mapImported\\FDF.toc") then
-        print("TOC loaded!")
-    end
+    BlzLoadTOCFile("war3mapImported\\FDF.toc")
+
+    --detect graphics mode
+    local detect, err = preload(GetLocalizedString("MODE_ASSET"))
+    if not detect() then print(err) end
 
     SetMapFlag(MAP_FOG_HIDE_TERRAIN, false)
     SetMapFlag(MAP_FOG_MAP_EXPLORED, true)
     SetMapFlag(MAP_FOG_ALWAYS_VISIBLE, false)
-
-    BlzSendSyncData("start", tostring(os.clock()))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
