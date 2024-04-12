@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile "FileIO" end
-
 OnInit.global("FileIO", function()
 --[[
     FileIO v1a
@@ -104,6 +102,4 @@ OnInit.global("FileIO", function()
         SaveAsserted = saveAsserted,
         enabled = fileIO_enabled,
     }
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
