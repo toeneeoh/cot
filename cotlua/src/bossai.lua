@@ -1,7 +1,5 @@
-if Debug then Debug.beginFile 'BossAI' end
-
-OnInit.final("BossAI", function(require)
-    require 'Variables'
+OnInit.final("BossAI", function(Require)
+    Require('Variables')
 
     legionillusions = CreateGroup()
 
@@ -212,26 +210,6 @@ function GhostShroud(pt)
 end
 
 --Absolute Horror
-
-function ZeppelinKill()
-    local ug = CreateGroup()
-
-    for index = BOSS_OFFSET, #BossTable do
-        if UnitAlive(BossTable[index].unit) and IsUnitInRangeLoc(BossTable[index].unit, BossTable[index].loc, 1500.) then
-            GroupEnumUnitsInRange(ug, GetUnitX(BossTable[index].unit), GetUnitY(BossTable[index].unit), 900., Condition(iszeppelin))
-
-            for target in each(ug) do
-                ExpireUnit(target)
-            end
-            if BlzGroupGetSize(ug) > 0 then
-                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(BossTable[index].unit), GetUnitY(BossTable[index].unit)))
-                SetUnitAnimation(BossTable[index].unit, "attack slam")
-            end
-        end
-    end
-
-    DestroyGroup(ug)
-end
 
 ---@type fun(pt: PlayerTimer)
 function TrueStealth(pt)
@@ -1179,6 +1157,4 @@ end
     TriggerRegisterPlayerUnitEvent(t, pboss, EVENT_PLAYER_UNIT_SUMMON, nil)
     TriggerAddCondition(t, Filter(PositionLegionIllusions))
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
