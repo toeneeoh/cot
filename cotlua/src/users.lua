@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Users' end
-
 --[[
     users.lua
 
@@ -167,6 +165,4 @@ OnInit.global("Users", function()
 
         TriggerAddCondition(LEAVE_TRIGGER, Filter(thistype.onLeave))
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
