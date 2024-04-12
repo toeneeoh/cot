@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Multiboard' end
-
 --[[
     multiboard.lua
 
@@ -385,7 +383,7 @@ OnInit.final("Multiboard", function()
             local tpid = GetPlayerId(GetOwningPlayer(target)) + 1
             local phex = (pid <= PLAYER_CAP and User[pid - 1].hex) or ""
             local thex = (tpid <= PLAYER_CAP and User[tpid - 1].hex) or ""
-            local log = "[" .. BlzFrameGetText(clockText) .. "] " .. phex .. name .. "|r" .. type .. thex .. GetUnitName(target) .. "|r for " .. text
+            local log = "[" .. BlzFrameGetText(CLOCK_FRAME_TEXT) .. "] " .. phex .. name .. "|r" .. type .. thex .. GetUnitName(target) .. "|r for " .. text
 
             --toggle summon flag
             local flags = ((TableHas(SummonGroup, target) or TableHas(SummonGroup, source)) and FLAG_SUMMON) or 0
@@ -514,6 +512,4 @@ OnInit.final("Multiboard", function()
 
         RefreshMB()
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
