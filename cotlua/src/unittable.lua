@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'UnitTable' end
-
 --[[
     unittable.lua
 
@@ -7,9 +5,9 @@ if Debug then Debug.beginFile 'UnitTable' end
     created units for OO purposes.
 ]]
 
-OnInit.final("UnitTable", function(require)
-    require 'TimerQueue'
-    require 'WorldBounds'
+OnInit.final("UnitTable", function(Require)
+    Require('TimerQueue')
+    Require('WorldBounds')
 
     DETECT_LEAVE_ABILITY = FourCC('uDex') ---@type integer 
 
@@ -26,6 +24,13 @@ OnInit.final("UnitTable", function(require)
     ---@field dr number
     ---@field pr number
     ---@field mr number
+    ---@field movespeed number
+    ---@field flatMS number
+    ---@field percentMS number
+    ---@field x number
+    ---@field y number
+    ---@field orderX number
+    ---@field orderY number
     Unit = {}
     do
         local thistype = Unit
@@ -33,7 +38,7 @@ OnInit.final("UnitTable", function(require)
         setmetatable(Unit, {
             --create a new unit object
             __index = function(tbl, key)
-                if type(key) == "userdata" then
+                if type(key) == "userdata" and not IsDummy(key) then
                     local new = Unit.create(key)
 
                     rawset(tbl, key, new)
@@ -46,6 +51,30 @@ OnInit.final("UnitTable", function(require)
 
         --dot method operators
         local operators = {
+            x = function(tbl, val)
+                SetUnitXBounded(tbl.unit, val)
+                tbl.proxy.x = val
+            end,
+            y = function(tbl, val)
+                SetUnitYBounded(tbl.unit, val)
+                tbl.proxy.y = val
+            end,
+            flatMS = function(tbl, val)
+                tbl.proxy.flatMS = val
+                tbl.movespeed = val * tbl.proxy.percentMS
+            end,
+            percentMS = function(tbl, val)
+                tbl.proxy.percentMS = val
+                tbl.movespeed = tbl.proxy.flatMS * val
+            end,
+            overmovespeed = function(tbl, val)
+                tbl.proxy.overmovespeed = val
+                tbl.movespeed = val or tbl.proxy.flatMS * tbl.proxy.percentMS
+            end,
+            movespeed = function(tbl, val)
+                tbl.proxy.movespeed = tbl.overmovespeed or math.min(600, val)
+                UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, val)
+            end,
             attack = function(tbl, val)
                 rawset(tbl, "canAttack", val)
 
@@ -63,10 +92,14 @@ OnInit.final("UnitTable", function(require)
         }
 
         local mt = {
-                __index = thistype,
+                __index = function(tbl, key)
+                    return (rawget(thistype, key) or rawget(tbl.proxy, key))
+                end,
                 __newindex = function(tbl, key, val)
                     if operators[key] then
                         operators[key](tbl, val)
+                    else
+                        rawset(tbl, key, val)
                     end
                 end,
             }
@@ -88,6 +121,16 @@ OnInit.final("UnitTable", function(require)
             self.healamp = 1.
             self.noregen = false
             self.threat = __jarray(0)
+            self.proxy = { --used for __newindex behavior
+                flatMS = GetUnitMoveSpeed(u),
+                percentMS = 1.,
+                movespeed = GetUnitMoveSpeed(u),
+                x = GetUnitX(u),
+                y = GetUnitY(u),
+            }
+            self.target = nil
+            self.orderX = self.proxy.x
+            self.orderY = self.proxy.y
 
             setmetatable(self, mt)
 
@@ -122,7 +165,7 @@ OnInit.final("UnitTable", function(require)
 
     ---@type fun(u: unit)
     function UnitIndex(u)
-        if u and GetUnitTypeId(u) ~= DUMMY and GetUnitAbilityLevel(u, DETECT_LEAVE_ABILITY) == 0 then
+        if u and not IsDummy(u) and GetUnitAbilityLevel(u, DETECT_LEAVE_ABILITY) == 0 then
             UnitAddAbility(u, DETECT_LEAVE_ABILITY)
             UnitMakeAbilityPermanent(u, true, DETECT_LEAVE_ABILITY)
 
@@ -146,6 +189,4 @@ OnInit.final("UnitTable", function(require)
     local onEnter = CreateTrigger()
 
     TriggerRegisterEnterRegion(onEnter, WorldBounds.region, Filter(onIndex))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
