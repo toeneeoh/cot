@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'SpellView' end
-
 --[[
     spellview.lua
 
@@ -10,8 +8,8 @@ if Debug then Debug.beginFile 'SpellView' end
     custom UI.
 ]]
 
-OnInit.final("SpellView", function(require)
-    require 'Preloader'
+OnInit.final("SpellView", function(Require)
+    Require('Preloader')
 
     local REFORGED         = true  ---@type boolean -- have BlzGetAbilityId? otherwise false
     local UpdateTime      = 0.1 ---@type number 
@@ -39,7 +37,6 @@ OnInit.final("SpellView", function(require)
     local Parent ---@type framehandle 
 
     local LastUnit      = nil ---@type unit 
-    local SPELL_VIEW_GROUP = CreateGroup()---@type group 
 
     local MOD_ABI         = 1 ---@type integer 
     local MOD_ABI_CODE         = 0 ---@type integer 
@@ -200,7 +197,6 @@ OnInit.final("SpellView", function(require)
 
     local function Update()
         local foundTooltip         = false ---@type boolean 
-        local u ---@type unit 
         local hasControl ---@type boolean 
         local showSpellView ---@type boolean 
         local spellType ---@type integer 
@@ -210,10 +206,7 @@ OnInit.final("SpellView", function(require)
         local abiCode ---@type integer 
         local abi ---@type ability 
         local mySpell ---@type Spell 
-
-        GroupEnumUnitsSelected(SPELL_VIEW_GROUP, GetLocalPlayer(), nil)
-        u = FirstOfGroup(SPELL_VIEW_GROUP)
-        GroupClear(SPELL_VIEW_GROUP)
+        local u = GetMainSelectedUnit() ---@type unit?
 
         if u ~= LastUnit then
             LastUnit = u
@@ -388,6 +381,4 @@ OnInit.final("SpellView", function(require)
     TimerStart(t, UpdateTime, true, Update)
 
     InitFrames()
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
