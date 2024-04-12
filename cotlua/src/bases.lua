@@ -1,7 +1,5 @@
-if Debug then Debug.beginFile 'Bases' end
-
-OnInit.final("Bases", function(require)
-    require 'UnitEvent'
+OnInit.final("Bases", function(Require)
+    Require('UnitEvent')
 
     PlayerBase = {} ---@type unit[] 
 
@@ -103,6 +101,4 @@ OnInit.final("Bases", function(require)
 
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_CONSTRUCT_FINISH, OnBuild)
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_UPGRADE_FINISH, OnResearch)
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
