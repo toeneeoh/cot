@@ -1,31 +1,28 @@
-if Debug then Debug.beginFile 'GameStatus' end
+--[[
+    gamestatus.lua
 
-OnInit.final("GameStatus", function(require)
-    require 'Users'
+    A library that determines whether the game is in a single-player, replay, or multi-player state
+]]
+
+OnInit.final("GameStatus", function(Require)
+    Require('Users')
 
     GAME_STATE = 0 ---@type integer 
-    local DUMMY_UNIT_ID = FourCC('eRez')
-    local firstPlayer = User.first.player
 
     -- find an actual player
+    local firstPlayer = User.first.player
     -- force the player to select a dummy unit
-    local u = CreateUnit(firstPlayer, DUMMY_UNIT_ID, 0, 0, 0)
+    local u = CreateUnit(firstPlayer, DUMMY_VISION, 0, 0, 0)
     SelectUnit(u, true)
     local selected = IsUnitSelected(u, firstPlayer)
     RemoveUnit(u)
 
+    -- 0 = single-player, 1 = replay, 2 = multi-player
     if (selected) then
-        -- detect if replay or offline game
-        if (ReloadGameCachesFromDisk()) then
-            GAME_STATE = 0 --single player
-        else
-            GAME_STATE = 1 --replay
-        end
+        GAME_STATE = (ReloadGameCachesFromDisk() and 0) or 1
     else
         -- if the unit wasn't selected instantly, the game is online
         GAME_STATE = 2
     end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
