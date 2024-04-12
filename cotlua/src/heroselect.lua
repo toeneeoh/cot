@@ -1,8 +1,6 @@
-if Debug then Debug.beginFile 'HeroSelect' end
-
-OnInit.final("HeroSelect", function(require)
-    require 'Users'
-    require 'Variables'
+OnInit.final("HeroSelect", function(Require)
+    Require('Users')
+    Require('Variables')
 
 ---@param pid integer
 function StartGame(pid)
@@ -191,6 +189,4 @@ end
     end
 
     TriggerAddCondition(arrow, Condition(IsSelecting))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
