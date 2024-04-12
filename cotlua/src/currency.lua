@@ -1,14 +1,12 @@
-if Debug then Debug.beginFile 'Currency' end
-
 --[[
     currency.lua
 
     This library provides general purpose money related functions for use elsewhere.
 ]]
 
-OnInit.final("Currency", function(require)
-    require 'Users'
-    require 'UI'
+OnInit.final("Currency", function(Require)
+    Require('Users')
+    Require('UI')
 
     PlatConverter = {} ---@type boolean[]
     ArcaConverter = {} ---@type boolean[]
@@ -355,6 +353,4 @@ OnInit.final("Currency", function(require)
 
     TriggerAddCondition(convert, Filter(CurrencyConverter))
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
