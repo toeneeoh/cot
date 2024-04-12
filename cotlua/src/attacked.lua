@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Attacked' end
-
 --[[
     attacked.lua
 
@@ -7,9 +5,9 @@ if Debug then Debug.beginFile 'Attacked' end
     where a unit is about to begin attacking a target.
 ]]
 
-OnInit.final("Attacked", function(require)
-    require 'Variables'
-    require 'UnitEvent'
+OnInit.final("Attacked", function(Require)
+    Require('Variables')
+    Require('UnitEvent')
 
     ---@return boolean
     function OnAttack()
@@ -83,6 +81,4 @@ OnInit.final("Attacked", function(require)
     end
 
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ATTACKED, OnAttack)
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
