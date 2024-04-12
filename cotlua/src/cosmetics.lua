@@ -1,15 +1,13 @@
-if Debug then Debug.beginFile 'Cosmetics' end
-
 --[[
     cosmetics.lua
 
     A module that defines both unlockable and donator cosmetics in the game.
 ]]
 
-OnInit.final("Cosmetics", function(require)
-    require 'Users'
-    require 'Variables'
-    require 'MapSetup'
+OnInit.final("Cosmetics", function(Require)
+    Require('Users')
+    Require('Variables')
+    Require('MapSetup')
 
     DONATOR_AURA_OFFSET = 1000 ---@type integer 
 
@@ -109,7 +107,7 @@ OnInit.final("Cosmetics", function(require)
         { name = "Demon Taskmaster", id = FourCC('H000'), public = false },
         { name = "Robincoon", id = FourCC('H00L'), public = false },
         --obtainable skins
-        { name = "None", id = FourCC('eRez'), public = true },
+        { name = "None", id = DUMMY_VISION, public = true },
         { name = "Wisp", id = FourCC('H011'), public = true },
         { name = "Black Dragon Whelp", id = FourCC('H031'), public = true, req = 1 }, --atk prestige 1
         { name = "Shadow Mephit", id = FourCC('H03C'), public = true, req = 2 }, --atk prestige 2
@@ -349,6 +347,4 @@ OnInit.final("Cosmetics", function(require)
         u = u.next
     end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
