@@ -1,7 +1,5 @@
-if Debug then Debug.beginFile 'Destructables' end
-
-OnInit.final("Destructables", function(require)
-    require 'TimerQueue'
+OnInit.final("Destructables", function(Require)
+    Require('TimerQueue')
 
 ---@type fun(d: destructable, d2: destructable)
 function DoBridge(d, d2)
@@ -102,6 +100,4 @@ end
     TriggerRegisterDeathEvent(t, gg_dest_LTcr_9593)
 
     TriggerAddCondition(t, Condition(DestructableDeath))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
