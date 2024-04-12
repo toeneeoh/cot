@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Summon' end
-
 --[[
     summon.lua
 
@@ -9,8 +7,8 @@ if Debug then Debug.beginFile 'Summon' end
     TODO: disassemble this file
 ]]
 
-OnInit.final("Summon", function(require)
-    require 'Users'
+OnInit.final("Summon", function(Require)
+    Require('Users')
 
     SummonGroup = {} ---@type unit[]
 
@@ -40,10 +38,10 @@ OnInit.final("Summon", function(require)
 
         --single shot
         if sniperstance[pid] then
-            local target = FirstOfGroup(helitargets[pid])
+            local target =  FirstOfGroup(helitargets[pid])
 
-            if UnitAlive(LAST_TARGET[pid]) then
-                target = LAST_TARGET[pid]
+            if UnitAlive(Unit[Hero[pid]].target) then
+                target = Unit[Hero[pid]].target
             end
 
             local missile = Missiles:create(x, y, z, GetUnitX(target), GetUnitY(target), BlzGetUnitZ(target)) ---@type Missiles
@@ -113,8 +111,8 @@ OnInit.final("Summon", function(require)
                 IssuePointOrder(helicopter[pid], "move", x, y)
             end
 
-            if UnitAlive(LAST_TARGET[pid]) then
-                SetUnitFacing(helicopter[pid], bj_RADTODEG * Atan2(GetUnitY(LAST_TARGET[pid]) - GetUnitY(helicopter[pid]), GetUnitX(LAST_TARGET[pid]) - GetUnitX(helicopter[pid])))
+            if UnitAlive(Unit[Hero[pid]].target) then
+                SetUnitFacing(helicopter[pid], bj_RADTODEG * Atan2(GetUnitY(Unit[Hero[pid]].target) - GetUnitY(helicopter[pid]), GetUnitX(Unit[Hero[pid]].target) - GetUnitX(helicopter[pid])))
             end
 
             --acquire helicopter targets near hero
@@ -193,6 +191,4 @@ OnInit.final("Summon", function(require)
     end
 
     TriggerAddAction(summon, onSummon)
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
