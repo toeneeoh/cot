@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Items' end
-
 --[[
     items.lua
 
@@ -14,9 +12,9 @@ if Debug then Debug.beginFile 'Items' end
     Future consideration: Migrate unit drop tables elsewhere?
 ]]
 
-OnInit.final("Items", function(require)
-    require 'Users'
-    require 'Variables'
+OnInit.final("Items", function(Require)
+    Require('Users')
+    Require('Variables')
 
     hordequest        = false
     CHURCH_DONATION   = {} ---@type boolean[] 
@@ -105,20 +103,16 @@ OnInit.final("Items", function(require)
     Item = {} ---@type Item|Item[]
     do
         local thistype = Item
+        local hash = InitHashtable()
+
+        function thistype.onDeath()
+            --typecast widget to item
+            SaveWidgetHandle(hash, 0, 0, GetTriggerWidget())
+            TimerQueue:callDelayed(2., thistype.destroy, Item[LoadItemHandle(hash, 0, 0)])
+            RemoveSavedHandle(hash, 0, 0)
+            return false
+        end
         thistype.eval = Condition(thistype.onDeath)
-
-        setmetatable(Item, {
-            --create new Item object for item if not available
-            __index = function(tbl, key)
-                if type(key) == "userdata" then
-                    local self = Item.create(key)
-
-                    return self
-                end
-            end,
-            --weak table for item (userdata) keys
-            __mode = 'k'
-        })
 
         --object inheritance and method operators
         local mt = {
@@ -140,7 +134,7 @@ OnInit.final("Items", function(require)
 
         ---@type fun(itm: item, expire: number?): Item
         function thistype.create(itm, expire)
-            local self = {
+            local self = setmetatable({
                 obj = itm,
                 id = GetItemTypeId(itm),
                 level = 0,
@@ -149,15 +143,15 @@ OnInit.final("Items", function(require)
                 y = GetItemY(itm),
                 quality = __jarray(0),
                 owner = nil,
+                holder = nil,
                 equipped = false,
                 proxy = {
                     charges = math.max(1, GetItemCharges(itm)),
                     restricted = false,
                 },
-            }
+            }, mt)
 
-            rawset(Item, itm, self)
-            setmetatable(self, mt)
+            Item[itm] = self
 
             --first time setup
             if ItemData[self.id][ITEM_TOOLTIP] == 0 then
@@ -210,49 +204,52 @@ OnInit.final("Items", function(require)
             ---@type fun(itm: Item)
         local function ItemAddSpellDelayed(itm)
             for index = ITEM_ABILITY, ITEM_ABILITY2 do
-                local abilid = ItemData[itm.id][index * ABILITY_OFFSET]
+                --level restriction
+                if itm.level >= ItemData[itm.id][index .. "unlock"] then
+                    local abilid = ItemData[itm.id][index * ABILITY_OFFSET]
 
-                --don't add ability if backpack is not allowed
-                if GetUnitTypeId(itm.holder) == BACKPACK and not backpack_allowed[abilid] then
-                    abilid = 0
-                end
-
-                if abilid ~= 0 then --ability exists
-                    BlzItemAddAbility(itm.obj, abilid)
-
-                    if abilid == FourCC('Aarm') then --armor aura
-                        BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_ARMOR_BONUS_HAD1, 0, itm:getValue(index, 0))
-                    elseif abilid == FourCC('Abas') then --bash
-                        BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_CHANCE_TO_BASH, 0, itm:getValue(index, 0))
-                        BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_DURATION_NORMAL, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
-                        BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_DURATION_HERO, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
-                    elseif abilid == FourCC('A018') or abilid == FourCC('A01S') then --blink
-                        BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
-                    elseif abilid == FourCC('A00D') then --thanatos wings
-                        local tbl = ItemData[itm.id].sfx[itm:getValue(index, 0)]
-
-                        DestroyEffect(itm.sfx)
-                        itm.sfx = AddSpecialEffectTarget(tbl.path, itm.holder, tbl.attach)
-                    elseif abilid == FourCC('HPOT') then --healing potion
-                        BlzSetAbilityIntegerLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_ILF_HIT_POINTS_GAINED_IHPG, 0, itm:getValue(index, 0))
-                    elseif abilid == FourCC('Areg') then --resurgence (chaos shield)
-                        TimerQueue:callDelayed(0.5, ChaosShieldRegen, itm)
-                    else --channel
-                        BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), SPELL_FIELD[0], 0, itm:getValue(index, 0))
-
-                        for i = 0, SPELL_FIELD_TOTAL do
-                            local count = 1
-                            local value = ItemData[itm.id][index * ABILITY_OFFSET + count]
-
-                            if value ~= 0 then
-                                BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), SPELL_FIELD[i], 0, value)
-                                count = count + 1
-                            end
-                        end
+                    --don't add ability if backpack is not allowed
+                    if GetUnitTypeId(itm.holder) == BACKPACK and not backpack_allowed[abilid] then
+                        abilid = 0
                     end
 
-                    IncUnitAbilityLevel(itm.holder, abilid)
-                    DecUnitAbilityLevel(itm.holder, abilid)
+                    if abilid ~= 0 then --ability exists
+                        BlzItemAddAbility(itm.obj, abilid)
+
+                        if abilid == FourCC('Aarm') then --armor aura
+                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_ARMOR_BONUS_HAD1, 0, itm:getValue(index, 0))
+                        elseif abilid == FourCC('Abas') then --bash
+                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_CHANCE_TO_BASH, 0, itm:getValue(index, 0))
+                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_DURATION_NORMAL, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
+                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_DURATION_HERO, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
+                        elseif abilid == FourCC('A018') or abilid == FourCC('A01S') then --blink
+                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
+                        elseif abilid == FourCC('A00D') then --thanatos wings
+                            local tbl = ItemData[itm.id].sfx[itm:getValue(index, 0)]
+
+                            DestroyEffect(itm.sfx)
+                            itm.sfx = AddSpecialEffectTarget(tbl.path, itm.holder, tbl.attach)
+                        elseif abilid == FourCC('HPOT') then --healing potion
+                            BlzSetAbilityIntegerLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_ILF_HIT_POINTS_GAINED_IHPG, 0, itm:getValue(index, 0))
+                        elseif abilid == FourCC('Areg') then --resurgence (chaos shield)
+                            TimerQueue:callDelayed(0.5, ChaosShieldRegen, itm)
+                        else --channel
+                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), SPELL_FIELD[0], 0, itm:getValue(index, 0))
+
+                            for i = 0, SPELL_FIELD_TOTAL do
+                                local count = 1
+                                local value = ItemData[itm.id][index * ABILITY_OFFSET + count]
+
+                                if value ~= 0 then
+                                    BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), SPELL_FIELD[i], 0, value)
+                                    count = count + 1
+                                end
+                            end
+                        end
+
+                        IncUnitAbilityLevel(itm.holder, abilid)
+                        DecUnitAbilityLevel(itm.holder, abilid)
+                    end
                 end
             end
         end
@@ -417,9 +414,9 @@ OnInit.final("Items", function(require)
                 SetWidgetLife(self.holder, hp)
                 SetUnitState(self.holder, UNIT_STATE_MANA, mana)
 
-                ItemMovespeed[pid] = ItemMovespeed[pid] + self:getValue(ITEM_MOVESPEED, 0)
                 ItemGoldRate[pid] = ItemGoldRate[pid] + self:getValue(ITEM_GOLD_GAIN, 0)
                 BoostValue[pid] = BoostValue[pid] + self:getValue(ITEM_SPELLBOOST, 0) * 0.01
+                Unit[self.holder].flatMS = Unit[self.holder].flatMS + self:getValue(ITEM_MOVESPEED, 0)
                 Unit[self.holder].regen = Unit[self.holder].regen + self:getValue(ITEM_REGENERATION, 0)
                 Unit[self.holder].evasion = Unit[self.holder].evasion + self:getValue(ITEM_EVASION, 0)
                 Unit[self.holder].mr = Unit[self.holder].mr * (1 - self:getValue(ITEM_MAGIC_RESIST, 0) * 0.01)
@@ -469,9 +466,9 @@ OnInit.final("Items", function(require)
                 SetWidgetLife(self.holder, math.max(hp, 1))
                 SetUnitState(self.holder, UNIT_STATE_MANA, mana)
 
-                ItemMovespeed[pid] = ItemMovespeed[pid] - self:getValue(ITEM_MOVESPEED, 0)
                 ItemGoldRate[pid] = ItemGoldRate[pid] - self:getValue(ITEM_GOLD_GAIN, 0)
                 BoostValue[pid] = BoostValue[pid] - self:getValue(ITEM_SPELLBOOST, 0) * 0.01
+                Unit[self.holder].flatMS = Unit[self.holder].flatMS - self:getValue(ITEM_MOVESPEED, 0)
                 Unit[self.holder].regen = Unit[self.holder].regen - self:getValue(ITEM_REGENERATION, 0)
                 Unit[self.holder].evasion = Unit[self.holder].evasion - self:getValue(ITEM_EVASION, 0)
                 Unit[self.holder].mr = Unit[self.holder].mr / (1 - self:getValue(ITEM_MAGIC_RESIST, 0) * 0.01)
@@ -672,28 +669,14 @@ OnInit.final("Items", function(require)
         function thistype:destroy()
             self:onDestroy()
 
-            thistype[self] = nil
             self = nil
         end
 
         ---@type fun(itm: Item)
         function thistype.expire(itm)
-            if itm.holder == nil and itm.owner == nil then
+            if not itm.holder and not itm.owner then
                 itm:destroy()
             end
-        end
-
-        local hash = InitHashtable()
-
-        ---@return boolean
-        function thistype.onDeath()
-            --typecast widget to item
-            SaveWidgetHandle(hash, 0, 0, GetTriggerWidget())
-
-            TimerQueue:callDelayed(2., thistype.expire, Item[LoadItemHandle(hash, 0, 0)])
-
-            RemoveSavedHandle(hash, 0, 0)
-            return false
         end
     end
 
@@ -1800,7 +1783,7 @@ function onBuy()
     local u      = GetTriggerUnit() ---@type unit 
     local b      = GetBuyingUnit() ---@type unit 
     local pid    = GetPlayerId(GetOwningPlayer(b)) + 1 ---@type integer 
-    local itm    = Item[GetSoldItem()] ---@type Item 
+    local itm    = Item.create(GetSoldItem()) ---@type Item 
 
     itm.owner = Player(pid - 1)
 
@@ -2534,6 +2517,4 @@ end
     TriggerAddAction(useitem, onUse)
     TriggerAddAction(onbuy, onBuy)
     TriggerAddCondition(onsell, Condition(onSell))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
