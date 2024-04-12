@@ -1949,7 +1949,7 @@ function PlayerCleanup(pid)
     TimerList[pid]:stopAllTimers()
 
     PlayerBase[pid] = nil
-    GroupRemoveUnit(HeroGroup, Hero[pid])
+    TableRemove(HERO_GROUP, Hero[pid])
     RemovePlayerUnits(pid)
 
     BLOODBANK.bank[pid] = 0
@@ -2088,8 +2088,8 @@ function RefreshHeroes()
             if (HasProficiency(U.id, PROF_BOW) and
                 GetUnitAbilityLevel(Hero[U.id], FourCC('A0B9')) > 0 and
                 UnitAlive(Hero[U.id]) and
-                LAST_HERO_X[U.id] == GetUnitX(Hero[U.id]) and
-                LAST_HERO_Y[U.id] == GetUnitY(Hero[U.id]))
+                Unit[Hero[pid]].x == GetUnitX(Hero[U.id]) and
+                Unit[Hero[pid]].y == GetUnitY(Hero[U.id]))
             then
                 IntenseFocus[U.id] = IMinBJ(10, IntenseFocus[U.id] + 1)
             else
@@ -2097,8 +2097,8 @@ function RefreshHeroes()
             end
 
             --keep track of hero positions
-            LAST_HERO_X[U.id] = GetUnitX(Hero[U.id])
-            LAST_HERO_Y[U.id] = GetUnitY(Hero[U.id])
+            rawset(Unit[Hero[pid]], "x", GetUnitX(Hero[U.id]))
+            rawset(Unit[Hero[pid]], "y", GetUnitY(Hero[U.id]))
 
             --PVP leave range
             if ArenaQueue[U.id] > 0 and IsUnitInRangeXY(Hero[U.id], -1311., 2905., 1000.) == false then

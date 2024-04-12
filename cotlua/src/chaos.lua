@@ -1,3 +1,9 @@
+--[[
+    chaos.lua
+
+    A module that contains functions for transitioning to chaos mode.
+]]
+
 OnInit.final("Chaos", function()
 
 function OpenGodsPortal()
@@ -253,8 +259,8 @@ function BeginChaos()
     TimerList[BOSS_ID]:stopAllTimers('boss')
 
     --reset legion jump timer
-    PauseTimer(wanderingTimer)
-    TimerStart(wanderingTimer, 2040. - (User.AmountPlaying * 240), true, ShadowStepExpire)
+    WANDER_TIMER:reset()
+    WANDER_TIMER:callDelayed(2040. - (User.AmountPlaying * 240), ShadowStepExpire)
 
     CHAOS_LOADING = true
     CHAOS_MODE = true

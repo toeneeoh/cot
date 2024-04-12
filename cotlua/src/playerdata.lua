@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'PlayerData' end
-
 --[[
     playerdata.lua
 
@@ -9,9 +7,9 @@ if Debug then Debug.beginFile 'PlayerData' end
     TODO: move playertimers to another file
 ]]
 
-OnInit.global("PlayerData", function(require)
-    require 'CodeGen'
-    require 'TimerQueue'
+OnInit.global("PlayerData", function(Require)
+    Require('CodeGen')
+    Require('TimerQueue')
 
     LOAD_FLAG = {} ---@type boolean[] 
 
@@ -624,7 +622,8 @@ OnInit.global("PlayerData", function(require)
         end
 
         --PlayerTimer constructor
-        ---@type fun(self: TimerList): PlayerTimer
+        ---@param self TimerList
+        ---@return PlayerTimer
         function thistype:add()
             local pt = PlayerTimer.create()
 
@@ -697,7 +696,7 @@ OnInit.global("PlayerData", function(require)
         Unit[Hero[pid]].mr = HeroStats[HeroID[pid]].magic_resist
         Unit[Hero[pid]].pr = HeroStats[HeroID[pid]].phys_resist
 
-        GroupAddUnit(HeroGroup, Hero[pid])
+        HERO_GROUP[#HERO_GROUP + 1] = Hero[pid]
         SetPrestigeEffects(pid)
         Colosseum_XP[pid] = 1.00
 
@@ -782,6 +781,4 @@ OnInit.global("PlayerData", function(require)
         SetUnitState(Hero[pid], UNIT_STATE_MANA, (HeroID[pid] ~= HERO_VAMPIRE and BlzGetUnitMaxMana(Hero[pid])) or 0)
     end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
