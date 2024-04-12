@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'TimerQueue' end
-
 OnInit.global("TimerQueue", function()
 --[[------------------------------------------------------------------------------------------------------------------------------------------------------------
 *
@@ -268,6 +266,4 @@ do
     end
 end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
