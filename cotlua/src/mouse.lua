@@ -1,12 +1,9 @@
-if Debug then Debug.beginFile 'Mouse' end
-
-OnInit.final("Mouse", function(require)
-    require 'Users'
-    require 'Variables'
+OnInit.final("Mouse", function(Require)
+    Require('Users')
+    Require('Variables')
 
     rightclickmovement = {} ---@type boolean[]
     rightclickdown     = {} ---@type boolean[]
-    clickedPoint       = __jarray({0, 0})
     well               = {} ---@type unit[] 
     wellcount          = 0 ---@type integer 
     wellheal           = __jarray(0) ---@type integer[] 
@@ -172,6 +169,4 @@ end
     TriggerAddCondition(move, Filter(MoveMouse))
     TriggerAddCondition(mousedown, Filter(MouseDown))
     TriggerAddCondition(mouseup, Filter(MouseUp))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
