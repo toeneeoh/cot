@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Spells' end
-
 --[[
     spell.lua
 
@@ -15,10 +13,9 @@ if Debug then Debug.beginFile 'Spells' end
     TODO: organize more spells into their own types and reduce global usage
 ]]
 
-OnInit.final("Spells", function(require)
-    require "Users"
+OnInit.final("Spells", function(Require)
+    Require "Users"
 
-    SKINS_PER_PAGE          = 6 ---@type integer 
     SONG_WAR                = FourCC('A024') ---@type integer 
     SONG_HARMONY            = FourCC('A01A') ---@type integer 
     SONG_PEACE              = FourCC('A09X') ---@type integer 
@@ -38,9 +35,7 @@ OnInit.final("Spells", function(require)
     lastCast                = __jarray(0) ---@type integer[] 
     limitBreak              = __jarray(0) ---@type integer[] 
     limitBreakPoints        = __jarray(0) ---@type integer[] 
-    TOTAL_SKINS             = 0 ---@type integer 
 
-    BardMelodyCost          = __jarray(0) ---@type number[] 
     BorrowedLife            = __jarray(0) ---@type number[] 
 
     IS_TELEPORTING          = {} ---@type boolean[] 
@@ -57,7 +52,7 @@ OnInit.final("Spells", function(require)
     songeffect      = {} ---@type effect[] 
     InstillFear     = {} ---@type unit[] 
 
-    INVALID_TARGET_MESSAGE = "|cffff0000Cannot target there!|r" ---@type string 
+    local INVALID_TARGET_MESSAGE = "|cffff0000Cannot target there!|r" ---@type string 
 
     ---@class Spell
     ---@field id integer
@@ -99,7 +94,6 @@ OnInit.final("Spells", function(require)
         thistype.values  = {} ---@type table
 
         function thistype:destroy()
-            self.__mode = "kv"
             self = nil
         end
 
@@ -421,17 +415,15 @@ OnInit.final("Spells", function(require)
         end
         thistype.values = {thistype.crit}
 
-        ---@type fun(pt: PlayerTimer)
-        function thistype.delay(pt)
-            UnitRemoveAbility(Hero[pt.pid], FourCC('Avul'))
-            UnitRemoveAbility(Hero[pt.pid], FourCC('A03C'))
-            UnitAddAbility(Hero[pt.pid], FourCC('A03C'))
-
-            pt:destroy()
+        ---@type fun(self: SNIPERSTANCE)
+        function thistype.delay(self)
+            UnitRemoveAbility(self.caster, FourCC('Avul'))
+            UnitRemoveAbility(self.caster, FourCC('A03C'))
+            UnitAddAbility(self.caster, FourCC('A03C'))
+            Unit[self.caster].movespeed = (sniperstance[self.pid] and 100) or Unit[self.caster].flatMS * Unit[self.caster].percentMS
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()
             local cd = 3.
             local s = "Disable"
 
@@ -448,7 +440,7 @@ OnInit.final("Spells", function(require)
             sniperstance[self.pid] = not sniperstance[self.pid]
 
             UnitAddAbility(self.caster, FourCC('Avul'))
-            pt.timer:callDelayed(FPS_32, thistype.delay, pt)
+            TimerQueue:callDelayed(FPS_32, thistype.delay, self)
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Human\\Defend\\DefendCaster.mdl", self.caster, "origin"))
         end
     end
@@ -605,7 +597,7 @@ OnInit.final("Spells", function(require)
 
         ---@type fun(pt: PlayerTimer)
         function thistype.rocketPeriodic(pt)
-            local target = Dummy.create(GetUnitX(helicopter[pt.pid]), GetUnitY(helicopter[pt.pid]), FourCC('A04F'), 1) ---@type unit .unit
+            local target = Dummy.create(GetUnitX(helicopter[pt.pid]), GetUnitY(helicopter[pt.pid]), FourCC('A04F'), 1).unit ---@type unit .unit
 
             pt.dur = pt.dur - 1
             pt.timer:callDelayed(0.7, thistype.rocketPeriodic, pt)
@@ -2447,6 +2439,17 @@ OnInit.final("Spells", function(require)
 
     --hydromancer
 
+    ---@class INFUSEDWATER : Spell
+    INFUSEDWATER = {}
+    do
+        local thistype = INFUSEDWATER
+        thistype.id = FourCC("A0DY") ---@type integer 
+
+        function thistype:onCast()
+            InfusedWaterBuff:add(self.caster, self.caster):duration(5)
+        end
+    end
+
     ---@class FROSTBLAST : Spell
     ---@field dmg function
     ---@field aoe number
@@ -2478,8 +2481,9 @@ OnInit.final("Spells", function(require)
                     local pid = GetPlayerId(missile.owner) + 1
                     MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), FROSTBLAST.aoe * LBOOST[pid], Condition(FilterEnemy))
 
-                    if GetUnitAbilityLevel(missile.source, FourCC('B01I')) > 0 then
-                        UnitRemoveAbility(missile.source, FourCC('B01I'))
+                    local b = InfusedWaterBuff:get(nil, missile.source)
+                    if b then
+                        b:dispel()
                         missile.damage = missile.damage * 2
                     end
 
@@ -2574,8 +2578,10 @@ OnInit.final("Spells", function(require)
             pt.y = self.targetY
             pt.count = 0
 
-            if GetUnitAbilityLevel(self.caster, FourCC('B01I')) > 0 then
-                UnitRemoveAbility(self.caster, FourCC('B01I'))
+            local b = InfusedWaterBuff:get(nil, self.caster)
+
+            if b then
+                b:dispel()
                 pt.dur = pt.dur + 3
             end
 
@@ -2697,9 +2703,10 @@ OnInit.final("Spells", function(require)
             pt.y = self.y
             pt.infused = false
 
-            if GetUnitAbilityLevel(Hero[self.pid], FourCC('B01I')) > 0 then
+            local b = InfusedWaterBuff:get(nil, self.caster)
+            if b then
+                b:dispel()
                 pt.infused = true
-                UnitRemoveAbility(Hero[self.pid], FourCC('B01I'))
             end
 
             BlzSetUnitSkin(pt.target, FourCC('h04X'))
@@ -2740,9 +2747,10 @@ OnInit.final("Spells", function(require)
             DecUnitAbilityLevel(pt.source, FourCC('A02O'))
             SetUnitOwner(pt.source, Player(self.pid - 1), true)
 
-            if UnitRemoveAbility(self.caster, FourCC('B01I')) then
+            local b = InfusedWaterBuff:get(nil, self.caster)
+            if b then
+                b:dispel()
                 pt.infused = true
-                UnitRemoveAbility(Hero[self.pid], FourCC('B01I'))
             end
 
             IssuePointOrder(pt.source, "blizzard", self.targetX, self.targetY)
@@ -2840,9 +2848,10 @@ OnInit.final("Spells", function(require)
             pt.infused = false
             pt.time = 0
 
-            if GetUnitAbilityLevel(Hero[self.pid], FourCC('B01I')) > 0 then
+            local b = InfusedWaterBuff:get(nil, self.caster)
+            if b then
+                b:dispel()
                 pt.infused = true
-                UnitRemoveAbility(Hero[self.pid], FourCC('B01I'))
             end
 
             pt.timer:callDelayed(0.05, thistype.onSpawn, pt)
@@ -4346,7 +4355,7 @@ OnInit.final("Spells", function(require)
 
         ---@type fun(pid: integer, angle: number, x: number, y: number)
         thistype.charge = function(pid, angle, x, y)
-            local speed = Movespeed[pid] * 0.045
+            local speed = Unit[Hero[pid]].movespeed * 0.045
 
             SetUnitPathing(Hero[pid], false)
             SetUnitPropWindow(Hero[pid], 0)
@@ -5098,6 +5107,8 @@ OnInit.final("Spells", function(require)
         thistype.values = {thistype.aoe, thistype.dmg, thistype.cd}
 
         function thistype:onCast()
+            ArcaneBarrageBuff:add(self.caster, self.caster):duration(3)
+
             local ug = CreateGroup()
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
@@ -5153,6 +5164,10 @@ OnInit.final("Spells", function(require)
             if pt.dur > 0. then
                 for target in each(ug) do
                     ArcanosphereDebuff:add(pt.source, target):duration(1.)
+                end
+
+                if IsUnitInRangeXY(pt.source, pt.x, pt.y, pt.aoe) then
+                    ArcanosphereBuff:add(pt.source, pt.source):duration(1.)
                 end
 
                 pt.timer:callDelayed(0.5, thistype.periodic, pt)
@@ -5731,8 +5746,8 @@ OnInit.final("Spells", function(require)
         local thistype = MELODYOFLIFE
         thistype.id = FourCC("A02H") ---@type integer 
 
-        thistype.cost = function(pid) return BardMelodyCost[pid] end ---@return number
-        thistype.heal = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return BardMelodyCost[pid] * (.25 + .25 * ablev) end ---@return number
+        thistype.cost = function(pid) return Roundmana(GetUnitState(Hero[pid], UNIT_STATE_MANA) * .1) end ---@return number
+        thistype.heal = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return thistype.cost(pid) * (.25 + .25 * ablev) end ---@return number
         thistype.values = {thistype.cost, thistype.heal}
 
         function thistype:onCast()
@@ -6194,23 +6209,13 @@ OnInit.final("Spells", function(require)
     function TeleportHomePeriodic(pt)
         pt.dur = pt.dur - 0.05
 
-        BlzSetSpecialEffectTime(pt.sfx, math.max(0, 1. - pt.dur / pt.agi))
+        BlzSetSpecialEffectTime(pt.sfx, math.max(0, 1. - pt.dur / pt.time))
 
         if pt.dur < 0 then
-            UnitRemoveAbility(Hero[pt.pid],FourCC('A050'))
-            PauseUnit(Hero[pt.pid],false)
-            PauseUnit(Backpack[pt.pid],false)
-
-            if UnitAlive(Hero[pt.pid]) then
-                MoveHeroLoc(pt.pid, TownCenter)
-            end
-
-            BlzSetSpecialEffectTimeScale(pt.sfx, 5.)
-            BlzPlaySpecialEffect(pt.sfx, ANIM_TYPE_DEATH)
             pt:destroy()
+        else
+            pt.timer:callDelayed(0.05, TeleportHomePeriodic, pt)
         end
-
-        IS_TELEPORTING[pt.pid] = false
     end
 
     ---@param p player
@@ -6227,13 +6232,23 @@ OnInit.final("Spells", function(require)
         BlzUnitHideAbility(Hero[pid], FourCC('A050'), true)
 
         pt.dur = dur
-        pt.agi = dur
+        pt.time = dur
         pt.sfx = AddSpecialEffect("war3mapImported\\Progressbar.mdl", GetUnitX(Hero[pid]), GetUnitY(Hero[pid]) - 125.0)
+        pt.onRemove = function()
+            UnitRemoveAbility(Hero[pid], FourCC('A050'))
+            PauseUnit(Hero[pid], false)
+            PauseUnit(Backpack[pid], false)
+
+            MoveHeroLoc(pid, TownCenter)
+
+            BlzSetSpecialEffectTimeScale(pt.sfx, 5.)
+            BlzPlaySpecialEffect(pt.sfx, ANIM_TYPE_DEATH)
+            IS_TELEPORTING[pid] = false
+        end
 
         BlzSetSpecialEffectZ(pt.sfx, 500.0)
         BlzSetSpecialEffectTimeScale(pt.sfx, 0.001)
         BlzSetSpecialEffectColorByPlayer(pt.sfx, Player(4))
-        TimerQueue:callDelayed(dur, DestroyEffect, pt.sfx)
         pt.timer:callDelayed(0.05, TeleportHomePeriodic, pt)
     end
 
@@ -6504,12 +6519,11 @@ OnInit.final("Spells", function(require)
         local r       = GetRectFromCoords(x, y)
         local r2      = GetRectFromCoords(targetX, targetY)
 
-        if caster == Hero[pid] then
-            if targetX ~= 0 and targetY ~= 0 then
-                clickedPoint[pid] = {x, y}
-                if Movespeed[pid] > 522 then
-                    BlzSetUnitFacingEx(caster, bj_RADTODEG * Atan2(targetY - y, targetX - x))
-                end
+        if Unit[caster] and targetX ~= 0 and targetY ~= 0 then
+            Unit[caster].orderX = x
+            Unit[caster].orderY = y
+            if Unit[caster].movespeed > MOVESPEED_MAX then
+                BlzSetUnitFacingEx(caster, bj_RADTODEG * Atan2(targetY - y, targetX - x))
             end
         end
 
@@ -6726,10 +6740,6 @@ OnInit.final("Spells", function(require)
         --store last cast spell id
         if sid ~= ADAPTIVESTRIKE.id and sid ~= LIMITBREAK.id then
             lastCast[pid] = sid
-        end
-
-        if caster == Hero[pid] then
-            Moving[pid] = false
         end
 
         --create spell interface if exists
@@ -7255,6 +7265,7 @@ OnInit.final("Spells", function(require)
         [ADAPTIVESTRIKE.id] = ADAPTIVESTRIKE,
         [LIMITBREAK.id] = LIMITBREAK,
 
+        [INFUSEDWATER.id] = INFUSEDWATER,
         [FROSTBLAST.id] = FROSTBLAST,
         [WHIRLPOOL.id] = WHIRLPOOL,
         [TIDALWAVE.id] = TIDALWAVE,
@@ -7352,6 +7363,4 @@ OnInit.final("Spells", function(require)
         --lazy tag generation
         v.tag = GetObjectName(v.id)
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
