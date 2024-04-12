@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Dummy' end
-
 --[[
     dummy.lua
 
@@ -51,7 +49,7 @@ OnInit.final("Dummy", function()
             BlzSetUnitName(self.unit, " ")
             BlzSetUnitWeaponBooleanField(self.unit, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
             SetUnitOwner(self.unit, Player(PLAYER_NEUTRAL_PASSIVE), true)
-            BlzSetUnitSkin(self.unit, DUMMY)
+            BlzSetUnitSkin(self.unit, DUMMY_CASTER)
             SetUnitXBounded(self.unit, 30000.)
             SetUnitYBounded(self.unit, 30000.)
             UnitAddAbility(self.unit, FourCC('Aloc'))
@@ -65,6 +63,7 @@ OnInit.final("Dummy", function()
             PauseUnit(self.unit, true)
             BlzSetUnitAttackCooldown(self.unit, 0.01, 0)
             UnitAddBonus(self.unit, BONUS_ATTACK_SPEED, 4.)
+            ShowUnit(self.unit, false)
             DUMMY_STACK[#DUMMY_STACK + 1] = self
         end
 
@@ -76,7 +75,7 @@ OnInit.final("Dummy", function()
             if self == nil then
                 DUMMY_COUNT = DUMMY_COUNT + 1
                 self = {
-                    unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), DUMMY, x, y, 0),
+                    unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), DUMMY_CASTER, x, y, 0),
                     abil = 0,
                 }
                 UnitAddAbility(self.unit, FourCC('Amrf'))
@@ -91,6 +90,7 @@ OnInit.final("Dummy", function()
             --use an existing available dummy
             else
                 DUMMY_STACK[#DUMMY_STACK] = nil
+                ShowUnit(self.unit, true)
                 PauseUnit(self.unit, false)
             end
 
@@ -117,6 +117,4 @@ OnInit.final("Dummy", function()
             return self
         end
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
