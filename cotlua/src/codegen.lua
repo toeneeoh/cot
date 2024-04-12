@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'CodeGen' end
-
 --[[
     codegen.lua
 
@@ -29,7 +27,7 @@ OnInit.global("CodeGen", function()
     ---@return string
     function Encode(i)
         local b ---@type integer 
-        local s        = "" ---@type string 
+        local s = "" ---@type string 
 
         if i < BASE then
             return SubString(ALPHABET, i, i + 1)
@@ -47,7 +45,7 @@ OnInit.global("CodeGen", function()
     ---@param s string
     ---@return integer
     local function StrPos(s)
-        local i         = 0 ---@type integer 
+        local i = 0 ---@type integer 
         while i < BASE do
             if s == SubString(ALPHABET, i, i + 1) then
                 return i
@@ -60,7 +58,7 @@ OnInit.global("CodeGen", function()
     ---@param s string
     ---@return integer
     function Decode(s)
-        local a         = 0 ---@type integer 
+        local a = 0 ---@type integer 
 
         while not (StringLength(s) == 1) do
             a = a * BASE + BASE * StrPos(SubString(s, 0, 1))
@@ -73,15 +71,12 @@ OnInit.global("CodeGen", function()
     ---@param in_ string
     ---@return integer
     local function StringChecksum(in_)
-        local i         = 0 ---@type integer 
-        local l         = StringLength(in_) ---@type integer 
-        local t         = 0 ---@type integer 
-        local o         = 0 ---@type integer 
-        while i < l do
-            t = Decode(SubString(in_, i, i + 1))
-            o = o + t
-            i = i + 1
+        local o = 0 ---@type integer 
+
+        for i = 1, in_:len() do
+            o = o + Decode(in_:sub(i, i + 1))
         end
+
         return o
     end
 
@@ -182,6 +177,4 @@ OnInit.global("CodeGen", function()
 
         ALPHABET = SubString(ALPHABET, 0, 1) .. SubString(ALPHABET, m + 1, b)
         BASE = b - m
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
