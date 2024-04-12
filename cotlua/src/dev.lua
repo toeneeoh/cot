@@ -564,6 +564,9 @@ modifiers:
             DestroyTrigger(t)
             print(i - 0x100000)
         end,
+        ["gc"] = function()
+            print(GC)
+        end,
     }
 
 ---@param pid integer
