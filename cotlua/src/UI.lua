@@ -1,14 +1,12 @@
-if Debug then Debug.beginFile 'UI' end
-
 --[[
     UI.lua
 
     A library that modifies the base game's UI and creates extra UI for use elsewhere.
 ]]
 
-OnInit.final("UI", function(require)
-    require 'HeroSelect'
-    require 'Commands'
+OnInit.final("UI", function(Require)
+    Require('HeroSelect')
+    Require('Commands')
 
     local function onclick()
         if GetTriggerPlayer() == GetLocalPlayer() then
@@ -285,9 +283,9 @@ OnInit.final("UI", function(require)
     BlzFrameSetLevel(RESOURCE_BAR, 1)
 
     --create clock text
-    clockText = BlzCreateFrameByType("TEXT", "clockText", RESOURCE_BAR, "CText_18", 0)
-    BlzFrameSetPoint(clockText, FRAMEPOINT_TOPLEFT, RESOURCE_BAR, FRAMEPOINT_TOPLEFT, 0.05, - 0.009)
-    BlzFrameSetFont(clockText, "Fonts\\frizqt__.ttf", 0.036, 0)
+    CLOCK_FRAME_TEXT = BlzCreateFrameByType("TEXT", "", RESOURCE_BAR, "CText_18", 0)
+    BlzFrameSetPoint(CLOCK_FRAME_TEXT, FRAMEPOINT_TOPLEFT, RESOURCE_BAR, FRAMEPOINT_TOPLEFT, 0.05, - 0.009)
+    BlzFrameSetFont(CLOCK_FRAME_TEXT, "Fonts\\frizqt__.ttf", 0.036, 0)
 
     --Upkeep
     local fh = BlzGetFrameByName("ResourceBarUpkeepText", 0)
@@ -525,6 +523,4 @@ OnInit.final("UI", function(require)
         FrameAddSimpleTooltip(PLAT_FRAME, "Platinum Coin|n|nObtained by supplying 1,000,000 gold at a trader or with a converter.", false)
         FrameAddSimpleTooltip(ARC_FRAME, "Arcadite Lumber|n|nObtained by supplying 1,000,000 lumber at a trader or with a converter.", false)
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
