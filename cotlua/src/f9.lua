@@ -1,4 +1,8 @@
-if Debug then Debug.beginFile 'F9' end
+--[[
+    F9.lua
+
+    Defines all the quests in the quest log (F9)
+]]
 
 OnInit.final("F9", function()
 
@@ -104,6 +108,4 @@ Maiev|r]], "ReplaceableTextures\\CommandButtons\\BTNJaina.blp")
     Iron_Golem_Fist_Quest   = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Blacksmith's Ore", "A blacksmith has asked that you bring 6 Iron Golem Ores to him. He seeks to create a weapon before his old age finally forces him to retire. He has agreed that you can keep the Item he creates with the Ores.", "ReplaceableTextures\\CommandButtons\\BTNDeathPact.blp")
     Defeat_The_Horde_Quest  = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Horde", "The Horde has spread and began to grow in numbers by the second.  They lie in wait, patiently waiting unitl their number are enough to take over the land.  Defeat them before they can organize a full scale attack and desimate the nations of your comrades.", "ReplaceableTextures\\CommandButtons\\BTNThrall.tga")
     Evil_Shopkeeper_Quest_2 = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Omega P's Pick", "The Leaders of Team P must be stopped, destroy them and bring back both thier picks as proof to recive the ultimate pick of the Team P hordes.", "ReplaceableTextures\\CommandButtons\\BTNPeon.tga")
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
