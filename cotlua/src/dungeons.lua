@@ -1,13 +1,11 @@
-if Debug then Debug.beginFile 'Dungeons' end
-
 --[[
     dungeons.lua
 
     This module contains dungeon related globals and functions.
 ]]
 
-OnInit.final("Dungeons", function(require)
-    require 'Variables'
+OnInit.final("Dungeons", function(Require)
+    Require('Variables')
 
     DungeonTable  = {} ---@type table 
 
@@ -66,7 +64,7 @@ OnInit.final("Dungeons", function(require)
             DisplayTimedTextToPlayer(p, 0, 0, 20.00, "|c00ff3333Azazoth: Mortal weakling, begone! Your flesh is not even worth annihilation.")
 
             if #AZAZOTH_GROUP == 0 then
-                UnitRemoveBuffsBJ(bj_REMOVEBUFFS_ALL, BossTable[BOSS_AZAZOTH].unit)
+                Buff.dispelAll(BossTable[BOSS_AZAZOTH].unit)
                 SetUnitLifePercentBJ(BossTable[BOSS_AZAZOTH].unit, 100)
                 SetUnitManaPercentBJ(BossTable[BOSS_AZAZOTH].unit, 100)
                 SetUnitPosition(BossTable[BOSS_AZAZOTH].unit, GetRectCenterX(gg_rct_Azazoth_Boss_Spawn), GetRectCenterY(gg_rct_Azazoth_Boss_Spawn))
@@ -180,9 +178,10 @@ OnInit.final("Dungeons", function(require)
         local arc     = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
         local crystal = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
 
-        DisplayTimedTextToTable(NAGA_GROUP, 7.5, "|cffffcc00You have been rewarded:|r |n|cffe3e2e2" .. (plat) .. " Platinum|r |n|cff66FF66" .. (arc) .. " Arcadite|r |n|cff6969FF" .. (crystal) .. " Crystals|r")
+        DisplayTimedTextToTable(NAGA_GROUP, 7.5, "|cffffcc00You have been rewarded:|r \n|cffe3e2e2" .. (plat) .. " Platinum|r \n|cff66FF66" .. (arc) .. " Arcadite|r \n|cff6969FF" .. (crystal) .. " Crystals|r")
 
-        for _, pid in ipairs(NAGA_GROUP) do
+        for _, p in ipairs(NAGA_GROUP) do
+            local pid = GetPlayerId(p) + 1
             AddCurrency(pid, PLATINUM, plat)
             AddCurrency(pid, ARCADITE, arc)
             AddCurrency(pid, CRYSTAL, crystal)
@@ -272,7 +271,7 @@ OnInit.final("Dungeons", function(require)
             if damageType == PHYSICAL then
                 amount = 0.00
 
-                if Unit[source].hits == nil then
+                if not Unit[source].hits then
                     Unit[source].hits = 0
                 end
 
@@ -319,17 +318,15 @@ OnInit.final("Dungeons", function(require)
                 if GetRandomInt(0, 99) < 25 then
                     GroupEnumUnitsInRect(ug2, gg_rct_Naga_Dungeon_Boss, Condition(isplayerunit))
                     local u = BlzGroupUnitAt(ug2, GetRandomInt(0, BlzGroupGetSize(ug2) - 1))
-                    IssuePointOrder(target, "move", GetUnitX(u), GetUnitY(u))
+                    IssuePointOrder(target, "move", GetUnitX(u) + GetRandomInt(-150, 150), GetUnitY(u) + GetRandomInt(-150, 150))
                 end
                 GroupEnumUnitsInRange(ug2, GetUnitX(target), GetUnitY(target), 300., Condition(isplayerunit))
-                for u in each(ug2) do
+                for enemy in each(ug2) do
                     local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A09R'), 1).unit
-                    BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(u) - GetUnitY(target), GetUnitX(u) - GetUnitX(target)))
-                    InstantAttack(dummy, u)
-                    DamageTarget(target, u, BlzGetUnitMaxHP(u) * 0.1, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                    if UnitAlive(u) then
-                        SpiritCallSlow:add(u, u):duration(5.)
-                    end
+                    BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(enemy) - GetUnitY(target), GetUnitX(enemy) - GetUnitX(target)))
+                    InstantAttack(dummy, enemy)
+                    SpiritCallSlow:add(target, enemy):duration(5.)
+                    DamageTarget(target, enemy, BlzGetUnitMaxHP(enemy) * 0.1, ATTACK_TYPE_NORMAL, MAGIC, "Spirit Call")
                 end
             end
             TimerQueue:callDelayed(1., SpiritCallPeriodic, time)
@@ -536,6 +533,4 @@ OnInit.final("Dungeons", function(require)
             end
         end
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
