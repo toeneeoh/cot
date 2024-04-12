@@ -1,15 +1,13 @@
-if Debug then Debug.beginFile 'MapSetup' end
-
 --[[
     mapsetup.lua
 
     A library that executes any necessary map initialization after players have loaded in.
 ]]
 
-OnInit.final("MapSetup", function(require)
-    require 'Users'
-    require 'Variables'
-    require 'PlayerData'
+OnInit.final("MapSetup", function(Require)
+    Require('Users')
+    Require('Variables')
+    Require('PlayerData')
 
     --create floating texttags
     SetTextTagText(ColoText, "", 15.00)
@@ -109,6 +107,4 @@ OnInit.final("MapSetup", function(require)
     ShowInterface(true, 0)
     EnableUserControl(true)
     TimerQueue:callDelayed(0., DisplayCineFilter, false)
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'ShopComponent' end
-
 --[[
     shopcomponent.lua
 
@@ -593,6 +591,4 @@ OnInit.final("ShopComponent", function()
         TriggerAddAction(thistype.rightClicked, thistype.onRightClicked)
     end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

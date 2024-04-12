@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Shop' end
-
 --[[
     shop.lua
 
@@ -7,12 +5,12 @@ if Debug then Debug.beginFile 'Shop' end
     functions.
 ]]
 
-OnInit.final("Shop", function(require)
-    require 'ShopComponent'
-    require 'UnitEvent'
-    require 'Users'
-    require 'PlayerData'
-    require 'Variables'
+OnInit.final("Shop", function(Require)
+    Require('ShopComponent')
+    Require('UnitEvent')
+    Require('Users')
+    Require('PlayerData')
+    Require('Variables')
 
     -- Credits:
     --      Taysen: FDF file
@@ -2594,6 +2592,4 @@ OnInit.final("Shop", function(require)
         RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DESELECTED, thistype.onSelect)
     end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

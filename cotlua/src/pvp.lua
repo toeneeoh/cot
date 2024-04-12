@@ -1,7 +1,5 @@
-if Debug then Debug.beginFile 'PVP' end
-
-OnInit.final("PVP", function(require)
-    require 'Users'
+OnInit.final("PVP", function(Require)
+    Require('Users')
 
     ARENA_FFA = 1
 
@@ -262,6 +260,4 @@ function EnterPVP()
     end
 end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

@@ -1,7 +1,5 @@
-if Debug then Debug.beginFile 'Level' end
-
-OnInit.final("Level", function(require)
-    require 'Users'
+OnInit.final("Level", function(Require)
+    Require('Users')
 
 function OnLevel()
     local u     = GetTriggerUnit() ---@type unit 
@@ -89,6 +87,4 @@ end
     end
 
     TriggerAddCondition(level, Condition(OnLevel))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

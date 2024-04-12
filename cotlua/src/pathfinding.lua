@@ -1,14 +1,12 @@
-if Debug then Debug.beginFile "PathFinding" end
-
 --[[
     pathfinding.lua
 
-    experimental
+    Experimental custom pathfinding
 ]]
 
-OnInit.global("PathFinding", function(require)
-    require 'Helper'
-    require 'Pathing'
+OnInit.global("PathFinding", function(Require)
+    Require('Helper')
+    Require('Pathing')
 
     CoordinateQueue = {} ---@type PriorityQueue[]
     TurnQueue = {}
@@ -121,7 +119,7 @@ OnInit.global("PathFinding", function(require)
                         -- Check if the neighbor is within the grid boundaries and walkable
                         if x >= minX and x <= maxX and y >= minY and y <= maxY then
                             if GRID[y][x] == nil then
-                                GRID[y][x] = IsTerrainWalkable(offset * (x + 0.5), offset * (y + 0.5), true)
+                                GRID[y][x] = IsTerrainWalkable(offset * (x + 0.5), offset * (y + 0.5))
                             end
 
                             if GRID[y][x] then
@@ -140,6 +138,4 @@ OnInit.global("PathFinding", function(require)
 
         return nil
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

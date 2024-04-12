@@ -1,7 +1,6 @@
-if Debug then Debug.beginFile 'Missile' end
-
-OnInit.global("Missile", function(require)
-    require "MissileEffect"
+OnInit.global("Missile", function(Require)
+    Require('Variables')
+    Require "MissileEffect"
 
 do
     -- ---------------------------------------------------------------------------------------------- --
@@ -19,7 +18,7 @@ do
     -- item size used in z collision
     local ITEM_SIZE  = 16.
     -- Raw code of the dummy unit used for vision
-    local DUMMY = FourCC('eRez')
+    local DUMMY = DUMMY_VISION
     -- Needed, dont touch. Seriously, dont touch!
     local location = Location(0., 0.)
     local rect = Rect(0., 0., 0., 0.)
@@ -918,6 +917,4 @@ do
     end
 end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

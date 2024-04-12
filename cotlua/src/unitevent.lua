@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'UnitEvent' end
-
 --[[
     unitevent.lua
 
@@ -23,6 +21,4 @@ OnInit.global("UnitEvent", function()
         end
         TriggerAddCondition(triggers[event], Filter(filterfunc))
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

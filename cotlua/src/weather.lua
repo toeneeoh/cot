@@ -1,15 +1,13 @@
-if Debug then Debug.beginFile 'Weather' end
-
 --[[
     weather.lua
 
     A module that defines random weather behavior and effects.
 ]]
 
-OnInit.global("Weather", function(require)
-    require 'Helper'
-    require 'TimerQueue'
-    require 'Buffs'
+OnInit.global("Weather", function(Require)
+    Require('Helper')
+    Require('TimerQueue')
+    Require('Buffs')
 
     WeatherTimer = TimerQueue.create()
     WeatherTable = {}
@@ -360,7 +358,7 @@ end
     local function WeatherFilter()
         local u = GetFilterUnit()
 
-        if u and GetUnitTypeId(u) ~= DUMMY then
+        if u and not IsDummy(u) then
             if RectContainsUnit(MAIN_MAP.rect, u) then
                 if not TableHas(WeatherGroup, u) then
                     if GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
@@ -390,6 +388,4 @@ end
     TriggerRegisterLeaveRegion(onEnter, MAIN_MAP.region, Filter(WeatherFilter))
 
     DestroyGroup(ug)
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

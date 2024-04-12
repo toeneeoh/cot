@@ -1,7 +1,5 @@
-if Debug then Debug.beginFile 'MissileEffect' end
-
-OnInit.global("MissileEffect", function(require)
-    require 'WorldBounds'
+OnInit.global("MissileEffect", function(Require)
+    Require('WorldBounds')
 
 do
     MissileEffect = setmetatable({}, {})
@@ -125,6 +123,4 @@ do
     end
 end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

@@ -1,7 +1,5 @@
-if Debug then Debug.beginFile 'Train' end
-
-OnInit.final("Train", function(require)
-    require 'Users'
+OnInit.final("Train", function(Require)
+    Require('Users')
 
     workerCount=__jarray(0) ---@type integer[] 
     smallwispCount=__jarray(0) ---@type integer[] 
@@ -43,6 +41,4 @@ end
 
     TriggerAddAction(cancel, OnTrainCancel)
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

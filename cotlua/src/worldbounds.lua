@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'WorldBounds' end
-
 --[[
     worldbounds.lua
     https://www.hiveworkshop.com/threads/330669/
@@ -153,6 +151,4 @@ do
 
 end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Regions' end
-
 --[[
     regions.lua
 
@@ -7,9 +5,9 @@ if Debug then Debug.beginFile 'Regions' end
     and defines enemy spawn, teleport, and quest trigger regions.
 ]]
 
-OnInit.final("Regions", function(require)
-    require 'Helper'
-    require 'WorldBounds'
+OnInit.final("Regions", function(Require)
+    Require('Helper')
+    Require('WorldBounds')
 
     GUARD_CAPTURED = false ---@type boolean 
     AREAS          = { ---@type rect[]
@@ -354,6 +352,4 @@ OnInit.final("Regions", function(require)
     RegionAddRect(LAVA_REGION, gg_rct_Lava2)
 
     TriggerRegisterEnterRegion(lavaTrigger, LAVA_REGION, Filter(LavaRegion))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

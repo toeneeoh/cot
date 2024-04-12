@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'SaveLoad' end
-
 --[[
     saveload.lua
 
@@ -9,11 +7,11 @@ if Debug then Debug.beginFile 'SaveLoad' end
     Automatically loads players' profiles at map start.
 ]]
 
-OnInit.final("SaveLoad", function(require)
-    require 'Variables'
-    require 'GameStatus'
-    require 'FileIO'
-    require 'PlayerData'
+OnInit.final("SaveLoad", function(Require)
+    Require('Variables')
+    Require('GameStatus')
+    Require('FileIO')
+    Require('PlayerData')
 
     SAVE_UNIT_TYPE[1] = HERO_ARCANIST
     SAVE_UNIT_TYPE[2] = HERO_ASSASSIN
@@ -272,6 +270,4 @@ OnInit.final("SaveLoad", function(require)
             end
         end
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())

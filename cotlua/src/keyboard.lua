@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Keyboard' end
-
 --[[
     keyboard.lua
 
@@ -8,10 +6,10 @@ if Debug then Debug.beginFile 'Keyboard' end
     Future considerations: Custom hotkey system for spells and other GUI
 ]]
 
-OnInit.final("Keyboard", function(require)
-    require 'Users'
-    require 'Variables'
-    require 'Items'
+OnInit.final("Keyboard", function(Require)
+    Require('Users')
+    Require('Variables')
+    Require('Items')
 
     local function Forward_Slash()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
@@ -146,6 +144,4 @@ OnInit.final("Keyboard", function(require)
         TriggerAddCondition(esc, Filter(Escape))
         TriggerAddCondition(forwardslash, Filter(Forward_Slash))
         TriggerAddCondition(period, Filter(Period))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
