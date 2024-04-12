@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Damage' end
-
 --[[
     damage.lua
 
@@ -9,9 +7,9 @@ if Debug then Debug.beginFile 'Damage' end
     TODO: Migrate dps testing dummy to another file?
 ]]
 
-OnInit.final("Damage", function(require)
-    require 'Variables'
-    require 'UnitTable'
+OnInit.final("Damage", function(Require)
+    Require('Variables')
+    Require('UnitTable')
 
     THREAT_CAP  = 4000 ---@type integer 
 
@@ -51,15 +49,15 @@ function OnAcquire()
     local attacker = GetTriggerUnit() ---@type unit 
     local pid = GetPlayerId(GetOwningPlayer(attacker)) + 1
 
-    if GetUnitTypeId(attacker) == DUMMY then
+    if IsDummy(attacker) then
         BlzSetUnitWeaponBooleanField(attacker, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
     elseif GetPlayerController(Player(pid - 1)) ~= MAP_CONTROL_USER then
         Threat[attacker].target = AcquireProximity(attacker, target, 800.)
         TimerQueue:callDelayed(FPS_32, SwitchAggro, attacker, target)
-    elseif attacker == Hero[pid] then
-        LAST_TARGET[pid] = target
-        LAST_ORDER_TARGET[pid] = target
-        if Movespeed[pid] > 522 then
+    elseif Unit[attacker] then
+        Unit[attacker].target = target
+        
+        if Unit[attacker].movespeed > MOVESPEED_MAX then
             BlzSetUnitFacingEx(attacker, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(attacker), GetUnitX(target) - GetUnitX(attacker)))
         end
     end
@@ -213,54 +211,54 @@ function OnDamage()
 
     --TODO move these to a table or rework using missiles
     --arcanist arcane barrage
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A008')) > 0 then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A008')) > 0 then
         UnitRemoveAbility(source, FourCC('A008'))
         DamageTarget(Hero[pid], target, ARCANEBARRAGE.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, ARCANEBARRAGE.tag)
     end
 
     --phoenix ranger searing arrow
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A069')) > 0 then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A069')) > 0 then
         UnitRemoveAbility(source, FourCC('A069'))
         Dummy.create(GetUnitX(source), GetUnitY(source), FourCC('A092'), 1):cast(Player(pid - 1), "slow", target)
         DamageTarget(Hero[pid], target, (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + GetHeroAgi(Hero[pid], true)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, SEARINGARROWS.tag)
     end
 
     --electrocute lightning
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A09W')) > 0 then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A09W')) > 0 then
         UnitRemoveAbility(source, FourCC('A09W'))
         DamageTarget(Hero[pid], target, GetWidgetLife(target) * 0.005, ATTACK_TYPE_NORMAL, PURE, ELEMENTLIGHTNING.tag)
     end
 
     --medean lightning trigger
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A01Y')) > 0 then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A01Y')) > 0 then
         UnitRemoveAbility(source, FourCC('A01Y'))
         DamageTarget(Hero[pid], target, MEDEANLIGHTNING.dmg(pid, GetUnitAbilityLevel(Hero[pid], MEDEANLIGHTNING.id)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, MEDEANLIGHTNING.tag)
     end
 
     --frozen orb icicle
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A09F')) > 0 then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A09F')) > 0 then
         DamageTarget(Hero[pid], target, GetHeroInt(Hero[pid], true) * (0.5 + 0.5 * GetUnitAbilityLevel(Hero[pid], FROZENORB.id)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, FROZENORB.tag)
     end
 
     --satan flame strike
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A0DN')) > 0 and IsUnitEnemy(target, pboss) then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A0DN')) > 0 and IsUnitEnemy(target, pboss) then
         DamageTarget(BossTable[BOSS_SATAN].unit, target, 10000., ATTACK_TYPE_NORMAL, MAGIC, "Flame Onslaught")
     end
 
     --instill fear trigger
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A0AE')) > 0 then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A0AE')) > 0 then
         UnitRemoveAbility(source, FourCC('A0AE'))
         InstillFear[pid] = target
         TimerQueue:callDelayed(7., InstillFearExpire, pid)
     end
 
     --single shot trigger
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A05J')) > 0 then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A05J')) > 0 then
         UnitRemoveAbility(source, FourCC('A05J'))
     end
 
     --blizzard 
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A02O')) > 0 then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A02O')) > 0 then
         amount = 0.00
         local pt = TimerList[pid]:get(BLIZZARD.id, source)
         if pt then
@@ -273,7 +271,7 @@ function OnDamage()
     end
 
     --dark summoner devour
-    if uid == DUMMY and GetUnitAbilityLevel(source, FourCC('A00W')) > 0 then
+    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A00W')) > 0 then
         if tuid == SUMMON_GOLEM then --meat golem
             BorrowedLife[pid * 10] = 0
             UnitAddBonus(meatgolem[pid], BONUS_HERO_STR, - R2I(GetHeroStr(meatgolem[pid], false) * 0.1 * golemDevourStacks[pid]))
@@ -325,7 +323,7 @@ function OnDamage()
     end
 
     --clean up
-    if uid == DUMMY or tuid == DUMMY then
+    if IsDummy(source) then
         BlzSetEventDamage(0.00)
         BlzSetUnitWeaponBooleanField(source, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false) --prevent dummies from attacking twice
 
@@ -1204,6 +1202,4 @@ end
     TriggerAddCondition(ACQUIRE_TRIGGER, Filter(OnAcquire))
 
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DAMAGING, OnDamage)
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
