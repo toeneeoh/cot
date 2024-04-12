@@ -1,13 +1,11 @@
-if Debug then Debug.beginFile 'Dev' end
-
 --[[
     dev.lua
 
     A module used for debugging and testing.
 ]]
 
-OnInit.final("Dev", function(require)
-    require 'Variables'
+OnInit.final("Dev", function(Require)
+    Require('Variables')
 
     EXTRA_DEBUG    = false ---@type boolean 
     DEBUG_HERO    = false ---@type boolean 
@@ -535,10 +533,10 @@ modifiers:
             ShopkeeperMove()
         end,
         ["host"] = function(p, pid, args)
-            local host = User[Player(DetectHost())]
+            local host = DetectHost()
 
             if host then
-                print("The host is " .. host.nameColored)
+                print("The host is " .. User[host].nameColored)
             end
         end,
         ["removetest"] = function(p, pid, args)
@@ -559,6 +557,12 @@ modifiers:
                     BlzTriggerRegisterPlayerKeyEvent(trigger, p, key, metaKey, false)
                 end
             end
+        end,
+        ["handlecount"] = function(p, pid, args)
+            local t = CreateTrigger()
+            local i = GetHandleId(t)
+            DestroyTrigger(t)
+            print(i - 0x100000)
         end,
     }
 
@@ -841,6 +845,4 @@ end
     TimerQueue:callDelayed(0., PreloadItemSearch)
 
     TriggerAddAction(devcmd, DevCommands)
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
