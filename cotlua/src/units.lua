@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Units' end
-
 --[[
     units.lua
 
@@ -7,12 +5,12 @@ if Debug then Debug.beginFile 'Units' end
     Sets up shops, bosses, NPCs, enemy data, etc.
 ]]
 
-OnInit.final("Units", function(require)
-    require 'Helper'
-    require 'Users'
-    require 'Shop'
-    require 'Items'
-    require 'Spells'
+OnInit.final("Units", function(Require)
+    Require('Helper')
+    Require('Users')
+    Require('Shop')
+    Require('Items')
+    Require('Spells')
 
     BossTable           = {} ---@type table[]
     BossNearbyPlayers   = __jarray(0) ---@type integer[] 
@@ -1151,20 +1149,24 @@ end
     --sponsor
     BlzSetUnitMaxHP(udg_SPONSOR, 1)
     BlzSetUnitMaxMana(udg_SPONSOR, 0)
+    UnitAddItemById(udg_SPONSOR, FourCC('I0ML'))
+    UnitAddItemById(udg_SPONSOR, FourCC('I0MH'))
+    UnitAddItemById(udg_SPONSOR, FourCC('I0MI'))
+    UnitAddItemById(udg_SPONSOR, FourCC('I0MJ'))
+    UnitAddItemById(udg_SPONSOR, FourCC('I0MK'))
+    UnitAddItemById(udg_SPONSOR, FourCC('I0MG'))
     --town paladin
     townpaladin = CreateUnit(Player(PLAYER_TOWN), FourCC('H01T'), -176.3, 666, 90.)
     BlzSetUnitMaxMana(townpaladin, 0)
     --prechaos trainer
     prechaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 26205., 252., 270.)
-    local itm = Item.create(CreateItem(FourCC('I0MY'), 30000., 30000.))
-    UnitAddItem(prechaosTrainer, itm.obj)
+    local itm = UnitAddItemById(prechaosTrainer, FourCC('I0MY'))
     BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(UnitData[0][0]) .. "|r")
     BlzSetItemIconPath(itm.obj, BlzGetAbilityIcon(UnitData[0][0]))
     itm.spawn = 0
     --chaos trainer
     chaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 29415., 252., 270.)
-    itm = Item.create(CreateItem(FourCC('I0MY'), 30000., 30000.))
-    UnitAddItem(chaosTrainer, itm.obj)
+    itm = UnitAddItemById(chaosTrainer, FourCC('I0MY'))
     BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(UnitData[1][0]) .. "|r")
     BlzSetItemIconPath(itm.obj, BlzGetAbilityIcon(UnitData[1][0]))
     itm.spawn = 0
@@ -1471,6 +1473,4 @@ end
 
     --ashen vat
     ASHEN_VAT = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h05J'), 20485., -20227., 270.)
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
