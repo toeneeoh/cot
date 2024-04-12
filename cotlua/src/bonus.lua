@@ -1,12 +1,10 @@
-if Debug then Debug.beginFile 'Bonus' end
-
 --[[
     bonus.lua
 
     A module that provides direct modification of a unit's stats using object natives.
 ]]
 
-OnInit.global("Bonus", function()
+OnInit.global("Bonus", function(Require)
 
     BONUS_ARMOR                    = 1
     BONUS_DAMAGE                   = 2
@@ -18,16 +16,16 @@ OnInit.global("Bonus", function()
     BONUS_HERO_BASE_STR            = 8
     BONUS_HERO_BASE_AGI            = 9
     BONUS_HERO_BASE_INT            = 10
+    BONUS_MOVE_SPEED               = 11
     EVENT_STAT_CHANGE              = __jarray()
 
     local BONUS_ABIL = { ---@type integer
-        FourCC('Z000'),
-        FourCC('Z001'),
-        FourCC('Z002'),
-        FourCC('Z002'),
-        FourCC('Z002'),
-        FourCC('Z005'),
-        FourCC('Z006')
+        [BONUS_ARMOR] = FourCC('Z000'),
+        [BONUS_DAMAGE] = FourCC('Z001'),
+        [BONUS_HERO_STR] = FourCC('Z002'),
+        [BONUS_HERO_AGI] = FourCC('Z002'),
+        [BONUS_HERO_INT] = FourCC('Z002'),
+        [BONUS_ATTACK_SPEED] = FourCC('Z006')
     }
 
     local BONUS_IFIELD = { ---@type abilityintegerlevelfield[] 
@@ -36,13 +34,16 @@ OnInit.global("Bonus", function()
         ABILITY_ILF_STRENGTH_BONUS_ISTR,
         ABILITY_ILF_AGILITY_BONUS,
         ABILITY_ILF_INTELLIGENCE_BONUS,
-        ABILITY_ILF_HIT_POINTS_REGENERATED_PER_SECOND
     }
 
     --special case behaviors for certain stats
     local bonus_getters = {
-        [BONUS_LIFE_REGEN] = function(u) return  BlzGetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE) end,
+        [BONUS_LIFE_REGEN] = function(u) return BlzGetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE) end,
         [BONUS_ATTACK_SPEED] = function(u, bonus) return BlzGetAbilityRealLevelField(BlzGetUnitAbility(u, BONUS_ABIL[bonus]), ABILITY_RLF_ATTACK_SPEED_INCREASE_ISX1, 0) end,
+
+        [BONUS_HERO_BASE_STR] = function(u) return GetHeroStr(u, false) end,
+        [BONUS_HERO_BASE_AGI] = function(u) return GetHeroAgi(u, false) end,
+        [BONUS_HERO_BASE_INT] = function(u) return GetHeroInt(u, false) end,
     }
 
     local bonus_setters = {
@@ -51,10 +52,20 @@ OnInit.global("Bonus", function()
         [BONUS_HERO_BASE_STR] = function(u, _, amount) return SetHeroStr(u, amount, true) end,
         [BONUS_HERO_BASE_AGI] = function(u, _, amount) return SetHeroAgi(u, amount, true) end,
         [BONUS_HERO_BASE_INT] = function(u, _, amount) return SetHeroInt(u, amount, true) end,
+        [BONUS_MOVE_SPEED] = function(u, _, amount)
+            local pid = GetPlayerId(GetOwningPlayer(u)) + 1
+            local ms = Unit[u].flatMS * Unit[u].percentMS
+
+            if u == Hero[pid] then
+                --have backpack move at highest possible speed
+                SetUnitMoveSpeed(Backpack[pid], math.max(ms, amount))
+            end
+            SetUnitMoveSpeed(u, amount)
+        end,
     }
 
     --default behavior for getters and setters (integer level fields)
-    local default_getter = function(u, bonus) return BlzGetAbilityIntegerLevelField(BlzGetUnitAbility(u, BONUS_ABIL[bonus]), BONUS_IFIELD[bonus], 0) * 1. end
+    local default_getter = function(u, bonus) return BlzGetAbilityIntegerLevelField(BlzGetUnitAbility(u, BONUS_ABIL[bonus]), BONUS_IFIELD[bonus], 0) end
     setmetatable(bonus_getters, { __index = function() return default_getter end})
 
     local default_setter = function(u, bonus, amount) return BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(u, BONUS_ABIL[bonus]), BONUS_IFIELD[bonus], 0, R2I(amount)) end
@@ -67,15 +78,16 @@ OnInit.global("Bonus", function()
 
     ---@type fun(u: unit, bonus: integer, amount: number)
     function UnitSetBonus(u, bonus, amount)
-        if GetUnitAbilityLevel(u, BONUS_ABIL[bonus]) == 0 then
-            UnitAddAbility(u, BONUS_ABIL[bonus])
-            UnitMakeAbilityPermanent(u, true, BONUS_ABIL[bonus])
+        local abil = BONUS_ABIL[bonus] or 0
+
+        if UnitAddAbility(u, abil) then
+            UnitMakeAbilityPermanent(u, true, abil)
         end
 
         bonus_setters[bonus](u, bonus, amount)
 
-        IncUnitAbilityLevel(u, BONUS_ABIL[bonus])
-        DecUnitAbilityLevel(u, BONUS_ABIL[bonus])
+        IncUnitAbilityLevel(u, abil)
+        DecUnitAbilityLevel(u, abil)
 
         --trigger stat change event
         if EVENT_STAT_CHANGE[u] then
@@ -89,6 +101,4 @@ OnInit.global("Bonus", function()
             UnitSetBonus(u, bonus, UnitGetBonus(u, bonus) + amount)
         end
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
