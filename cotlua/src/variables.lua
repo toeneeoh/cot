@@ -1,13 +1,11 @@
-if Debug then Debug.beginFile 'Variables' end
-
 --[[
     variables.lua
 
     A big bucket of defined globals.
 ]]
 
-OnInit.global("Variables", function(require)
-    require 'Users'
+OnInit.global("Variables", function(Require)
+    Require('Users')
 
     DEV_ENABLED         = false
     MAP_NAME            = "CoT Nevermore"
@@ -30,7 +28,8 @@ OnInit.global("Variables", function(require)
     FPS_64                             = 0.015625
 
     --units
-    DUMMY                              = FourCC('e011')
+    DUMMY_CASTER                       = FourCC('e011')
+    DUMMY_VISION                       = FourCC('eRez')
     GRAVE                              = FourCC('H01G')
     BACKPACK                           = FourCC('H05D')
     HERO_PHOENIX_RANGER                = FourCC('E00X')
@@ -265,8 +264,6 @@ OnInit.global("Variables", function(require)
     MAIN_MAP.centerX = (MAIN_MAP.minX + MAIN_MAP.maxX) / 2.00
     MAIN_MAP.centerY = (MAIN_MAP.minY + MAIN_MAP.maxY) / 2.00
 
-    BuffMovespeed     = __jarray(0) ---@type integer[] 
-    ItemMovespeed     = __jarray(0) ---@type integer[] 
     ItemMagicRes      = __jarray(0) ---@type number[] 
     ItemGoldRate      = __jarray(0) ---@type integer[] 
 
@@ -343,7 +340,6 @@ OnInit.global("Variables", function(require)
     ShieldCount=__jarray(0) ---@type integer[] 
     RollChecks=__jarray(0) ---@type integer[] 
     HuntedLevel=__jarray(0) ---@type integer[] 
-    Movespeed=__jarray(0) ---@type integer[] 
     CustomLighting=__jarray(0) ---@type integer[] 
 
     BoostValue=__jarray(0) ---@type number[] 
@@ -410,7 +406,6 @@ OnInit.global("Variables", function(require)
     chatButton=nil ---@type framehandle 
     questButton=nil ---@type framehandle 
     allyButton=nil ---@type framehandle 
-    clockText=nil ---@type framehandle 
     showhidemenu=nil ---@type framehandle 
     upperbuttonBar=nil ---@type framehandle 
     dummyFrame=nil ---@type framehandle 
@@ -1834,6 +1829,4 @@ OnInit.global("Variables", function(require)
         ForceAddPlayer(FORCE_HINT, U.player)
         U = U.next
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
