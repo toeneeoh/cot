@@ -1,87 +1,11 @@
-if Debug then Debug.beginFile "Helper" end
-
 --[[
     helper.lua
 
     A general purpose module with a myriad of useful helper functions and structs for use across files.
 ]]
 
-do
-    --iterator for groups with counter
-    ---@param ug group
-    ---@return fun(): integer?, unit?
-    function ieach(ug)
-        local index = -1
-        local length = BlzGroupGetSize(ug)
-
-        return function()
-            index = index + 1
-            if index < length then
-                return index, BlzGroupUnitAt(ug, index)
-            end
-        end
-    end
-
-    --iterator for groups
-    ---@param ug group
-    ---@return fun(): unit?
-    function each(ug)
-        local index = -1
-        local length = BlzGroupGetSize(ug)
-
-        return function()
-            index = index + 1
-            if index < length then
-                return BlzGroupUnitAt(ug, index)
-            end
-        end
-    end
-
-    --credits: Bribe
-    local mts = {}
-    local weakKeys = {__mode="k"} --ensures tables with non-nilled objects as keys will be garbage collected.
-
-    ---Re-define __jarray.
-    ---@param default? any
-    ---@param tab? table
-    ---@return table
-    __jarray = function(default, tab)
-        local mt
-        if default then
-            mts[default]=mts[default] or {
-                __index=function()
-                    return default
-                end,
-                __mode="k"
-            }
-            mt=mts[default]
-        else
-            mt=weakKeys
-        end
-        return setmetatable(tab or {}, mt)
-    end
-
-    local nested_mts = {}
-
-    --returns a 2d array with a default value
-    ---@type fun(val: any): table
-    function array2d(val)
-        local key = val or "___"
-
-        nested_mts[key] = nested_mts[key] or {
-            __index = function(t, k)
-                local new = (val and __jarray(val)) or {}
-
-                rawset(t, k, new)
-                return new
-            end}
-
-        return setmetatable({}, nested_mts[key])
-    end
-end
-
-OnInit.global("Helper", function(require)
-    require 'Variables'
+OnInit.global("Helper", function(Require)
+    Require('Variables')
 
     ---@class CircularArrayList
     ---@field iterator function
@@ -1221,6 +1145,13 @@ function RemainingTimeString(t)
     return (minutes > 0 and (minutes) .. " minutes") or (seconds) .. " seconds"
 end
 
+---@type fun(u: unit): boolean
+function IsDummy(u)
+    local id = GetUnitTypeId(u)
+
+    return (id == DUMMY_CASTER or id == DUMMY_VISION)
+end
+
 local tempplayer = nil
 function ItemRepickRemove()
     if Item[GetEnumItem()].owner == tempplayer then
@@ -1235,7 +1166,7 @@ function FilterDespawn()
     return IsUnitEnemy(u, pfoe) and
         UnitAlive(u) and
         GetUnitTypeId(u) ~= BACKPACK and
-        GetUnitTypeId(u) ~= DUMMY and
+        not IsDummy(u) and
         GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
         GetPlayerId(GetOwningPlayer(u)) <= PLAYER_CAP
 end
@@ -1273,7 +1204,9 @@ end
 
 ---@return boolean
 function FilterNotHero()
-    return (IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == false and UnitAlive(GetFilterUnit()) and GetUnitTypeId(GetFilterUnit()) ~= DUMMY)
+    local u = GetFilterUnit()
+
+    return (IsUnitType(u, UNIT_TYPE_HERO) == false and UnitAlive(u) and not IsDummy(u))
 end
 
 ---@return boolean
@@ -1319,12 +1252,16 @@ end
 
 ---@return boolean
 function isplayerunitRegion()
-    return (UnitAlive(GetFilterUnit()) and GetPlayerId(GetOwningPlayer(GetFilterUnit())) <= PLAYER_CAP and GetUnitTypeId(GetFilterUnit()) ~= DUMMY)
+    local u = GetFilterUnit()
+
+    return (UnitAlive(u) and GetPlayerId(GetOwningPlayer(u)) <= PLAYER_CAP and not IsDummy(u))
 end
 
 ---@return boolean
 function isplayerunit()
-    return (UnitAlive(GetFilterUnit()) and GetPlayerId(GetOwningPlayer(GetFilterUnit())) <= PLAYER_CAP and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and GetUnitTypeId(GetFilterUnit()) ~= DUMMY)
+    local u = GetFilterUnit()
+
+    return (UnitAlive(u) and GetPlayerId(GetOwningPlayer(u)) <= PLAYER_CAP and GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and not IsDummy(u))
 end
 
 ---@return boolean
@@ -1336,7 +1273,7 @@ function ishostileEnemy()
     (UnitAlive(u) and
     GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
     i <= PLAYER_CAP and
-    GetUnitTypeId(u) ~= DUMMY)
+    not IsDummy(u))
 end
 
 ---@return boolean
@@ -1346,7 +1283,7 @@ function isalive()
     return
     (UnitAlive(u) and
     GetUnitAbilityLevel(u, FourCC('Avul')) == 0
-    and GetUnitTypeId(u) ~= DUMMY)
+    and not IsDummy(u))
 end
 
 local unit_drop_types = {
@@ -1463,7 +1400,7 @@ function RemovePlayerUnits(pid)
     GroupEnumUnitsOfPlayer(ug, Player(pid - 1), nil)
 
     for target in each(ug) do
-        if GetUnitTypeId(target) ~= DUMMY then
+        if not IsDummy(target) then
             Buff.dispelAll(target)
             RemoveUnit(target)
         end
@@ -1935,25 +1872,25 @@ function ShowHeroCircle(p, show)
         end
     else
         if GetLocalPlayer() == p then
-            BlzSetUnitSkin(gg_unit_H02A_0568, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_H03N_0612, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_H04Z_0604, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_H012_0605, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_U003_0081, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_H01N_0606, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_H01S_0607, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_H05B_0608, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_H029_0617, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_O02S_0615, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_H00R_0610, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_E00G_0616, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_E012_0613, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_E00W_0614, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_E002_0585, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_O03J_0609, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_E015_0586, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_E008_0587, FourCC('eRez'))
-            BlzSetUnitSkin(gg_unit_E00X_0611, FourCC('eRez'))
+            BlzSetUnitSkin(gg_unit_H02A_0568, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_H03N_0612, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_H04Z_0604, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_H012_0605, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_U003_0081, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_H01N_0606, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_H01S_0607, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_H05B_0608, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_H029_0617, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_O02S_0615, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_H00R_0610, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_E00G_0616, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_E012_0613, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_E00W_0614, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_E002_0585, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_O03J_0609, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_E015_0586, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_E008_0587, DUMMY_VISION)
+            BlzSetUnitSkin(gg_unit_E00X_0611, DUMMY_VISION)
         end
     end
 end
@@ -2027,8 +1964,6 @@ function PlayerCleanup(pid)
     SetCurrency(pid, PLATINUM, 0)
     SetCurrency(pid, ARCADITE, 0)
     SetCurrency(pid, CRYSTAL, 0)
-    ItemMovespeed[pid] = 0
-    BuffMovespeed[pid] = 0
     ItemGoldRate[pid] = 0
     HeartBlood[pid] = 0
     BardSong[pid] = 0
@@ -2128,6 +2063,105 @@ function ShowHeroPanel(p, p2, show)
         SetPlayerAllianceBJ(p2, ALLIANCE_SHARED_CONTROL, false, p)
     else
         SetPlayerAllianceBJ(p2, ALLIANCE_SHARED_ADVANCED_CONTROL, false, p)
+    end
+end
+
+function RefreshHeroes()
+    local U = User.first
+
+    while U do
+        if HeroID[U.id] > 0 then
+            --update boost variance every second
+            BOOST[U.id] = 1. + BoostValue[U.id] + GetRandomReal(-0.2, 0.2)
+            LBOOST[U.id] = 1. + 0.5 * BoostValue[U.id]
+
+            if DEV_ENABLED then
+                if BOOST_OFF then
+                    BOOST[U.id] = (1. + BoostValue[U.id])
+                end
+            end
+
+            --cooldowns
+            UpdateManaCosts(U.id)
+
+            --intense focus
+            if (HasProficiency(U.id, PROF_BOW) and
+                GetUnitAbilityLevel(Hero[U.id], FourCC('A0B9')) > 0 and
+                UnitAlive(Hero[U.id]) and
+                LAST_HERO_X[U.id] == GetUnitX(Hero[U.id]) and
+                LAST_HERO_Y[U.id] == GetUnitY(Hero[U.id]))
+            then
+                IntenseFocus[U.id] = IMinBJ(10, IntenseFocus[U.id] + 1)
+            else
+                IntenseFocus[U.id] = 0
+            end
+
+            --keep track of hero positions
+            LAST_HERO_X[U.id] = GetUnitX(Hero[U.id])
+            LAST_HERO_Y[U.id] = GetUnitY(Hero[U.id])
+
+            --PVP leave range
+            if ArenaQueue[U.id] > 0 and IsUnitInRangeXY(Hero[U.id], -1311., 2905., 1000.) == false then
+                ArenaQueue[U.id] = 0
+                DisplayTimedTextToPlayer(p.player, 0, 0, 5.0, "You have been removed from the PvP queue.")
+            end
+
+            local hp = GetWidgetLife(Hero[U.id]) / BlzGetUnitMaxHP(Hero[U.id])
+
+            --backpack hp/mp percentage and movespeed
+            if hp >= 0.01 then
+                SetWidgetLife(Backpack[U.id], BlzGetUnitMaxHP(Backpack[U.id]) * hp)
+                local mp = GetUnitState(Hero[U.id], UNIT_STATE_MANA) / GetUnitState(Hero[U.id], UNIT_STATE_MAX_MANA)
+                SetUnitState(Backpack[U.id], UNIT_STATE_MANA, GetUnitState(Backpack[U.id], UNIT_STATE_MAX_MANA) * mp)
+                --SetUnitMoveSpeed(Backpack[U.id], Unit[Hero[U.id]].flatMS * Unit[Hero[U.id]].percentMS)
+            end
+
+            --tooltips
+            UpdateSpellTooltips(U.id)
+
+            --TODO for now use 900 as default aura range
+            local ug = CreateGroup()
+            MakeGroupInRange(U.id, ug, GetUnitX(Hero[U.id]), GetUnitY(Hero[U.id]), 900. * LBOOST[U.id], Condition(isalive))
+
+            for target in each(ug) do
+                if IsUnitAlly(target, Player(U.id - 1)) then
+                    if InspireBuff:has(Hero[U.id], Hero[U.id]) then
+                        InspireBuff:add(Hero[U.id], target):duration(1.)
+                        local b = InspireBuff:get(nil, target)
+                        b:strongest(math.max(b.ablev, GetUnitAbilityLevel(Hero[U.id], INSPIRE.id)))
+                    end
+                    if BardSong[U.id] == SONG_WAR then
+                        SongOfWarBuff:add(Hero[U.id], target)
+                        SongOfWarBuff:refresh(Hero[U.id], target, 2.)
+                    end
+                    if GetUnitAbilityLevel(Hero[U.id], PROTECTOR.id) > 0 then
+                        ProtectedBuff:add(Hero[U.id], target):duration(2.)
+                    end
+                    if FightMeCasterBuff:has(Hero[U.id], Hero[U.id]) and target ~= Hero[U.id] then
+                        FightMeBuff:add(Hero[U.id], target):duration(2.)
+                    end
+                    if GetUnitAbilityLevel(Hero[U.id], AURAOFJUSTICE.id) > 0 then
+                        JusticeAuraBuff:add(Hero[U.id], target):duration(2.)
+                        local b = JusticeAuraBuff:get(nil, target)
+                        b:strongest(math.max(b.ablev, GetUnitAbilityLevel(Hero[U.id], AURAOFJUSTICE.id)))
+                    end
+                    --drum of war
+                    if GetUnitAbilityLevel(Hero[U.id], FourCC('A04I')) > 0 then
+                        EmpyreanSongBuff:add(Hero[U.id], target):duration(2.)
+                    end
+                elseif IsUnitAlly(target, Player(U.id - 1)) == false and UnitIsSleeping(target) == false then
+                    if BardSong[U.id] == SONG_FATIGUE then
+                        SongOfFatigueSlow:add(Hero[U.id], target):duration(2.)
+                    elseif masterElement[U.id] == ELEMENTICE.value then
+                        IceElementSlow:add(Hero[U.id], target):duration(2.)
+                    end
+                end
+            end
+
+            DestroyGroup(ug)
+        end
+
+        U = U.next
     end
 end
 
@@ -3505,86 +3539,79 @@ end
 
 ---@return boolean
 function FilterEnemyDead()
-    if GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Aloc')) == 0 and GetUnitTypeId(GetFilterUnit()) ~= DUMMY then
-        if IsUnitAlly(GetFilterUnit(), Player(passedValue[#passedValue] - 1)) == false then
-            return true
-        end
-    end
+    local u = GetFilterUnit()
 
-    return false
+    return GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+    GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
+    not IsDummy(u) and
+    IsUnitAlly(u, Player(passedValue[#passedValue] - 1)) == false
 end
 
 ---@type fun():boolean
 function FilterEnemy()
     local u = GetFilterUnit()
 
-    if UnitAlive(u) and
-        IsUnitEnemy(u, Player(passedValue[#passedValue] - 1)) and
-        GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
-        GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
-        GetUnitTypeId(u) ~= DUMMY then
-        return true
-    end
-
-    return false
+    return UnitAlive(u) and
+    IsUnitEnemy(u, Player(passedValue[#passedValue] - 1)) and
+    GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+    GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
+    not IsDummy(u)
 end
 
 ---@return boolean
 function FilterAllyHero()
     local u = GetFilterUnit()
 
-    if UnitAlive(u) and
-        IsUnitAlly(u, Player(passedValue[#passedValue] - 1)) == true and
-        IsUnitType(u, UNIT_TYPE_HERO) == true and
-        GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
-        GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
-        GetUnitTypeId(u) ~= DUMMY then
-        return true
-    end
-
-    return false
+    return UnitAlive(u) and
+    IsUnitAlly(u, Player(passedValue[#passedValue] - 1)) == true and
+    IsUnitType(u, UNIT_TYPE_HERO) == true and
+    GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+    GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
+    not IsDummy(u)
 end
 
 ---@return boolean
 function FilterAlly()
-    if UnitAlive(GetFilterUnit()) and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Aloc')) == 0 and GetUnitTypeId(GetFilterUnit()) ~= DUMMY then
-        if IsUnitAlly(GetFilterUnit(), Player(passedValue[#passedValue] - 1)) == true then
-            return true
-        end
-    end
+    local u = GetFilterUnit()
 
-    return false
+    return UnitAlive(u) and
+    GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+    GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
+    not IsDummy(u) and
+    IsUnitAlly(u, Player(passedValue[#passedValue] - 1)) == true
 end
 
 ---@return boolean
 function FilterEnemyAwake()
-    if UnitAlive(GetFilterUnit()) and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Aloc')) == 0 and GetUnitTypeId(GetFilterUnit()) ~= DUMMY then
-        if IsUnitAlly(GetFilterUnit(), Player(passedValue[#passedValue] - 1)) == false and UnitIsSleeping(GetFilterUnit()) == false then
-            return true
-        end
-    end
+    local u = GetFilterUnit()
 
-    return false
+    return UnitAlive(u) and
+    GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+    GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
+    not IsDummy(u) and
+    IsUnitAlly(u, Player(passedValue[#passedValue] - 1)) == false and
+    UnitIsSleeping(u) == false
 end
 
 ---@return boolean
 function FilterNotIllusion()
-    if UnitAlive(GetFilterUnit()) and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Aloc')) == 0 and GetUnitTypeId(GetFilterUnit()) ~= DUMMY then
-        if IsUnitIllusion(GetFilterUnit()) == false then
-            return true
-        end
-    end
+    local u = GetFilterUnit()
 
-    return false
+    return UnitAlive(u) and
+    GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+    GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
+    not IsDummy(u) and
+    IsUnitIllusion(u) == false
 end
 
 ---@return boolean
 function FilterAlive()
-    if UnitAlive(GetFilterUnit()) and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Aloc')) == 0 and GetUnitTypeId(GetFilterUnit()) ~= DUMMY then
-        return true
-    end
+    local u = GetFilterUnit()
 
-    return false
+    return UnitAlive(u) and
+    GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+    GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
+    not IsDummy(u)
 end
 
 ---@type fun(enemy: unit, player: player): boolean
@@ -4218,7 +4245,11 @@ end
 
 ---@return boolean
 local function ProximityFilter()
-    return (GetUnitTypeId(GetFilterUnit()) ~= DUMMY and GetUnitAbilityLevel(GetFilterUnit(), FourCC('Avul')) == 0 and GetPlayerId(GetOwningPlayer(GetFilterUnit())) < PLAYER_CAP)
+    local u = GetFilterUnit()
+
+    return not IsDummy(u) and
+    GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+    GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP
 end
 
 ---@type fun(source: unit, target: unit, dist: number):unit
@@ -4315,8 +4346,7 @@ local mana_costs = {
         BlzSetUnitAbilityManaCost(Hero[pid], PHANTOMSLASH.id, GetUnitAbilityLevel(Hero[pid], PHANTOMSLASH.id) - 1, Roundmana(maxmana * (.1 - 0.025 * GetUnitAbilityLevel(Hero[pid], PHANTOMSLASH.id))))
     end,
     [HERO_BARD] = function(maxmana, pid)
-        BardMelodyCost[pid] = Roundmana(GetUnitState(Hero[pid], UNIT_STATE_MANA) * .1)
-        BlzSetUnitAbilityManaCost(Hero[pid], MELODYOFLIFE.id, GetUnitAbilityLevel(Hero[pid], MELODYOFLIFE.id) - 1, R2I(BardMelodyCost[pid]))
+        BlzSetUnitAbilityManaCost(Hero[pid], MELODYOFLIFE.id, GetUnitAbilityLevel(Hero[pid], MELODYOFLIFE.id) - 1, R2I(MELODYOFLIFE.cost(pid)))
         BlzSetUnitAbilityManaCost(Hero[pid], INSPIRE.id, GetUnitAbilityLevel(Hero[pid], INSPIRE.id) - 1, Roundmana(maxmana * .02))
         BlzSetUnitAbilityManaCost(Hero[pid], TONEOFDEATH.id, GetUnitAbilityLevel(Hero[pid], TONEOFDEATH.id) - 1, Roundmana(maxmana * .2))
     end,
@@ -4356,6 +4386,4 @@ function UpdateManaCosts(pid)
     end
 end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
