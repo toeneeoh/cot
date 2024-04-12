@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Orders' end
-
 --[[
     orders.lua
 
@@ -9,9 +7,10 @@ if Debug then Debug.beginFile 'Orders' end
         EVENT_PLAYER_UNIT_ISSUED_ORDER)
 ]]
 
-OnInit.final("Orders", function(require)
-    require 'Users'
-    require 'Units'
+OnInit.final("Orders", function(Require)
+    Require('Users')
+    Require('Units')
+    Require('Movespeed')
 
     --define frequently used ids
     ORDER_ID_MOVE           = 851986
@@ -25,9 +24,6 @@ OnInit.final("Orders", function(require)
     ORDER_ID_UNIMMOLATION   = 852178
 
     metamorphosis = __jarray(0) ---@type number[] 
-    LAST_TARGET   = {} ---@type unit[] 
-    LAST_ORDER_TARGET = {} ---@type unit[] 
-    Moving        = {} ---@type boolean[] 
 
     local OrderTable = {
         [ORDER_ID_HOLD_POSITION] = function(id, source, p, pid)
@@ -46,6 +42,7 @@ OnInit.final("Orders", function(require)
 
             local b = Fear:get(nil, source)
 
+            --reissue movement order to feared units
             if b then
                 IssuePointOrder(source, "move", b.x, b.y)
             end
@@ -269,19 +266,23 @@ function OnOrder()
     end
 
     --cache issued point / target
-    if source == Hero[pid] then
+    if Unit[source] then
         if target or (x ~= 0 and y ~= 0) then
-            clickedPoint[pid] = { targetX or x, targetY or y }
+            Unit[source].orderX = targetX or x
+            Unit[source].orderY = targetY or y
 
-            if Movespeed[pid] > 522 then
-                BlzSetUnitFacingEx(source, bj_RADTODEG * Atan2(clickedPoint[pid][2] - GetUnitY(source), clickedPoint[pid][1] - GetUnitX(source)))
+            if Unit[source].movespeed > MOVESPEED_MAX then
+                BlzSetUnitFacingEx(source, bj_RADTODEG * Atan2(Unit[source].orderY - GetUnitY(source), Unit[source].orderX - GetUnitX(source)))
+
+                --add to custom movement speed table
+                if not TableHas(MOVESPEED, source) then
+                    MOVESPEED[#MOVESPEED + 1] = source
+                end
             end
         end
 
-        LAST_ORDER_TARGET[pid] = target
-
         if IsUnitEnemy(target, Player(pid - 1)) then
-            LAST_TARGET[pid] = target
+            Unit[source].target = target
         end
     end
 
@@ -334,7 +335,7 @@ function OnOrder()
             end
         end
 
-        local x2, y2 = GetUnitX(source), GetUnitY(source)
+        --[[local x2, y2 = GetUnitX(source), GetUnitY(source)
 
         if source == Hero[pid] then
             if (id == ORDER_ID_SMART or id == ORDER_ID_ATTACK) and CoordinateQueue[pid] then
@@ -345,7 +346,7 @@ function OnOrder()
             if A_STAR_PATHING and (id == ORDER_ID_SMART or id == ORDER_ID_ATTACK) and x ~= 0 and y ~= 0 then
                 QueuePathing(source, x2, y2, x, y)
             end
-        end
+        end]]
 
         if nocd[pid] then
             TimerQueue:callDelayed(0.1, ResetCD, pid)
@@ -360,6 +361,4 @@ end
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_ORDER, OnOrder)
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, OnOrder)
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, OnOrder)
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
