@@ -1,13 +1,11 @@
-if Debug then Debug.beginFile 'Commands' end
-
 --[[
     commands.lua
 
     A library to handle player chat commands with related functions.
 ]]
 
-OnInit.final("Commands", function(require)
-    require 'Users'
+OnInit.final("Commands", function(Require)
+    Require('Users')
 
     VoteYay            = 0
     VoteNay            = 0
@@ -75,21 +73,22 @@ OnInit.final("Commands", function(require)
             myRoll(pid)
         end,
         ["-estats"] = function(p, pid, args)
-            if PlayerSelectedUnit[pid] then
-                local atkspeed = 1. / BlzGetUnitAttackCooldown(PlayerSelectedUnit[pid], 0)
-                if IsUnitType(PlayerSelectedUnit[pid], UNIT_TYPE_HERO) then
-                    atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(PlayerSelectedUnit[pid], true) + R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
+            local u = PlayerSelectedUnit[pid]
+            if u then
+                local atkspeed = 1. / BlzGetUnitAttackCooldown(u, 0)
+                if IsUnitType(u, UNIT_TYPE_HERO) then
+                    atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(u, true) + R2I(UnitGetBonus(u, BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
                 else
-                    atkspeed = atkspeed * (1 + IMinBJ(R2I(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
+                    atkspeed = atkspeed * (1 + IMinBJ(R2I(UnitGetBonus(u, BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
                 end
 
-                DisplayTimedTextToPlayer(p, 0, 0, 20, GetUnitName(PlayerSelectedUnit[pid]))
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "Level: " .. (GetUnitLevel(PlayerSelectedUnit[pid])))
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "Health: " .. RealToString(GetWidgetLife(PlayerSelectedUnit[pid])) .. " / " .. RealToString(BlzGetUnitMaxHP(PlayerSelectedUnit[pid])))
+                DisplayTimedTextToPlayer(p, 0, 0, 20, GetUnitName(u))
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "Level: " .. (GetUnitLevel(u)))
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "Health: " .. RealToString(GetWidgetLife(u)) .. " / " .. RealToString(BlzGetUnitMaxHP(u)))
                 DisplayTimedTextToPlayer(p, 0, 0, 20, "|cffffcc00Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff800040Regeneration: |r" .. R2S(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) .. " health per second")
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff008080Evasion: |r" .. IMinBJ(100, (Unit[PlayerSelectedUnit[pid]].evasion)) .. "\x25")
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "Movespeed: " .. RealToString(GetUnitMoveSpeed(PlayerSelectedUnit[pid])))
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff800040Regeneration: |r" .. R2S(UnitGetBonus(u, BONUS_LIFE_REGEN)) .. " health per second")
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff008080Evasion: |r" .. IMinBJ(100, (Unit[u].evasion)) .. "\x25")
+                DisplayTimedTextToPlayer(p, 0, 0, 20, "Movespeed: " .. RealToString(Unit[u].movespeed))
             else
                 DisplayTimedTextToPlayer(p, 0, 0, 20, "Please click a valid unit!")
             end
@@ -126,7 +125,7 @@ OnInit.final("Commands", function(require)
             ShowExpRate(p, pid)
         end,
         ["-ms"] = function(p, pid, args)
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "Movespeed: " .. (Movespeed[pid]))
+            DisplayTimedTextToPlayer(p, 0, 0, 10, "Movespeed: " .. (Unit[Hero[pid]].movespeed))
         end,
         ["-as"] = function(p, pid, args)
             local atkspeed = 1 / BlzGetUnitAttackCooldown(Hero[pid], 0)
@@ -136,7 +135,7 @@ OnInit.final("Commands", function(require)
             DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Total Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second.")
         end,
         ["-speed"] = function(p, pid, args)
-            DisplayTimedTextToPlayer(p, 0, 0, 10, "Movespeed: " .. (Movespeed[pid]))
+            DisplayTimedTextToPlayer(p, 0, 0, 10, "Movespeed: " .. (Unit[Hero[pid]].movespeed))
             local atkspeed = 1. / BlzGetUnitAttackCooldown(Hero[pid], 0)
             DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00Base Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
 
@@ -635,6 +634,4 @@ end
     end
 
     TriggerAddCondition(commands, Condition(CustomCommands))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
