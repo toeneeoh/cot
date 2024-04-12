@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Chaos' end
-
 OnInit.final("Chaos", function()
 
 function OpenGodsPortal()
@@ -282,6 +280,4 @@ function BeginChaos()
     TimerQueue:callDelayed(3., SetupChaos)
 end
 
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
