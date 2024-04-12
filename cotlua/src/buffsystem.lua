@@ -1,8 +1,6 @@
-if Debug then Debug.beginFile 'BuffSystem' end
-
-OnInit.global("BuffSystem", function(require)
-    require 'TimerQueue'
-    require 'UnitEvent'
+OnInit.global("BuffSystem", function(Require)
+    Require('TimerQueue')
+    Require('UnitEvent')
 
     -------------------------------//
     ----------- BUFF TYPES --------//
@@ -256,10 +254,13 @@ OnInit.global("BuffSystem", function(require)
         end
 
         function thistype:removeAll()
-            if #buffs > 0 then
-                repeat
-                    buffs[1]:remove()
-                until not buffs[1]
+            local i = 1
+            while i <= #buffs do
+                if buffs[i].RAWCODE == self.RAWCODE then
+                    buffs[i]:remove()
+                else
+                    i = i + 1
+                end
             end
         end
 
@@ -294,6 +295,4 @@ OnInit.global("BuffSystem", function(require)
             thistype.dispelAll(GetTriggerUnit())
         end)
     end
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
