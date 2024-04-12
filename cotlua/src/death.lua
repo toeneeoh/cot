@@ -1,5 +1,3 @@
-if Debug then Debug.beginFile 'Death' end
-
 --[[
     death.lua
 
@@ -7,10 +5,10 @@ if Debug then Debug.beginFile 'Death' end
     and provides related functions and globals
 ]]
 
-OnInit.final("Death", function(require)
-    require 'Users'
-    require 'Variables'
-    require 'Units'
+OnInit.final("Death", function(Require)
+    Require('Users')
+    Require('Variables')
+    Require('Units')
 
     despawnGroup        = {} ---@type unit[]
     HeroReviveIndicator = {} ---@type effect[] 
@@ -831,6 +829,4 @@ end
     TriggerRegisterUnitEvent(death, evilshopkeeper, EVENT_UNIT_DEATH)
 
     TriggerAddCondition(death, Condition(OnDeath))
-end)
-
-if Debug then Debug.endFile() end
+end, Debug.getLine())
