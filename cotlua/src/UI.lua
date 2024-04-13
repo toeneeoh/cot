@@ -7,6 +7,7 @@
 OnInit.final("UI", function(Require)
     Require('HeroSelect')
     Require('Commands')
+    Require('ShopComponent') --use for button generation
 
     local function onclick()
         if GetTriggerPlayer() == GetLocalPlayer() then
@@ -492,7 +493,49 @@ OnInit.final("UI", function(Require)
     do
         CONVERTER_FRAME = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
         BlzFrameSetTexture(CONVERTER_FRAME, "TransparentTexture.blp", 0, true)
+        BlzFrameSetSize(CONVERTER_FRAME, 0.006, 0.006)
+        BlzFrameSetPoint(CONVERTER_FRAME, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, 0, -0.024)
 
+        --converter buttons
+        local onConvert = function()
+            local frame = Button.table[BlzGetTriggerFrame()]
+            local pid = GetPlayerId(GetTriggerPlayer()) + 1
+
+            if ConverterBought[pid] then
+                local enabled
+
+                if frame == PLAT_CONVERT then
+                    enabled = not PlatConverter[pid]
+                    PlatConverter[pid] = enabled
+                elseif frame == ARCA_CONVERT then
+                    enabled = not ArcaConverter[pid]
+                    ArcaConverter[pid] = enabled
+                end
+
+                if GetLocalPlayer() == Player(pid - 1) then
+                    frame:enabled(enabled)
+                end
+            end
+
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzFrameSetEnable(frame.frame, false)
+                BlzFrameSetEnable(frame.frame, true)
+            end
+        end
+
+        PLAT_CONVERT = Button.create(CONVERTER_FRAME, 0.018, 0.018, -0.125, 0, true)
+        PLAT_CONVERT:icon("ReplaceableTextures\\CommandButtons\\BTNPatrol.blp")
+        PLAT_CONVERT:onClick(onConvert)
+        PLAT_CONVERT:enabled(false)
+        PLAT_CONVERT.tooltip:text("Must purchase a converter to use!")
+
+        ARCA_CONVERT = Button.create(CONVERTER_FRAME, 0.018, 0.018, 0.1125, 0, true)
+        ARCA_CONVERT:icon("ReplaceableTextures\\CommandButtons\\BTNPatrol.blp")
+        ARCA_CONVERT:onClick(onConvert)
+        ARCA_CONVERT:enabled(false)
+        ARCA_CONVERT.tooltip:text("Must purchase a converter to use!")
+
+        --plat/arc frames
         PLAT_FRAME = BlzCreateFrameByType("BUTTON", "", RESOURCE_BAR, "", 0)
         BlzFrameSetTexture(PLAT_FRAME, "TransparentTexture.blp", 0, true)
         BlzFrameSetPoint(PLAT_FRAME, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, - 0.0625, - 0.024)
@@ -505,14 +548,14 @@ OnInit.final("UI", function(Require)
         BlzFrameSetSize(ARC_FRAME, 0.06, 0.02)
         BlzFrameSetLevel(ARC_FRAME, 1)
 
-        --create plat text
+        --plat text
         PLAT_TEXT = BlzCreateFrameByType("TEXT", "", RESOURCE_BAR, "CText_18", 0)
         BlzFrameSetPoint(PLAT_TEXT, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, - 0.0625, - 0.028)
         BlzFrameSetFont(PLAT_TEXT, "Fonts\\frizqt__.ttf", 0.035, 0)
         BlzFrameSetText(PLAT_TEXT, "0")
         BlzFrameSetEnable(PLAT_TEXT, false)
 
-        --create arcadite text
+        --arcadite text
         ARC_TEXT = BlzCreateFrameByType("TEXT", "", RESOURCE_BAR, "CText_18", 0)
         BlzFrameSetTextAlignment(ARC_TEXT, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
         BlzFrameSetPoint(ARC_TEXT, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, 0.0775, - 0.028)

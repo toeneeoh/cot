@@ -12,12 +12,6 @@ OnInit.final("Currency", function(Require)
     ArcaConverter = {} ---@type boolean[]
     ConverterBought = {} ---@type boolean[]
 
-    --ORIGIN_FRAME_UBERTOOLTIP
-
-    BlzFrameSetVisible(CONVERTER_FRAME, false)
-
-    --map item currency exchange purchases to functions
-
     --purchase auto converter
     local function BuyConverter()
         local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
@@ -31,7 +25,8 @@ OnInit.final("Currency", function(Require)
                 AddCurrency(pid, PLATINUM, -2)
                 AddCurrency(pid, ARCADITE, -2)
                 if GetLocalPlayer() == GetTriggerPlayer() then
-                    BlzFrameSetVisible(CONVERTER_FRAME, true)
+                    PLAT_CONVERT.tooltip:text("Convert gold to platinum automatically")
+                    ARCA_CONVERT.tooltip:text("Convert lumber to arcadite automatically")
                 end
             else
                 DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "You cannot afford this!")
@@ -42,6 +37,8 @@ OnInit.final("Currency", function(Require)
 
         return false
     end
+
+    --map item currency exchange purchases to functions
 
     ITEM_LOOKUP[FourCC('I084')] = function(p, pid)
         if not ConverterBought[pid] then
