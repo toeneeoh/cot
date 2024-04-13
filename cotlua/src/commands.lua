@@ -518,11 +518,7 @@ function DisplayQuestProgress(p)
     local index = KillQuest[flag][i]
 
     while index ~= 0 do
-        local s = ""
-
-        if KillQuest[index][KILLQUEST_COUNT] == KillQuest[index][KILLQUEST_GOAL] then
-            s = "|cff40ff40"
-        end
+        local s = (KillQuest[index][KILLQUEST_COUNT] == KillQuest[index][KILLQUEST_GOAL] and "|cff40ff40") or ""
 
         DisplayTimedTextToPlayer(p, 0, 0, 10, KillQuest[index][KILLQUEST_NAME] .. ": " .. s .. (KillQuest[index][KILLQUEST_COUNT]) .. "/" .. (KillQuest[index][KILLQUEST_GOAL]) .. "|r |cffffcc01LVL " .. (KillQuest[index][KILLQUEST_MIN]) .. "-" .. (KillQuest[index][KILLQUEST_MAX]))
         i = i + 1
