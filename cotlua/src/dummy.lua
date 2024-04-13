@@ -63,7 +63,6 @@ OnInit.final("Dummy", function()
             PauseUnit(self.unit, true)
             BlzSetUnitAttackCooldown(self.unit, 0.01, 0)
             UnitAddBonus(self.unit, BONUS_ATTACK_SPEED, 4.)
-            ShowUnit(self.unit, false)
             DUMMY_STACK[#DUMMY_STACK + 1] = self
         end
 
@@ -90,7 +89,6 @@ OnInit.final("Dummy", function()
             --use an existing available dummy
             else
                 DUMMY_STACK[#DUMMY_STACK] = nil
-                ShowUnit(self.unit, true)
                 PauseUnit(self.unit, false)
             end
 

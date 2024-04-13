@@ -52,12 +52,12 @@ function OnAcquire()
     if IsDummy(attacker) then
         BlzSetUnitWeaponBooleanField(attacker, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
     elseif GetPlayerController(Player(pid - 1)) ~= MAP_CONTROL_USER then
-        Threat[attacker].target = AcquireProximity(attacker, target, 800.)
+        Unit[attacker].target = AcquireProximity(attacker, target, 800.)
         TimerQueue:callDelayed(FPS_32, SwitchAggro, attacker, target)
     elseif Unit[attacker] then
         Unit[attacker].target = target
         
-        if Unit[attacker].movespeed > MOVESPEED_MAX then
+        if Unit[attacker].movespeed > MOVESPEED.MAX then
             BlzSetUnitFacingEx(attacker, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(attacker), GetUnitX(target) - GetUnitX(attacker)))
         end
     end
@@ -965,7 +965,7 @@ function OnDamage()
                     Threat[target][source] = threat
 
                     --switch target
-                    if threat >= THREAT_CAP and Threat[target].target ~= source and Threat[target]["switching"] == 0 then
+                    if threat >= THREAT_CAP and Unit[target].target ~= source and Threat[target].switching == 0 then
                         ChangeAggro(target, source)
                     end
                 end

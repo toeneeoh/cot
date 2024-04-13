@@ -25,6 +25,7 @@ OnInit.final("UnitTable", function(Require)
     ---@field pr number
     ---@field mr number
     ---@field movespeed number
+    ---@field overmovespeed number
     ---@field flatMS number
     ---@field percentMS number
     ---@field x number
@@ -72,8 +73,8 @@ OnInit.final("UnitTable", function(Require)
                 tbl.movespeed = val or tbl.proxy.flatMS * tbl.proxy.percentMS
             end,
             movespeed = function(tbl, val)
-                tbl.proxy.movespeed = tbl.overmovespeed or math.min(600, val)
-                UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, val)
+                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED.SOFTCAP, val)
+                UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, tbl.proxy.movespeed)
             end,
             attack = function(tbl, val)
                 rawset(tbl, "canAttack", val)
@@ -141,11 +142,6 @@ OnInit.final("UnitTable", function(Require)
             self.casting = false
             PauseUnit(self.unit, false)
         end
-    end
-
-    ---@type fun(u: unit): unit?
-    function GetUnitTarget(u)
-        return (Threat[u].target ~= 0 and Threat[u].target) or nil
     end
 
     ---@type fun(u: unit)

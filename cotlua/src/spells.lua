@@ -5177,7 +5177,6 @@ OnInit.final("Spells", function(Require)
                 UnitRemoveAbility(pt.source, ARCANECOMETS.id)
                 BlzUnitHideAbility(pt.source, ARCANEBOLTS.id, false)
                 BlzSetUnitAbilityCooldown(pt.source, ARCANEBARRAGE.id, GetUnitAbilityLevel(pt.source, ARCANEBARRAGE.id) - 1, 25.)
-                SetUnitTurnSpeed(pt.source, GetUnitDefaultTurnSpeed(pt.source))
                 pt:destroy()
             end
 
@@ -5212,8 +5211,6 @@ OnInit.final("Spells", function(Require)
             BlzSetUnitAbilityCooldown(self.caster, ARCANEBARRAGE.id, GetUnitAbilityLevel(self.caster, ARCANEBARRAGE.id) - 1, 8.)
 
             pt.timer:callDelayed(0.5, thistype.periodic, pt)
-
-            SetUnitTurnSpeed(self.caster, 1.)
         end
     end
 
@@ -6522,7 +6519,7 @@ OnInit.final("Spells", function(Require)
         if Unit[caster] and targetX ~= 0 and targetY ~= 0 then
             Unit[caster].orderX = x
             Unit[caster].orderY = y
-            if Unit[caster].movespeed > MOVESPEED_MAX then
+            if Unit[caster].movespeed > MOVESPEED.MAX then
                 BlzSetUnitFacingEx(caster, bj_RADTODEG * Atan2(targetY - y, targetX - x))
             end
         end

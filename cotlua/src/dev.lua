@@ -416,7 +416,7 @@ modifiers:
             print(OrderId2String(GetUnitCurrentOrder(PlayerSelectedUnit[pid])))
         end,
         ["currenttarget"] = function(p, pid, args)
-            local target = GetUnitTarget(PlayerSelectedUnit[pid])
+            local target = Unit[PlayerSelectedUnit[pid]].target
 
             print((target and GetUnitName(target)) or "no target")
         end,

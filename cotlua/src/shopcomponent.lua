@@ -209,6 +209,7 @@ OnInit.final("ShopComponent", function()
     ---@field display function
     ---@field checked function
     ---@field isChecked boolean
+    ---@field table Button[]
     Button = {}
     do
         local thistype = Button

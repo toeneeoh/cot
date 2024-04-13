@@ -271,13 +271,8 @@ function OnOrder()
             Unit[source].orderX = targetX or x
             Unit[source].orderY = targetY or y
 
-            if Unit[source].movespeed > MOVESPEED_MAX then
+            if Unit[source].movespeed > MOVESPEED.MAX then
                 BlzSetUnitFacingEx(source, bj_RADTODEG * Atan2(Unit[source].orderY - GetUnitY(source), Unit[source].orderX - GetUnitX(source)))
-
-                --add to custom movement speed table
-                if not TableHas(MOVESPEED, source) then
-                    MOVESPEED[#MOVESPEED + 1] = source
-                end
             end
         end
 

@@ -1,5 +1,4 @@
 OnInit.map("Preloader", function()
-    local preload = load
     --set preplaced unit globals
     Trig_map_preplaced_Actions()
     Trig_map_preplaced_Actions = nil
@@ -48,8 +47,7 @@ OnInit.map("Preloader", function()
     BlzLoadTOCFile("war3mapImported\\FDF.toc")
 
     --detect graphics mode
-    local detect, err = preload(GetLocalizedString("MODE_ASSET"))
-    if not detect() then print(err) end
+    load(GetLocalizedString("MODE_ASSET"))()
 
     SetMapFlag(MAP_FOG_HIDE_TERRAIN, false)
     SetMapFlag(MAP_FOG_MAP_EXPLORED, true)

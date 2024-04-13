@@ -377,7 +377,7 @@ function OneSecond()
                     end
                     UnitSetBonus(BossTable[i].unit, BONUS_LIFE_REGEN, hp)
                     UnitAddAbility(BossTable[i].unit, FourCC('Amrf'))
-                    SetUnitMoveSpeed(BossTable[i].unit, MOVESPEED_MAX)
+                    SetUnitMoveSpeed(BossTable[i].unit, MOVESPEED.MAX)
                     SetUnitPathing(BossTable[i].unit, false)
                     SetUnitTurnSpeed(BossTable[i].unit, 1.)
                     local pt = TimerList[BOSS_ID]:add()
