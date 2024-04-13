@@ -1115,17 +1115,8 @@ end
 
 ---@type fun(path: string, is3D: boolean, p: player|nil, u: unit|nil)
 function SoundHandler(path, is3D, p, u)
-    local s ---@type sound 
-    local ss = "" ---@type string 
-
-    if p ~= nil then
-        if GetLocalPlayer() == p then
-            ss = path
-        end
-        s = CreateSound(ss, false, is3D, is3D, 12700, 12700, "")
-    else
-        s = CreateSound(path, false, is3D, is3D, 12700, 12700, "")
-    end
+    local ss = ((p and GetLocalPlayer() ~= p) and "") or path ---@type string 
+    local s = CreateSound(ss, false, is3D, is3D, 12700, 12700, "")
 
     if u ~= nil then
         AttachSoundToUnit(s, u)
@@ -1154,8 +1145,14 @@ end
 
 local tempplayer = nil
 function ItemRepickRemove()
-    if Item[GetEnumItem()].owner == tempplayer then
-        Item[GetEnumItem()]:destroy()
+    local itm = GetEnumItem()
+
+    if itm == PATH_ITEM then
+        return
+    end
+
+    if Item[itm].owner == tempplayer then
+        Item[itm]:destroy()
     end
 end
 
@@ -1957,6 +1954,7 @@ function PlayerCleanup(pid)
     Hero[pid] = nil
     HeroID[pid] = 0
     Backpack[pid] = nil
+    ConverterBought[pid] = false
     ArcaConverter[pid] = false
     PlatConverter[pid] = false
     SetCurrency(pid, GOLD, 0)
@@ -1984,11 +1982,13 @@ function PlayerCleanup(pid)
     limitBreakPoints[pid] = 0
     metamorphosis[pid] = 0.
     Fleeing[pid] = false
-    ConverterBought[pid] = false
     BoostValue[pid] = 0
 
     if GetLocalPlayer() == p then
-        BlzFrameSetVisible(CONVERTER_FRAME, false)
+        PLAT_CONVERT.tooltip:text("Must purchase a converter to use!")
+        ARCA_CONVERT.tooltip:text("Must purchase a converter to use!")
+        PLAT_CONVERT:enabled(false)
+        ARCA_CONVERT:enabled(false)
         BlzFrameSetVisible(dummyFrame, false)
         BlzFrameSetVisible(LimitBreakBackdrop, false)
         BlzSetAbilityIcon(PARRY.id, "ReplaceableTextures\\CommandButtons\\BTNReflex.blp")
@@ -2097,8 +2097,8 @@ function RefreshHeroes()
             end
 
             --keep track of hero positions
-            rawset(Unit[Hero[U.id]], "x", GetUnitX(Hero[U.id]))
-            rawset(Unit[Hero[U.id]], "y", GetUnitY(Hero[U.id]))
+            Unit[Hero[U.id]].proxy.x = GetUnitX(Hero[U.id])
+            Unit[Hero[U.id]].proxy.y = GetUnitY(Hero[U.id])
 
             --PVP leave range
             if ArenaQueue[U.id] > 0 and IsUnitInRangeXY(Hero[U.id], -1311., 2905., 1000.) == false then
@@ -2684,7 +2684,7 @@ function InCombat(u)
     GroupEnumUnitsInRange(ug, GetUnitX(u), GetUnitY(u), 900., Condition(ishostile))
 
     for target in each(ug) do
-        if Threat[target].target == u then
+        if Unit[target].target == u then
             DestroyGroup(ug)
             return true
         end
@@ -3099,16 +3099,25 @@ function SetMinimapTexture(pid, texture)
     end
 end
 
+local conversion_cd = {}
+local conversion_reset_cd = function(pid) conversion_cd[pid] = nil end
+
 ---@type fun(pid: integer)
 function ConversionEffect(pid)
-    local x = GetUnitX(Hero[pid])
-    local y = GetUnitY(Hero[pid])
+    if not conversion_cd[pid] then
+        conversion_cd[pid] = true
+        TimerQueue:callDelayed(1., conversion_reset_cd, pid)
+        local x = GetUnitX(Hero[pid])
+        local y = GetUnitY(Hero[pid])
 
-    for i = 1, 3 do
-        for j = 1, i * 4 do
-            local dist = i * 40
-            local angle = 2. * bj_PI / (i * 4) * j
-            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", x + dist * Cos(angle), y + dist * Sin(angle)))
+        for i = 1, 3 do
+            for j = 1, i * 4 do
+                local dist = i * 40
+                local angle = 2. * bj_PI / (i * 4) * j
+                local sfx = AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", x + dist * Cos(angle), y + dist * Sin(angle))
+                BlzSetSpecialEffectColor(sfx, 50, 50, 255)
+                DestroyEffect(sfx)
+            end
         end
     end
 end
@@ -4186,8 +4195,8 @@ end
 function SwitchAggro(enemy, player)
     IssueTargetOrder(enemy, "smart", player)
     Threat[enemy][player] = 0
-    Threat[enemy].target = player
-    Threat[enemy]["switching"] = 0
+    Unit[enemy].target = player
+    Threat[enemy].switching = 0
 end
 
 ---@type fun(enemy: unit, player: unit)
@@ -4201,7 +4210,7 @@ function ChangeAggro(enemy, player)
     SetUnitFlyHeight(dummy, 250.00, 0.)
     SetUnitAnimation(dummy, "birth")
     TimerQueue:callDelayed(1.5, SwitchAggro, enemy, player)
-    Threat[enemy]["switching"] = 1
+    Threat[enemy].switching = 1
 end
 
 ---@type fun(hero: unit, pid: integer, aoe: number, bossaggro: boolean, allythreat: integer, herothreat: integer)
@@ -4220,10 +4229,10 @@ function Taunt(hero, pid, aoe, bossaggro, allythreat, herothreat)
             --instant aggro grab
             if bossaggro then
                 IssueTargetOrder(enemy, "smart", hero)
-                Threat[enemy].target = hero
+                Unit[enemy].target = hero
             end
             --switch target when threat cap reached
-            if threat >= THREAT_CAP and Threat[enemy].target ~= hero then
+            if threat >= THREAT_CAP and Unit[enemy].target ~= hero then
                 ChangeAggro(enemy, hero)
             end
             --lower everyone else's threat 
@@ -4235,7 +4244,7 @@ function Taunt(hero, pid, aoe, bossaggro, allythreat, herothreat)
         --so that cast aggro doesnt taunt normal enemies
         elseif allythreat > 0 then
             IssueTargetOrder(enemy, "smart", hero)
-            Threat[enemy].target = hero
+            Unit[enemy].target = hero
         end
     end
 
@@ -4263,7 +4272,7 @@ function AcquireProximity(source, target, dist)
 
     for i, prox in ieach(ug) do
         --dont acquire the same target
-        if SquareRoot(Pow(x - GetUnitX(prox), 2) + Pow(y - GetUnitY(prox), 2)) < dist and Threat[source].target ~= target then
+        if SquareRoot(Pow(x - GetUnitX(prox), 2) + Pow(y - GetUnitY(prox), 2)) < dist and Unit[source].target ~= target then
             dist = SquareRoot(Pow(x - GetUnitX(prox), 2) + Pow(y - GetUnitY(prox), 2))
             index = i
         end
@@ -4284,10 +4293,10 @@ function RunDropAggro(pt)
     MakeGroupInRange(pt.pid, ug, GetUnitX(pt.source), GetUnitY(pt.source), 800., Condition(FilterEnemy))
 
     for target in each(ug) do
-        if GetUnitTarget(target) == pt.source then
+        if Unit[target].target == pt.source then
             local prox = AcquireProximity(target, pt.source, 800.)
             IssueTargetOrder(target, "smart", prox)
-            Threat[target].target = prox
+            Unit[target].target = prox
             break
         end
     end
