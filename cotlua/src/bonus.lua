@@ -60,6 +60,12 @@ OnInit.global("Bonus", function(Require)
                 --have backpack move at highest possible speed
                 SetUnitMoveSpeed(Backpack[pid], math.max(ms, amount))
             end
+            --add to custom movement speed table
+            if amount > MOVESPEED.MAX and not TableHas(MOVESPEED.units, u) then
+                MOVESPEED.units[#MOVESPEED.units + 1] = u
+            elseif amount <= MOVESPEED.MAX then
+                TableRemove(MOVESPEED.units, u)
+            end
             SetUnitMoveSpeed(u, amount)
         end,
     }
