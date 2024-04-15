@@ -524,7 +524,7 @@ function Tick()
     BlzFrameSetVisible(PUNCHING_BAG_UI, u == PUNCHING_BAG)
 
     --frame to hide health
-    BlzFrameSetVisible(hideHealth, (u and Unit[u].noregen))
+    BlzFrameSetVisible(HIDE_HEALTH_FRAME, (u and Unit[u].noregen))
 end
 
     TimerQueue:callPeriodically(FPS_64, nil, Tick)

@@ -4175,7 +4175,7 @@ OnInit.final("Spells", function(Require)
             pt.target = meatgolem[self.pid]
 
             golemDevourStacks[self.pid] = 0
-            BorrowedLife[self.pid * 10] = 0
+            BorrowedLife[meatgolem[self.pid]] = 0
 
             BlzSetHeroProperName(meatgolem[self.pid], "Meat Golem")
             TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl", meatgolem[self.pid], "origin"))
@@ -4261,7 +4261,7 @@ OnInit.final("Spells", function(Require)
             pt.tag = destroyer[self.pid]
             pt.target = destroyer[self.pid]
 
-            BorrowedLife[self.pid * 10 + 1] = 0
+            BorrowedLife[destroyer[self.pid]] = 0
             destroyerDevourStacks[self.pid] = 0
             destroyerSacrificeFlag[self.pid] = false
 
@@ -6731,6 +6731,8 @@ OnInit.final("Spells", function(Require)
         local ablev  = GetUnitAbilityLevel(caster, sid) ---@type integer 
         local x      = GetUnitX(caster) ---@type number 
         local y      = GetUnitY(caster) ---@type number 
+        local targetX = GetSpellTargetX() ---@type number 
+        local targetY = GetSpellTargetY() ---@type number 
         local dmg    = 0 ---@type number 
         local spell  = nil
 
@@ -6749,8 +6751,8 @@ OnInit.final("Spells", function(Require)
             spell.ablev = ablev
             spell.x = x
             spell.y = y
-            spell.targetX = GetSpellTargetX()
-            spell.targetY = GetSpellTargetY()
+            spell.targetX = targetX
+            spell.targetY = targetY
             spell.angle = Atan2(spell.targetY - y, spell.targetX - x)
 
             spell:onCast()
@@ -6846,7 +6848,7 @@ OnInit.final("Spells", function(Require)
                 local pt = TimerList[pid]:add()
                 pt.source = caster
                 pt.dmg = 40 * GetHeroInt(caster, true) * BOOST[pid]
-                pt.angle = bj_RADTODEG * Atan2(GetSpellTargetY() - y, GetSpellTargetX() - x)
+                pt.angle = bj_RADTODEG * Atan2(targetY - y, targetX - x)
                 pt.time = 4
                 pt.tag = "Astral Devastation"
 
@@ -6993,22 +6995,107 @@ OnInit.final("Spells", function(Require)
         elseif sid == FourCC('A06C') then
             if GetUnitTypeId(target) == SUMMON_HOUND and GetOwningPlayer(target) == p and golemDevourStacks[pid] < GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
                 DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", target, "chest"))
-                local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A00W'), 1).unit
-                SetUnitOwner(dummy, p, false)
-                BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(caster) - GetUnitY(target),  GetUnitX(caster) - GetUnitX(target)))
-                InstantAttack(dummy, caster)
                 SummonExpire(target)
+
+                local missile = Missiles:create(targetX, targetY, 20., 0, 0, 50.) ---@type Missiles
+                missile:model("war3mapImported\\Haunt_v2_Portrait.mdl")
+
+                missile:scale(1.1)
+                missile:speed(1000)
+                missile.source = caster
+                missile.target = caster
+                missile.owner = p
+                missile:vision(400)
+
+                missile.onHit = function(u)
+                    if u == missile.source then
+                        local pid = GetPlayerId(missile.owner) + 1
+
+                        BorrowedLife[u] = 0
+                        UnitAddBonus(u, BONUS_HERO_STR, - R2I(GetHeroStr(u, false) * 0.1 * golemDevourStacks[pid]))
+                        if golemDevourStacks[pid] > 0 then
+                            Unit[u].mr = Unit[u].mr / (0.75 - golemDevourStacks[pid] * 0.1)
+                        end
+                        golemDevourStacks[pid] = golemDevourStacks[pid] + 1
+                        BlzSetHeroProperName(u, "Meat Golem (" .. (golemDevourStacks[pid]) .. ")")
+                        FloatingTextUnit(tostring(golemDevourStacks[pid]), u, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
+                        UnitAddBonus(u, BONUS_HERO_STR, R2I(GetHeroStr(u, false) * 0.1 * golemDevourStacks[pid]))
+                        SetUnitScale(u, 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07)
+                        --magnetic
+                        if golemDevourStacks[pid] == 1 then
+                            UnitAddAbility(u, FourCC('A071'))
+                        elseif golemDevourStacks[pid] == 2 then
+                            UnitAddAbility(u, FourCC('A06O'))
+                        --thunder clap
+                        elseif golemDevourStacks[pid] == 3 then
+                            UnitAddAbility(u, FourCC('A0B0'))
+                        elseif golemDevourStacks[pid] == 5 then
+                            UnitAddBonus(u, BONUS_ARMOR, R2I(BlzGetUnitArmor(u) * 0.25 + 0.5))
+                        end
+                        if golemDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
+                            UnitDisableAbility(u, FourCC('A06C'), true)
+                        end
+                        SetUnitAbilityLevel(u, FourCC('A071'), golemDevourStacks[pid])
+
+                        --magic resist -(25-30) percent
+                        Unit[u].mr = Unit[u].mr * (0.75 - golemDevourStacks[pid] * 0.1)
+
+                        return true
+                    end
+
+                    return false
+                end
+
+                missile:launch()
             end
 
         --destroyer devour
         elseif sid == FourCC('A04Z') then
             if GetUnitTypeId(target) == SUMMON_HOUND and GetOwningPlayer(target) == p and destroyerDevourStacks[pid] < GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
                 DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", target, "chest"))
-                local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A00W'), 1).unit
-                SetUnitOwner(dummy, p, false)
-                BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(caster) - GetUnitY(target),  GetUnitX(caster) - GetUnitX(target)))
-                InstantAttack(dummy, caster)
                 SummonExpire(target)
+
+                local missile = Missiles:create(targetX, targetY, 20., 0, 0, 50.) ---@type Missiles
+                missile:model("war3mapImported\\Haunt_v2_Portrait.mdl")
+
+                missile:scale(1.1)
+                missile:speed(1000)
+                missile.source = caster
+                missile.target = caster
+                missile.owner = p
+                missile:vision(400)
+
+                missile.onHit = function(u)
+                    if u == missile.source then
+                        local pid = GetPlayerId(missile.owner) + 1
+
+                        BorrowedLife[u] = 0
+                        UnitAddBonus(u, BONUS_HERO_INT, - R2I(GetHeroInt(u, false) * 0.15 * destroyerDevourStacks[pid]))
+                        destroyerDevourStacks[pid] = destroyerDevourStacks[pid] + 1
+                        UnitAddBonus(u, BONUS_HERO_INT, R2I(GetHeroInt(u, false) * 0.15 * destroyerDevourStacks[pid]))
+                        BlzSetHeroProperName(u, "Destroyer (" .. (destroyerDevourStacks[pid]) .. ")")
+                        FloatingTextUnit(tostring(destroyerDevourStacks[pid]), u, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
+                        if destroyerDevourStacks[pid] == 1 then
+                            UnitAddAbility(u, FourCC('A071'))
+                            UnitAddAbility(u, FourCC('A061')) --blink
+                        elseif destroyerDevourStacks[pid] == 2 then
+                            UnitAddAbility(u, FourCC('A03B')) --crit
+                        elseif destroyerDevourStacks[pid] == 3 then
+                            SetHeroAgi(u, 200, true)
+                        elseif destroyerDevourStacks[pid] == 4 then
+                            SetUnitAbilityLevel(u, FourCC('A02D'), 2)
+                        elseif destroyerDevourStacks[pid] == 5 then
+                            SetHeroAgi(u, 400, true)
+                            UnitAddBonus(u, BONUS_HERO_INT, R2I(GetHeroInt(u, false) * 0.25))
+                        end
+                        if destroyerDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
+                            UnitDisableAbility(u, FourCC('A04Z'), true)
+                        end
+                        SetUnitAbilityLevel(u, FourCC('A071'), destroyerDevourStacks[pid])
+                    end
+                end
+
+                missile:launch()
             end
 
         --meat golem magnetic force
@@ -7029,11 +7116,7 @@ OnInit.final("Spells", function(Require)
                     time = time / ((ablev - 1) * 2) --60, 30, 20, 15
                 end
 
-                if GetUnitTypeId(caster) == SUMMON_GOLEM then
-                    BorrowedLife[pid * 10] = time
-                elseif GetUnitTypeId(caster) == SUMMON_DESTROYER then
-                    BorrowedLife[pid * 10 + 1] = time
-                end
+                BorrowedLife[caster] = time
             end
 
         --========================
@@ -7084,7 +7167,7 @@ OnInit.final("Spells", function(Require)
 
         --Grave Revive
         elseif sid == FourCC('A042') or sid == FourCC('A044') or sid == FourCC('A045') then
-            if IsTerrainWalkable(GetSpellTargetX(), GetSpellTargetY()) then
+            if IsTerrainWalkable(targetX, targetY) then
                 BlzSetSpecialEffectScale(HeroReviveIndicator[pid], 0)
                 DestroyEffect(HeroReviveIndicator[pid])
                 BlzSetSpecialEffectScale(HeroTimedLife[pid], 0)
@@ -7105,16 +7188,16 @@ OnInit.final("Spells", function(Require)
                         end
                     end
 
-                    RevivePlayer(pid, GetSpellTargetX(), GetSpellTargetY(), heal, heal)
+                    RevivePlayer(pid, targetX, targetY, heal, heal)
                 --pr reincarnation
                 elseif sid == FourCC('A044') then
-                    RevivePlayer(pid, GetSpellTargetX(), GetSpellTargetY(), 100, 100)
+                    RevivePlayer(pid, targetX, targetY, 100, 100)
 
                     BlzStartUnitAbilityCooldown(Hero[pid], REINCARNATION.id, 300.)
                 --high priestess revival
                 elseif sid == FourCC('A045') then
                     local heal = 40 + 20 * GetUnitAbilityLevel(Hero[ResurrectionRevival[pid]], RESURRECTION.id)
-                    RevivePlayer(pid, GetSpellTargetX(), GetSpellTargetY(), heal, heal)
+                    RevivePlayer(pid, targetX, targetY, heal, heal)
                 end
 
                 --refund HP cooldown and mana
@@ -7161,10 +7244,10 @@ OnInit.final("Spells", function(Require)
 
         --on cast aggro
         if spell then
-            if GetSpellTargetX() == 0. and GetSpellTargetY() == 0. then
+            if targetX == 0. and targetY == 0. then
                 Taunt(caster, pid, 800., false, 0, 200)
             else
-                Taunt(caster, pid, math.min(800., DistanceCoords(x, y, GetSpellTargetX(), GetSpellTargetY())), false, 0, 200)
+                Taunt(caster, pid, math.min(800., DistanceCoords(x, y, targetX, targetY)), false, 0, 200)
             end
         end
     end

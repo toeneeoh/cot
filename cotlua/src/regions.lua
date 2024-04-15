@@ -207,8 +207,8 @@ OnInit.final("Regions", function(Require)
             if boss ~= -1 then
                 SetUnitXBounded(BossTable[boss].unit, GetLocationX(BossTable[boss].loc))
                 SetUnitYBounded(BossTable[boss].unit, GetLocationY(BossTable[boss].loc))
-            elseif UnitData[uid][UNITDATA_COUNT] > 0 then
-                r = SelectGroupedRegion(UnitData[uid][UNITDATA_SPAWN])
+            elseif UnitData[uid].count > 0 then
+                r = SelectGroupedRegion(UnitData[uid].spawn)
                 SetUnitPosition(u, GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)))
             end
         elseif NearbyRect(gg_rct_Town_Boundry, x, y) and u == velreon_guard then --rescue guard
