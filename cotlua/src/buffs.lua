@@ -1030,12 +1030,17 @@ OnInit.global("Buffs", function(Require)
         thistype.dmg      = 0. ---@type number 
 
         function thistype:onRemove()
+            Unit[self.target].mr = Unit[self.target].mr / self.mr
             DestroyEffect(self.sfx)
 
             UnitAddBonus(self.target, BONUS_DAMAGE, self.dmg)
         end
 
         function thistype:onApply()
+            --40% magic damage amp
+            self.mr = (limitBreak[self.pid] & 0x4 > 0 and 1.4) or 1
+
+            Unit[self.target].mr = Unit[self.target].mr * self.mr
             self.dmg = math.max(0., (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * 0.4)
 
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\HowlOfTerror\\HowlTarget.mdl", self.target, "overhead")
@@ -1187,6 +1192,15 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Amsd') ---@type integer 
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].mr = Unit[self.target].mr / 1.25
+        end
+
+        function thistype:onApply()
+            --25% magic amp
+            Unit[self.target].mr = Unit[self.target].mr * 1.25
+        end
     end
 
     ---@class MagneticStrikeBuff : Buff
@@ -1445,10 +1459,12 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
+            Unit[self.target].mr = Unit[self.target].mr / 0.333
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
+            Unit[self.target].mr = Unit[self.target].mr * 0.333
             self.sfx = AddSpecialEffectTarget("war3mapImported\\DemonShieldTarget3A.mdx", self.target, "origin")
         end
     end
@@ -1462,10 +1478,12 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
+            Unit[self.target].mr = Unit[self.target].mr / 0.666
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
+            Unit[self.target].mr = Unit[self.target].mr * 0.666
             self.sfx = AddSpecialEffectTarget("war3mapImported\\DemonShieldTarget3A.mdx", self.target, "origin")
         end
     end
@@ -1832,6 +1850,14 @@ OnInit.global("Buffs", function(Require)
         thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
         thistype.percent      = .15 ---@type number 
+
+        function thistype:onRemove()
+            Unit[self.target].dr = Unit[self.target].dr / (1 + self.percent)
+        end
+        function thistype:onApply()
+            Unit[self.target].dr = Unit[self.target].dr * (1 + self.percent)
+        end
+
     end
 
     ---@class SoakedDebuff : Buff
