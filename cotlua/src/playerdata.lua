@@ -692,7 +692,6 @@ OnInit.global("PlayerData", function(Require)
             EVENT_STAT_CHANGE[Hero[pid]] = BLOODBANK.refresh
         end
 
-        Unit[Hero[pid]].dr = 1 --default
         Unit[Hero[pid]].mr = HeroStats[HeroID[pid]].magic_resist
         Unit[Hero[pid]].pr = HeroStats[HeroID[pid]].phys_resist
 
