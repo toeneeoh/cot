@@ -5,38 +5,16 @@
 ]]
 
 OnInit.final("UI", function(Require)
+    Require('Preloader')
     Require('HeroSelect')
     Require('Commands')
     Require('ShopComponent') --use for button generation
 
-    local function onclick()
-        if GetTriggerPlayer() == GetLocalPlayer() then
-            if BlzFrameIsVisible(menuButton) == true then
-                BlzFrameSetVisible(upperbuttonBar, false)
-                BlzFrameSetVisible(menuButton, false)
-                --call BlzFrameSetVisible(allyButton, false)
-                BlzFrameSetVisible(questButton, false)
-                BlzFrameSetVisible(chatButton, false)
-            else
-                BlzFrameSetVisible(upperbuttonBar, true)
-                BlzFrameSetVisible(menuButton, true)
-                --call BlzFrameSetVisible(allyButton, true)
-                BlzFrameSetVisible(questButton, true)
-                BlzFrameSetVisible(chatButton, true)
-            end
-
-            BlzFrameSetEnable(showhidemenu, false)
-            BlzFrameSetEnable(showhidemenu, true)
-            StopCamera()
-        end
-    end
-
-    local t         = CreateTrigger()
-    local leftTreeAlignment      = 0.07 ---@type number 
-    local middleTreeAlignment      = 0.31 ---@type number 
-    local rightTreeAlignment      = 0.5 ---@type number 
-    local treeSize      = 0.23 ---@type number 
-    local smallTreeSize      = 0.18 ---@type number 
+    local leftTreeAlignment   = 0.07 ---@type number 
+    local middleTreeAlignment = 0.31 ---@type number 
+    local rightTreeAlignment  = 0.5 ---@type number 
+    local treeSize            = 0.23 ---@type number 
+    local smallTreeSize       = 0.18 ---@type number 
 
     -- Prevent multiplayer desyncs by forcing the creation of the QuestDialog frame
     BlzFrameClick(BlzGetFrameByName("UpperButtonBarQuestsButton", 0))
@@ -45,7 +23,7 @@ OnInit.final("UI", function(Require)
     BlzFrameSetSize(BlzGetFrameByName("QuestItemListScrollBar", 0), 0.001, 0.001)
     ForceUICancel()
 
-        --inventory buttons
+    --inventory buttons
     local function inventoryborders(index, x, y)
         INVENTORYBACKDROP[index] = BlzCreateFrameByType("BACKDROP", "PORTRAIT", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
         BlzFrameSetAbsPoint(INVENTORYBACKDROP[index], FRAMEPOINT_CENTER, x, y)
@@ -109,7 +87,7 @@ OnInit.final("UI", function(Require)
     BlzFrameSetAbsPoint(TitleBackgroundRight, FRAMEPOINT_BOTTOMRIGHT, rightTreeAlignment + treeSize, 0.513)
     BlzFrameSetTexture(TitleBackgroundRight, "UI/Glues/Loading/LoadBar/Loading-BarBorder.blp", 0, true)
 
-    TitleLeft = BlzCreateFrameByType("TEXT", "name", TitleBackgroundLeft, "", 0)
+    TitleLeft = BlzCreateFrameByType("TEXT", "", TitleBackgroundLeft, "", 0)
     BlzFrameSetAbsPoint(TitleLeft, FRAMEPOINT_TOPLEFT, leftTreeAlignment, 0.53)
     BlzFrameSetAbsPoint(TitleLeft, FRAMEPOINT_BOTTOMRIGHT, leftTreeAlignment + treeSize, 0.522)
     BlzFrameSetText(TitleLeft, "Power")
@@ -117,7 +95,7 @@ OnInit.final("UI", function(Require)
     BlzFrameSetScale(TitleLeft, 1.00)
     BlzFrameSetTextAlignment(TitleLeft, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_MIDDLE)
 
-    TitleMiddle = BlzCreateFrameByType("TEXT", "name", TitleBackgroundMiddle, "", 0)
+    TitleMiddle = BlzCreateFrameByType("TEXT", "", TitleBackgroundMiddle, "", 0)
     BlzFrameSetAbsPoint(TitleMiddle, FRAMEPOINT_TOPLEFT, middleTreeAlignment, 0.53)
     BlzFrameSetAbsPoint(TitleMiddle, FRAMEPOINT_BOTTOMRIGHT, middleTreeAlignment + smallTreeSize, 0.522)
     BlzFrameSetText(TitleMiddle, "Economy")
@@ -125,7 +103,7 @@ OnInit.final("UI", function(Require)
     BlzFrameSetScale(TitleMiddle, 1.00)
     BlzFrameSetTextAlignment(TitleMiddle, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_MIDDLE)
 
-    TitleRight = BlzCreateFrameByType("TEXT", "name", TitleBackgroundRight, "", 0)
+    TitleRight = BlzCreateFrameByType("TEXT", "", TitleBackgroundRight, "", 0)
     BlzFrameSetAbsPoint(TitleRight, FRAMEPOINT_TOPLEFT, rightTreeAlignment, 0.53)
     BlzFrameSetAbsPoint(TitleRight, FRAMEPOINT_BOTTOMRIGHT, rightTreeAlignment + treeSize, 0.522)
     BlzFrameSetText(TitleRight, "Utility")
@@ -145,12 +123,12 @@ OnInit.final("UI", function(Require)
     BlzFrameSetScale(StatusPoints, 1.00)
     BlzFrameSetTextAlignment(StatusPoints, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_MIDDLE)
 
-    TitleBackgroundStatus = BlzCreateFrameByType("BACKDROP", "TitleBackgroundStatus", TreeMiddle, "", 1)
+    TitleBackgroundStatus = BlzCreateFrameByType("BACKDROP", "", TreeMiddle, "", 1)
     BlzFrameSetAbsPoint(TitleBackgroundStatus, FRAMEPOINT_TOPLEFT, middleTreeAlignment, 0.26)
     BlzFrameSetAbsPoint(TitleBackgroundStatus, FRAMEPOINT_BOTTOMRIGHT, middleTreeAlignment + smallTreeSize, 0.233)
     BlzFrameSetTexture(TitleBackgroundStatus, "UI/Glues/Loading/LoadBar/Loading-BarBorder.blp", 0, true)
 
-    TitleStatus = BlzCreateFrameByType("TEXT", "name", TitleBackgroundStatus, "", 0)
+    TitleStatus = BlzCreateFrameByType("TEXT", "", TitleBackgroundStatus, "", 0)
     BlzFrameSetAbsPoint(TitleStatus, FRAMEPOINT_TOPLEFT, middleTreeAlignment, 0.25)
     BlzFrameSetAbsPoint(TitleStatus, FRAMEPOINT_BOTTOMRIGHT, middleTreeAlignment + smallTreeSize, 0.243)
     BlzFrameSetText(TitleStatus, "|cffffcc00Prestige Level: 0")
@@ -159,51 +137,48 @@ OnInit.final("UI", function(Require)
     BlzFrameSetTextAlignment(TitleStatus, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_MIDDLE)
 
     --cover health text
-    hideHealth = BlzCreateFrameByType("BACKDROP", "hidehealth", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
-    BlzFrameSetAbsPoint(hideHealth, FRAMEPOINT_TOPLEFT, 0.225, 0.028)
-    BlzFrameSetAbsPoint(hideHealth, FRAMEPOINT_BOTTOMRIGHT, 0.28, 0.0185)
-    BlzFrameSetTexture(hideHealth, "black.dds", 0, true)
-    BlzFrameSetVisible(hideHealth, false)
+    HIDE_HEALTH_FRAME = BlzCreateFrameByType("BACKDROP", "", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
+    BlzFrameSetAbsPoint(HIDE_HEALTH_FRAME, FRAMEPOINT_TOPLEFT, 0.225, 0.028)
+    BlzFrameSetAbsPoint(HIDE_HEALTH_FRAME, FRAMEPOINT_BOTTOMRIGHT, 0.28, 0.0185)
+    BlzFrameSetTexture(HIDE_HEALTH_FRAME, "black.dds", 0, true)
+    BlzFrameSetVisible(HIDE_HEALTH_FRAME, false)
 
     --shield ui
-    shieldBackdrop = BlzCreateFrameByType("BACKDROP", "shieldbackdrop", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
-    BlzFrameSetAbsPoint(shieldBackdrop, FRAMEPOINT_TOPLEFT, 0.215570, 0.0428)
-    BlzFrameSetAbsPoint(shieldBackdrop, FRAMEPOINT_BOTTOMRIGHT, 0.290450, 0.0313600)
-    BlzFrameSetTexture(shieldBackdrop, "black.dds", 0, true)
+    SHIELD_BACKDROP = BlzCreateFrameByType("BACKDROP", "", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
+    BlzFrameSetAbsPoint(SHIELD_BACKDROP, FRAMEPOINT_TOPLEFT, 0.215570, 0.0428)
+    BlzFrameSetAbsPoint(SHIELD_BACKDROP, FRAMEPOINT_BOTTOMRIGHT, 0.290450, 0.0313600)
+    BlzFrameSetTexture(SHIELD_BACKDROP, "black.dds", 0, true)
 
-    shieldText = BlzCreateFrameByType("TEXT", "shieldtext", shieldBackdrop, "", 0)
-    BlzFrameSetText(shieldText, "")
-    BlzFrameSetAllPoints(shieldText, shieldBackdrop)
-    BlzFrameSetTextAlignment(shieldText, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_CENTER)
-    BlzFrameSetVisible(shieldBackdrop, false)
+    SHIELD_TEXT = BlzCreateFrameByType("TEXT", "", SHIELD_BACKDROP, "", 0)
+    BlzFrameSetText(SHIELD_TEXT, "")
+    BlzFrameSetAllPoints(SHIELD_TEXT, SHIELD_BACKDROP)
+    BlzFrameSetTextAlignment(SHIELD_TEXT, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_CENTER)
+    BlzFrameSetVisible(SHIELD_BACKDROP, false)
 
     AFK_FRAME_BG = BlzCreateFrame("Leaderboard", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), 0, 0)
     AFK_FRAME = BlzCreateFrameByType("TEXT", "", AFK_FRAME_BG, "", 0)
     BlzFrameSetText(AFK_FRAME, "")
     BlzFrameSetTextAlignment(AFK_FRAME, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_CENTER)
     BlzFrameSetPoint(AFK_FRAME, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_CENTER, 0, 0)
-    BlzFrameSetFont(AFK_FRAME, "Fonts\\blizzardglobal-v5_4.ttf", 0.06, 0)
 
     BlzFrameSetPoint(AFK_FRAME_BG, FRAMEPOINT_TOPLEFT, AFK_FRAME, FRAMEPOINT_TOPLEFT, -0.04, 0.03)
     BlzFrameSetPoint(AFK_FRAME_BG, FRAMEPOINT_BOTTOMRIGHT, AFK_FRAME, FRAMEPOINT_BOTTOMRIGHT, 0.04, -0.03)
     BlzFrameSetVisible(AFK_FRAME_BG, false)
 
-    dummyFrame = BlzCreateFrameByType("BACKDROP", "dummyFrame", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
+    dummyFrame = BlzCreateFrameByType("BACKDROP", "", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
     BlzFrameSetPoint(dummyFrame, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0.30, -0.37)
     BlzFrameSetTexture(dummyFrame, "war3mapImported\\afkUI_3.dds", 0, true)
     BlzFrameSetSize(dummyFrame, 0.25, 0.14)
     BlzFrameSetVisible(dummyFrame, false)
 
-    dummyTextTitle = BlzCreateFrameByType("TEXT", "dummyTextTitle", dummyFrame, "CText_18", 0)
+    dummyTextTitle = BlzCreateFrameByType("TEXT", "", dummyFrame, "CText_18", 0)
     BlzFrameSetTextAlignment(dummyTextTitle, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
     BlzFrameSetPoint(dummyTextTitle, FRAMEPOINT_CENTER, dummyFrame, FRAMEPOINT_CENTER, -0.04, 0)
-    BlzFrameSetFont(dummyTextTitle, "Fonts\\frizqt__.ttf", 0.044, 0)
     BlzFrameSetText(dummyTextTitle, "Last Hit:\nTotal |cffE15F08Physical|r:\nTotal |cff8000ffMagic|r:\nTotal:\nDPS:\nPeak DPS:\nTime:")
 
-    dummyTextValue = BlzCreateFrameByType("TEXT", "dummyTextValue", dummyFrame, "CText_18", 0)
+    dummyTextValue = BlzCreateFrameByType("TEXT", "", dummyFrame, "CText_18", 0)
     BlzFrameSetTextAlignment(dummyTextValue, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_RIGHT)
     BlzFrameSetPoint(dummyTextValue, FRAMEPOINT_CENTER, dummyFrame, FRAMEPOINT_CENTER, 0.04, 0)
-    BlzFrameSetFont(dummyTextValue, "Fonts\\frizqt__.ttf", 0.034, 0)
     BlzFrameSetText(dummyTextValue, "0\n0\n0\n0\n0\n0\n0s")
 
     --voting UI
@@ -286,7 +261,6 @@ OnInit.final("UI", function(Require)
     --create clock text
     CLOCK_FRAME_TEXT = BlzCreateFrameByType("TEXT", "", RESOURCE_BAR, "CText_18", 0)
     BlzFrameSetPoint(CLOCK_FRAME_TEXT, FRAMEPOINT_TOPLEFT, RESOURCE_BAR, FRAMEPOINT_TOPLEFT, 0.05, - 0.009)
-    BlzFrameSetFont(CLOCK_FRAME_TEXT, "Fonts\\frizqt__.ttf", 0.036, 0)
 
     --Upkeep
     local fh = BlzGetFrameByName("ResourceBarUpkeepText", 0)
@@ -318,15 +292,37 @@ OnInit.final("UI", function(Require)
     BlzFrameSetTexture(BlzGetFrameByName("InfoPanelIconAllyWoodIcon", 7), "UI\\LumberReplacement.dds", 0, false)
     BlzFrameSetTexture(BlzGetFrameByName("InfoPanelIconAllyFoodIcon", 7), "UI\\CrystalReplacement.dds", 0, false)
 
-    showhidemenu = BlzCreateFrame("ScriptDialogButton", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
+    local showhidemenu = BlzCreateFrame("ScriptDialogButton", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
     BlzFrameSetAbsPoint(showhidemenu, FRAMEPOINT_TOPLEFT, 0.37, 0.577)
     BlzFrameSetAbsPoint(showhidemenu, FRAMEPOINT_BOTTOMRIGHT, 0.43, 0.557)
     BlzFrameSetText(showhidemenu, "|cffffffffMenus|r")
     BlzFrameSetScale(showhidemenu, 0.6)
-    BlzFrameSetFont(showhidemenu, "MasterFont", 0.028, 0)
 
+    local function showmenu()
+        if GetTriggerPlayer() == GetLocalPlayer() then
+            if BlzFrameIsVisible(menuButton) == true then
+                BlzFrameSetVisible(upperbuttonBar, false)
+                BlzFrameSetVisible(menuButton, false)
+                --call BlzFrameSetVisible(allyButton, false)
+                BlzFrameSetVisible(questButton, false)
+                BlzFrameSetVisible(chatButton, false)
+            else
+                BlzFrameSetVisible(upperbuttonBar, true)
+                BlzFrameSetVisible(menuButton, true)
+                --call BlzFrameSetVisible(allyButton, true)
+                BlzFrameSetVisible(questButton, true)
+                BlzFrameSetVisible(chatButton, true)
+            end
+
+            BlzFrameSetEnable(showhidemenu, false)
+            BlzFrameSetEnable(showhidemenu, true)
+            StopCamera()
+        end
+    end
+
+    local t = CreateTrigger()
     BlzTriggerRegisterFrameEvent(t, showhidemenu, FRAMEEVENT_CONTROL_CLICK)
-    TriggerAddAction(t, onclick)
+    TriggerAddAction(t, showmenu)
 
     for i = 0, 6 do
         BlzFrameSetScale(BlzGetFrameByName("AllianceSlot", i), 0.001)
@@ -494,16 +490,15 @@ OnInit.final("UI", function(Require)
         CONVERTER_FRAME = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
         BlzFrameSetTexture(CONVERTER_FRAME, "TransparentTexture.blp", 0, true)
         BlzFrameSetSize(CONVERTER_FRAME, 0.006, 0.006)
-        BlzFrameSetPoint(CONVERTER_FRAME, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, 0, -0.024)
+        BlzFrameSetPoint(CONVERTER_FRAME, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, 0, -0.025)
 
         --converter buttons
         local onConvert = function()
             local frame = Button.table[BlzGetTriggerFrame()]
             local pid = GetPlayerId(GetTriggerPlayer()) + 1
+            local enabled = false
 
             if ConverterBought[pid] then
-                local enabled
-
                 if frame == PLAT_CONVERT then
                     enabled = not PlatConverter[pid]
                     PlatConverter[pid] = enabled
@@ -511,26 +506,23 @@ OnInit.final("UI", function(Require)
                     enabled = not ArcaConverter[pid]
                     ArcaConverter[pid] = enabled
                 end
-
-                if GetLocalPlayer() == Player(pid - 1) then
-                    frame:enabled(enabled)
-                end
             end
 
             if GetLocalPlayer() == Player(pid - 1) then
                 BlzFrameSetEnable(frame.frame, false)
                 BlzFrameSetEnable(frame.frame, true)
+                frame:enabled(enabled)
             end
         end
 
         PLAT_CONVERT = Button.create(CONVERTER_FRAME, 0.018, 0.018, -0.125, 0, true)
-        PLAT_CONVERT:icon("ReplaceableTextures\\CommandButtons\\BTNPatrol.blp")
+        PLAT_CONVERT:icon("ReplaceableTextures\\CommandButtons\\BTNConvert.blp")
         PLAT_CONVERT:onClick(onConvert)
         PLAT_CONVERT:enabled(false)
         PLAT_CONVERT.tooltip:text("Must purchase a converter to use!")
 
         ARCA_CONVERT = Button.create(CONVERTER_FRAME, 0.018, 0.018, 0.1125, 0, true)
-        ARCA_CONVERT:icon("ReplaceableTextures\\CommandButtons\\BTNPatrol.blp")
+        ARCA_CONVERT:icon("ReplaceableTextures\\CommandButtons\\BTNConvert.blp")
         ARCA_CONVERT:onClick(onConvert)
         ARCA_CONVERT:enabled(false)
         ARCA_CONVERT.tooltip:text("Must purchase a converter to use!")
@@ -551,7 +543,6 @@ OnInit.final("UI", function(Require)
         --plat text
         PLAT_TEXT = BlzCreateFrameByType("TEXT", "", RESOURCE_BAR, "CText_18", 0)
         BlzFrameSetPoint(PLAT_TEXT, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, - 0.0625, - 0.028)
-        BlzFrameSetFont(PLAT_TEXT, "Fonts\\frizqt__.ttf", 0.035, 0)
         BlzFrameSetText(PLAT_TEXT, "0")
         BlzFrameSetEnable(PLAT_TEXT, false)
 
@@ -559,11 +550,120 @@ OnInit.final("UI", function(Require)
         ARC_TEXT = BlzCreateFrameByType("TEXT", "", RESOURCE_BAR, "CText_18", 0)
         BlzFrameSetTextAlignment(ARC_TEXT, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
         BlzFrameSetPoint(ARC_TEXT, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, 0.0775, - 0.028)
-        BlzFrameSetFont(ARC_TEXT, "Fonts\\frizqt__.ttf", 0.035, 0)
         BlzFrameSetText(ARC_TEXT, "0")
         BlzFrameSetEnable(ARC_TEXT, false)
 
         FrameAddSimpleTooltip(PLAT_FRAME, "Platinum Coin|n|nObtained by supplying 1,000,000 gold at a trader or with a converter.", false)
         FrameAddSimpleTooltip(ARC_FRAME, "Arcadite Lumber|n|nObtained by supplying 1,000,000 lumber at a trader or with a converter.", false)
+    end
+
+    --stat window
+    do
+        local frame = BlzCreateFrame("ListBoxWar3", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
+        local title = BlzCreateFrame("TitleText", frame, 0, 0)
+        local text = BlzCreateFrameByType("TEXT", "", frame, "", 0)
+        local number = BlzCreateFrameByType("TEXT", "", frame, "", 0)
+        --local separator_up = BlzCreateFrameByType("BACKDROP", "", frame, "", 0)
+        --local separator_right = BlzCreateFrameByType("BACKDROP", "", frame, "", 0)
+        --local separator_down = BlzCreateFrameByType("BACKDROP", "", frame, "", 0)
+        --local separator_left = BlzCreateFrameByType("BACKDROP", "", frame, "", 0)
+
+        STAT_WINDOW = {
+            frame = frame,
+            title = title,
+            text = text,
+            number = number,
+        }
+        BlzFrameSetPoint(frame, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_CENTER, -0.3, 0.08)
+        BlzFrameSetSize(frame, 0.3, 0.375)
+        BlzFrameSetEnable(frame, false)
+
+        BlzFrameSetPoint(title, FRAMEPOINT_TOP, frame, FRAMEPOINT_TOP, 0., -0.013)
+
+        BlzFrameSetPoint(number, FRAMEPOINT_TOPLEFT, frame, FRAMEPOINT_TOPLEFT, 0.113, -0.04)
+        BlzFrameSetTextAlignment(number, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
+        BlzFrameSetScale(number, 1.)
+
+        BlzFrameSetPoint(text, FRAMEPOINT_TOPLEFT, frame, FRAMEPOINT_TOPLEFT, 0.015, -0.04)
+        BlzFrameSetTextAlignment(text, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
+        BlzFrameSetScale(text, 1.)
+
+        --BlzFrameSetTexture(separator_up, "replaceabletextures\\teamcolor\\teamcolor08", 0, true)
+        --BlzFrameSetTexture(separator_right, "replaceabletextures\\teamcolor\\teamcolor08", 0, true)
+        --BlzFrameSetTexture(separator_down, "replaceabletextures\\teamcolor\\teamcolor08", 0, true)
+        --BlzFrameSetTexture(separator_left, "replaceabletextures\\teamcolor\\teamcolor08", 0, true)
+        --BlzFrameSetPoint(separator_up, FRAMEPOINT_TOPLEFT, text, FRAMEPOINT_TOPLEFT, -0.002, 0.003)
+        --BlzFrameSetPoint(separator_right, FRAMEPOINT_RIGHT, number, FRAMEPOINT_RIGHT, 0., 0.)
+        --BlzFrameSetPoint(separator_down, FRAMEPOINT_BOTTOMLEFT, text, FRAMEPOINT_BOTTOMLEFT, -0.002, -0.005)
+        --BlzFrameSetPoint(separator_left, FRAMEPOINT_LEFT, text, FRAMEPOINT_LEFT, -0.002, 0.)
+
+        local onClose = function()
+            local f = Button.table[BlzGetTriggerFrame()]
+            local pid = GetPlayerId(GetTriggerPlayer()) + 1
+
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzFrameSetEnable(f.frame, false)
+                BlzFrameSetEnable(f.frame, true)
+                BlzFrameSetVisible(frame, false)
+            end
+        end
+
+        local STAT_CLOSE_BACKDROP = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", frame, 0, 0)
+        BlzFrameSetTexture(STAT_CLOSE_BACKDROP, "TransparentTexture.blp", 0, true)
+        BlzFrameSetSize(STAT_CLOSE_BACKDROP, 0.006, 0.006)
+        BlzFrameSetPoint(STAT_CLOSE_BACKDROP, FRAMEPOINT_TOPRIGHT, frame, FRAMEPOINT_TOPRIGHT, -0.025, -0.015)
+
+        local STAT_CLOSE = Button.create(STAT_CLOSE_BACKDROP, 0.015, 0.015, 0., 0., true)
+        STAT_CLOSE:icon("ReplaceableTextures\\CommandButtons\\BTNCancel.blp")
+        STAT_CLOSE:onClick(onClose)
+        STAT_CLOSE.tooltip:text("Close 'ESC'")
+
+        function RefreshStatWindow(u, pid)
+            if u then
+                local tpid = GetPlayerId(GetOwningPlayer(u)) + 1
+                local stat_number = ""
+                local stat_tag = ""
+                local name = (tpid <= PLAYER_CAP and User[tpid - 1].nameColored) or GetUnitName(u)
+                local ishero = (u == Hero[tpid] and 3) or 2
+
+                --fill out stats
+                for type = 1, ishero do
+                    for _, v in ipairs(STAT_TAG) do
+                        local prefix = v.prefix or ""
+
+                        if v.type == type then
+                            stat_number = stat_number .. v.getter(u) .. prefix .. "|n"
+                            stat_tag = stat_tag .. v.tag .. "|n"
+                        end
+                    end
+                end
+
+                if GetLocalPlayer() == Player(pid - 1) then
+                    --set text and size
+                    BlzFrameSetText(title, name)
+                    BlzFrameSetText(number, stat_number)
+                    BlzFrameSetText(text, stat_tag)
+
+                    --local w = BlzFrameGetWidth(number) + BlzFrameGetWidth(text) + 0.0035
+                    --local h = BlzFrameGetHeight(text) + 0.004
+                    --BlzFrameSetSize(separator_up, w, 0.001)
+                    --BlzFrameSetSize(separator_right, 0.001, h)
+                    --BlzFrameSetSize(separator_down, w, 0.001)
+                    --BlzFrameSetSize(separator_left, 0.001, h)
+                end
+            end
+        end
+
+        function DisplayStatWindow(u, pid)
+            if u and not BlzGetUnitBooleanField(u, UNIT_BF_IS_A_BUILDING) then
+                RefreshStatWindow(u, pid)
+
+                if GetLocalPlayer() == Player(pid - 1) then
+                    BlzFrameSetVisible(STAT_WINDOW.frame, true)
+                end
+            end
+        end
+
+        BlzFrameSetVisible(STAT_WINDOW.frame, false)
     end
 end, Debug.getLine())
