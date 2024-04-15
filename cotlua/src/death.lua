@@ -602,14 +602,14 @@ function OnDeath()
     -- Quests
     --========================
 
-    if unitType > 0 and KillQuest[unitType][KILLQUEST_STATUS] == 1 and GetHeroLevel(Hero[kpid]) <= KillQuest[unitType][KILLQUEST_MAX] + LEECH_CONSTANT then
-        KillQuest[unitType][KILLQUEST_COUNT] = KillQuest[unitType][KILLQUEST_COUNT] + 1
-        FloatingTextUnit(KillQuest[unitType][KILLQUEST_NAME] .. " " .. (KillQuest[unitType][KILLQUEST_COUNT]) .. "/" .. (KillQuest[unitType][KILLQUEST_GOAL]), killed, 3.1 ,80, 90, 9, 125, 200, 200, 0, true)
+    if unitType > 0 and KillQuest[unitType].status == 1 and GetHeroLevel(Hero[kpid]) <= KillQuest[unitType].max + LEECH_CONSTANT then
+        KillQuest[unitType].count = KillQuest[unitType].count + 1
+        FloatingTextUnit(KillQuest[unitType].name .. " " .. (KillQuest[unitType].count) .. "/" .. (KillQuest[unitType].goal), killed, 3.1 ,80, 90, 9, 125, 200, 200, 0, true)
 
-        if KillQuest[unitType][KILLQUEST_COUNT] >= KillQuest[unitType][KILLQUEST_GOAL] then
-            KillQuest[unitType][KILLQUEST_STATUS] = 2
-            KillQuest[unitType][KILLQUEST_LAST] = uid
-            DisplayTimedTextToForce(FORCE_PLAYING, 12, KillQuest[unitType][KILLQUEST_NAME] .. " quest completed, talk to the Huntsman for your reward.")
+        if KillQuest[unitType].count >= KillQuest[unitType].goal then
+            KillQuest[unitType].status = 2
+            KillQuest[unitType].last = uid
+            DisplayTimedTextToForce(FORCE_PLAYING, 12, KillQuest[unitType].name .. " quest completed, talk to the Huntsman for your reward.")
         end
     end
 
@@ -806,7 +806,7 @@ function OnDeath()
             SetCinematicScene(GetUnitTypeId(god_angel), GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), "Angel", "Halt! Before proceeding you must bring me the 3 keys to unlock the seal and face the gods in their domain.", 8, 7)
         end
     --creep handling
-    elseif UnitData[uid][UNITDATA_SPAWN] > 0 and spawnflag then
+    elseif UnitData[uid].spawn > 0 and spawnflag then
         TimerQueue:callDelayed(20.0, CreepHandler, uid, x, y, CHAOS_MODE)
         TimerQueue:callDelayed(30.0, RemoveUnit, killed)
     end

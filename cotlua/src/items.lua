@@ -15,6 +15,7 @@
 OnInit.final("Items", function(Require)
     Require('Users')
     Require('Variables')
+    Require('Currency')
 
     hordequest        = false
     CHURCH_DONATION   = {} ---@type boolean[] 
@@ -485,30 +486,60 @@ OnInit.final("Items", function(Require)
             end
         end
 
+        local parse_item_stat = {
+            [ITEM_CRIT_CHANCE] = function(self, index, value, lower, upper, valuestr, range)
+                if range ~= 0 then
+                    return "|n + |cffffcc00" .. lower .. "-" .. upper .. "\x25 " .. self:getValue(index + 1, 1) .. "-" .. self:getValue(index + 1, 2) .. "x|r |cffffcc00Critical Strike|r"
+                else
+                    return "|n + |cffffcc00" .. valuestr .. "\x25 " .. self:getValue(index + 1, 0) .. "x|r |cffffcc00Critical Strike|r"
+                end
+            end,
+            [ITEM_CRIT_DAMAGE] = function()
+                return ""
+            end,
+            [ITEM_ABILITY] = function(self, index, value, lower, upper, valuestr, range)
+                local s = ParseItemAbilityTooltip(self, index, value, lower, upper)
+
+                return (s:len() > 0 and "|n" .. s) or ""
+            end,
+
+            default = function(self, index, value, lower, upper, valuestr, range, posneg)
+                local prefix = STAT_TAG[index].prefix or "|r "
+
+                if range ~= 0 then
+                    return "|n + |cffffcc00" .. lower .. "-" .. upper .. prefix .. STAT_TAG[index].tag .. ""
+                else
+                    return "|n " .. posneg .. valuestr .. prefix .. STAT_TAG[index].tag
+                end
+            end
+        }
+
+        parse_item_stat[ITEM_ABILITY2] = parse_item_stat[ITEM_ABILITY]
+
         function thistype:update()
             local orig    = ItemData[self.id][ITEM_TOOLTIP] ---@type string 
-            local s_new   = "" ---@type string 
+            local norm_new   = "" ---@type string 
             local alt_new = "" ---@type string 
 
             --first "header" lines: rarity, upg level, tier, type, req level
             if self.level > 0 then
-                s_new = s_new .. LEVEL_PREFIX[self.level]
+                norm_new = norm_new .. LEVEL_PREFIX[self.level]
 
                 BlzSetItemSkin(self.obj, ITEM_MODEL[self.level])
 
-                s_new = s_new .. " +" .. self.level
+                norm_new = norm_new .. " +" .. self.level
 
-                s_new = s_new .. "|n"
+                norm_new = norm_new .. "|n"
             end
 
-            s_new = s_new .. TIER_NAME[ItemData[self.id][ITEM_TIER]] .. " " .. TYPE_NAME[ItemData[self.id][ITEM_TYPE]]
+            norm_new = norm_new .. TIER_NAME[ItemData[self.id][ITEM_TIER]] .. " " .. TYPE_NAME[ItemData[self.id][ITEM_TYPE]]
 
             if ItemData[self.id][ITEM_LEVEL_REQUIREMENT] > 0 then
-                s_new = s_new .. "|n|cffff0000Level Requirement: |r" .. ItemData[self.id][ITEM_LEVEL_REQUIREMENT]
+                norm_new = norm_new .. "|n|cffff0000Level Requirement: |r" .. ItemData[self.id][ITEM_LEVEL_REQUIREMENT]
             end
 
-            s_new = s_new .. "|n"
-            alt_new = s_new
+            norm_new = norm_new .. "|n"
+            alt_new = norm_new
 
             --body lines
             for index = 1, ITEM_STAT_TOTAL do
@@ -528,48 +559,22 @@ OnInit.final("Items", function(Require)
                     end
 
                     --alt tooltip
-                    --stat has a range
-                    if ItemData[self.id][index .. "range"] ~= 0 then
-                        if index == ITEM_CRIT_CHANCE then
-                            alt_new = alt_new .. "|n + |cffffcc00" .. lower .. "-" .. upper .. "\x25 " .. self:getValue(index + 1, 1) .. "-" .. self:getValue(index + 1, 2) .. "x|r |cffffcc00Critical Strike|r"
-                        elseif index == ITEM_CRIT_DAMAGE then
-                        elseif index == ITEM_ABILITY or index == ITEM_ABILITY2 then
-                            local s = ParseItemAbilityTooltip(self, index, value, lower, upper)
-
-                            if s:len() > 0 then
-                                alt_new = alt_new .. "|n" .. s
-                            end
-                        else
-                            alt_new = alt_new .. "|n + |cffffcc00" .. lower .. "-" .. upper .. STAT_NAME[index] .. ""
-                        end
+                    local range = ItemData[self.id][index .. "range"]
+                    if parse_item_stat[index] then
+                        alt_new = alt_new .. parse_item_stat[index](self, index, value, lower, upper, valuestr, range)
                     else
-                        if index == ITEM_CRIT_CHANCE then
-                            alt_new = alt_new .. "|n + |cffffcc00" .. valuestr .. "\x25 " .. self:getValue(index + 1, 0) .. "x|r |cffffcc00Critical Strike|r"
-                        elseif index == ITEM_CRIT_DAMAGE then
-                        elseif index == ITEM_ABILITY or index == ITEM_ABILITY2 then
-                            local s = ParseItemAbilityTooltip(self, index, value, 0, 0)
-
-                            if s:len() > 0 then
-                                alt_new = alt_new .. "|n" .. s
-                            end
-                        else
-                            alt_new = alt_new .. "|n " .. posneg .. valuestr .. STAT_NAME[index]
-                        end
+                        alt_new = alt_new .. parse_item_stat.default(self, index, value, lower, upper, valuestr, range, posneg)
                     end
 
                     --normal tooltip
                     if index == ITEM_CRIT_CHANCE then
-                        s_new = s_new .. "|n + |cffffcc00" .. valuestr .. "\x25 "
+                        norm_new = norm_new .. "|n + |cffffcc00" .. valuestr .. "\x25 "
                     elseif index == ITEM_CRIT_DAMAGE then
-                        s_new = s_new .. valuestr .. STAT_NAME[index]
+                        norm_new = norm_new .. valuestr .. (STAT_TAG[index].prefix or " ") .. STAT_TAG[index].tag
                     elseif index == ITEM_ABILITY or index == ITEM_ABILITY2 then
-                        local s = ParseItemAbilityTooltip(self, index, value, 0, 0)
-
-                        if s:len() > 0 then
-                            s_new = s_new .. "|n" .. s
-                        end
+                        norm_new = norm_new .. parse_item_stat[index](self, index, value, 0, 0)
                     else
-                        s_new = s_new .. "|n " .. posneg .. valuestr .. STAT_NAME[index]
+                        norm_new = norm_new .. "|n " .. posneg .. valuestr .. (STAT_TAG[index].prefix or " ") .. STAT_TAG[index].tag
                     end
                 end
             end
@@ -579,7 +584,7 @@ OnInit.final("Items", function(Require)
             orig = "|n" .. orig:gsub("(\x25b[]\x25s*)", "")
             orig = (orig:len() > 5 and ("|n" .. orig)) or ""
 
-            self.tooltip = s_new .. orig
+            self.tooltip = norm_new .. orig
             self.alt_tooltip = alt_new .. orig
 
             if ItemData[self.id][ITEM_LIMIT] > 0 then
@@ -1471,9 +1476,9 @@ end
 ---@param itemid integer
 function KillQuestHandler(pid, itemid)
     local index         = KillQuest[itemid][0] ---@type integer 
-    local min           = KillQuest[index][KILLQUEST_MIN] ---@type integer 
-    local max           = KillQuest[index][KILLQUEST_MAX] ---@type integer 
-    local goal          = KillQuest[index][KILLQUEST_GOAL] ---@type integer 
+    local min           = KillQuest[index].min ---@type integer 
+    local max           = KillQuest[index].max ---@type integer 
+    local goal          = KillQuest[index].goal ---@type integer 
     local playercount   = 0 ---@type integer 
     local U             = User.first ---@type User 
     local p             = Player(pid - 1) ---@type player 
@@ -1487,16 +1492,16 @@ function KillQuestHandler(pid, itemid)
     elseif GetUnitLevel(Hero[pid]) > max then
         DisplayTimedTextToPlayer(p, 0,0, 10, "You are too high level to do this quest.")
     --Progress
-    elseif KillQuest[index][KILLQUEST_STATUS] == 1 then
-        DisplayTimedTextToPlayer(p, 0,0, 10, "Killed " .. (KillQuest[index][KILLQUEST_COUNT]) .. "/" .. (goal) .. " " .. KillQuest[index][KILLQUEST_NAME])
-        PingMinimap(GetRectCenterX(KillQuest[index][KILLQUEST_REGION]), GetRectCenterY(KillQuest[index][KILLQUEST_REGION]), 3)
+    elseif KillQuest[index].status == 1 then
+        DisplayTimedTextToPlayer(p, 0,0, 10, "Killed " .. (KillQuest[index].count) .. "/" .. (goal) .. " " .. KillQuest[index].name)
+        PingMinimap(GetRectCenterX(KillQuest[index].region), GetRectCenterY(KillQuest[index].region), 3)
     --Start Quest
-    elseif KillQuest[index][KILLQUEST_STATUS] == 0 then
-        KillQuest[index][KILLQUEST_STATUS] = 1
-        DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00QUEST:|r Kill " .. (goal) .. " " .. KillQuest[index][KILLQUEST_NAME] .. " for a reward.")
-        PingMinimap(GetRectCenterX(KillQuest[index][KILLQUEST_REGION]), GetRectCenterY(KillQuest[index][KILLQUEST_REGION]), 5)
+    elseif KillQuest[index].status == 0 then
+        KillQuest[index].status = 1
+        DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00QUEST:|r Kill " .. (goal) .. " " .. KillQuest[index].name .. " for a reward.")
+        PingMinimap(GetRectCenterX(KillQuest[index].region), GetRectCenterY(KillQuest[index].region), 5)
     --Completion
-    elseif KillQuest[index][KILLQUEST_STATUS] == 2 then
+    elseif KillQuest[index].status == 2 then
         while U do
             if HeroID[U.id] > 0 and GetUnitLevel(Hero[U.id]) >= min and GetUnitLevel(Hero[U.id]) <= max then
                 playercount = playercount + 1
@@ -1509,7 +1514,7 @@ function KillQuestHandler(pid, itemid)
 
         while U do
             if GetHeroLevel(Hero[U.id]) >= min and GetHeroLevel(Hero[U.id]) <= max then
-                DisplayTimedTextToPlayer(U.player, 0, 0, 10, "|c00c0c0c0" .. KillQuest[index][KILLQUEST_NAME] .. " quest completed!|r")
+                DisplayTimedTextToPlayer(U.player, 0, 0, 10, "|c00c0c0c0" .. KillQuest[index].name .. " quest completed!|r")
                 local GOLD = RewardGold[avg] * goal / (0.5 + playercount * 0.5)
                 AwardGold(U.id, GOLD, true)
                 local XP = math.max(100, math.floor(Experience_Table[avg] * XP_Rate[U.id] * goal / 1800.))
@@ -1520,19 +1525,19 @@ function KillQuestHandler(pid, itemid)
         end
 
         --reset
-        KillQuest[index][KILLQUEST_STATUS] = 1
-        KillQuest[index][KILLQUEST_COUNT] = 0
-        KillQuest[index][KILLQUEST_GOAL] = IMinBJ(goal + 3, 100)
+        KillQuest[index].status = 1
+        KillQuest[index].count = 0
+        KillQuest[index].goal = IMinBJ(goal + 3, 100)
 
         --increase max spawns based on last unit killed (until max goal of 100 is reached)
-        if (KillQuest[index][KILLQUEST_GOAL]) < 100 and ModuloInteger(KillQuest[index][KILLQUEST_GOAL], 2) == 0 then
-            myregion = SelectGroupedRegion(UnitData[KillQuest[index][KILLQUEST_LAST]][UNITDATA_SPAWN])
+        if (KillQuest[index].goal) < 100 and ModuloInteger(KillQuest[index].goal, 2) == 0 then
+            myregion = SelectGroupedRegion(UnitData[KillQuest[index].last].spawn)
             repeat
                 x = GetRandomReal(GetRectMinX(myregion), GetRectMaxX(myregion))
                 y = GetRandomReal(GetRectMinY(myregion), GetRectMaxY(myregion))
             until IsTerrainWalkable(x, y)
-            CreateUnit(pfoe, KillQuest[index][KILLQUEST_LAST], x, y, GetRandomInt(0, 359))
-            DisplayTimedTextToForce(FORCE_PLAYING, 20., "An additional " .. GetObjectName(KillQuest[index][KILLQUEST_LAST]) .. " has spawned in the area.")
+            CreateUnit(pfoe, KillQuest[index].last, x, y, GetRandomInt(0, 359))
+            DisplayTimedTextToForce(FORCE_PLAYING, 20., "An additional " .. GetObjectName(KillQuest[index].last) .. " has spawned in the area.")
         end
     end
 end

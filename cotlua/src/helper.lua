@@ -484,15 +484,15 @@ do
             local u = GetMainSelectedUnit() ---@type unit 
 
             if shield[u] then
-                BlzFrameSetVisible(shieldBackdrop, true)
+                BlzFrameSetVisible(SHIELD_BACKDROP, true)
 
                 if shield[u].max >= 100000 then
-                    BlzFrameSetText(shieldText, "|cff22ddff" .. R2I(shield[u].hp))
+                    BlzFrameSetText(SHIELD_TEXT, "|cff22ddff" .. R2I(shield[u].hp))
                 else
-                    BlzFrameSetText(shieldText, "|cff22ddff" .. R2I(shield[u].hp) .. " / " .. R2I(shield[u].max))
+                    BlzFrameSetText(SHIELD_TEXT, "|cff22ddff" .. R2I(shield[u].hp) .. " / " .. R2I(shield[u].max))
                 end
             else
-                BlzFrameSetVisible(shieldBackdrop, false)
+                BlzFrameSetVisible(SHIELD_BACKDROP, false)
             end
 
             --move shield visual positions
@@ -528,7 +528,7 @@ do
             TableRemove(thistype.list, self)
 
             if #thistype.list == 0 then
-                BlzFrameSetVisible(shieldBackdrop, false)
+                BlzFrameSetVisible(SHIELD_BACKDROP, false)
                 thistype.queue:destroy()
             end
         end
@@ -2404,19 +2404,17 @@ function ItemInfo(pid, itm)
     end
 
     for i = ITEM_HEALTH, ITEM_STAT_TOTAL do
-        if ItemData[itm.id][i] ~= 0 and STAT_NAME[i] ~= nil and i ~= ITEM_CRIT_DAMAGE then --skip crit dmg because crit is one line
-            local offset = 3
+        if ItemData[itm.id][i] ~= 0 and STAT_TAG[i] and i ~= ITEM_CRIT_DAMAGE then --skip crit dmg because crit is one line
             s = ""
 
             if i == ITEM_MAGIC_RESIST or i == ITEM_DAMAGE_RESIST or i == ITEM_EVASION or i == ITEM_CRIT_CHANCE or i == ITEM_SPELLBOOST or i == ITEM_GOLD_GAIN then
                 s = "\x25"
-                offset = 4
             end
 
             if i == ITEM_CRIT_CHANCE then
-                DisplayTimedTextToPlayer(p, 0, 0, 15., SubString(STAT_NAME[i], offset, StringLength(STAT_NAME[i])) .. ": " .. RealToString(itm:getValue(ITEM_CRIT_CHANCE, 0)) .. "\x25 " .. RealToString(itm:getValue(ITEM_CRIT_DAMAGE, 0)) .. "x")
+                DisplayTimedTextToPlayer(p, 0, 0, 15., STAT_TAG[i].tag .. ": " .. RealToString(itm:getValue(ITEM_CRIT_CHANCE, 0)) .. "\x25 " .. RealToString(itm:getValue(ITEM_CRIT_DAMAGE, 0)) .. "x")
             else
-                DisplayTimedTextToPlayer(p, 0, 0, 15., SubString(STAT_NAME[i], offset, StringLength(STAT_NAME[i])) .. ": " .. RealToString(itm:getValue(i, 0)) .. s)
+                DisplayTimedTextToPlayer(p, 0, 0, 15., STAT_TAG[i].tag .. ": " .. RealToString(itm:getValue(i, 0)) .. s)
             end
         end
     end
@@ -2435,8 +2433,8 @@ function SpawnCreeps(flag)
     local y ---@type number 
 
     while index ~= 0 do
-        for _ = 1, UnitData[index][UNITDATA_COUNT] do
-            myregion = SelectGroupedRegion(UnitData[index][UNITDATA_SPAWN])
+        for _ = 1, UnitData[index].count do
+            myregion = SelectGroupedRegion(UnitData[index].spawn)
             repeat
                 x = GetRandomReal(GetRectMinX(myregion), GetRectMaxX(myregion))
                 y = GetRandomReal(GetRectMinY(myregion), GetRectMaxY(myregion))
@@ -3456,11 +3454,7 @@ function SummonExpire(u)
 
     TimerList[pid]:stopAllTimers(u)
 
-    if uid == SUMMON_DESTROYER then
-        BorrowedLife[pid * 10] = 0
-    elseif uid == SUMMON_DESTROYER then
-        BorrowedLife[pid * 10 + 1] = 0
-    end
+    BorrowedLife[u] = 0
 
     if IsUnitHidden(u) == false then --important
         if uid == SUMMON_DESTROYER or uid == SUMMON_HOUND or uid == SUMMON_GOLEM then
@@ -3484,18 +3478,16 @@ end
 function SummonDurationXPBar(pt)
     local lev = GetHeroLevel(pt.target) ---@type integer 
 
-    if GetUnitTypeId(pt.target) == SUMMON_GOLEM and BorrowedLife[pt.pid * 10] > 0 then
-        BorrowedLife[pt.pid * 10] = BorrowedLife[pt.pid * 10] - 0.5
-    elseif GetUnitTypeId(pt.target) == SUMMON_DESTROYER and BorrowedLife[pt.pid * 10 + 1] > 0 then
-        BorrowedLife[pt.pid * 10 + 1] = BorrowedLife[pt.pid * 10 + 1] - 0.5
-    else
+    if BorrowedLife[pt.target] == 0 then
         pt.dur = pt.dur - 0.5
+    else
+        BorrowedLife[pt.target] = math.max(0, BorrowedLife[pt.target] - 0.5)
     end
 
     if pt.dur <= 0 then
         SummonExpire(pt.target)
     else
-        UnitStripHeroLevel(pt.target, 1)
+        --UnitStripHeroLevel(pt.target, 1)
         SetHeroXP(pt.target, R2I(RequiredXP(lev - 1) + ((lev + 1) * pt.dur * 100 / pt.time) - 1), false)
     end
 end
