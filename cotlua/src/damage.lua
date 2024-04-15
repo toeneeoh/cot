@@ -270,58 +270,6 @@ function OnDamage()
         end
     end
 
-    --dark summoner devour
-    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A00W')) > 0 then
-        if tuid == SUMMON_GOLEM then --meat golem
-            BorrowedLife[pid * 10] = 0
-            UnitAddBonus(meatgolem[pid], BONUS_HERO_STR, - R2I(GetHeroStr(meatgolem[pid], false) * 0.1 * golemDevourStacks[pid]))
-            golemDevourStacks[pid] = golemDevourStacks[pid] + 1
-            BlzSetHeroProperName(meatgolem[pid], "Meat Golem (" .. (golemDevourStacks[pid]) .. ")")
-            FloatingTextUnit(tostring(golemDevourStacks[pid]), meatgolem[pid], 1, 60, 50, 13.5, 255, 255, 255, 0, true)
-            UnitAddBonus(meatgolem[pid], BONUS_HERO_STR, R2I(GetHeroStr(meatgolem[pid], false) * 0.1 * golemDevourStacks[pid]))
-            SetUnitScale(meatgolem[pid], 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07)
-            --magnetic
-            if golemDevourStacks[pid] == 1 then
-                UnitAddAbility(meatgolem[pid], FourCC('A071'))
-            elseif golemDevourStacks[pid] == 2 then
-                UnitAddAbility(meatgolem[pid], FourCC('A06O'))
-            --thunder clap
-            elseif golemDevourStacks[pid] == 3 then
-                UnitAddAbility(meatgolem[pid], FourCC('A0B0'))
-            elseif golemDevourStacks[pid] == 5 then
-                UnitAddBonus(meatgolem[pid], BONUS_ARMOR, R2I(BlzGetUnitArmor(meatgolem[pid]) * 0.25 + 0.5))
-            end
-            if golemDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
-                UnitDisableAbility(meatgolem[pid], FourCC('A06C'), true)
-            end
-            SetUnitAbilityLevel(meatgolem[pid], FourCC('A071'), golemDevourStacks[pid])
-        elseif tuid == SUMMON_DESTROYER then --destroyer
-            BorrowedLife[pid * 10 + 1] = 0
-            UnitAddBonus(destroyer[pid], BONUS_HERO_INT, - R2I(GetHeroInt(destroyer[pid], false) * 0.15 * destroyerDevourStacks[pid]))
-            destroyerDevourStacks[pid] = destroyerDevourStacks[pid] + 1
-            UnitAddBonus(destroyer[pid], BONUS_HERO_INT, R2I(GetHeroInt(destroyer[pid], false) * 0.15 * destroyerDevourStacks[pid]))
-            BlzSetHeroProperName(destroyer[pid], "Destroyer (" .. (destroyerDevourStacks[pid]) .. ")")
-            FloatingTextUnit(tostring(destroyerDevourStacks[pid]), destroyer[pid], 1, 60, 50, 13.5, 255, 255, 255, 0, true)
-            if destroyerDevourStacks[pid] == 1 then
-                UnitAddAbility(destroyer[pid], FourCC('A071'))
-                UnitAddAbility(destroyer[pid], FourCC('A061')) --blink
-            elseif destroyerDevourStacks[pid] == 2 then
-                UnitAddAbility(destroyer[pid], FourCC('A03B')) --crit
-            elseif destroyerDevourStacks[pid] == 3 then
-                SetHeroAgi(destroyer[pid], 200, true)
-            elseif destroyerDevourStacks[pid] == 4 then
-                SetUnitAbilityLevel(destroyer[pid], FourCC('A02D'), 2)
-            elseif destroyerDevourStacks[pid] == 5 then
-                SetHeroAgi(destroyer[pid], 400, true)
-                UnitAddBonus(destroyer[pid], BONUS_HERO_INT, R2I(GetHeroInt(destroyer[pid], false) * 0.25))
-            end
-            if destroyerDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
-                UnitDisableAbility(destroyer[pid], FourCC('A04Z'), true)
-            end
-            SetUnitAbilityLevel(destroyer[pid], FourCC('A071'), destroyerDevourStacks[pid])
-        end
-    end
-
     --clean up
     if IsDummy(source) then
         BlzSetEventDamage(0.00)
@@ -774,31 +722,6 @@ function OnDamage()
     if source ~= target then
         --magic damage events >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         if damageType == MAGIC then
-            --creeps -30 percent
-            if GetUnitAbilityLevel(target, FourCC('A04A')) > 0 then
-                amount = amount * 0.7
-            end
-
-            --protected existence -33.33 percent
-            if ProtectedExistenceBuff:has(nil, target) then
-                amount = amount * 0.66
-            end
-
-            --astral shield -66.66 percent
-            if AstralShieldBuff:has(nil, target) then
-                amount = amount * 0.33
-            end
-
-            --hellfire shield (bosses) -50 percent
-            if IsEnemy(tpid) and UnitHasItemType(target, FourCC('I03Y')) then
-                amount = amount * 0.5
-            end
-
-            --meat golem magic resist -(25-30) percent
-            if tuid == SUMMON_GOLEM and golemDevourStacks[tpid] > 0 then
-                amount = amount * (0.75 - golemDevourStacks[tpid] * 0.1)
-            end
-
             --hardmode multiplier +100 percent
             if IsEnemy(pid) and HARD_MODE > 0 then
                 amount = amount * 2.
@@ -807,20 +730,6 @@ function OnDamage()
             --thunderblade overload
             if OverloadBuff:has(source, source) then
                 amount = amount * OVERLOAD.mult(pid)
-            end
-
-            --warrior intimidating shout limit break -40 percent
-            local buff = IntimidatingShoutDebuff:get(nil, source)
-
-            if buff then
-                if limitBreak[buff.pid] & 0x4 > 0 then
-                    amount = amount * 0.6
-                end
-            end
-
-            --oblivion guard magnetic strike +25 percent
-            if MagneticStrikeDebuff:has(nil, target) then
-                amount = amount * 1.25
             end
         end
 
@@ -838,21 +747,11 @@ function OnDamage()
             end
         end
 
-        --dark savior metamorphosis
+        --dark savior metamorphosis amp
         amount = amount * (1. + metamorphosis[pid])
 
-        --intense focus azazoth bow
+        --intense focus azazoth bow amp
         amount = amount * (1. + IntenseFocus[pid] * 0.01)
-
-        --magnetic stance -(50-30) percent
-        if GetUnitAbilityLevel(source, FourCC('Bmag')) > 0 then
-            amount = amount * (0.45 + 0.05 * GetUnitAbilityLevel(source, FourCC('Bmag')))
-        end
-
-        --tidal wave
-        if TidalWaveDebuff:has(nil, target) then
-            amount = amount * (1. + TidalWaveDebuff:get(nil, target).percent)
-        end
 
         --earth elemental storm
         if GetUnitAbilityLevel(target, FourCC('B04P')) > 0 then
@@ -862,11 +761,6 @@ function OnDamage()
         --provoke 30 percent
         if GetUnitAbilityLevel(source, FourCC('B02B')) > 0 and IsUnitType(target, UNIT_TYPE_HERO) == true then
             amount = amount * 0.75
-        end
-
-        --sand storm +20 percent
-        if GetUnitAbilityLevel(target, FourCC('Xsan')) > 0 then
-            amount = amount * 1.2
         end
 
         --item shield damage reduction
