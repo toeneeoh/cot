@@ -235,20 +235,6 @@ OnInit.global("Variables", function(Require)
         KEY_UNITS = {}
     }
 
-    --quests
-    KILLQUEST_NAME                     = 0 ---@type integer 
-    KILLQUEST_COUNT                    = 1 ---@type integer 
-    KILLQUEST_GOAL                     = 2 ---@type integer 
-    KILLQUEST_MIN                      = 3 ---@type integer 
-    KILLQUEST_MAX                      = 4 ---@type integer 
-    KILLQUEST_REGION                   = 5 ---@type integer 
-    KILLQUEST_LAST                     = 6 ---@type integer 
-    KILLQUEST_STATUS                   = 7 ---@type integer 
-
-    --creep data
-    UNITDATA_COUNT                     = 0 ---@type integer 
-    UNITDATA_SPAWN                     = 1 ---@type integer 
-
     MAIN_MAP = {
         rect = gg_rct_Main_Map,
         vision = gg_rct_Main_Map_Vision,
@@ -267,21 +253,17 @@ OnInit.global("Variables", function(Require)
     ItemMagicRes      = __jarray(0) ---@type number[] 
     ItemGoldRate      = __jarray(0) ---@type integer[] 
 
-    bpmoving      = {} ---@type boolean[] 
-    ITEM_LOOKUP = {}
+    bpmoving   = {} ---@type boolean[] 
     DAMAGE_TAG = {}
     Fleeing = {} ---@type boolean[]
     ArcTag     = "|cff66FF66Arcadite Lumber|r: " ---@type string 
     PlatTag    = "|cffccccccPlatinum Coins|r: " ---@type string 
     CrystalTag = "|cff6969FFCrystals: |r" ---@type string 
-    abc = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" ---@type string 
-    afkInt = 0 ---@type integer 
     Hardcore = {} ---@type boolean[]
     HARD_MODE = 0 ---@type integer 
     pfoe = Player(PLAYER_NEUTRAL_AGGRESSIVE) ---@type player 
     pboss = Player(PLAYER_BOSS) ---@type player 
     CHAOS_MODE = false ---@type boolean 
-    ForcedRevive = false ---@type boolean 
     CHAOS_LOADING = false ---@type boolean 
     DummyUnit = gg_unit_h05E_0717
 
@@ -389,8 +371,6 @@ OnInit.global("Variables", function(Require)
     votingSelectNo = CreateTrigger()
     hardcoreSelectYes = CreateTrigger()
     hardcoreSelectNo = CreateTrigger()
-    AFK_FRAME_BG = nil ---@type framehandle 
-    AFK_FRAME = nil ---@type framehandle 
     AFK_TEXT = ""
     hardcoreBG=nil ---@type framehandle 
     hardcoreButtonFrame=nil ---@type framehandle 
@@ -406,47 +386,14 @@ OnInit.global("Variables", function(Require)
     chatButton=nil ---@type framehandle 
     questButton=nil ---@type framehandle 
     allyButton=nil ---@type framehandle 
-    showhidemenu=nil ---@type framehandle 
     upperbuttonBar=nil ---@type framehandle 
     dummyFrame=nil ---@type framehandle 
     dummyTextTitle=nil ---@type framehandle 
     dummyTextValue=nil ---@type framehandle 
 
-    hideHealth=nil ---@type framehandle 
-
-    shieldBackdrop=nil ---@type framehandle 
-    shieldText=nil ---@type framehandle 
-
     INVENTORYBACKDROP={} ---@type framehandle[] 
 
-    --warrior limit break frames
-    LimitBreakBackdrop             = nil  ---@type framehandle 
-    LimitBreakButton1             = nil  ---@type framehandle 
-    LimitBreakBackdrop1             = nil  ---@type framehandle 
-    TriggerLimitBreakButton1         = nil   
-    LimitBreakButton2             = nil  ---@type framehandle 
-    LimitBreakBackdrop2             = nil  ---@type framehandle 
-    TriggerLimitBreakButton2         = nil   
-    LimitBreakButton3             = nil  ---@type framehandle 
-    LimitBreakBackdrop3             = nil  ---@type framehandle 
-    TriggerLimitBreakButton3         = nil   
-    LimitBreakButton4             = nil  ---@type framehandle 
-    LimitBreakBackdrop4             = nil  ---@type framehandle 
-    TriggerLimitBreakButton4         = nil   
-    LimitBreakButton5             = nil  ---@type framehandle 
-    LimitBreakBackdrop5             = nil  ---@type framehandle 
-    TriggerLimitBreakButton5         = nil
-
-    LimitBreakToolBox1             = nil ---@type framehandle 
-    LimitBreakToolText1             = nil ---@type framehandle 
-    LimitBreakToolBox2             = nil ---@type framehandle 
-    LimitBreakToolText2             = nil ---@type framehandle 
-    LimitBreakToolBox3             = nil ---@type framehandle 
-    LimitBreakToolText3             = nil ---@type framehandle 
-    LimitBreakToolBox4             = nil ---@type framehandle 
-    LimitBreakToolText4             = nil ---@type framehandle 
-    LimitBreakToolBox5             = nil ---@type framehandle 
-    LimitBreakToolText5             = nil ---@type framehandle 
+    LimitBreakBackdrop = nil  ---@type framehandle 
 
     --prestige talent window frames
     TalentMainFrame             = nil  ---@type framehandle 
@@ -1315,200 +1262,200 @@ OnInit.global("Variables", function(Require)
     local id         = FourCC('nits') ---@type integer 
     KillQuest[0][0] = id
     KillQuest[FourCC('I07D')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 15
-    KillQuest[id][KILLQUEST_MIN] = 1
-    KillQuest[id][KILLQUEST_MAX] = 8
-    KillQuest[id][KILLQUEST_NAME] = "Trolls"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Troll_Demon_1
+    KillQuest[id].goal = 15
+    KillQuest[id].min = 1
+    KillQuest[id].max = 8
+    KillQuest[id].name = "Trolls"
+    KillQuest[id].region = gg_rct_Troll_Demon_1
     --tuskarr
     id = FourCC('ntks')
     KillQuest[0][1] = id
     KillQuest[FourCC('I058')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 3
-    KillQuest[id][KILLQUEST_MAX] = 14
-    KillQuest[id][KILLQUEST_NAME] = "Tuskarr"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Tuskar_Horror_1
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 3
+    KillQuest[id].max = 14
+    KillQuest[id].name = "Tuskarr"
+    KillQuest[id].region = gg_rct_Tuskar_Horror_1
     --spider
     id = FourCC('nnwr')
     KillQuest[0][2] = id
     KillQuest[FourCC('I05F')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 5
-    KillQuest[id][KILLQUEST_MAX] = 24
-    KillQuest[id][KILLQUEST_NAME] = "Spiders"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Spider_Horror_3
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 5
+    KillQuest[id].max = 24
+    KillQuest[id].name = "Spiders"
+    KillQuest[id].region = gg_rct_Spider_Horror_3
     --ursa
     id = FourCC('nfpu')
     KillQuest[0][3] = id
     KillQuest[FourCC('I04U')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 25
-    KillQuest[id][KILLQUEST_MIN] = 8
-    KillQuest[id][KILLQUEST_MAX] = 24
-    KillQuest[id][KILLQUEST_NAME] = "Ursae"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Ursa_Abyssal_2
+    KillQuest[id].goal = 25
+    KillQuest[id].min = 8
+    KillQuest[id].max = 24
+    KillQuest[id].name = "Ursae"
+    KillQuest[id].region = gg_rct_Ursa_Abyssal_2
     --polar bears
     id = FourCC('nplg')
     KillQuest[0][4] = id
     KillQuest[FourCC('I04V')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 12
-    KillQuest[id][KILLQUEST_MAX] = 46
-    KillQuest[id][KILLQUEST_NAME] = "Polar Bears & Mammoths"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Bear_2
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 12
+    KillQuest[id].max = 46
+    KillQuest[id].name = "Polar Bears & Mammoths"
+    KillQuest[id].region = gg_rct_Bear_2
     --tauren/ogre
     id = FourCC('n01G')
     KillQuest[0][5] = id
     KillQuest[FourCC('I05B')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 25
-    KillQuest[id][KILLQUEST_MIN] = 20
-    KillQuest[id][KILLQUEST_MAX] = 62
-    KillQuest[id][KILLQUEST_NAME] = "Taurens & Ogres"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_OgreTauren_Void_5
+    KillQuest[id].goal = 25
+    KillQuest[id].min = 20
+    KillQuest[id].max = 62
+    KillQuest[id].name = "Taurens & Ogres"
+    KillQuest[id].region = gg_rct_OgreTauren_Void_5
     --unbroken
     id = FourCC('nubw')
     KillQuest[0][6] = id
     KillQuest[FourCC('I05L')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 25
-    KillQuest[id][KILLQUEST_MIN] = 29
-    KillQuest[id][KILLQUEST_MAX] = 84
-    KillQuest[id][KILLQUEST_NAME] = "Unbroken"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Unbroken_Dimensional_2
+    KillQuest[id].goal = 25
+    KillQuest[id].min = 29
+    KillQuest[id].max = 84
+    KillQuest[id].name = "Unbroken"
+    KillQuest[id].region = gg_rct_Unbroken_Dimensional_2
     --hellhounds
     id = FourCC('nvdl')
     KillQuest[0][7] = id
     KillQuest[FourCC('I05E')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 44
-    KillQuest[id][KILLQUEST_MAX] = 110
-    KillQuest[id][KILLQUEST_NAME] = "Hellspawn"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Hell_4
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 44
+    KillQuest[id].max = 110
+    KillQuest[id].name = "Hellspawn"
+    KillQuest[id].region = gg_rct_Hell_4
     --centaur
     id = FourCC('n024')
     KillQuest[0][8] = id
     KillQuest[FourCC('I0GD')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 56
-    KillQuest[id][KILLQUEST_MAX] = 134
-    KillQuest[id][KILLQUEST_NAME] = "Centaurs"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Centaur_Nightmare_5
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 56
+    KillQuest[id].max = 134
+    KillQuest[id].name = "Centaurs"
+    KillQuest[id].region = gg_rct_Centaur_Nightmare_5
     --magnataur
     id = FourCC('n01M')
     KillQuest[0][9] = id
     KillQuest[FourCC('I05K')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 70
-    KillQuest[id][KILLQUEST_MAX] = 162
-    KillQuest[id][KILLQUEST_NAME] = "Magnataurs"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Magnataur_Despair_1
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 70
+    KillQuest[id].max = 162
+    KillQuest[id].name = "Magnataurs"
+    KillQuest[id].region = gg_rct_Magnataur_Despair_1
     --dragon
     id = FourCC('n02P')
     KillQuest[0][10] = id
     KillQuest[FourCC('I05M')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 92
-    KillQuest[id][KILLQUEST_MAX] = 182
-    KillQuest[id][KILLQUEST_NAME] = "Dragons"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Dragon_Astral_8
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 92
+    KillQuest[id].max = 182
+    KillQuest[id].name = "Dragons"
+    KillQuest[id].region = gg_rct_Dragon_Astral_8
     --devourers
     id = FourCC('n02L')
     KillQuest[0][11] = id
     KillQuest[FourCC('I022')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 110
-    KillQuest[id][KILLQUEST_MAX] = 198
-    KillQuest[id][KILLQUEST_NAME] = "Devourers"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Devourer_entry
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 110
+    KillQuest[id].max = 198
+    KillQuest[id].name = "Devourers"
+    KillQuest[id].region = gg_rct_Devourer_entry
     --demons
     id = FourCC('n034')
     KillQuest[1][0] = id
     KillQuest[FourCC('I03H')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 166
-    KillQuest[id][KILLQUEST_MAX] = 256
-    KillQuest[id][KILLQUEST_NAME] = "Demons"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Troll_Demon_1
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 166
+    KillQuest[id].max = 256
+    KillQuest[id].name = "Demons"
+    KillQuest[id].region = gg_rct_Troll_Demon_1
     --horror beast
     id = FourCC('n03A')
     KillQuest[1][1] = id
     KillQuest[FourCC('I09J')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 190
-    KillQuest[id][KILLQUEST_MAX] = 260
-    KillQuest[id][KILLQUEST_NAME] = "Horror Beasts"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Tuskar_Horror_1
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 190
+    KillQuest[id].max = 260
+    KillQuest[id].name = "Horror Beasts"
+    KillQuest[id].region = gg_rct_Tuskar_Horror_1
     --despair
     id = FourCC('n03F')
     KillQuest[1][2] = id
     KillQuest[FourCC('I03C')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 210
-    KillQuest[id][KILLQUEST_MAX] = 280
-    KillQuest[id][KILLQUEST_NAME] = "Despairs"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Magnataur_Despair_1
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 210
+    KillQuest[id].max = 280
+    KillQuest[id].name = "Despairs"
+    KillQuest[id].region = gg_rct_Magnataur_Despair_1
     --abyssal
     id = FourCC('n08N')
     KillQuest[1][3] = id
     KillQuest[FourCC('I02A')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 229
-    KillQuest[id][KILLQUEST_MAX] = 299
-    KillQuest[id][KILLQUEST_NAME] = "Abyssals"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Ursa_Abyssal_2
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 229
+    KillQuest[id].max = 299
+    KillQuest[id].name = "Abyssals"
+    KillQuest[id].region = gg_rct_Ursa_Abyssal_2
     --void
     id = FourCC('n031')
     KillQuest[1][4] = id
     KillQuest[FourCC('I03I')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 250
-    KillQuest[id][KILLQUEST_MAX] = 320
-    KillQuest[id][KILLQUEST_NAME] = "Voids"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_OgreTauren_Void_5
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 250
+    KillQuest[id].max = 320
+    KillQuest[id].name = "Voids"
+    KillQuest[id].region = gg_rct_OgreTauren_Void_5
     --nightmares
     id = FourCC('n020')
     KillQuest[1][5] = id
     KillQuest[FourCC('I0GE')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 270
-    KillQuest[id][KILLQUEST_MAX] = 340
-    KillQuest[id][KILLQUEST_NAME] = "Nightmares"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Centaur_Nightmare_5
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 270
+    KillQuest[id].max = 340
+    KillQuest[id].name = "Nightmares"
+    KillQuest[id].region = gg_rct_Centaur_Nightmare_5
     --hellspawn
     id = FourCC('n03D')
     KillQuest[1][6] = id
     KillQuest[FourCC('I03J')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 290
-    KillQuest[id][KILLQUEST_MAX] = 360
-    KillQuest[id][KILLQUEST_NAME] = "Hellspawn"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Hell_4
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 290
+    KillQuest[id].max = 360
+    KillQuest[id].name = "Hellspawn"
+    KillQuest[id].region = gg_rct_Hell_4
     --denied existence
     id = FourCC('n03J')
     KillQuest[1][7] = id
     KillQuest[FourCC('I02G')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 30
-    KillQuest[id][KILLQUEST_MIN] = 310
-    KillQuest[id][KILLQUEST_MAX] = 380
-    KillQuest[id][KILLQUEST_NAME] = "Existences"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Devourer_entry
+    KillQuest[id].goal = 30
+    KillQuest[id].min = 310
+    KillQuest[id].max = 380
+    KillQuest[id].name = "Existences"
+    KillQuest[id].region = gg_rct_Devourer_entry
     --astral
     id = FourCC('n03M')
     KillQuest[1][8] = id
     KillQuest[FourCC('I039')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 330
-    KillQuest[id][KILLQUEST_MAX] = 400
-    KillQuest[id][KILLQUEST_NAME] = "Astrals"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Dragon_Astral_8
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 330
+    KillQuest[id].max = 400
+    KillQuest[id].name = "Astrals"
+    KillQuest[id].region = gg_rct_Dragon_Astral_8
     --dimensionals
     id = FourCC('n026')
     KillQuest[1][9] = id
     KillQuest[FourCC('I0Q1')][0] = id
-    KillQuest[id][KILLQUEST_GOAL] = 20
-    KillQuest[id][KILLQUEST_MIN] = 350
-    KillQuest[id][KILLQUEST_MAX] = 420
-    KillQuest[id][KILLQUEST_NAME] = "Dimensionals"
-    KillQuest[id][KILLQUEST_REGION] = gg_rct_Unbroken_Dimensional_2
+    KillQuest[id].goal = 20
+    KillQuest[id].min = 350
+    KillQuest[id].max = 420
+    KillQuest[id].name = "Dimensionals"
+    KillQuest[id].region = gg_rct_Unbroken_Dimensional_2
 
     Experience_Table = {}
     RewardGold = {}
@@ -1580,7 +1527,6 @@ OnInit.global("Variables", function(Require)
 
     TIER_NAME= {} ---@type string[] 
     TYPE_NAME= {} ---@type string[] 
-    STAT_NAME= {} ---@type string[] 
     ITEM_MODEL= {} ---@type integer[] 
     LEVEL_PREFIX= {} ---@type string[] 
     SPRITE_RARITY= {} ---@type string[] 
@@ -1747,23 +1693,53 @@ OnInit.global("Variables", function(Require)
     }
     PROF[0] = 0
 
-    STAT_NAME[ITEM_HEALTH] = "|r |cffff0000Health|r"
-    STAT_NAME[ITEM_MANA] = "|r |cff6699ffMana|r"
-    STAT_NAME[ITEM_DAMAGE] = "|r |cffff6600Damage|r"
-    STAT_NAME[ITEM_ARMOR] = "|r |cffa4a4feArmor|r"
-    STAT_NAME[ITEM_STRENGTH] = "|r |cffbb0000Strength|r"
-    STAT_NAME[ITEM_AGILITY] = "|r |cff008800Agility|r"
-    STAT_NAME[ITEM_INTELLIGENCE] = "|r |cff2255ffIntelligence|r"
-    STAT_NAME[ITEM_REGENERATION] = "|r |cffa00070Regeneration|r"
-    STAT_NAME[ITEM_DAMAGE_RESIST] = "\x25|r |cffff8040Damage Resist|r"
-    STAT_NAME[ITEM_MAGIC_RESIST] = "\x25|r |cff8000ffMagic Resist|r"
-    STAT_NAME[ITEM_MOVESPEED] = "|r |cff888888Movespeed|r"
-    STAT_NAME[ITEM_CRIT_CHANCE] = "x|r |cffffcc00Critical Strike|r"
-    STAT_NAME[ITEM_CRIT_DAMAGE] = "x|r |cffffcc00Critical Strike|r"
-    STAT_NAME[ITEM_EVASION] = "\x25|r |cff008080Evasion|r"
-    STAT_NAME[ITEM_SPELLBOOST] = "\x25|r |cff80ffffSpellboost|r"
-    STAT_NAME[ITEM_BASE_ATTACK_SPEED] = "\x25|r |cff446600Base Attack Speed|r"
-    STAT_NAME[ITEM_GOLD_GAIN] = "\x25|r |cffffff00Gold Find|r"
+    --types: 1 - power, 2 - utility, 3 - player only
+    STAT_TAG = {
+        [ITEM_HEALTH]            = { tag = "|cffff0000Health|r", type = 1,
+    getter = function(u) return RealToString(GetWidgetLife(u)) .. " / " .. RealToString(BlzGetUnitMaxHP(u)) end},
+        [ITEM_MANA]              = { tag = "|cff6699ffMana|r", type = 1,
+    getter = function(u) return RealToString(GetUnitState(u, UNIT_STATE_MANA)) .. " / " .. RealToString(GetUnitState(u, UNIT_STATE_MAX_MANA)) end},
+        [ITEM_DAMAGE]            = { tag = "|cffff6600Damage|r", type = 1,
+    getter = function(u) return RealToString(BlzGetUnitBaseDamage(u, 0) + UnitGetBonus(u, BONUS_DAMAGE)) end},
+        [ITEM_ARMOR]             = { tag = "|cffa4a4feArmor|r", type = 1,
+    getter = function(u) return RealToString(BlzGetUnitArmor(u)) end},
+        [ITEM_STRENGTH]          = { tag = "|cffbb0000Strength|r", type = 1,
+    getter = function(u) return RealToString(GetHeroStr(u, true)) end},
+        [ITEM_AGILITY]           = { tag = "|cff008800Agility|r", type = 1,
+    getter = function(u) return RealToString(GetHeroAgi(u, true)) end},
+        [ITEM_INTELLIGENCE]      = { tag = "|cff2255ffIntelligence|r", type = 1,
+    getter = function(u) return RealToString(GetHeroInt(u, true)) end},
+        [ITEM_REGENERATION]      = { tag = "|cffa00070Regeneration|r", type = 1,
+    getter = function(u) return RealToString(UnitGetBonus(u, BONUS_LIFE_REGEN)) end},
+        [ITEM_DAMAGE_RESIST]     = { tag = "|cffff8040Physical Taken|r", type = 1, prefix = "\x25 ",
+    getter = function(u) return R2S((Unit[u].dr * Unit[u].pr) * 100.) end},
+        [ITEM_MAGIC_RESIST]      = { tag = "|cff8000ffMagical Taken|r", type = 1, prefix = "\x25 ",
+    getter = function(u) return R2S((Unit[u].dr * Unit[u].mr) * 100.) end},
+        [ITEM_MOVESPEED]         = { tag = "|cff888888Movespeed|r", type = 2,
+    getter = function(u) return RealToString(Unit[u].movespeed) end},
+        [ITEM_CRIT_CHANCE]       = { tag = "|cffffcc00Critical Chance|r", type = 1, prefix = "\x25 ",
+    getter = function(u) return "0" end},
+        [ITEM_CRIT_DAMAGE]       = { tag = "|cffffcc00Critical Damage|r", type = 1, prefix = "\x25 ",
+    getter = function(u) return "0" end},
+        [ITEM_EVASION]           = { tag = "|cff008080Evasion|r", type = 2, prefix = "\x25 ",
+    getter = function(u) return math.min(100, (Unit[u].evasion)) end},
+        [ITEM_SPELLBOOST]        = { tag = "|cff80ffffSpellboost|r", type = 1, prefix = "\x25 ",
+    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(BoostValue[pid] * 100) end},
+        [ITEM_BASE_ATTACK_SPEED] = { tag = "|cff446600Base Attack Speed|r", type = 1,
+    getter = function(u) local as = 1 / BlzGetUnitAttackCooldown(u, 0) return R2S(as) .. " attacks per second" end},
+        [ITEM_GOLD_GAIN]         = { tag = "|cffffff00Gold Find|r", type = 3, prefix = "\x25 ",
+    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return ItemGoldRate[pid] end},
+                            [18] = { tag = "|cff446600Total Attack Speed|r", type = 1,
+    getter = function(u) local as = (1 / BlzGetUnitAttackCooldown(u, 0)) * (1 + math.min(GetHeroAgi(u, true), 400) * 0.01) return R2S(as) .. " attacks per second" end},
+                            [19] = { tag = "|cff808080Experience Rate|r", type = 3,
+    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(XP_Rate[pid]) end},
+                            [20] = { tag = "|cff808080Colosseum XP Rate|r", type = 3, prefix = "\x25 ",
+    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(Colosseum_XP[pid] * 100.) end},
+                            [21] = { tag = "|cff808000Hero Time Played|r", type = 3,
+    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
+                            [22] = { tag = "|cff808000Total Time Played|r", type = 3,
+    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
+    }
 
     LIMIT_STRING[1] = "You can only wear one of this item."
     LIMIT_STRING[2] = "You only have two feet"
