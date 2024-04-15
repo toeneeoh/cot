@@ -40,6 +40,12 @@ OnInit.final("Keyboard", function(Require)
     end
 
     local function Escape()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzFrameSetVisible(STAT_WINDOW.frame, false)
+        end
+
         return false
     end
 
