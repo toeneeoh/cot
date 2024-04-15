@@ -24,7 +24,11 @@ OnInit.final("Commands", function(Require)
             DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffffcc00Commands are located in F9.|r")
         end,
         ["-stats"] = function(p, pid, args)
-            StatsInfo(p, tonumber(args[2]))
+            local tpid = tonumber(args[2])
+
+            tpid = tpid or GetPlayerId(p) + 1
+
+            DisplayStatWindow(Hero[tpid] or PlayerSelectedUnit[tpid], pid)
         end,
         ["-clear"] = function(p, pid, args)
             if p == GetLocalPlayer() then
@@ -74,24 +78,8 @@ OnInit.final("Commands", function(Require)
         end,
         ["-estats"] = function(p, pid, args)
             local u = PlayerSelectedUnit[pid]
-            if u then
-                local atkspeed = 1. / BlzGetUnitAttackCooldown(u, 0)
-                if IsUnitType(u, UNIT_TYPE_HERO) then
-                    atkspeed = atkspeed * (1 + IMinBJ(GetHeroAgi(u, true) + R2I(UnitGetBonus(u, BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
-                else
-                    atkspeed = atkspeed * (1 + IMinBJ(R2I(UnitGetBonus(u, BONUS_ATTACK_SPEED) * 100), 400) * 0.01)
-                end
 
-                DisplayTimedTextToPlayer(p, 0, 0, 20, GetUnitName(u))
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "Level: " .. (GetUnitLevel(u)))
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "Health: " .. RealToString(GetWidgetLife(u)) .. " / " .. RealToString(BlzGetUnitMaxHP(u)))
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cffffcc00Attack Speed: |r" .. R2S(atkspeed) .. " attacks per second")
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff800040Regeneration: |r" .. R2S(UnitGetBonus(u, BONUS_LIFE_REGEN)) .. " health per second")
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff008080Evasion: |r" .. IMinBJ(100, (Unit[u].evasion)) .. "\x25")
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "Movespeed: " .. RealToString(Unit[u].movespeed))
-            else
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "Please click a valid unit!")
-            end
+            DisplayStatWindow(u, pid)
         end,
         ["-p"] = function(p, pid, args)
             if GetCurrency(pid, PLATINUM) > 0 then
@@ -353,25 +341,6 @@ function ShowExpRate(user, pid)
     end
 end
 
----@type fun(user: player, pid: integer?)
-function StatsInfo(user, pid)
-    pid = pid or GetPlayerId(user) + 1
-
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffFB4915Health: |r" .. RealToString(GetWidgetLife(Hero[pid])) .. " / " .. RealToString(BlzGetUnitMaxHP(Hero[pid])) .. " |cff6584edMana: |r" .. RealToString(GetUnitState(Hero[pid],UNIT_STATE_MANA)) .. " / " .. RealToString(GetUnitState(Hero[pid],UNIT_STATE_MAX_MANA)))
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffff0b11Strength: |r" .. RealToString(GetHeroStr(Hero[pid], true)) .. "|cff00ff40 Agility: |r" .. RealToString(GetHeroAgi(Hero[pid], true)) .. "|cff0080ff Intelligence: |r" .. RealToString(GetHeroInt(Hero[pid], true)))
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff800040Regeneration: |r" .. RealToString(UnitGetBonus(PlayerSelectedUnit[pid], BONUS_LIFE_REGEN)) .. " health per second")
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff008080Evasion: |r" .. IMinBJ(100, (Unit[Hero[pid]].evasion)) .. "\x25")
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffff8040Physical Damage Taken: |r" .. (Unit[Hero[pid]].dr * Unit[Hero[pid]].pr * 100) .. "\x25")
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff8000ffMagic Damage Taken: |r" .. (Unit[Hero[pid]].dr * Unit[Hero[pid]].mr * 100) .. "\x25")
-    if ShieldCount[pid] > 0 and HeroID[pid] == HERO_ROYAL_GUARDIAN then
-        DisplayTimedTextToPlayer(user, 0, 0, 30, "Shield: " .. (ShieldCount[pid]))
-    end
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff00ffffSpellboost: |r" .. R2S(BoostValue[pid] * 100) .. "\x25")
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cffffcc00Gold Rate:|r +" .. (ItemGoldRate[pid]) .. "\x25")
-    ShowExpRate(user, pid)
-    DisplayTimedTextToPlayer(user, 0, 0, 30, "|cff808000Time Played: |r" .. (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes")
-end
-
 function ApplyHardmode()
     BlzFrameSetVisible(votingBG, false)
 
@@ -518,9 +487,9 @@ function DisplayQuestProgress(p)
     local index = KillQuest[flag][i]
 
     while index ~= 0 do
-        local s = (KillQuest[index][KILLQUEST_COUNT] == KillQuest[index][KILLQUEST_GOAL] and "|cff40ff40") or ""
+        local s = (KillQuest[index].count == KillQuest[index].goal and "|cff40ff40") or ""
 
-        DisplayTimedTextToPlayer(p, 0, 0, 10, KillQuest[index][KILLQUEST_NAME] .. ": " .. s .. (KillQuest[index][KILLQUEST_COUNT]) .. "/" .. (KillQuest[index][KILLQUEST_GOAL]) .. "|r |cffffcc01LVL " .. (KillQuest[index][KILLQUEST_MIN]) .. "-" .. (KillQuest[index][KILLQUEST_MAX]))
+        DisplayTimedTextToPlayer(p, 0, 0, 10, KillQuest[index].name .. ": " .. s .. (KillQuest[index].count) .. "/" .. (KillQuest[index].goal) .. "|r |cffffcc01LVL " .. (KillQuest[index].min) .. "-" .. (KillQuest[index].max))
         i = i + 1
         index = KillQuest[flag][i]
     end
