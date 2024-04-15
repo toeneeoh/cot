@@ -849,269 +849,269 @@ end
 
     --ice troll trapper
     local id = FourCC('nitt')
-    UnitData[id][UNITDATA_COUNT] = 18
-    UnitData[id][UNITDATA_SPAWN] = 1
+    UnitData[id].count = 18
+    UnitData[id].spawn = 1
     UnitData[0][0] = id
     --ice troll berserker
     id = FourCC('nits')
-    UnitData[id][UNITDATA_COUNT] = 10
-    UnitData[id][UNITDATA_SPAWN] = 1
+    UnitData[id].count = 10
+    UnitData[id].spawn = 1
     UnitData[0][1] = id
     --tuskarr sorc
     id = FourCC('ntks')
-    UnitData[id][UNITDATA_COUNT] = 10
-    UnitData[id][UNITDATA_SPAWN] = 2
+    UnitData[id].count = 10
+    UnitData[id].spawn = 2
     UnitData[0][2] = id
     --tuskarr warrior
     id = FourCC('ntkw')
-    UnitData[id][UNITDATA_COUNT] = 11
-    UnitData[id][UNITDATA_SPAWN] = 2
+    UnitData[id].count = 11
+    UnitData[id].spawn = 2
     UnitData[0][3] = id
     --tuskarr chieftain
     id = FourCC('ntkc')
-    UnitData[id][UNITDATA_COUNT] = 9
-    UnitData[id][UNITDATA_SPAWN] = 2
+    UnitData[id].count = 9
+    UnitData[id].spawn = 2
     UnitData[0][4] = id
     --nerubian Seer
     id = FourCC('nnwr')
-    UnitData[id][UNITDATA_COUNT] = 18
-    UnitData[id][UNITDATA_SPAWN] = 3
+    UnitData[id].count = 18
+    UnitData[id].spawn = 3
     UnitData[0][5] = id
     --nerubian spider lord
     id = FourCC('nnws')
-    UnitData[id][UNITDATA_COUNT] = 18
-    UnitData[id][UNITDATA_SPAWN] = 3
+    UnitData[id].count = 18
+    UnitData[id].spawn = 3
     UnitData[0][6] = id
     --polar furbolg warrior 
     id = FourCC('nfpu')
-    UnitData[id][UNITDATA_COUNT] = 38
-    UnitData[id][UNITDATA_SPAWN] = 4
+    UnitData[id].count = 38
+    UnitData[id].spawn = 4
     UnitData[0][7] = id
     --polar furbolg elder shaman
     id = FourCC('nfpe')
-    UnitData[id][UNITDATA_COUNT] = 22
-    UnitData[id][UNITDATA_SPAWN] = 4
+    UnitData[id].count = 22
+    UnitData[id].spawn = 4
     UnitData[0][8] = id
     --giant polar bear
     id = FourCC('nplg')
-    UnitData[id][UNITDATA_COUNT] = 20
-    UnitData[id][UNITDATA_SPAWN] = 5
+    UnitData[id].count = 20
+    UnitData[id].spawn = 5
     UnitData[0][9] = id
     --dire mammoth
     id = FourCC('nmdr')
-    UnitData[id][UNITDATA_COUNT] = 16
-    UnitData[id][UNITDATA_SPAWN] = 5
+    UnitData[id].count = 16
+    UnitData[id].spawn = 5
     UnitData[0][10] = id
     --ogre overlord
     id = FourCC('n01G')
-    UnitData[id][UNITDATA_COUNT] = 55
-    UnitData[id][UNITDATA_SPAWN] = 6
+    UnitData[id].count = 55
+    UnitData[id].spawn = 6
     UnitData[0][11] = id
     --tauren
     id = FourCC('o01G')
-    UnitData[id][UNITDATA_COUNT] = 40
-    UnitData[id][UNITDATA_SPAWN] = 6
+    UnitData[id].count = 40
+    UnitData[id].spawn = 6
     UnitData[0][12] = id
     --unbroken deathbringer
     id = FourCC('nfod')
-    UnitData[id][UNITDATA_COUNT] = 18
-    UnitData[id][UNITDATA_SPAWN] = 7
+    UnitData[id].count = 18
+    UnitData[id].spawn = 7
     UnitData[0][13] = id
     --unbroken trickster
     id = FourCC('nfor')
-    UnitData[id][UNITDATA_COUNT] = 15
-    UnitData[id][UNITDATA_SPAWN] = 7
+    UnitData[id].count = 15
+    UnitData[id].spawn = 7
     UnitData[0][14] = id
     --unbroken darkweaver
     id = FourCC('nubw')
-    UnitData[id][UNITDATA_COUNT] = 12
-    UnitData[id][UNITDATA_SPAWN] = 7
+    UnitData[id].count = 12
+    UnitData[id].spawn = 7
     UnitData[0][15] = id
     --lesser hellfire
     id = FourCC('nvdl')
-    UnitData[id][UNITDATA_COUNT] = 25
-    UnitData[id][UNITDATA_SPAWN] = 8
+    UnitData[id].count = 25
+    UnitData[id].spawn = 8
     UnitData[0][16] = id
     --lesser hellhound
     id = FourCC('nvdw')
-    UnitData[id][UNITDATA_COUNT] = 30
-    UnitData[id][UNITDATA_SPAWN] = 8
+    UnitData[id].count = 30
+    UnitData[id].spawn = 8
     UnitData[0][17] = id
     --centaur lancer
     id = FourCC('n027')
-    UnitData[id][UNITDATA_COUNT] = 25
-    UnitData[id][UNITDATA_SPAWN] = 9
+    UnitData[id].count = 25
+    UnitData[id].spawn = 9
     UnitData[0][18] = id
     --centaur ranger
     id = FourCC('n024')
-    UnitData[id][UNITDATA_COUNT] = 20
-    UnitData[id][UNITDATA_SPAWN] = 9
+    UnitData[id].count = 20
+    UnitData[id].spawn = 9
     UnitData[0][19] = id
     --centaur mage
     id = FourCC('n028')
-    UnitData[id][UNITDATA_COUNT] = 15
-    UnitData[id][UNITDATA_SPAWN] = 9
+    UnitData[id].count = 15
+    UnitData[id].spawn = 9
     UnitData[0][20] = id
     --magnataur destroyer
     id = FourCC('n01M')
-    UnitData[id][UNITDATA_COUNT] = 45
-    UnitData[id][UNITDATA_SPAWN] = 10
+    UnitData[id].count = 45
+    UnitData[id].spawn = 10
     UnitData[0][21] = id
     --forgotten one
     id = FourCC('n08M')
-    UnitData[id][UNITDATA_COUNT] = 20
-    UnitData[id][UNITDATA_SPAWN] = 10
+    UnitData[id].count = 20
+    UnitData[id].spawn = 10
     UnitData[0][22] = id
     --ancient hydra
     id = FourCC('n01H')
-    UnitData[id][UNITDATA_COUNT] = 4
-    UnitData[id][UNITDATA_SPAWN] = 11
+    UnitData[id].count = 4
+    UnitData[id].spawn = 11
     UnitData[0][23] = id
     --frost dragon
     id = FourCC('n02P')
-    UnitData[id][UNITDATA_COUNT] = 18
-    UnitData[id][UNITDATA_SPAWN] = 12
+    UnitData[id].count = 18
+    UnitData[id].spawn = 12
     UnitData[0][24] = id
     --frost drake
     id = FourCC('n01R')
-    UnitData[id][UNITDATA_COUNT] = 18
-    UnitData[id][UNITDATA_SPAWN] = 12
+    UnitData[id].count = 18
+    UnitData[id].spawn = 12
     UnitData[0][25] = id
     --frost elder
     id = FourCC('n099')
-    UnitData[id][UNITDATA_COUNT] = 1
-    UnitData[id][UNITDATA_SPAWN] = 14
+    UnitData[id].count = 1
+    UnitData[id].spawn = 14
     UnitData[0][26] = id
     --medean berserker
     id = FourCC('n00C')
-    UnitData[id][UNITDATA_COUNT] = 7
-    UnitData[id][UNITDATA_SPAWN] = 13
+    UnitData[id].count = 7
+    UnitData[id].spawn = 13
     UnitData[0][27] = id
     --medean devourer
     id = FourCC('n02L')
-    UnitData[id][UNITDATA_COUNT] = 15
-    UnitData[id][UNITDATA_SPAWN] = 13
+    UnitData[id].count = 15
+    UnitData[id].spawn = 13
     UnitData[0][28] = id
 
     --demon
     id = FourCC('n033')
-    UnitData[id][UNITDATA_COUNT] = 20
-    UnitData[id][UNITDATA_SPAWN] = 1
+    UnitData[id].count = 20
+    UnitData[id].spawn = 1
     UnitData[1][0] = id
     --demon wizard
     id = FourCC('n034')
-    UnitData[id][UNITDATA_COUNT] = 11
-    UnitData[id][UNITDATA_SPAWN] = 1
+    UnitData[id].count = 11
+    UnitData[id].spawn = 1
     UnitData[1][1] = id
     --horror young
     id = FourCC('n03C')
-    UnitData[id][UNITDATA_COUNT] = 24
-    UnitData[id][UNITDATA_SPAWN] = 15
+    UnitData[id].count = 24
+    UnitData[id].spawn = 15
     UnitData[1][2] = id
     --horror mindless
     id = FourCC('n03A')
-    UnitData[id][UNITDATA_COUNT] = 46
-    UnitData[id][UNITDATA_SPAWN] = 15
+    UnitData[id].count = 46
+    UnitData[id].spawn = 15
     UnitData[1][3] = id
     --horror leader
     id = FourCC('n03B')
-    UnitData[id][UNITDATA_COUNT] = 11
-    UnitData[id][UNITDATA_SPAWN] = 15
+    UnitData[id].count = 11
+    UnitData[id].spawn = 15
     UnitData[1][4] = id
     --despair
     id = FourCC('n03F')
-    UnitData[id][UNITDATA_COUNT] = 62
-    UnitData[id][UNITDATA_SPAWN] = 18
+    UnitData[id].count = 62
+    UnitData[id].spawn = 18
     UnitData[1][5] = id
     --despair wizard
     id = FourCC('n01W')
-    UnitData[id][UNITDATA_COUNT] = 30
-    UnitData[id][UNITDATA_SPAWN] = 18
+    UnitData[id].count = 30
+    UnitData[id].spawn = 18
     UnitData[1][6] = id
     --abyssal beast
     id = FourCC('n00X')
-    UnitData[id][UNITDATA_COUNT] = 19
-    UnitData[id][UNITDATA_SPAWN] = 16
+    UnitData[id].count = 19
+    UnitData[id].spawn = 16
     UnitData[1][7] = id
     --abyssal guardian
     id = FourCC('n08N')
-    UnitData[id][UNITDATA_COUNT] = 34
-    UnitData[id][UNITDATA_SPAWN] = 16
+    UnitData[id].count = 34
+    UnitData[id].spawn = 16
     UnitData[1][8] = id
     --abyssal spirit
     id = FourCC('n00W')
-    UnitData[id][UNITDATA_COUNT] = 34
-    UnitData[id][UNITDATA_SPAWN] = 16
+    UnitData[id].count = 34
+    UnitData[id].spawn = 16
     UnitData[1][9] = id
     --void seeker
     id = FourCC('n030')
-    UnitData[id][UNITDATA_COUNT] = 30
-    UnitData[id][UNITDATA_SPAWN] = 17
+    UnitData[id].count = 30
+    UnitData[id].spawn = 17
     UnitData[1][10] = id
     --void keeper
     id = FourCC('n031')
-    UnitData[id][UNITDATA_COUNT] = 40
-    UnitData[id][UNITDATA_SPAWN] = 17
+    UnitData[id].count = 40
+    UnitData[id].spawn = 17
     UnitData[1][11] = id
     --void mother
     id = FourCC('n02Z')
-    UnitData[id][UNITDATA_COUNT] = 40
-    UnitData[id][UNITDATA_SPAWN] = 17
+    UnitData[id].count = 40
+    UnitData[id].spawn = 17
     UnitData[1][12] = id
     --nightmare creature
     id = FourCC('n020')
-    UnitData[id][UNITDATA_COUNT] = 22
-    UnitData[id][UNITDATA_SPAWN] = 9
+    UnitData[id].count = 22
+    UnitData[id].spawn = 9
     UnitData[1][13] = id
     --nightmare spirit
     id = FourCC('n02J')
-    UnitData[id][UNITDATA_COUNT] = 18
-    UnitData[id][UNITDATA_SPAWN] = 9
+    UnitData[id].count = 18
+    UnitData[id].spawn = 9
     UnitData[1][14] = id
     --spawn of hell
     id = FourCC('n03E')
-    UnitData[id][UNITDATA_COUNT] = 18
-    UnitData[id][UNITDATA_SPAWN] = 8
+    UnitData[id].count = 18
+    UnitData[id].spawn = 8
     UnitData[1][15] = id
     --death dealer
     id = FourCC('n03D')
-    UnitData[id][UNITDATA_COUNT] = 16
-    UnitData[id][UNITDATA_SPAWN] = 8
+    UnitData[id].count = 16
+    UnitData[id].spawn = 8
     UnitData[1][16] = id
     --lord of plague
     id = FourCC('n03G')
-    UnitData[id][UNITDATA_COUNT] = 6
-    UnitData[id][UNITDATA_SPAWN] = 8
+    UnitData[id].count = 6
+    UnitData[id].spawn = 8
     UnitData[1][17] = id
     --denied existence
     id = FourCC('n03J')
-    UnitData[id][UNITDATA_COUNT] = 24
-    UnitData[id][UNITDATA_SPAWN] = 13
+    UnitData[id].count = 24
+    UnitData[id].spawn = 13
     UnitData[1][18] = id
     --deprived existence
     id = FourCC('n01X')
-    UnitData[id][UNITDATA_COUNT] = 13
-    UnitData[id][UNITDATA_SPAWN] = 13
+    UnitData[id].count = 13
+    UnitData[id].spawn = 13
     UnitData[1][19] = id
     --astral being
     id = FourCC('n03M')
-    UnitData[id][UNITDATA_COUNT] = 24
-    UnitData[id][UNITDATA_SPAWN] = 12
+    UnitData[id].count = 24
+    UnitData[id].spawn = 12
     UnitData[1][20] = id
     --astral entity
     id = FourCC('n01V')
-    UnitData[id][UNITDATA_COUNT] = 13
-    UnitData[id][UNITDATA_SPAWN] = 12
+    UnitData[id].count = 13
+    UnitData[id].spawn = 12
     UnitData[1][21] = id
     --dimensional planewalker
     id = FourCC('n026')
-    UnitData[id][UNITDATA_COUNT] = 22
-    UnitData[id][UNITDATA_SPAWN] = 7
+    UnitData[id].count = 22
+    UnitData[id].spawn = 7
     UnitData[1][22] = id
     --dimensional planeshifter
     id = FourCC('n03T')
-    UnitData[id][UNITDATA_COUNT] = 18
-    UnitData[id][UNITDATA_SPAWN] = 7
+    UnitData[id].count = 18
+    UnitData[id].spawn = 7
     UnitData[1][23] = id
 
     --forgotten units
@@ -1218,63 +1218,76 @@ end
     SetHeroLevel(forest_corruption, 100, false)
     UnitAddItemById(forest_corruption, FourCC('I03X'))
     UnitAddItemById(forest_corruption, FourCC('I03Y'))
+    Unit[forest_corruption].mr = Unit[forest_corruption].mr * 0.5
     --zeknen
     UnitAddItemById(zeknen, FourCC('I03Y'))
+    Unit[zeknen].mr = Unit[zeknen].mr * 0.5
 
     --prechaos bosses
 
     -- Minotaur
-    CreateBossEntry(BOSS_TAUREN, Location(-11692., -12774.), 45., FourCC('O002'), "Minotaur", 75,
+    local boss = CreateBossEntry(BOSS_TAUREN, Location(-11692., -12774.), 45., FourCC('O002'), "Minotaur", 75,
     {FourCC('I03T'), FourCC('I0FW'), FourCC('I078'), FourCC('I076'), FourCC('I07U'), 0}, 0, 2000)
     -- Forgotten Mystic
-    CreateBossEntry(BOSS_MYSTIC, Location(-15435., -14354.), 270., FourCC('H045'), "Forgotten Mystic", 100,
+    boss = CreateBossEntry(BOSS_MYSTIC, Location(-15435., -14354.), 270., FourCC('H045'), "Forgotten Mystic", 100,
     {FourCC('I03U'), FourCC('I07F'), FourCC('I0F3'), FourCC('I03Y'), 0, 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     -- Hellfire Magi
-    CreateBossEntry(BOSS_HELLFIRE, GetRectCenter(gg_rct_Hell_Boss_Spawn), 315., FourCC('U00G'), "Hellfire Magi", 100,
+    boss = CreateBossEntry(BOSS_HELLFIRE, GetRectCenter(gg_rct_Hell_Boss_Spawn), 315., FourCC('U00G'), "Hellfire Magi", 100,
     {FourCC('I03Y'), FourCC('I0FA'), FourCC('I0FU'), FourCC('I00V'), 0, 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     -- Last Dwarf
-    CreateBossEntry(BOSS_DWARF, Location(11520., 15466.), 225., FourCC('H01V'), "Last Dwarf", 100,
+    boss = CreateBossEntry(BOSS_DWARF, Location(11520., 15466.), 225., FourCC('H01V'), "Last Dwarf", 100,
     {FourCC('I0FC'), FourCC('I079'), FourCC('I03Y'), FourCC('I07B'), 0, 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     -- Vengeful Test Paladin
-    CreateBossEntry(BOSS_PALADIN, GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn), 270., FourCC('H02H'), "Vengeful Test Paladin", 140,
+    boss = CreateBossEntry(BOSS_PALADIN, GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn), 270., FourCC('H02H'), "Vengeful Test Paladin", 140,
     {FourCC('I03P'), FourCC('I0FX'), FourCC('I0F9'), FourCC('I0C0'), FourCC('I03Y'), 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     -- Dragoon
-    local boss = CreateBossEntry(BOSS_DRAGOON, GetRectCenter(gg_rct_Thanatos_Boss_Spawn), 320., FourCC('O01B'), "Dragoon", 100,
+    boss = CreateBossEntry(BOSS_DRAGOON, GetRectCenter(gg_rct_Thanatos_Boss_Spawn), 320., FourCC('O01B'), "Dragoon", 100,
     {FourCC('I0EY'), FourCC('I074'), FourCC('I04N'), FourCC('I0EX'), FourCC('I046'), FourCC('I03Y')}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     Unit[boss].evasion = 50
     -- Death Knight
-    CreateBossEntry(BOSS_DEATH_KNIGHT, Location(6932., -14177.), 0., FourCC('H040'), "Death Knight", 120,
+    boss = CreateBossEntry(BOSS_DEATH_KNIGHT, Location(6932., -14177.), 0., FourCC('H040'), "Death Knight", 120,
     {FourCC('I02B'), FourCC('I029'), FourCC('I02C'), FourCC('I02O'), 0, 0}, 0, 2000)
     -- Siren of the Tides
-    CreateBossEntry(BOSS_VASHJ, Location(-12375., -1181.), 0., FourCC('H020'), "Siren of the Tides", 75,
+    boss = CreateBossEntry(BOSS_VASHJ, Location(-12375., -1181.), 0., FourCC('H020'), "Siren of the Tides", 75,
     {FourCC('I09L'), FourCC('I09F'), FourCC('I03Y'), 0, 0, 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     -- Super Fun Happy Yeti
-    CreateBossEntry(BOSS_YETI, Location(15816., 6250.), 180., FourCC('n02H'), "Super Fun Happy Yeti", 0,
+    boss = CreateBossEntry(BOSS_YETI, Location(15816., 6250.), 180., FourCC('n02H'), "Super Fun Happy Yeti", 0,
     {0, 0, 0, 0, 0, 0}, 0, 2000)
     -- King of Ogres
-    CreateBossEntry(BOSS_OGRE, Location(-5242., -15630.), 135., FourCC('n03L'), "King of Ogres", 0,
+    boss = CreateBossEntry(BOSS_OGRE, Location(-5242., -15630.), 135., FourCC('n03L'), "King of Ogres", 0,
     {0, 0, 0, 0, 0, 0}, 0, 2000)
     -- Nerubian Empress
-    CreateBossEntry(BOSS_NERUBIAN, GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn), 315., FourCC('n02U'), "Nerubian Empress", 0,
+    boss = CreateBossEntry(BOSS_NERUBIAN, GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn), 315., FourCC('n02U'), "Nerubian Empress", 0,
     {0, 0, 0, 0, 0, 0}, 0, 2000)
     -- Giant Polar Bear
-    CreateBossEntry(BOSS_POLAR_BEAR, Location(-16040., 6579.), 45., FourCC('nplb'), "Giant Polar Bear", 0,
+    boss = CreateBossEntry(BOSS_POLAR_BEAR, Location(-16040., 6579.), 45., FourCC('nplb'), "Giant Polar Bear", 0,
     {0, 0, 0, 0, 0, 0}, 0, 2000)
     -- The Goddesses
-    CreateBossEntry(BOSS_LIFE, Location(-1840., -27400.), 230., FourCC('H04Q'), "The Goddesses", 180,
+    boss = CreateBossEntry(BOSS_LIFE, Location(-1840., -27400.), 230., FourCC('H04Q'), "The Goddesses", 180,
     {FourCC('I04I'), FourCC('I030'), FourCC('I031'), FourCC('I02Z'), FourCC('I03Y'), 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     -- Hate
-    CreateBossEntry(BOSS_HATE, Location(-1977., -27116.), 230., FourCC('E00B'), "Hate", 180,
+    boss = CreateBossEntry(BOSS_HATE, Location(-1977., -27116.), 230., FourCC('E00B'), "Hate", 180,
     {FourCC('I02Z'), FourCC('I03Y'), FourCC('I02B'), 0, 0, 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     -- Love
-    CreateBossEntry(BOSS_LOVE, Location(-1560., -27486.), 230., FourCC('E00D'), "Love", 180,
+    boss = CreateBossEntry(BOSS_LOVE, Location(-1560., -27486.), 230., FourCC('E00D'), "Love", 180,
     {FourCC('I030'), FourCC('I03Y'), FourCC('I0EY'), 0, 0, 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     -- Knowledge
-    CreateBossEntry(BOSS_KNOWLEDGE, Location(-1689., -27210.), 230., FourCC('E00C'), "Knowledge", 180,
+    boss = CreateBossEntry(BOSS_KNOWLEDGE, Location(-1689., -27210.), 230., FourCC('E00C'), "Knowledge", 180,
     {FourCC('I031'), FourCC('I03Y'), FourCC('I03U'), 0, 0, 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
     -- Arkaden
-    CreateBossEntry(BOSS_ARKADEN, Location(-1413., -15846.), 90., FourCC('H00O'), "Arkaden", 140,
+    boss = CreateBossEntry(BOSS_ARKADEN, Location(-1413., -15846.), 90., FourCC('H00O'), "Arkaden", 140,
     {FourCC('I02B'), FourCC('I02C'), FourCC('I02O'), FourCC('I03Y'), FourCC('I036'), 0}, 0, 2000)
+    Unit[boss].mr = Unit[boss].mr * 0.5
 
     for i = BOSS_OFFSET, #BossTable do
         SetHeroLevel(BossTable[i].unit, BossTable[i].level, false)
