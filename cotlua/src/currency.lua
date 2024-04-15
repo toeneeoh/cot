@@ -11,6 +11,7 @@ OnInit.final("Currency", function(Require)
     PlatConverter = {} ---@type boolean[]
     ArcaConverter = {} ---@type boolean[]
     ConverterBought = {} ---@type boolean[]
+    ITEM_LOOKUP = {}
 
     --purchase auto converter
     local function BuyConverter()
