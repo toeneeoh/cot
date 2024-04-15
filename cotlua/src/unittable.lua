@@ -172,6 +172,12 @@ OnInit.final("UnitTable", function(Require)
                     print("REG " .. GetUnitName(u))
                 end
             end
+
+            --register ability stats
+            --30% magic resist
+            if GetUnitAbilityLevel(u, FourCC('A04A')) > 0 then
+                Unit[u].mr = Unit[u].mr * 0.7
+            end
         end
     end
 
