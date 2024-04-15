@@ -43,6 +43,9 @@ OnInit.map("Preloader", function()
     Preload("war3mapImported\\DustWindFaster3.mdx")
     Preload("war3mapImported\\SuperLightningBall.mdl")
     Preload("war3mapImported\\EMPBubble.mdx")
+    Preload("war3mapImported\\Haunt_v2_Portrait.mdl")
+    Preload("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl")
+    Preload("Fonts\\diablo.ttf")
 
     BlzLoadTOCFile("war3mapImported\\FDF.toc")
 
