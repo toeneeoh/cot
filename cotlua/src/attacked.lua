@@ -56,15 +56,15 @@ OnInit.final("Attacked", function(Require)
 
         --dark summoner destroyer
         if uid == SUMMON_DESTROYER then
-            local pt = TimerList[pid]:get('datk', nil, target)
+            local pt = TimerList[pid]:get('datk')
 
-            if pt then
+            if not pt or pt.target ~= target then
                 TimerList[pid]:stopAllTimers('datk')
                 pt = TimerList[pid]:add()
                 pt.x = x
                 pt.y = y
                 pt.target = target
-                pt.tag = FourCC('datk')
+                pt.tag = 'datk'
 
                 SetHeroAgi(source, 0, true)
                 if destroyerDevourStacks[pid] == 5 then
