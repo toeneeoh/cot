@@ -4,7 +4,7 @@
     A module that provides direct modification of a unit's stats using object natives.
 ]]
 
-OnInit.global("Bonus", function(Require)
+OnInit.global("Bonus", function()
 
     BONUS_ARMOR                    = 1
     BONUS_DAMAGE                   = 2
@@ -17,7 +17,6 @@ OnInit.global("Bonus", function(Require)
     BONUS_HERO_BASE_AGI            = 9
     BONUS_HERO_BASE_INT            = 10
     BONUS_MOVE_SPEED               = 11
-    EVENT_STAT_CHANGE              = __jarray()
 
     local BONUS_ABIL = { ---@type integer
         [BONUS_ARMOR] = FourCC('Z000'),
@@ -96,9 +95,7 @@ OnInit.global("Bonus", function(Require)
         DecUnitAbilityLevel(u, abil)
 
         --trigger stat change event
-        if EVENT_STAT_CHANGE[u] then
-            EVENT_STAT_CHANGE[u](u)
-        end
+        EVENT_STAT_CHANGE.trigger(u)
     end
 
     ---@type fun(u: unit, bonus: integer, amount: number)
