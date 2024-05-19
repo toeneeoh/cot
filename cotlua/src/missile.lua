@@ -175,6 +175,8 @@ do
     -- -------------------------------------------------------------------------- --
 
     ---@class Missiles
+    ---@field source unit
+    ---@field owner player
     ---@field model function
     ---@field vision number
     ---@field speed number
@@ -186,8 +188,14 @@ do
     ---@field arc function
     ---@field x number
     ---@field y number
+    ---@field z number
     ---@field travel number
     ---@field origin Coordinates
+    ---@field allocated boolean
+    ---@field onFinish function
+    ---@field onPeriod function
+    ---@field onHit function
+    ---@field terminate function
     Missiles = setmetatable({}, {})
     local mt = getmetatable(Missiles)
     mt.__index = mt
