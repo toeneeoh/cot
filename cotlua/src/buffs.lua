@@ -17,8 +17,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = Disarm
         thistype.RAWCODE         = FourCC('Adar') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].attack = true
@@ -34,8 +34,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = Silence
         thistype.RAWCODE         = FourCC('Asil') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             DestroyEffect(self.sfx)
@@ -53,8 +53,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = Fear
         thistype.RAWCODE         = FourCC('Afea') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             UnitRemoveAbility(self.target, FourCC('ARal'))
@@ -80,11 +80,11 @@ OnInit.global("Buffs", function(Require)
     Lava = setmetatable({}, mt)
     do
         local thistype = Lava
-        thistype.RAWCODE         = 0
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.RAWCODE         = FourCC('Lava')
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
-        function thistype:periodic()
+        local function periodic(self)
             if not IsUnitInRegion(LAVA_REGION, self.target) then
                 self:remove()
             else
@@ -94,7 +94,7 @@ OnInit.global("Buffs", function(Require)
                     DamageTarget(DummyUnit, self.target, dmg, ATTACK_TYPE_NORMAL, PURE, "Lava")
                 end
 
-                self.timer:callDelayed(1.5, thistype.periodic, self)
+                self.timer:callDelayed(1.5, periodic, self)
             end
         end
 
@@ -104,8 +104,17 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onApply()
             self.timer = TimerQueue.create()
-            self.timer:callDelayed(0.5, thistype.periodic, self)
+            self.timer:callDelayed(0.5, periodic, self)
         end
+    end
+
+    ---@class IgniteDebuff : Buff
+    IgniteDebuff = setmetatable({}, mt)
+    do
+        local thistype = IgniteDebuff
+        thistype.RAWCODE         = FourCC('Aign') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
     end
 
     ---@class InfusedWaterBuff : Buff
@@ -113,8 +122,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = InfusedWaterBuff
         thistype.RAWCODE         = FourCC('Aiwa') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].flatMS = Unit[self.target].flatMS - 150
@@ -130,8 +139,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = EmpyreanSongBuff
         thistype.RAWCODE         = FourCC('Aeso') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].flatMS = Unit[self.target].flatMS - 150
@@ -147,8 +156,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = BloodHornBuff
         thistype.RAWCODE         = FourCC('A03G') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].flatMS = Unit[self.target].flatMS - 75
@@ -164,8 +173,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = ArcaneBarrageBuff
         thistype.RAWCODE         = FourCC('Aacb') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].flatMS = Unit[self.target].flatMS - 150
@@ -181,8 +190,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = OmnislashBuff
         thistype.RAWCODE         = FourCC('Aomn') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].dr = Unit[self.target].dr / 0.2
@@ -198,35 +207,34 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = InspireBuff
         thistype.RAWCODE         = FourCC('Ains') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.ablev         = 0 ---@type integer 
 
         function thistype:strongest(new)
             if self.ablev < new then
-                BoostValue[self.tpid] = BoostValue[self.tpid] - self.spellboost
+                Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
 
                 self.ablev = new
                 self.spellboost = math.max(0.91 - 0.01 * self.ablev, 0.85)
-                BoostValue[self.tpid] = BoostValue[self.tpid] + self.spellboost
+                Unit[self.target].spellboost = Unit[self.target].spellboost + self.spellboost
             end
         end
 
         --mana cost per second
-        ---@type fun(self: InspireBuff)
-        function thistype:periodic()
+        local function periodic(self)
             local mana = GetUnitState(self.target, UNIT_STATE_MANA)
             local cost = BlzGetUnitMaxMana(self.target) * 0.02
             SetUnitState(self.target, UNIT_STATE_MANA, math.max(mana - cost, 0))
             if mana - cost > 0 then
-                self.timer:callDelayed(1, thistype.periodic, self)
+                self.timer:callDelayed(1, periodic, self)
             else
                 self:remove()
             end
         end
 
         function thistype:onRemove()
-            BoostValue[self.tpid] = BoostValue[self.tpid] - self.spellboost
+            Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
 
             if self.source == self.target then
                 --unimmolation
@@ -238,11 +246,11 @@ OnInit.global("Buffs", function(Require)
         function thistype:onApply()
             self.ablev = GetUnitAbilityLevel(self.source, INSPIRE.id)
             self.spellboost = (0.08 + 0.02 * self.ablev)
-            BoostValue[self.tpid] = BoostValue[self.tpid] + self.spellboost
+            Unit[self.target].spellboost = Unit[self.target].spellboost + self.spellboost
 
             if self.source == self.target then
                 self.timer = TimerQueue.create()
-                self.timer:callDelayed(1, thistype.periodic, self)
+                self.timer:callDelayed(1, periodic, self)
             end
         end
     end
@@ -252,8 +260,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SongOfWarBuff
         thistype.RAWCODE         = FourCC('Aswb') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
         thistype.attack      = 0. ---@type number 
 
         function thistype:onRemove()
@@ -271,8 +279,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SongOfPeaceEncoreBuff
         thistype.RAWCODE         = FourCC('Aspc') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             DestroyEffect(self.sfx)
@@ -292,8 +300,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SongOfWarEncoreBuff
         thistype.RAWCODE         = FourCC('Aswa') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
         thistype.count         = 10 ---@type integer 
         thistype.dmg      = 0. ---@type number 
 
@@ -321,8 +329,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = MagneticStanceBuff
         thistype.RAWCODE         = FourCC('Amag') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.timer = nil ---@type TimerQueue
 
         ---@param pid integer
@@ -372,8 +380,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = FlamingBowBuff
         thistype.RAWCODE         = FourCC('Afbo') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.count      = 0. ---@type number 
         thistype.attack      = 0. ---@type number 
 
@@ -412,8 +420,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = StasisFieldDebuff
         thistype.RAWCODE         = FourCC('Asfi') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             SetUnitPropWindow(self.target, bj_DEGTORAD * 60.)
@@ -430,8 +438,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = ArcanosphereDebuff
         thistype.RAWCODE         = FourCC('Aarc') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
@@ -449,8 +457,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = ArcanosphereBuff
         thistype.RAWCODE         = FourCC('Aaca') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].overmovespeed = nil
@@ -466,8 +474,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = ControlTimeBuff
         thistype.RAWCODE         = FourCC('Acti') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / 0.5, 0)
@@ -483,8 +491,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = MarkedForDeathDebuff
         thistype.RAWCODE         = FourCC('Amar') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             SetUnitPathing(self.target, true)
@@ -511,8 +519,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = FightMeCasterBuff
         thistype.RAWCODE         = FourCC('Afmc') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             DestroyEffect(self.sfx)
@@ -528,8 +536,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = RoyalPlateBuff
         thistype.RAWCODE         = FourCC('Aroy') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.armor      = 0. ---@type number 
 
         function thistype:onRemove()
@@ -547,20 +555,38 @@ OnInit.global("Buffs", function(Require)
         end
     end
 
+    ---@class ProvokeDebuff : Buff
+    ProvokeDebuff = setmetatable({}, mt)
+    do
+        local thistype = ProvokeDebuff
+        thistype.RAWCODE         = FourCC('Apvk') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].dm = Unit[self.target].dm / self.dm
+        end
+
+        function thistype:onApply()
+            self.dm = (1. - 0.25)
+            Unit[self.target].dm = Unit[self.target].dm * self.dm
+        end
+    end
+
     ---@class DemonicSacrificeBuff : Buff
     DemonicSacrificeBuff = setmetatable({}, mt)
     do
         local thistype = DemonicSacrificeBuff
         thistype.RAWCODE         = FourCC('Adsa') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            BoostValue[self.tpid] = BoostValue[self.tpid] - 0.15
+            Unit[self.target].spellboost = Unit[self.target].spellboost - 0.15
         end
 
         function thistype:onApply()
-            BoostValue[self.tpid] = BoostValue[self.tpid] + 0.15
+            Unit[self.target].spellboost = Unit[self.target].spellboost + 0.15
         end
     end
 
@@ -569,8 +595,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = JusticeAuraBuff
         thistype.RAWCODE         = FourCC('Ajap') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.ablev         = 0 ---@type integer 
 
         function thistype:strongest(new)
@@ -600,8 +626,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SoulLinkBuff
         thistype.RAWCODE         = FourCC('Asli') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.hp      = 0. ---@type number 
         thistype.mana      = 0. ---@type number 
         thistype.lfx           = nil ---@type lightning 
@@ -655,8 +681,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = LawOfMightBuff
         thistype.RAWCODE         = FourCC('Almi') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.main         = 0 ---@type integer 
         thistype.bonus         = 0 ---@type integer 
 
@@ -681,8 +707,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = LawOfValorBuff
         thistype.RAWCODE         = FourCC('Alva') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.regen      = 0. ---@type number 
         thistype.percent         = 0 ---@type integer 
 
@@ -709,8 +735,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = LawOfResonanceBuff
         thistype.RAWCODE         = FourCC('Alre') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.multiplier      = 0. ---@type number 
 
         function thistype:onRemove()
@@ -731,11 +757,22 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = OverloadBuff
         thistype.RAWCODE         = FourCC('Aove') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.timer = nil ---@type TimerQueue
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        local function periodic(self)
+            local mana = GetUnitState(self.target, UNIT_STATE_MANA) ---@type number 
+            local maxmana = BlzGetUnitMaxMana(self.target) * 0.02 ---@type number 
+
+            if UnitAlive(self.target) and mana >= maxmana then
+                SetUnitState(self.target, UNIT_STATE_MANA, mana - maxmana)
+            else
+                self:remove()
+            end
+        end
 
         function thistype:onRemove()
+            Unit[self.target].mm = Unit[self.target].mm / self.mm
             IssueImmediateOrder(self.target, "unimmolation")
 
             DestroyEffect(self.sfx)
@@ -745,19 +782,11 @@ OnInit.global("Buffs", function(Require)
         function thistype:onApply()
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Windwalk Blue Soul.mdx", self.target, "origin")
 
-            local periodic = function()
-                local mana = GetUnitState(self.target, UNIT_STATE_MANA) ---@type number 
-                local maxmana = BlzGetUnitMaxMana(self.target) * 0.02 ---@type number 
-
-                if UnitAlive(self.target) and mana >= maxmana then
-                    SetUnitState(self.target, UNIT_STATE_MANA, mana - maxmana)
-                else
-                    self:remove()
-                end
-            end
-
             self.timer = TimerQueue.create()
-            self.timer:callPeriodically(1., nil, periodic)
+            self.timer:callPeriodically(1., nil, periodic, self)
+
+            self.mm = OVERLOAD.mult(self.pid)
+            Unit[self.target].mm = Unit[self.target].mm * self.mm
         end
     end
 
@@ -766,19 +795,10 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = BloodMistBuff
         thistype.RAWCODE         = FourCC('Abmi') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
-        function thistype:onRemove()
-            DestroyEffect(self.sfx)
-
-            Unit[self.target].flatMS = Unit[self.target].flatMS - self.ms
-            UnitRemoveAbility(self.target, FourCC('B02Q'))
-
-            self.timer:destroy()
-        end
-
-        function thistype:periodic()
+        local function periodic(self)
             local blood = BLOODBANK.get(self.tpid)
 
             if blood >= BLOODMIST.cost(self.tpid) then
@@ -797,7 +817,16 @@ OnInit.global("Buffs", function(Require)
                 BlzSetSpecialEffectColor(self.sfx, 0, 0, 0)
             end
 
-            self.timer:callDelayed(1., thistype.periodic, self)
+            self.timer:callDelayed(1., periodic, self)
+        end
+
+        function thistype:onRemove()
+            DestroyEffect(self.sfx)
+
+            Unit[self.target].flatMS = Unit[self.target].flatMS - self.ms
+            UnitRemoveAbility(self.target, FourCC('B02Q'))
+
+            self.timer:destroy()
         end
 
         function thistype:onApply()
@@ -811,7 +840,7 @@ OnInit.global("Buffs", function(Require)
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Chumpool.mdx", self.target, "origin")
 
             self.timer = TimerQueue.create()
-            self.timer:callDelayed(0.5, thistype.periodic, self)
+            self.timer:callDelayed(0.5, periodic, self)
         end
     end
 
@@ -820,12 +849,12 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = BloodLordBuff
         thistype.RAWCODE         = FourCC('Ablr') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.agi      = 0. ---@type number 
         thistype.str      = 0. ---@type number 
 
-        function thistype.periodic(self)
+        local function periodic(self)
             local ug = CreateGroup()
 
             MakeGroupInRange(self.tpid, ug, GetUnitX(self.source), GetUnitY(self.source), 500. * LBOOST[self.tpid], Condition(FilterEnemy))
@@ -845,7 +874,7 @@ OnInit.global("Buffs", function(Require)
 
             DestroyGroup(ug)
 
-            self.timer:callDelayed(1, thistype.periodic, self)
+            self.timer:callDelayed(1, periodic, self)
         end
 
         function thistype:onRemove()
@@ -872,7 +901,7 @@ OnInit.global("Buffs", function(Require)
 
                 --blood leech aoe
                 self.timer = TimerQueue.create()
-                self.timer:callDelayed(1., thistype.periodic, self)
+                self.timer:callDelayed(1., periodic, self)
                 self.agi = BLOODLORD.bonus(self.pid)
                 UnitAddBonus(self.source, BONUS_HERO_AGI, self.agi)
             else
@@ -893,10 +922,15 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = ManaDrainDebuff
         thistype.RAWCODE         = FourCC('Amdr') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
-        function thistype.drain(self, x, y)
+        local function periodic(self)
+            MoveLightningEx(self.lfx, false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
+            self.timer:callDelayed(FPS_32, periodic, self)
+        end
+
+        local function drain(self, x, y)
             local mana = GetUnitState(self.target, UNIT_STATE_MANA) ---@type number 
 
             if mana > 0. then
@@ -911,13 +945,8 @@ OnInit.global("Buffs", function(Require)
             if DistanceCoords(x, y, GetUnitX(self.target), GetUnitY(self.target)) > 800. or not UnitAlive(self.source) then
                 self:remove()
             else
-                self.timer:callDelayed(FPS_32, thistype.periodic, self, x, y)
+                self.timer:callDelayed(FPS_32, periodic, self, x, y)
             end
-        end
-
-        function thistype.periodic(self)
-            MoveLightningEx(self.lfx, false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
-            self.timer:callDelayed(FPS_32, thistype.periodic, self)
         end
 
         function thistype:onRemove()
@@ -931,8 +960,8 @@ OnInit.global("Buffs", function(Require)
 
             MoveLightningEx(self.lfx, false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
 
-            self.timer:callDelayed(1., thistype.drain, self, GetUnitX(self.source), GetUnitY(self.source))
-            self.timer:callDelayed(FPS_32, thistype.periodic, self)
+            self.timer:callDelayed(1., drain, self, GetUnitX(self.source), GetUnitY(self.source))
+            self.timer:callDelayed(FPS_32, periodic, self)
         end
     end
 
@@ -941,8 +970,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SpinDashDebuff
         thistype.RAWCODE         = FourCC('Asda') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.as      = 1.25 ---@type number 
 
         function thistype:onRemove()
@@ -962,8 +991,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = ParryBuff
         thistype.RAWCODE         = FourCC('Apar') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.soundPlayed         = false ---@type boolean 
 
         function thistype:playSound()
@@ -995,8 +1024,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = IntimidatingShoutBuff
         thistype.RAWCODE         = FourCC('Ainb') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.dmg      = 0. ---@type number 
 
         function thistype:onRemove()
@@ -1025,8 +1054,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = IntimidatingShoutDebuff
         thistype.RAWCODE         = FourCC('Aint') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.dmg      = 0. ---@type number 
 
         function thistype:onRemove()
@@ -1054,8 +1083,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = UndyingRageBuff
         thistype.RAWCODE         = FourCC('Arag') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.totalRegen      = 0. ---@type number 
         thistype.text         = nil ---@type texttag 
         thistype.bonusRegen      = 0. ---@type number 
@@ -1116,8 +1145,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = RampageBuff
         thistype.RAWCODE         = FourCC('Aram') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
         thistype.timer        = nil ---@type TimerQueue
 
         function thistype:onRemove()
@@ -1148,8 +1177,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = FrostArmorDebuff
         thistype.RAWCODE         = FourCC('Afde') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
@@ -1169,8 +1198,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = FrostArmorBuff
         thistype.RAWCODE         = FourCC('Afar') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             UnitAddBonus(self.source, BONUS_ARMOR, -100.)
@@ -1190,8 +1219,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = MagneticStrikeDebuff
         thistype.RAWCODE         = FourCC('Amsd') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].mr = Unit[self.target].mr / 1.25
@@ -1208,8 +1237,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = MagneticStrikeBuff
         thistype.RAWCODE         = FourCC('Amst') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
     end
 
     ---@class InfernalStrikeBuff : Buff
@@ -1217,8 +1246,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = InfernalStrikeBuff
         thistype.RAWCODE         = FourCC('Aist') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
     end
 
     ---@class PiercingStrikeDebuff : Buff
@@ -1226,8 +1255,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = PiercingStrikeDebuff
         thistype.RAWCODE         = FourCC('Apie') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             DestroyEffect(self.sfx)
@@ -1248,8 +1277,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = FightMeBuff
         thistype.RAWCODE         = FourCC('Aftm') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             HeroInvul[self.pid] = false
@@ -1265,8 +1294,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = RighteousMightBuff
         thistype.RAWCODE         = FourCC('Armi') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.dmg = 0. ---@type number 
         thistype.armor = 0. ---@type number 
         thistype.timer = nil ---@type TimerQueue
@@ -1309,8 +1338,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = BloodFrenzyBuff
         thistype.RAWCODE         = FourCC('A07E') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * 1.50, 0)
@@ -1330,8 +1359,39 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = EarthDebuff
         thistype.RAWCODE         = FourCC('A04P') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:refresh()
+            self:onRemove()
+            self:onApply()
+        end
+
+        function thistype:onRemove()
+            Unit[self.target].dr = Unit[self.target].dr / self.dr
+        end
+
+        function thistype:onApply()
+            self.dr = (1. + 0.04 * GetUnitAbilityLevel(self.target, thistype.RAWCODE))
+            Unit[self.target].dr = Unit[self.target].dr * self.dr
+        end
+    end
+
+    ---@class SteedChargeBuff : Buff
+    SteedChargeBuff = setmetatable({}, mt)
+    do
+        local thistype = SteedChargeBuff
+        thistype.RAWCODE         = FourCC('Astc') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].flatMS = Unit[self.target].flatMS - 100
+        end
+
+        function thistype:onApply()
+            Unit[self.target].flatMS = Unit[self.target].flatMS + 100
+        end
     end
 
     ---@class SteedChargeStun : Buff
@@ -1339,8 +1399,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SteedChargeStun
         thistype.RAWCODE         = FourCC('AIDK') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.timer         =  nil ---@type TimerQueue
 
         function thistype:onRemove()
@@ -1396,8 +1456,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SingleShotDebuff
         thistype.RAWCODE         = FourCC('A950') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
@@ -1417,8 +1477,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = FreezingBlastDebuff
         thistype.RAWCODE         = FourCC('A01O') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
@@ -1436,8 +1496,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = ProtectedBuff
         thistype.RAWCODE         = FourCC('A09I') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].dr = Unit[self.target].dr / self.dr
@@ -1455,8 +1515,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = AstralShieldBuff
         thistype.RAWCODE         = FourCC('Azas') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].mr = Unit[self.target].mr / 0.333
@@ -1474,8 +1534,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = ProtectedExistenceBuff
         thistype.RAWCODE         = FourCC('Aexi') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].mr = Unit[self.target].mr / 0.666
@@ -1493,8 +1553,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = ProtectionBuff
         thistype.RAWCODE         = FourCC('Apro') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.as      = 1.1 ---@type number 
 
         function thistype:onRemove()
@@ -1511,8 +1571,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SanctifiedGroundDebuff
         thistype.RAWCODE         = FourCC('Asan') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.regen      = 0. ---@type number 
 
         function thistype:onRemove()
@@ -1537,8 +1597,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = DivineLightBuff
         thistype.RAWCODE         = FourCC('Adiv') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].flatMS = Unit[self.target].flatMS - self.ms
@@ -1556,8 +1616,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SmokebombBuff
         thistype.RAWCODE         = FourCC('Asmk') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.evasion = 0.
 
         function thistype:onRemove()
@@ -1580,8 +1640,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SmokebombDebuff
         thistype.RAWCODE         = FourCC('A03S') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
@@ -1599,8 +1659,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = AzazothHammerStomp
         thistype.RAWCODE         = FourCC('A00C') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .35)
@@ -1619,8 +1679,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = BloodCurdlingScreamDebuff
         thistype.RAWCODE         = FourCC('Ascr') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.armor         = 0 ---@type integer 
 
         function thistype:onRemove()
@@ -1641,8 +1701,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = NerveGasDebuff
         thistype.RAWCODE         = FourCC('Agas') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.armor         = 0 ---@type integer 
 
         function thistype.periodic(self)
@@ -1681,8 +1741,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = DemonPrinceBloodlust
         thistype.RAWCODE         = FourCC('Ablo') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.75)
@@ -1703,21 +1763,21 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = FireElementBuff
         thistype.RAWCODE         = FourCC('Aefr') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             masterElement[self.tpid] = 0
             DestroyEffect(self.sfx)
             DestroyEffect(self.sfx2)
-            BoostValue[self.tpid] = BoostValue[self.tpid] - 0.15
+            Unit[self.target].spellboost = Unit[self.target].spellboost - 0.15
         end
 
         function thistype:onApply()
             masterElement[self.tpid] = ELEMENTFIRE.value
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Fire Uber.mdx", self.target, "right hand")
             self.sfx2 = AddSpecialEffectTarget("war3mapImported\\Fire Uber.mdx", self.target, "left hand")
-            BoostValue[self.tpid] = BoostValue[self.tpid] + 0.15
+            Unit[self.target].spellboost = Unit[self.target].spellboost + 0.15
         end
     end
 
@@ -1726,8 +1786,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = IceElementBuff
         thistype.RAWCODE         = FourCC('Aeic') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             masterElement[self.tpid] = 0
@@ -1747,11 +1807,10 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = LightningElementBuff
         thistype.RAWCODE         = FourCC('Alig') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
-        ---@type fun(self: LightningElementBuff)
-        function thistype:periodic()
+        local function periodic(self)
             if UnitAlive(self.target) then
                 local ug = CreateGroup()
                 local x = GetUnitX(self.target)
@@ -1765,12 +1824,13 @@ OnInit.global("Buffs", function(Require)
                     SetUnitOwner(dummy, Player(self.tpid - 1), false)
                     BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - y, GetUnitX(target) - x))
                     InstantAttack(dummy, target)
+                    DamageTarget(Hero[self.pid], target, GetWidgetLife(target) * 0.005, ATTACK_TYPE_NORMAL, PURE, ELEMENTLIGHTNING.tag)
                 end
 
                 DestroyGroup(ug)
             end
 
-            self.timer:callDelayed(5., self.periodic, self)
+            self.timer:callDelayed(5., periodic, self)
         end
 
         function thistype:onRemove()
@@ -1787,7 +1847,7 @@ OnInit.global("Buffs", function(Require)
             self.sfx2 = AddSpecialEffectTarget("war3mapImported\\Storm Cast.mdx", self.target, "left hand")
 
             self.timer = TimerQueue.create()
-            self.timer:callDelayed(5., self.periodic, self)
+            self.timer:callDelayed(5., periodic, self)
 
             self.ms = 0.4 * (math.min(1, Unit[self.target].percentMS))
 
@@ -1800,8 +1860,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = EarthElementBuff
         thistype.RAWCODE         = FourCC('Aeea') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             masterElement[self.tpid] = 0
@@ -1823,8 +1883,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = IceElementSlow
         thistype.RAWCODE         = FourCC('Aice') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .25)
@@ -1847,8 +1907,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = TidalWaveDebuff
         thistype.RAWCODE         = FourCC('Atwa') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.percent      = .15 ---@type number 
 
         function thistype:onRemove()
@@ -1865,8 +1925,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SoakedDebuff
         thistype.RAWCODE         = FourCC('A01G') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
@@ -1889,8 +1949,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SongOfFatigueSlow
         thistype.RAWCODE         = FourCC('A00X') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
@@ -1913,8 +1973,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = MeatGolemThunderClap
         thistype.RAWCODE         = FourCC('A00C') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
@@ -1937,8 +1997,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SaviorThunderClap
         thistype.RAWCODE         = FourCC('A013') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .35)
@@ -1961,8 +2021,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = BlinkStrikeBuff
         thistype.RAWCODE         = FourCC('A03Y') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             DestroyEffect(self.sfx)
@@ -1979,8 +2039,8 @@ OnInit.global("Buffs", function(Require)
         local thistype = NagaThorns
 
         thistype.RAWCODE         = FourCC('A04S') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onApply()
             TimerQueue:callDelayed(6.5, DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\ThornyShield\\ThornyShieldTargetChestLeft.mdl", self.target, "chest"))
@@ -1994,8 +2054,8 @@ OnInit.global("Buffs", function(Require)
         local thistype = NagaEliteAtkSpeed
 
         thistype.RAWCODE         = FourCC('A04L') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -8.)
@@ -2012,8 +2072,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = SpiritCallSlow
         thistype.RAWCODE         = FourCC('A05M') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
@@ -2031,8 +2091,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = LightSealBuff
         thistype.RAWCODE         = FourCC('Alse') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.strength         = 0 ---@type integer 
         thistype.armor         = 0 ---@type integer 
         thistype.stacks         = 0 ---@type integer 
@@ -2085,8 +2145,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = DarkSealDebuff
         thistype.RAWCODE         = FourCC('A06W') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
     end
 
     ---@class DarkSealBuff : Buff
@@ -2098,11 +2158,10 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = DarkSealBuff
         thistype.RAWCODE         = FourCC('Adsb') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
-        ---@type fun(self: DarkSealBuff)
-        function thistype:periodic()
+        local function periodic(self)
             MakeGroupInRange(self.tpid, self.ug, self.x, self.y, 450. * LBOOST[self.pid], Condition(FilterEnemy))
 
             --count units in seal
@@ -2114,22 +2173,22 @@ OnInit.global("Buffs", function(Require)
             self.count = math.min(5. + GetHeroLevel(self.source) // 100 * 10, self.count)
 
             self:refresh()
-            self.timer:callDelayed(0.5, thistype.periodic, self)
+            self.timer:callDelayed(0.5, periodic, self)
         end
 
         --reapplies spellboost and bat bonus
         function thistype:refresh()
-            BoostValue[self.tpid] = BoostValue[self.tpid] - self.spellboost
+            Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.bat, 0)
 
             self.spellboost = self.count * 0.01
             self.bat = (1. + self.count * 0.01)
-            BoostValue[self.tpid] = BoostValue[self.tpid] + self.spellboost
+            Unit[self.target].spellboost = Unit[self.target].spellboost + self.spellboost
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / self.bat, 0)
         end
 
         function thistype:onRemove()
-            BoostValue[self.tpid] = BoostValue[self.tpid] - self.spellboost
+            Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.bat, 0)
 
             Dummy[self.sfx]:recycle()
@@ -2155,7 +2214,28 @@ OnInit.global("Buffs", function(Require)
             DelayAnimation(self.tpid, self.sfx, 1., 0, 1., false)
 
             self.timer = TimerQueue:create()
-            self.timer:callDelayed(0.01, thistype.periodic, self)
+            self.timer:callDelayed(0.01, periodic, self)
+        end
+    end
+
+    ---@class MetamorphosisBuff : Buff
+    MetamorphosisBuff = setmetatable({}, mt)
+    do
+        local thistype = MetamorphosisBuff
+        thistype.RAWCODE         = FourCC('Amet') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NONE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].dm = Unit[self.target].dm / self.dm
+        end
+
+        function thistype:onApply()
+            local hp = GetWidgetLife(self.target) * 0.5 ---@type number 
+
+            SetWidgetLife(self.target, hp)
+            self.dm = 1 + math.max(0.01, hp / (BlzGetUnitMaxHP(self.target) * 1.))
+            Unit[self.target].dm = Unit[self.target].dm * self.dm
         end
     end
 
@@ -2164,8 +2244,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = KnockUp
         thistype.RAWCODE         = FourCC('Akno') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.SPEED      = 1500. ---@type number 
         thistype.DEBUFF_TIME      = 1. ---@type number 
         thistype.time      = 0. ---@type number 
@@ -2188,14 +2268,14 @@ OnInit.global("Buffs", function(Require)
             return math.max(0, h)
         end
 
-        function thistype:periodic()
+        local function periodic(self)
             self.time = self.time + FPS_32
             SetUnitFlyHeight(self.target, calcHeight(self.time), 0.)
 
             if self.time > thistype.DEBUFF_TIME then
                 self:remove()
             else
-                self.timer:callDelayed(FPS_32, thistype.periodic, self)
+                self.timer:callDelayed(FPS_32, periodic, self)
             end
         end
 
@@ -2214,7 +2294,7 @@ OnInit.global("Buffs", function(Require)
 
             self.timer = TimerQueue.create()
             self.time = 0
-            self.timer:callDelayed(FPS_32, thistype.periodic, self)
+            self.timer:callDelayed(FPS_32, periodic, self)
         end
     end
 
@@ -2223,8 +2303,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = Freeze
         thistype.RAWCODE         = FourCC('A01D') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             BlzPauseUnitEx(self.target, false)
@@ -2245,8 +2325,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = Stun
         thistype.RAWCODE         = FourCC('A08J') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             BlzPauseUnitEx(self.target, false)
@@ -2264,8 +2344,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = DarkestOfDarknessBuff
         thistype.RAWCODE         = FourCC('A056') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             DestroyEffect(self.sfx)
@@ -2285,8 +2365,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = HolyBlessing
         thistype.RAWCODE         = FourCC('A08K') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_NONE ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * 2, 0)
@@ -2302,8 +2382,8 @@ OnInit.global("Buffs", function(Require)
     do
         local thistype = VampiricPotion
         thistype.RAWCODE         = FourCC('A05O') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             DestroyEffect(self.sfx)
@@ -2318,12 +2398,9 @@ OnInit.global("Buffs", function(Require)
     WeatherBuff = setmetatable({}, mt)
     do
         local thistype = WeatherBuff
-        thistype.RAWCODE         = FourCC('Wcle') ---@type integer 
-        thistype.DISPEL_TYPE         = BUFF_NONE ---@type integer 
-        thistype.STACK_TYPE         =  BUFF_STACK_PARTIAL ---@type integer 
-        thistype.as      = 0. ---@type number 
-        thistype.atk      = 0. ---@type number 
-        thistype.weather         = 0 ---@type integer 
+        thistype.RAWCODE         = FourCC('Weat') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NONE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             if player_fog[self.tpid] and GetLocalPlayer() == GetOwningPlayer(self.target) and self.target == Hero[self.tpid] then
@@ -2336,20 +2413,21 @@ OnInit.global("Buffs", function(Require)
                 DisplayCineFilter(true)
             end
 
+            UnitRemoveAbility(self.target, WeatherTable[self.weather].abil)
             UnitRemoveAbility(self.target, WeatherTable[self.weather].buff)
             UnitAddBonus(self.target, BONUS_DAMAGE, -self.atk)
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.as, 0)
-            BoostValue[self.tpid] = BoostValue[self.tpid] - self.spellboost
+            Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
             Unit[self.target].dr = Unit[self.target].dr / self.dr
             Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
         end
 
         function thistype:onApply()
-            self.as = 1. - WeatherTable[CURRENT_WEATHER].as * 0.01
-            self.atk = (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * WeatherTable[CURRENT_WEATHER].atk * 0.01
             self.weather = CURRENT_WEATHER
-            self.spellboost = WeatherTable[CURRENT_WEATHER].boost * 0.01
-            self.dr = (1. - WeatherTable[CURRENT_WEATHER].dr * 0.01)
+            self.as = 1. - WeatherTable[self.weather].as * 0.01
+            self.atk = (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * WeatherTable[self.weather].atk * 0.01
+            self.spellboost = WeatherTable[self.weather].boost * 0.01
+            self.dr = (1. - WeatherTable[self.weather].dr * 0.01)
 
             if GetLocalPlayer() == GetOwningPlayer(self.target) and WeatherTable[self.weather].fog > 0 and self.target == Hero[self.tpid] then
                 player_fog[self.tpid] = true
@@ -2361,13 +2439,15 @@ OnInit.global("Buffs", function(Require)
                 DisplayCineFilter(true)
             end
 
+            UnitAddAbility(self.target, WeatherTable[self.weather].abil)
+            UnitMakeAbilityPermanent(self.target, true, WeatherTable[self.weather].abil)
             UnitAddAbility(self.target, WeatherTable[self.weather].buff)
             UnitAddBonus(self.target, BONUS_DAMAGE, self.atk)
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / self.as, 0)
-            BoostValue[self.tpid] = BoostValue[self.tpid] + self.spellboost
+            Unit[self.target].spellboost = Unit[self.target].spellboost + self.spellboost
             Unit[self.target].dr = Unit[self.target].dr * self.dr
 
-            self.ms = WeatherTable[CURRENT_WEATHER].ms * 0.01 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = WeatherTable[self.weather].ms * 0.01 * (math.min(1, Unit[self.target].percentMS))
             Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
         end
     end
