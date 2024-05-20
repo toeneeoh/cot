@@ -1133,8 +1133,7 @@ end
     god_angel = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n0A1'), -1841., -14858., 325.)
     ShowUnit(god_angel, false)
 
-    PUNCHING_BAG = gg_unit_h02D_0672 ---@type unit
-    UnitIndex(PUNCHING_BAG)
+    PUNCHING_BAG = CreateUnit(Player(PLAYER_NEUTRAL_AGGRESSIVE), FourCC('h02D'), GetRectCenterX(gg_rct_Punching_Bag), GetRectCenterY(gg_rct_Punching_Bag), 0.)
 
     --quest marker effect
     TalkToMe13 = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl",god_angel,"overhead")
