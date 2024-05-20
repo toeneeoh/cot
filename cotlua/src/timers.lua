@@ -108,9 +108,10 @@ function Periodic()
                 if IsUnitInRange(Hero[pid], Backpack[pid], 1000.) == false then
                     SetUnitXBounded(Backpack[pid], x)
                     SetUnitYBounded(Backpack[pid], y)
+                    BlzUnitClearOrders(Backpack[pid], false)
                 elseif not bpmoving[pid] or IsUnitInRange(Hero[pid], Backpack[pid], 800.) == false then
                     if IsUnitInRange(Hero[pid], Backpack[pid], 50.) == false then
-                        IssuePointOrder(Backpack[pid], "move", x, y)
+                        IssuePointOrderById(Backpack[pid], ORDER_ID_MOVE, x, y)
                     end
                 end
             end
