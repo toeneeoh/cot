@@ -282,7 +282,6 @@ end
 function GracePeriod(weather)
     CURRENT_WEATHER = weather
 
-    WeatherBuff.RAWCODE = WeatherTable[weather].abil
     WeatherTimer:callDelayed(WeatherTable[weather].dur, WeatherPeriodic)
 
     for i = 1, #WeatherGroup do
@@ -358,13 +357,13 @@ end
     local function WeatherFilter()
         local u = GetFilterUnit()
 
-        if u and not IsDummy(u) then
+        if u and GetUnitTypeId(u) ~= BACKPACK and not IsDummy(u) then
             if RectContainsUnit(MAIN_MAP.rect, u) then
                 if not TableHas(WeatherGroup, u) then
+                    WeatherGroup[#WeatherGroup + 1] = u
                     if GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
                         WeatherBuff:add(u, u):duration(TimerGetRemaining(WeatherTimer.timer))
                     end
-                    WeatherGroup[#WeatherGroup + 1] = u
                 end
             else
                 WeatherBuff:dispel(u, u)
