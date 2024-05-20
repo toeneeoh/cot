@@ -54,6 +54,7 @@ OnInit.final("Summon", function(Require)
             missile.owner = Player(pid - 1)
             missile:vision(500)
             missile.collision = 60.
+            missile.collideZ = true
             missile.damage = ASSAULTHELICOPTER.dmg(pid) * 2.5 * BOOST[pid]
 
             missile.onHit = function(unit)
@@ -79,6 +80,7 @@ OnInit.final("Summon", function(Require)
                 missile.owner = Player(pid - 1)
                 missile:vision(500)
                 missile.collision = 60.
+                missile.collideZ = true
                 missile.damage = ASSAULTHELICOPTER.dmg(pid) * BOOST[pid]
 
                 missile.onHit = function(unit)
