@@ -144,7 +144,7 @@ OnInit.global("BuffSystem", function(Require)
             self = nil
         end
 
-        ---@type fun(self: Buff, dur: number):number
+        ---@type fun(self: Buff, dur: number): number
         function thistype:duration(dur)
             if not self.t then
                 self.t = TimerQueue.create()
@@ -158,7 +158,7 @@ OnInit.global("BuffSystem", function(Require)
             return TimerGetRemaining(self.t.timer)
         end
 
-        ---@type fun(self: Buff, source: unit, target: unit)
+        ---@type fun(self: Buff, source: unit, target: unit): Buff
         function thistype:check(source, target)
             local apply = false ---@type boolean 
             local similar = self:get(source, target) ---@type Buff
@@ -201,6 +201,8 @@ OnInit.global("BuffSystem", function(Require)
                     self:onApply()
                 end
             end
+
+            return self
         end
 
         --===============================================================
@@ -282,7 +284,7 @@ OnInit.global("BuffSystem", function(Require)
 
             b.pid = GetPlayerId(GetOwningPlayer(source)) + 1
             b.tpid = GetPlayerId(GetOwningPlayer(target)) + 1
-            b:check(source, target)
+            b = b:check(source, target)
 
             return b
         end
