@@ -123,8 +123,10 @@ OnInit.global("BuffSystem", function(Require)
             end
 
             --remove TimerQueue
-            self.t:destroy()
-            self.t = nil
+            if self.t then
+                self.t:destroy()
+                self.t = nil
+            end
 
             --remove from buffs
             for i = 1, #buffs do
@@ -144,19 +146,19 @@ OnInit.global("BuffSystem", function(Require)
 
         ---@type fun(self: Buff, dur: number):number
         function thistype:duration(dur)
-            if self.t then
-                if dur then
-                    self.t:reset()
-                    self.t:callDelayed(dur, self.remove, self)
-                else
-                    return TimerGetRemaining(self.t.timer)
-                end
+            if not self.t then
+                self.t = TimerQueue.create()
             end
 
-            return 0.0
+            if dur then
+                self.t:reset()
+                self.t:callDelayed(dur, self.remove, self)
+            end
+
+            return TimerGetRemaining(self.t.timer)
         end
 
-        ---@type fun(self: Buff, source: unit, target:unit):Buff
+        ---@type fun(self: Buff, source: unit, target: unit)
         function thistype:check(source, target)
             local apply = false ---@type boolean 
             local similar = self:get(source, target) ---@type Buff
@@ -199,8 +201,6 @@ OnInit.global("BuffSystem", function(Require)
                     self:onApply()
                 end
             end
-
-            return self
         end
 
         --===============================================================
@@ -273,19 +273,16 @@ OnInit.global("BuffSystem", function(Require)
 
             local b = setmetatable({}, mts[self])
 
-            b.t = TimerQueue.create()
-
             return b
         end
 
-        ---@type fun(self: Buff, source: unit, target: unit):Buff
+        ---@type fun(self: Buff, source: unit, target: unit): Buff
         function thistype:add(source, target)
             local b = self:create()
 
             b.pid = GetPlayerId(GetOwningPlayer(source)) + 1
             b.tpid = GetPlayerId(GetOwningPlayer(target)) + 1
-
-            b = b:check(source, target)
+            b:check(source, target)
 
             return b
         end
