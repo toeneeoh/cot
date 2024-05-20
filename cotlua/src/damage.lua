@@ -1,10 +1,8 @@
 --[[
     damage.lua
 
-    A library that handles the damage event (EVENT_PLAYER_UNIT_DAMAGING) and provides
-    related functions.
-
-    TODO: Migrate dps testing dummy to another file?
+    A library that handles the damage event (EVENT_PLAYER_UNIT_DAMAGING) and calculates on hit effects,
+    multipliers, reductions, mitigations, etc.
 ]]
 
 OnInit.final("Damage", function(Require)
@@ -17,16 +15,6 @@ OnInit.final("Damage", function(Require)
     HeartBlood = __jarray(0) ---@type integer[] 
     BossDamage = __jarray(0) ---@type integer[] 
     ignoreflag = __jarray(0) ---@type integer[] 
-
-    DUMMY_TIMER = CreateTimer() ---@type timer 
-
-    DUMMY_TOTAL_PHYSICAL = 0. ---@type number 
-    DUMMY_TOTAL_MAGIC    = 0. ---@type number 
-    DUMMY_TOTAL          = 0. ---@type number 
-    DUMMY_LAST           = 0. ---@type number 
-    DUMMY_DPS            = 0. ---@type number 
-    DUMMY_DPS_PEAK       = 0. ---@type number 
-    DUMMY_STORAGE        = CircularArrayList.create() ---@type CircularArrayList 
 
     ATTACK_CHAOS     = 5 ---@type integer 
     ARMOR_CHAOS      = 6 ---@type integer 
@@ -43,72 +31,6 @@ OnInit.final("Damage", function(Require)
         crit = {255, 120, 20},
     }
 
----@return boolean
-function OnAcquire()
-    local target = GetEventTargetUnit() ---@type unit 
-    local attacker = GetTriggerUnit() ---@type unit 
-    local pid = GetPlayerId(GetOwningPlayer(attacker)) + 1
-
-    if IsDummy(attacker) then
-        BlzSetUnitWeaponBooleanField(attacker, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
-    elseif GetPlayerController(Player(pid - 1)) ~= MAP_CONTROL_USER then
-        Unit[attacker].target = AcquireProximity(attacker, target, 800.)
-        TimerQueue:callDelayed(FPS_32, SwitchAggro, attacker, target)
-    elseif Unit[attacker] then
-        Unit[attacker].target = target
-        
-        if Unit[attacker].movespeed > MOVESPEED.MAX then
-            BlzSetUnitFacingEx(attacker, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(attacker), GetUnitX(target) - GetUnitX(attacker)))
-        end
-    end
-
-    return false
-end
-
----@type fun(pt: PlayerTimer)
-function DUMMY_HIDE_TEXT(pt)
-    pt.dur = pt.dur - 1
-
-    if pt.dur <= 0 then
-        if GetLocalPlayer() == Player(pt.pid - 1) then
-            BlzFrameSetVisible(dummyFrame, false)
-        end
-
-        pt:destroy()
-    end
-
-    pt.timer:callDelayed(1., DUMMY_HIDE_TEXT, pt)
-end
-
-function DUMMY_RESET()
-    DUMMY_TOTAL_PHYSICAL = 0.
-    DUMMY_TOTAL_MAGIC = 0.
-    DUMMY_TOTAL = 0.
-    DUMMY_LAST = 0.
-    DUMMY_DPS = 0.
-    DUMMY_DPS_PEAK = 0.
-    DUMMY_STORAGE:wipe()
-    BlzFrameSetText(dummyTextValue, "0\n0\n0\n0\n0\n0\n0s")
-end
-
----@type fun(pt: PlayerTimer)
-function DUMMY_DPS_UPDATE(pt)
-    pt.time = pt.time + 0.1
-
-    if DUMMY_TOTAL <= 0 or DUMMY_TOTAL > 2000000000 then
-        DUMMY_RESET()
-        pt:destroy()
-    else
-        DUMMY_STORAGE:add(DUMMY_TOTAL)
-        if pt.time >= 1. then
-            DUMMY_DPS_PEAK = math.max(math.max(DUMMY_STORAGE:calcPeakDps(10), DUMMY_DPS_PEAK), DUMMY_DPS)
-            DUMMY_DPS = DUMMY_TOTAL / pt.time
-        end
-
-        BlzFrameSetText(dummyTextValue, RealToString(DUMMY_LAST) .. "\n" .. RealToString(DUMMY_TOTAL_PHYSICAL) .. "\n" .. RealToString(DUMMY_TOTAL_MAGIC) .. "\n" .. RealToString(DUMMY_TOTAL) .. "\n" .. RealToString(DUMMY_DPS) .. "\n" .. RealToString(DUMMY_DPS_PEAK) .. "\n" .. RealToString(pt.time) .. "s")
-        pt.timer:callDelayed(0.1, DUMMY_DPS_UPDATE, pt)
-    end
-end
 
 ---@type fun(dmg: number, source: unit, target: unit):number
 function ReduceArmorCalc(dmg, source, target)
@@ -191,8 +113,8 @@ function OnDamage()
     local tuid        = GetUnitTypeId(target) ---@type integer 
     local dmg         = 0. ---@type number 
     local crit        = 0. ---@type number 
-    local pbagFlag    = target == PUNCHING_BAG
     local tag         = GetDamageTag()
+    local isPunchingBag = target == PUNCHING_BAG
 
     --prevents 0 damage events from applying debuffs
     if source == nil or target == nil then
@@ -209,37 +131,6 @@ function OnDamage()
     dummy attack handling <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     ]]
 
-    --TODO move these to a table or rework using missiles
-    --arcanist arcane barrage
-    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A008')) > 0 then
-        UnitRemoveAbility(source, FourCC('A008'))
-        DamageTarget(Hero[pid], target, ARCANEBARRAGE.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, ARCANEBARRAGE.tag)
-    end
-
-    --phoenix ranger searing arrow
-    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A069')) > 0 then
-        UnitRemoveAbility(source, FourCC('A069'))
-        Dummy.create(GetUnitX(source), GetUnitY(source), FourCC('A092'), 1):cast(Player(pid - 1), "slow", target)
-        DamageTarget(Hero[pid], target, (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + GetHeroAgi(Hero[pid], true)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, SEARINGARROWS.tag)
-    end
-
-    --electrocute lightning
-    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A09W')) > 0 then
-        UnitRemoveAbility(source, FourCC('A09W'))
-        DamageTarget(Hero[pid], target, GetWidgetLife(target) * 0.005, ATTACK_TYPE_NORMAL, PURE, ELEMENTLIGHTNING.tag)
-    end
-
-    --medean lightning trigger
-    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A01Y')) > 0 then
-        UnitRemoveAbility(source, FourCC('A01Y'))
-        DamageTarget(Hero[pid], target, MEDEANLIGHTNING.dmg(pid, GetUnitAbilityLevel(Hero[pid], MEDEANLIGHTNING.id)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, MEDEANLIGHTNING.tag)
-    end
-
-    --frozen orb icicle
-    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A09F')) > 0 then
-        DamageTarget(Hero[pid], target, GetHeroInt(Hero[pid], true) * (0.5 + 0.5 * GetUnitAbilityLevel(Hero[pid], FROZENORB.id)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, FROZENORB.tag)
-    end
-
     --satan flame strike
     if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A0DN')) > 0 and IsUnitEnemy(target, pboss) then
         DamageTarget(BossTable[BOSS_SATAN].unit, target, 10000., ATTACK_TYPE_NORMAL, MAGIC, "Flame Onslaught")
@@ -250,11 +141,6 @@ function OnDamage()
         UnitRemoveAbility(source, FourCC('A0AE'))
         InstillFear[pid] = target
         TimerQueue:callDelayed(7., InstillFearExpire, pid)
-    end
-
-    --single shot trigger
-    if IsDummy(source) and GetUnitAbilityLevel(source, FourCC('A05J')) > 0 then
-        UnitRemoveAbility(source, FourCC('A05J'))
     end
 
     --blizzard 
@@ -419,8 +305,10 @@ function OnDamage()
                     if GetRandomInt(0,99) < ablev * 2 * LBOOST[pid] then
                         DamageTarget(source, target, (((UnitGetBonus(source, BONUS_DAMAGE) + GetHeroAgi(source, true)) * .3 + GetHeroAgi(source, true) * ablev)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, FLAMINGBOW.tag)
                         DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\PhoenixMissile\\Phoenix_Missile.mdl", GetUnitX(target),GetUnitY(target)))
-                        if GetUnitAbilityLevel(target, FourCC('B02O')) > 0 then
-                            UnitRemoveAbility(target, FourCC('B02O'))
+
+                        local b = IgniteDebuff:get(nil, target)
+                        if b then
+                            b:dispel()
                             SEARINGARROWS.ignite(source, target)
                         end
                     end
@@ -591,7 +479,7 @@ function OnDamage()
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(target), GetUnitY(target)))
 
                     --6 percent max heal
-                    HP(source, source, BlzGetUnitMaxHP(source) * 0.01 * IMinBJ(6, i), INFERNALSTRIKE.tag)
+                    HP(source, source, BlzGetUnitMaxHP(source) * 0.01 * IMinBJ(6, count), INFERNALSTRIKE.tag)
                 elseif MagneticStrikeBuff:has(source, source) then
                     MagneticStrikeBuff:dispel(source, source)
 
@@ -720,48 +608,16 @@ function OnDamage()
 
     --prevent self damage from being augmented
     if source ~= target then
-        --magic damage events >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        if damageType == MAGIC then
-            --hardmode multiplier +100 percent
-            if IsEnemy(pid) and HARD_MODE > 0 then
-                amount = amount * 2.
-            end
-
-            --thunderblade overload
-            if OverloadBuff:has(source, source) then
-                amount = amount * OVERLOAD.mult(pid)
-            end
-        end
-
-        --any damage type >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
         --warrior parry
         if ParryBuff:has(target, target) and amount > 0. then
             amount = 0.00
             ParryBuff:get(target, target).playSound()
 
-            if limitBreak[pid] & 0x1 > 0 then
-                DamageTarget(target, source, PARRY.dmg(pid) * 2., ATTACK_TYPE_NORMAL, MAGIC, PARRY.tag)
-            else
-                DamageTarget(target, source, PARRY.dmg(pid), ATTACK_TYPE_NORMAL, MAGIC, PARRY.tag)
-            end
+            DamageTarget(target, source, PARRY.dmg(pid) * (((limitBreak[pid] & 0x1) > 0 and 2.) or 1.), ATTACK_TYPE_NORMAL, MAGIC, PARRY.tag)
         end
-
-        --dark savior metamorphosis amp
-        amount = amount * (1. + metamorphosis[pid])
 
         --intense focus azazoth bow amp
         amount = amount * (1. + IntenseFocus[pid] * 0.01)
-
-        --earth elemental storm
-        if GetUnitAbilityLevel(target, FourCC('B04P')) > 0 then
-            amount = amount * (1 + 0.04 * GetUnitAbilityLevel(target, FourCC('A04P')))
-        end
-
-        --provoke 30 percent
-        if GetUnitAbilityLevel(source, FourCC('B02B')) > 0 and IsUnitType(target, UNIT_TYPE_HERO) == true then
-            amount = amount * 0.75
-        end
 
         --item shield damage reduction
         if damageType == PHYSICAL then
@@ -783,16 +639,9 @@ function OnDamage()
         --dungeon handling
         amount = DungeonOnDamage(amount, source, target, damageType)
 
-        --main hero damage dealt
-        if source == Hero[pid] then
-            if damageType == PHYSICAL then
-                amount = amount * HeroStats[HeroID[pid]].phys_damage
-            end
-
-            --instill fear 15 percent
-            if GetUnitAbilityLevel(target, FourCC('B02U')) > 0 and target == InstillFear[pid] then
-                amount = amount * 1.15
-            end
+        --instill fear 15 percent
+        if GetUnitAbilityLevel(target, FourCC('B02U')) > 0 and source == Hero[pid] and target == InstillFear[pid] then
+            amount = amount * 1.15
         end
 
         --main hero damage taken
@@ -808,12 +657,15 @@ function OnDamage()
             end
         end
 
-        --unit resistances
+        --source multipliers and target resistances
+        amount = amount * Unit[source].dm
         amount = amount * Unit[target].dr
 
         if damageType == PHYSICAL then
+            amount = amount * Unit[source].pm
             amount = amount * Unit[target].pr
         elseif damageType == MAGIC then
+            amount = amount * Unit[source].mm
             amount = amount * Unit[target].mr
         end
     end
@@ -917,7 +769,7 @@ function OnDamage()
     if zeroDamage == false then
         if source ~= target then
             --prevent non-crit physical attacks from appearing if they do not reach a 0.05% max health damage threshold 
-            if damageType ~= PHYSICAL or crit > 0 or (damageCalc >= (BlzGetUnitMaxHP(target) * 0.0005) or pbagFlag) then
+            if isPunchingBag or damageType ~= PHYSICAL or crit > 0 or (damageCalc >= (BlzGetUnitMaxHP(target) * 0.0005)) then
                 ArcingTextTag.create(damageText, target, 1, size, colors[1], colors[2], colors[3], 0)
             end
 
@@ -939,10 +791,10 @@ function OnDamage()
     end of mitigations <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     ]]
 
-    --dps punching bags
-    if pbagFlag then
+    --dps punching bag
+    if isPunchingBag then
         if GetLocalPlayer() == Player(pid - 1) then
-            BlzFrameSetVisible(dummyFrame, true)
+            BlzFrameSetVisible(DPS_FRAME, true)
         end
         local pt = TimerList[pid]:get('pbag')
 
@@ -952,7 +804,7 @@ function OnDamage()
             pt = TimerList[pid]:add()
             pt.dur = 10.
             pt.tag = 'pbag'
-            pt.timer:callDelayed(1., DUMMY_HIDE_TEXT, pt)
+            pt.timer:callDelayed(1., DPS_HIDE_TEXT, pt)
         end
 
         if not TimerList[0]:has('pdmg') then
@@ -960,20 +812,20 @@ function OnDamage()
             pt.tag = 'pdmg'
             pt.time = 0
 
-            pt.timer:callDelayed(0.1, DUMMY_DPS_UPDATE, pt)
+            pt.timer:callDelayed(0.1, DPS_UPDATE, pt)
         end
 
-        DUMMY_LAST = damageCalc
+        DPS_LAST = damageCalc
 
         if damageType == PHYSICAL then
-            DUMMY_TOTAL_PHYSICAL = DUMMY_TOTAL_PHYSICAL + damageCalc
+            DPS_TOTAL_PHYSICAL = DPS_TOTAL_PHYSICAL + damageCalc
         elseif damageType == MAGIC then
-            DUMMY_TOTAL_MAGIC = DUMMY_TOTAL_MAGIC + damageCalc
+            DPS_TOTAL_MAGIC = DPS_TOTAL_MAGIC + damageCalc
         end
-        DUMMY_TOTAL = DUMMY_TOTAL + damageCalc
+        DPS_TOTAL = DPS_TOTAL + damageCalc
 
-        PauseTimer(DUMMY_TIMER)
-        TimerStart(DUMMY_TIMER, 7.5, false, DUMMY_RESET)
+        PauseTimer(DPS_TIMER)
+        TimerStart(DPS_TIMER, 7.5, false, DPS_RESET)
         BlzSetEventDamage(0.00)
         SetWidgetLife(target, BlzGetUnitMaxHP(target))
     end
@@ -1092,8 +944,6 @@ function OnDamage()
 
     return false
 end
-
-    TriggerAddCondition(ACQUIRE_TRIGGER, Filter(OnAcquire))
 
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DAMAGING, OnDamage)
 end, Debug.getLine())
