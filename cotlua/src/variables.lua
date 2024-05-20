@@ -26,6 +26,7 @@ OnInit.global("Variables", function(Require)
     TOWN_ID                            = PLAYER_TOWN + 1
     FPS_32                             = 0.03125
     FPS_64                             = 0.015625
+    DETECT_LEAVE_ABILITY               = FourCC('uDex') ---@type integer 
 
     --units
     DUMMY_CASTER                       = FourCC('e011')
@@ -116,6 +117,12 @@ OnInit.global("Variables", function(Require)
                                     phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
     }
 
+    --default stats return 1.
+    local default_stats = {phys_resist = 1., magic_resist = 1., phys_damage = 1.}
+    setmetatable(HeroStats, { __index = function(tbl, key)
+        return default_stats
+    end})
+
     --currency
     GOLD                               = 0
     LUMBER                             = 1
@@ -175,27 +182,29 @@ OnInit.global("Variables", function(Require)
     ITEM_REGENERATION                  = 8
     ITEM_DAMAGE_RESIST                 = 9
     ITEM_MAGIC_RESIST                  = 10
-    ITEM_MOVESPEED                     = 11
-    ITEM_EVASION                       = 12
-    ITEM_SPELLBOOST                    = 13
-    ITEM_CRIT_CHANCE                   = 14
-    ITEM_CRIT_DAMAGE                   = 15
-    ITEM_BASE_ATTACK_SPEED             = 16
-    ITEM_GOLD_GAIN                     = 17
-    ITEM_ABILITY                       = 18
-    ITEM_ABILITY2                      = 19
-    ITEM_STAT_TOTAL                    = 19
+    ITEM_DAMAGE_MULT                   = 11
+    ITEM_MAGIC_MULT                    = 12
+    ITEM_MOVESPEED                     = 13
+    ITEM_EVASION                       = 14
+    ITEM_SPELLBOOST                    = 15
+    ITEM_CRIT_CHANCE                   = 16
+    ITEM_CRIT_DAMAGE                   = 17
+    ITEM_BASE_ATTACK_SPEED             = 18
+    ITEM_GOLD_GAIN                     = 19
+    ITEM_ABILITY                       = 20
+    ITEM_ABILITY2                      = 21
+    ITEM_STAT_TOTAL                    = 21
 
     --not auto generated
-    ITEM_TOOLTIP                       = 20
-    ITEM_TIER                          = 21
-    ITEM_TYPE                          = 22
-    ITEM_UPGRADE_MAX                   = 23
-    ITEM_LEVEL_REQUIREMENT             = 24
-    ITEM_LIMIT                         = 25
-    ITEM_COST                          = 26
-    ITEM_DISCOUNT                      = 27
-    ITEM_STACK                         = 28
+    ITEM_TOOLTIP                       = 22
+    ITEM_TIER                          = 23
+    ITEM_TYPE                          = 24
+    ITEM_UPGRADE_MAX                   = 25
+    ITEM_LEVEL_REQUIREMENT             = 26
+    ITEM_LIMIT                         = 27
+    ITEM_COST                          = 28
+    ITEM_DISCOUNT                      = 29
+    ITEM_STACK                         = 30
 
     CUSTOM_ITEM_OFFSET = FourCC('I000') ---@type integer 
     MAX_SAVED_ITEMS    = 8191 ---@type integer 
@@ -324,8 +333,6 @@ OnInit.global("Variables", function(Require)
     HuntedLevel=__jarray(0) ---@type integer[] 
     CustomLighting=__jarray(0) ---@type integer[] 
 
-    BoostValue=__jarray(0) ---@type number[] 
-
     MultiShot = {} ---@type boolean[] 
     CameraLock = {} ---@type boolean[] 
     forceSaving = {} ---@type boolean[] 
@@ -364,7 +371,6 @@ OnInit.global("Variables", function(Require)
     BANISH_FLAG         = false ---@type boolean 
     GODS_GROUP = {} ---@type player[]
 
-    ACQUIRE_TRIGGER = CreateTrigger()
     afkTextVisible = {} ---@type boolean[] 
     hardcoreClicked = {} ---@type boolean[] 
     votingSelectYes = CreateTrigger()
@@ -387,9 +393,9 @@ OnInit.global("Variables", function(Require)
     questButton=nil ---@type framehandle 
     allyButton=nil ---@type framehandle 
     upperbuttonBar=nil ---@type framehandle 
-    dummyFrame=nil ---@type framehandle 
-    dummyTextTitle=nil ---@type framehandle 
-    dummyTextValue=nil ---@type framehandle 
+    DPS_FRAME=nil ---@type framehandle 
+    DPS_FRAME_TITLE=nil ---@type framehandle 
+    DPS_FRAME_TEXTVALUE=nil ---@type framehandle 
 
     INVENTORYBACKDROP={} ---@type framehandle[] 
 
@@ -1711,10 +1717,22 @@ OnInit.global("Variables", function(Require)
     getter = function(u) return RealToString(GetHeroInt(u, true)) end},
         [ITEM_REGENERATION]      = { tag = "|cffa00070Regeneration|r", type = 1,
     getter = function(u) return RealToString(UnitGetBonus(u, BONUS_LIFE_REGEN)) end},
-        [ITEM_DAMAGE_RESIST]     = { tag = "|cffff8040Physical Taken|r", type = 1, prefix = "\x25 ",
-    getter = function(u) return R2S((Unit[u].dr * Unit[u].pr) * 100.) end},
-        [ITEM_MAGIC_RESIST]      = { tag = "|cff8000ffMagical Taken|r", type = 1, prefix = "\x25 ",
+        [ITEM_DAMAGE_RESIST]     = { tag = "|cffff8040Damage Resist|r", alternate = "|cffff8040Physical Taken|r", type = 1, prefix = "\x25 ",
+    breakdown = function(u)
+        return "|cffffcc00Base Reduction:|r " .. R2S(100. - (HeroStats[GetUnitTypeId(u)].phys_resist) * 100.)  .. "\x25" ..
+        "\n|cffffcc00Spell/Item Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].pr) * 100. / HeroStats[GetUnitTypeId(u)].phys_resist)  .. "\x25" ..
+        "\n|cffffcc00Armor Reduction:|r " .. R2S(((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u))) * 100.)  .. "\x25" ..
+        "\n|cffffcc00Total Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u))))) .. "\x25"
+    end,
+    getter = function(u)
+        return R2S((Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))))
+    end},
+        [ITEM_MAGIC_RESIST]      = { tag = "|cff8000ffMagic Resist|r", alternate = "|cff8000ffMagical Taken|r", type = 1, prefix = "\x25 ",
     getter = function(u) return R2S((Unit[u].dr * Unit[u].mr) * 100.) end},
+        [ITEM_DAMAGE_MULT]     = { tag = "|cffff8040Physical Dealt|r", type = 1, prefix = "\x25 ",
+    getter = function(u) return R2S((Unit[u].dm * Unit[u].pm) * 100.) end},
+        [ITEM_MAGIC_MULT]      = { tag = "|cff8000ffMagic Dealt|r", type = 1, prefix = "\x25 ",
+    getter = function(u) return R2S((Unit[u].dm * Unit[u].mm) * 100.) end},
         [ITEM_MOVESPEED]         = { tag = "|cff888888Movespeed|r", type = 2,
     getter = function(u) return RealToString(Unit[u].movespeed) end},
         [ITEM_CRIT_CHANCE]       = { tag = "|cffffcc00Critical Chance|r", type = 1, prefix = "\x25 ",
@@ -1724,20 +1742,20 @@ OnInit.global("Variables", function(Require)
         [ITEM_EVASION]           = { tag = "|cff008080Evasion|r", type = 2, prefix = "\x25 ",
     getter = function(u) return math.min(100, (Unit[u].evasion)) end},
         [ITEM_SPELLBOOST]        = { tag = "|cff80ffffSpellboost|r", type = 1, prefix = "\x25 ",
-    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(BoostValue[pid] * 100) end},
+    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(Unit[u].spellboost * 100.) end},
         [ITEM_BASE_ATTACK_SPEED] = { tag = "|cff446600Base Attack Speed|r", type = 1,
     getter = function(u) local as = 1 / BlzGetUnitAttackCooldown(u, 0) return R2S(as) .. " attacks per second" end},
         [ITEM_GOLD_GAIN]         = { tag = "|cffffff00Gold Find|r", type = 3, prefix = "\x25 ",
     getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return ItemGoldRate[pid] end},
-                            [18] = { tag = "|cff446600Total Attack Speed|r", type = 1,
+        [ITEM_GOLD_GAIN + 1]     = { tag = "|cff446600Total Attack Speed|r", type = 1,
     getter = function(u) local as = (1 / BlzGetUnitAttackCooldown(u, 0)) * (1 + math.min(GetHeroAgi(u, true), 400) * 0.01) return R2S(as) .. " attacks per second" end},
-                            [19] = { tag = "|cff808080Experience Rate|r", type = 3,
+        [ITEM_GOLD_GAIN + 2]     = { tag = "|cff808080Experience Rate|r", type = 3,
     getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(XP_Rate[pid]) end},
-                            [20] = { tag = "|cff808080Colosseum XP Rate|r", type = 3, prefix = "\x25 ",
+        [ITEM_GOLD_GAIN + 3]     = { tag = "|cff808080Colosseum XP Rate|r", type = 3, prefix = "\x25 ",
     getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(Colosseum_XP[pid] * 100.) end},
-                            [21] = { tag = "|cff808000Hero Time Played|r", type = 3,
+        [ITEM_GOLD_GAIN + 4]     = { tag = "|cff808000Hero Time Played|r", type = 3,
     getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
-                            [22] = { tag = "|cff808000Total Time Played|r", type = 3,
+        [ITEM_GOLD_GAIN + 5]     = { tag = "|cff808000Total Time Played|r", type = 3,
     getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
     }
 
