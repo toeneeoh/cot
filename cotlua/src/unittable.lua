@@ -8,8 +8,7 @@
 OnInit.final("UnitTable", function(Require)
     Require('TimerQueue')
     Require('WorldBounds')
-
-    DETECT_LEAVE_ABILITY = FourCC('uDex') ---@type integer 
+    Require('Events')
 
     ---@class Unit
     ---@field pid integer
@@ -73,8 +72,11 @@ OnInit.final("UnitTable", function(Require)
                 tbl.movespeed = val or tbl.proxy.flatMS * tbl.proxy.percentMS
             end,
             movespeed = function(tbl, val)
-                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED.SOFTCAP, val)
+                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED.SOFTCAP, math.ceil(val))
                 UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, tbl.proxy.movespeed)
+            end,
+            spellboost = function(tbl, val)
+                tbl.proxy.spellboost = val
             end,
             attack = function(tbl, val)
                 rawset(tbl, "canAttack", val)
@@ -100,8 +102,11 @@ OnInit.final("UnitTable", function(Require)
                     if operators[key] then
                         operators[key](tbl, val)
                     else
-                        rawset(tbl, key, val)
+                        rawset(tbl.proxy, key, val)
                     end
+
+                    --trigger stat change event
+                    EVENT_STAT_CHANGE.trigger(tbl.unit)
                 end,
             }
 
@@ -114,20 +119,24 @@ OnInit.final("UnitTable", function(Require)
             self.attackCount = 0
             self.casting = false
             self.canAttack = true
-            self.evasion = 0
-            self.dr = 1.
-            self.mr = 1.
-            self.pr = 1.
-            self.regen = BlzGetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE)
-            self.healamp = 1.
             self.noregen = false
             self.threat = __jarray(0)
             self.proxy = { --used for __newindex behavior
+                evasion = 0,
+                dr = 1., --resists
+                mr = 1.,
+                pr = 1.,
+                dm = 1., --multipliers
+                mm = 1.,
+                pm = 1.,
+                regen = BlzGetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE),
+                healamp = 1.,
                 flatMS = GetUnitMoveSpeed(u),
                 percentMS = 1.,
                 movespeed = GetUnitMoveSpeed(u),
                 x = GetUnitX(u),
                 y = GetUnitY(u),
+                spellboost = 0.,
             }
             self.target = nil
             self.orderX = self.proxy.x
@@ -173,6 +182,7 @@ OnInit.final("UnitTable", function(Require)
                 end
             end
 
+            --unit one-time initialization here
             --register ability stats
             --30% magic resist
             if GetUnitAbilityLevel(u, FourCC('A04A')) > 0 then
