@@ -57,7 +57,7 @@ OnInit.final("SpellView", function(Require)
     --spells disabled on spellview
     local disabled_spells = {
         --backpack utilities
-        [FourCC('uDex')] = 1,
+        [DETECT_LEAVE_ABILITY] = 1,
         [0] = 1,
         [FourCC('A04M')] = 1,
         [FourCC('A00R')] = 1,
