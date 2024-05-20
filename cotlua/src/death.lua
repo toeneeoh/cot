@@ -344,9 +344,11 @@ function ReviveGods()
             end
         end
         SetHeroLevel(BossTable[i].unit, BossTable[i].level, false)
-        if HARD_MODE > 0 then --reapply hardmode
+        --reapply hardmode
+        if HARD_MODE > 0 then
             SetHeroStr(BossTable[i].unit, GetHeroStr(BossTable[i].unit, true) * 2, true)
             BlzSetUnitBaseDamage(BossTable[i].unit, BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 2 + 1, 0)
+            Unit[BossTable[i].unit].mm = 2.
         end
     end
 
@@ -395,6 +397,7 @@ function BossRespawn(pt)
             if HARD_MODE > 0 then
                 SetHeroStr(BossTable[index].unit, GetHeroStr(BossTable[index].unit,true) * 2, true)
                 BlzSetUnitBaseDamage(BossTable[index].unit, BlzGetUnitBaseDamage(BossTable[index].unit, 0) * 2 + 1, 0)
+                Unit[BossTable[index].unit].mm = 2.
             end
             DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" .. BossTable[index].name .. " has revived.|r")
         end
@@ -621,7 +624,9 @@ function OnDeath()
         if BlzGroupGetSize(ug) == 0 and UnitAlive(kroresh) and GetUnitAbilityLevel(kroresh, FourCC('Avul')) > 0 then
             UnitRemoveAbility(kroresh, FourCC('Avul'))
             if RectContainsUnit(MAIN_MAP.rect, kroresh) == false then
-                SetUnitPosition(kroresh, 14650, -15300)
+                SetUnitPosition(kroresh, 14500., -15180.)
+                BlzSetUnitFacingEx(kroresh, 135.)
+                PingMinimap(14500., -15180., 3)
             end
             SetCinematicScene(GetUnitTypeId(kroresh), GetPlayerColor(pboss), "Kroresh Foretooth", "You dare slaughter my men? Damn you!", 5, 4)
         end
