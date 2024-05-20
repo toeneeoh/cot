@@ -9,6 +9,7 @@ OnInit.final("UI", function(Require)
     Require('HeroSelect')
     Require('Commands')
     Require('ShopComponent') --use for button generation
+    Require('Events')
 
     local leftTreeAlignment   = 0.07 ---@type number 
     local middleTreeAlignment = 0.31 ---@type number 
@@ -165,21 +166,21 @@ OnInit.final("UI", function(Require)
     BlzFrameSetPoint(AFK_FRAME_BG, FRAMEPOINT_BOTTOMRIGHT, AFK_FRAME, FRAMEPOINT_BOTTOMRIGHT, 0.04, -0.03)
     BlzFrameSetVisible(AFK_FRAME_BG, false)
 
-    dummyFrame = BlzCreateFrameByType("BACKDROP", "", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
-    BlzFrameSetPoint(dummyFrame, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0.30, -0.37)
-    BlzFrameSetTexture(dummyFrame, "war3mapImported\\afkUI_3.dds", 0, true)
-    BlzFrameSetSize(dummyFrame, 0.25, 0.14)
-    BlzFrameSetVisible(dummyFrame, false)
+    DPS_FRAME = BlzCreateFrameByType("BACKDROP", "", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
+    BlzFrameSetPoint(DPS_FRAME, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0.30, -0.37)
+    BlzFrameSetTexture(DPS_FRAME, "war3mapImported\\afkUI_3.dds", 0, true)
+    BlzFrameSetSize(DPS_FRAME, 0.25, 0.14)
+    BlzFrameSetVisible(DPS_FRAME, false)
 
-    dummyTextTitle = BlzCreateFrameByType("TEXT", "", dummyFrame, "CText_18", 0)
-    BlzFrameSetTextAlignment(dummyTextTitle, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
-    BlzFrameSetPoint(dummyTextTitle, FRAMEPOINT_CENTER, dummyFrame, FRAMEPOINT_CENTER, -0.04, 0)
-    BlzFrameSetText(dummyTextTitle, "Last Hit:\nTotal |cffE15F08Physical|r:\nTotal |cff8000ffMagic|r:\nTotal:\nDPS:\nPeak DPS:\nTime:")
+    DPS_FRAME_TITLE = BlzCreateFrameByType("TEXT", "", DPS_FRAME, "CText_18", 0)
+    BlzFrameSetTextAlignment(DPS_FRAME_TITLE, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
+    BlzFrameSetPoint(DPS_FRAME_TITLE, FRAMEPOINT_CENTER, DPS_FRAME, FRAMEPOINT_CENTER, -0.04, 0)
+    BlzFrameSetText(DPS_FRAME_TITLE, "Last Hit:\nTotal |cffE15F08Physical|r:\nTotal |cff8000ffMagic|r:\nTotal:\nDPS:\nPeak DPS:\nTime:")
 
-    dummyTextValue = BlzCreateFrameByType("TEXT", "", dummyFrame, "CText_18", 0)
-    BlzFrameSetTextAlignment(dummyTextValue, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_RIGHT)
-    BlzFrameSetPoint(dummyTextValue, FRAMEPOINT_CENTER, dummyFrame, FRAMEPOINT_CENTER, 0.04, 0)
-    BlzFrameSetText(dummyTextValue, "0\n0\n0\n0\n0\n0\n0s")
+    DPS_FRAME_TEXTVALUE = BlzCreateFrameByType("TEXT", "", DPS_FRAME, "CText_18", 0)
+    BlzFrameSetTextAlignment(DPS_FRAME_TEXTVALUE, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_RIGHT)
+    BlzFrameSetPoint(DPS_FRAME_TEXTVALUE, FRAMEPOINT_CENTER, DPS_FRAME, FRAMEPOINT_CENTER, 0.04, 0)
+    BlzFrameSetText(DPS_FRAME_TEXTVALUE, "0\n0\n0\n0\n0\n0\n0s")
 
     --voting UI
     votingBG = BlzCreateFrameByType("BACKDROP", "votingBG", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
@@ -442,26 +443,26 @@ OnInit.final("UI", function(Require)
     do
         PUNCHING_BAG_VALUES = {}
 
-        PUNCHING_BAG_UI = BlzCreateFrame("ListBoxWar3", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
-        BlzFrameSetPoint(PUNCHING_BAG_UI, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_CENTER, -0.29, -0.09)
-        BlzFrameSetSize(PUNCHING_BAG_UI, 0.095, 0.085)
+        PUNCHING_BAG_UI = BlzCreateFrame("ListBoxWar3", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
+        BlzFrameSetPoint(PUNCHING_BAG_UI, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_CENTER, -0.02, -0.14)
+        BlzFrameSetSize(PUNCHING_BAG_UI, 0.15, 0.045)
 
         PUNCHING_BAG_BUTTON_1 = BlzCreateFrameByType("GLUEBUTTON", "", PUNCHING_BAG_UI, "ScoreScreenTabButtonTemplate", 0)
-        BlzFrameSetPoint(PUNCHING_BAG_BUTTON_1, FRAMEPOINT_BOTTOMLEFT, PUNCHING_BAG_UI, FRAMEPOINT_BOTTOMLEFT, 0.015, 0.015)
-        BlzFrameSetSize(PUNCHING_BAG_BUTTON_1, 0.0325, 0.0325)
+        BlzFrameSetPoint(PUNCHING_BAG_BUTTON_1, FRAMEPOINT_BOTTOMLEFT, PUNCHING_BAG_UI, FRAMEPOINT_BOTTOMLEFT, 0.0125, 0.012)
+        BlzFrameSetSize(PUNCHING_BAG_BUTTON_1, 0.022, 0.022)
         PUNCHING_BAG_BUTTON_1_BG = BlzCreateFrameByType("BACKDROP", "", PUNCHING_BAG_BUTTON_1, "", 0)
         BlzFrameSetAllPoints(PUNCHING_BAG_BUTTON_1_BG, PUNCHING_BAG_BUTTON_1)
         BlzFrameSetTexture(PUNCHING_BAG_BUTTON_1_BG, "war3mapImported\\prechaosarmor.blp", 0, true)
 
         PUNCHING_BAG_BUTTON_2 = BlzCreateFrameByType("GLUEBUTTON", "", PUNCHING_BAG_UI, "ScoreScreenTabButtonTemplate", 0)
-        BlzFrameSetPoint(PUNCHING_BAG_BUTTON_2, FRAMEPOINT_TOPLEFT, PUNCHING_BAG_BUTTON_1, FRAMEPOINT_TOPRIGHT, 0, 0)
-        BlzFrameSetSize(PUNCHING_BAG_BUTTON_2, 0.0325, 0.0325)
+        BlzFrameSetPoint(PUNCHING_BAG_BUTTON_2, FRAMEPOINT_TOPLEFT, PUNCHING_BAG_BUTTON_1, FRAMEPOINT_TOPRIGHT, 0.005, 0)
+        BlzFrameSetSize(PUNCHING_BAG_BUTTON_2, 0.022, 0.022)
         PUNCHING_BAG_BUTTON_2_BG = BlzCreateFrameByType("BACKDROP", "", PUNCHING_BAG_BUTTON_2, "", 0)
         BlzFrameSetAllPoints(PUNCHING_BAG_BUTTON_2_BG, PUNCHING_BAG_BUTTON_2)
         BlzFrameSetTexture(PUNCHING_BAG_BUTTON_2_BG, "war3mapImported\\chaosarmor.blp", 0, true)
 
         PUNCHING_BAG_EDIT = BlzCreateFrame("EscMenuEditBoxTemplate", PUNCHING_BAG_UI, 0, 0)
-        BlzFrameSetPoint(PUNCHING_BAG_EDIT, FRAMEPOINT_TOPLEFT, PUNCHING_BAG_UI, FRAMEPOINT_TOPLEFT, 0.01, -0.01)
+        BlzFrameSetPoint(PUNCHING_BAG_EDIT, FRAMEPOINT_BOTTOMLEFT, PUNCHING_BAG_BUTTON_2, FRAMEPOINT_BOTTOMRIGHT, 0.003, -0.0015)
         BlzFrameSetSize(PUNCHING_BAG_EDIT, 0.075, 0.025)
         BlzFrameSetTextSizeLimit(PUNCHING_BAG_EDIT, 6)
 
@@ -528,13 +529,13 @@ OnInit.final("UI", function(Require)
         ARCA_CONVERT.tooltip:text("Must purchase a converter to use!")
 
         --plat/arc frames
-        PLAT_FRAME = BlzCreateFrameByType("BUTTON", "", RESOURCE_BAR, "", 0)
+        PLAT_FRAME = BlzCreateFrameByType("FRAME", "", RESOURCE_BAR, "", 0)
         BlzFrameSetTexture(PLAT_FRAME, "TransparentTexture.blp", 0, true)
         BlzFrameSetPoint(PLAT_FRAME, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, - 0.0625, - 0.024)
         BlzFrameSetSize(PLAT_FRAME, 0.06, 0.02)
         BlzFrameSetLevel(PLAT_FRAME, 1)
 
-        ARC_FRAME = BlzCreateFrameByType("BUTTON", "", RESOURCE_BAR, "", 0)
+        ARC_FRAME = BlzCreateFrameByType("FRAME", "", RESOURCE_BAR, "", 0)
         BlzFrameSetTexture(ARC_FRAME, "TransparentTexture.blp", 0, true)
         BlzFrameSetPoint(ARC_FRAME, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, 0.075, - 0.024)
         BlzFrameSetSize(ARC_FRAME, 0.06, 0.02)
@@ -573,20 +574,24 @@ OnInit.final("UI", function(Require)
             title = title,
             text = text,
             number = number,
+            viewing = {},
         }
         BlzFrameSetPoint(frame, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_CENTER, -0.3, 0.08)
         BlzFrameSetSize(frame, 0.3, 0.375)
         BlzFrameSetEnable(frame, false)
 
         BlzFrameSetPoint(title, FRAMEPOINT_TOP, frame, FRAMEPOINT_TOP, 0., -0.013)
+        BlzFrameSetEnable(title, false)
 
         BlzFrameSetPoint(number, FRAMEPOINT_TOPLEFT, frame, FRAMEPOINT_TOPLEFT, 0.113, -0.04)
         BlzFrameSetTextAlignment(number, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
         BlzFrameSetScale(number, 1.)
+        BlzFrameSetEnable(number, false)
 
         BlzFrameSetPoint(text, FRAMEPOINT_TOPLEFT, frame, FRAMEPOINT_TOPLEFT, 0.015, -0.04)
         BlzFrameSetTextAlignment(text, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
         BlzFrameSetScale(text, 1.)
+        BlzFrameSetEnable(text, false)
 
         --BlzFrameSetTexture(separator_up, "replaceabletextures\\teamcolor\\teamcolor08", 0, true)
         --BlzFrameSetTexture(separator_right, "replaceabletextures\\teamcolor\\teamcolor08", 0, true)
@@ -606,6 +611,9 @@ OnInit.final("UI", function(Require)
                 BlzFrameSetEnable(f.frame, true)
                 BlzFrameSetVisible(frame, false)
             end
+
+            --no longer viewing stat window
+            STAT_WINDOW.viewing[pid] = nil
         end
 
         local STAT_CLOSE_BACKDROP = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", frame, 0, 0)
@@ -618,22 +626,44 @@ OnInit.final("UI", function(Require)
         STAT_CLOSE:onClick(onClose)
         STAT_CLOSE.tooltip:text("Close 'ESC'")
 
+        BlzFrameSetVisible(STAT_WINDOW.frame, false)
+
         function RefreshStatWindow(u, pid)
             if u then
+                STAT_WINDOW.viewing[pid] = u
+
                 local tpid = GetPlayerId(GetOwningPlayer(u)) + 1
                 local stat_number = ""
                 local stat_tag = ""
-                local name = (tpid <= PLAYER_CAP and User[tpid - 1].nameColored) or GetUnitName(u)
+                local name = (u == Hero[tpid] and User[tpid - 1].nameColored) or GetUnitName(u)
                 local ishero = (u == Hero[tpid] and 3) or 2
 
                 --fill out stats
                 for type = 1, ishero do
-                    for _, v in ipairs(STAT_TAG) do
+                    for i, v in ipairs(STAT_TAG) do
                         local prefix = v.prefix or ""
 
                         if v.type == type then
-                            stat_number = stat_number .. v.getter(u) .. prefix .. "|n"
-                            stat_tag = stat_tag .. v.tag .. "|n"
+                            local num = v.getter(u)
+                            stat_number = stat_number .. num .. prefix .. "|n"
+                            stat_tag = stat_tag .. (v.alternate or v.tag) .. "|n"
+
+                            if v.breakdown then
+                                if not v.breakdown_frame then
+                                    v.breakdown_backdrop = BlzCreateFrameByType("BACKDROP", "", STAT_WINDOW.frame, "", 0)
+                                    v.breakdown_frame = BlzCreateFrameByType("FRAME", "", v.breakdown_backdrop, "", 0)
+                                    BlzFrameSetTexture(v.breakdown_backdrop, "war3mapImported\\question.blp", 0, true)
+                                    BlzFrameSetScale(v.breakdown_backdrop, 0.6)
+                                    BlzFrameSetSize(v.breakdown_backdrop, 0.016, 0.016)
+                                    BlzFrameSetAllPoints(v.breakdown_frame, v.breakdown_backdrop)
+                                    v.breakdown_tooltip = FrameAddSimpleTooltip(v.breakdown_frame, "", true, FRAMEPOINT_BOTTOMLEFT, FRAMEPOINT_TOPRIGHT, 0., 0.008, 0.01)
+                                end
+
+                                if GetLocalPlayer() == Player(pid - 1) then
+                                    BlzFrameSetText(v.breakdown_tooltip.tooltip, v.breakdown(u))
+                                    BlzFrameSetPoint(v.breakdown_backdrop, FRAMEPOINT_TOPLEFT, STAT_WINDOW.number, FRAMEPOINT_TOPLEFT, num:len() * 0.012, -i * 0.014)
+                                end
+                            end
                         end
                     end
                 end
@@ -664,6 +694,20 @@ OnInit.final("UI", function(Require)
             end
         end
 
-        BlzFrameSetVisible(STAT_WINDOW.frame, false)
+        local function RefreshStatWindowOnStatChange()
+            local U = User.first
+
+            while U do
+                --if a player is viewing the stat window of a unit, refresh it
+                if STAT_WINDOW.viewing[U.id] then
+                    RefreshStatWindow(STAT_WINDOW.viewing[U.id], U.id)
+                end
+
+                U = U.next
+            end
+        end
+
+        --Refresh stat window on stat change event
+        EVENT_STAT_CHANGE.register_event_action(RefreshStatWindowOnStatChange)
     end
 end, Debug.getLine())
