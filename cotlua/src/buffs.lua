@@ -1358,7 +1358,7 @@ OnInit.global("Buffs", function(Require)
     EarthDebuff = setmetatable({}, mt)
     do
         local thistype = EarthDebuff
-        thistype.RAWCODE         = FourCC('A04P') ---@type integer 
+        thistype.RAWCODE         = FourCC('Aese') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
