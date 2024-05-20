@@ -520,7 +520,6 @@ OnInit.final("Shop", function(Require)
     ---@field move function
     ---@field item ShopItem
     ---@field onClick function
-    ---@field onScroll function
     ---@field onRightClick function
     ---@field onDoubleClick function
     ShopSlot = {}
@@ -645,7 +644,7 @@ OnInit.final("Shop", function(Require)
             return self
         end
 
-        function thistype.onScrolled()
+        function thistype.onScrolled() --shop button
             local self = table[(BlzGetTriggerFrame())][0] ---@type ShopSlot
 
             if self then
@@ -653,7 +652,9 @@ OnInit.final("Shop", function(Require)
                 BlzFrameSetEnable(BlzGetTriggerFrame(), true)
 
                 if GetLocalPlayer() == GetTriggerPlayer() then
-                    self.shop:scroll(BlzGetTriggerFrameValue() < 0)
+                    local down = BlzGetTriggerFrameValue() < 0
+
+                    self.shop:scroll(down)
                 end
             end
         end
@@ -2293,8 +2294,8 @@ OnInit.final("Shop", function(Require)
                 table[(self.edit)][0] = self
 
                 while u do
-                        self.timer[u.id - 1] = CreateTimer()
-                        self.canScroll[u.id - 1] = true
+                        thistype.timer[u.id - 1] = CreateTimer()
+                        thistype.canScroll[u.id - 1] = true
                         table[(u.player)][id] = self
                         table[(u.player)][self.count] = id
                     u = u.next
@@ -2349,7 +2350,7 @@ OnInit.final("Shop", function(Require)
             return false
         end
 
-        function thistype.onScrolled()
+        function thistype.onScrolled() --shop
             local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
 
             if self then
@@ -2364,10 +2365,6 @@ OnInit.final("Shop", function(Require)
             end
 
             return false
-        end
-
-        function thistype.onExpire()
-            canScroll[GetPlayerId(GetLocalPlayer())] = true
         end
 
         function thistype.onPeriod()
@@ -2489,15 +2486,19 @@ OnInit.final("Shop", function(Require)
             end
         end
 
-        function thistype.onScroll()
+        function thistype.onExpire()
+            thistype.canScroll[GetPlayerId(GetLocalPlayer())] = true
+        end
+
+        function thistype.onScroll() --shop
             local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
             local i = GetPlayerId(GetLocalPlayer()) ---@type integer 
 
             if self then
                 if GetLocalPlayer() == GetTriggerPlayer() then
-                    if self.canScroll[i] then
+                    if thistype.canScroll[i] then
                         if SCROLL_DELAY > 0 then
-                            self.canScroll[i] = false
+                            thistype.canScroll[i] = false
                         end
 
                         self:scroll(BlzGetTriggerFrameValue() < 0)
@@ -2506,7 +2507,7 @@ OnInit.final("Shop", function(Require)
             end
 
             if SCROLL_DELAY > 0 then
-                TimerStart(self.timer[i], TimerGetRemaining(self.timer[i]), false, thistype.onExpire)
+                TimerStart(thistype.timer[i], TimerGetRemaining(thistype.timer[i]), false, thistype.onExpire)
             end
         end
 

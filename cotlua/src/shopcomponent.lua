@@ -178,7 +178,6 @@ OnInit.final("ShopComponent", function()
         end
     end
 
-    canScroll = {} ---@type boolean[] 
     local doubleTime = array2d(0)
 
     ---@class Button
@@ -210,6 +209,7 @@ OnInit.final("ShopComponent", function()
     ---@field checked function
     ---@field isChecked boolean
     ---@field table Button[]
+    ---@field canScroll boolean[]
     Button = {}
     do
         local thistype = Button
@@ -221,6 +221,7 @@ OnInit.final("ShopComponent", function()
         thistype.timer={} ---@type timer[] 
         thistype.table={} ---@type table 
         thistype.time={} ---@type table 
+        thistype.canScroll = {} ---@type boolean[] 
 
         thistype.click=nil  
         thistype.scroll=nil  
@@ -522,17 +523,17 @@ OnInit.final("ShopComponent", function()
         end
 
         function thistype.onExpire()
-            canScroll[GetPlayerId(GetLocalPlayer())] = true
+            thistype.canScroll[GetPlayerId(GetLocalPlayer())] = true
         end
 
         function thistype.onScrolled()
             local self = thistype.table[(BlzGetTriggerFrame())] ---@type Button
-            local pid = GetPlayerId(GetLocalPlayer()) + 1 ---@type integer 
+            local i = GetPlayerId(GetLocalPlayer()) ---@type integer 
 
             if self then
-                if canScroll[pid] and self.scroll ~= nil then
+                if thistype.canScroll[i] and self.scroll ~= nil then
                     if SCROLL_DELAY > 0 then
-                        canScroll[pid] = false
+                        thistype.canScroll[i] = false
                     end
 
                     TriggerEvaluate(self.scroll)
@@ -540,7 +541,7 @@ OnInit.final("ShopComponent", function()
             end
 
             if SCROLL_DELAY > 0 then
-                TimerStart(self.timer[pid], TimerGetRemaining(self.timer[pid]), false, thistype.onExpire)
+                TimerStart(thistype.timer[i], TimerGetRemaining(thistype.timer[i]), false, thistype.onExpire)
             end
         end
 
@@ -581,9 +582,9 @@ OnInit.final("ShopComponent", function()
             end
         end
 
-        for i = 1, PLAYER_CAP do
+        for i = 0, PLAYER_CAP - 1 do
             Button.timer[i] = CreateTimer()
-            canScroll[i] = true
+            Button.canScroll[i] = true
         end
 
         TimerStart(thistype.double, 10000000., false, nil)
