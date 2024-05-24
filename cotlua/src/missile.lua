@@ -106,6 +106,9 @@ do
         ---@field create function
         ---@field link function
         ---@field distance number
+        ---@field x number
+        ---@field y number
+        ---@field z number
         Coordinates = setmetatable({}, {})
         local mt = getmetatable(Coordinates)
         mt.__index = mt
