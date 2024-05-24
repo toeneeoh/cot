@@ -46,6 +46,9 @@ OnInit.final("Keyboard", function(Require)
             BlzFrameSetVisible(STAT_WINDOW.frame, false)
         end
 
+        --no longer viewing stat window
+        STAT_WINDOW.viewing[pid] = nil
+
         return false
     end
 
@@ -100,15 +103,17 @@ OnInit.final("Keyboard", function(Require)
 
     local function W_Down()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1
-        local pt = TimerList[pid]:get(FROZENORB.id, Hero[pid])
 
         --shatter frozen orb early
-        if pt then
-            pt.dur = 0.
+        local missile = FROZENORB.missile[pid] ---@type Missiles
+
+        if missile then
+            missile:onFinish()
+            missile:terminate()
         end
 
         --cancel hidden guise early
-        pt = TimerList[pid]:get(HIDDENGUISE.id)
+        local pt = TimerList[pid]:get(HIDDENGUISE.id)
 
         if pt then
             HIDDENGUISE.expire(pt)
