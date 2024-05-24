@@ -336,9 +336,9 @@ OnInit.global("PlayerData", function(Require)
             data[#data + 1] = self.hero.id
             self.hero.level = GetHeroLevel(Hero[self.pid])
             data[#data + 1] = self.hero.level
-            self.hero.str = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_STR, Hero[self.pid], false))
-            self.hero.agi = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_AGI, Hero[self.pid], false))
-            self.hero.int = IMinBJ(MAX_STATS, GetHeroStatBJ(bj_HEROSTAT_INT, Hero[self.pid], false))
+            self.hero.str = IMinBJ(MAX_STATS, GetHeroStr(Hero[self.pid], false))
+            self.hero.agi = IMinBJ(MAX_STATS, GetHeroAgi(Hero[self.pid], false))
+            self.hero.int = IMinBJ(MAX_STATS, GetHeroInt(Hero[self.pid], false))
             data[#data + 1] = self.hero.str
             data[#data + 1] = self.hero.agi
             data[#data + 1] = self.hero.int
@@ -689,11 +689,12 @@ OnInit.global("PlayerData", function(Require)
         elseif HeroID[pid] == HERO_ASSASSIN then
             UnitRemoveAbility(Hero[pid], BLADESPIN.id)
         elseif HeroID[pid] == HERO_VAMPIRE then
-            EVENT_STAT_CHANGE[Hero[pid]] = BLOODBANK.refresh
+            EVENT_STAT_CHANGE.register_unit_action(Hero[pid], BLOODBANK.refresh)
         end
 
         Unit[Hero[pid]].mr = HeroStats[HeroID[pid]].magic_resist
         Unit[Hero[pid]].pr = HeroStats[HeroID[pid]].phys_resist
+        Unit[Hero[pid]].pm = HeroStats[HeroID[pid]].phys_damage
 
         HERO_GROUP[#HERO_GROUP + 1] = Hero[pid]
         SetPrestigeEffects(pid)
