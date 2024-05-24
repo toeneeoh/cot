@@ -76,15 +76,14 @@ function MouseDown()
     --backpack ai
     if PlayerSelectedUnit[pid] == Backpack[pid] then
         bpmoving[pid] = true
-        local pt = TimerList[pid]:get('bkpk', Backpack[pid])
+        local pt = TimerList[pid]:get('bkpk')
 
         if not pt then
             pt = TimerList[pid]:add()
             pt.dur = 4.
             pt.tag = 'bkpk'
-            pt.source = Backpack[pid]
 
-            TimerQueue:callDelayed(1., MoveExpire, pt)
+            pt.timer:callDelayed(1., MoveExpire, pt)
         else
             pt.dur = 4.
         end
