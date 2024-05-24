@@ -341,23 +341,24 @@ function ShowExpRate(user, pid)
     end
 end
 
-function ApplyHardmode()
-    BlzFrameSetVisible(votingBG, false)
+---@type fun(index: integer|nil)
+function ApplyHardmode(index)
+    local j, k = index or BOSS_OFFSET, index or #BossTable
 
-    if CHAOS_LOADING then
-        return
+    if not index then
+        BlzFrameSetVisible(votingBG, false)
+        HARD_MODE = 1
+        bossResMod = math.min(bossResMod, 0.75)
+        DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00The game is now in hard mode: bosses are stronger, respawn faster, and have increased drop rates.|r")
     end
 
-    HARD_MODE = 1
-    bossResMod = math.min(bossResMod, 0.75)
-
-    DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00The game is now in hard mode: bosses are stronger, respawn faster, and have increased drop rates.|r")
-
-    for i = BOSS_OFFSET, #BossTable do
+    for i = j, k do
         if UnitAlive(BossTable[i].unit) then
             SetHeroStr(BossTable[i].unit, GetHeroStr(BossTable[i].unit, true) * 2, true)
             BlzSetUnitBaseDamage(BossTable[i].unit, BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 2 + 1, 0)
             SetWidgetLife(BossTable[i].unit, GetWidgetLife(BossTable[i].unit) + BlzGetUnitMaxHP(BossTable[i].unit) * 0.5) --heal
+            Buff.dispelAll(BossTable[i].unit)
+            Unit[BossTable[i].unit].mm = 2.
         end
     end
 end
@@ -379,7 +380,7 @@ function CheckVote()
         if (VoteYay + VoteNay) >= User.AmountPlaying then
             VOTING_TYPE = 0
 
-            if VoteYay > VoteNay then
+            if VoteYay > VoteNay and not CHAOS_LOADING then
                 ApplyHardmode()
             else
                 DisplayTextToForce(FORCE_PLAYING, "Hardmode vote failed.")
@@ -428,7 +429,7 @@ function HardmodeVoteExpire()
         BlzFrameSetVisible(votingBG, false)
         VOTING_TYPE = 0
 
-        if VoteYay > VoteNay then
+        if VoteYay > VoteNay and not CHAOS_LOADING then
             ApplyHardmode()
         end
     end
@@ -515,6 +516,11 @@ function MainRepick(pid)
             DisplayTextToPlayer(p, 0, 0, "You can only repick in church, town or tavern.")
             return
         end
+    end
+
+    --close stat window
+    if GetLocalPlayer() == Player(pid - 1) then
+        BlzFrameSetVisible(STAT_WINDOW.frame, false)
     end
 
     Profile[pid].save_timer:reset()
