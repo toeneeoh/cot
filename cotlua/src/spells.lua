@@ -14,7 +14,7 @@
 ]]
 
 OnInit.final("Spells", function(Require)
-    Require "Users"
+    Require("Users")
 
     SONG_WAR                = FourCC('A024') ---@type integer 
     SONG_HARMONY            = FourCC('A01A') ---@type integer 
@@ -764,6 +764,10 @@ OnInit.final("Spells", function(Require)
 
         function thistype:onCast()
             OverloadBuff:add(self.caster, self.caster)
+        end
+
+        function thistype.onLearn(u, ablev, pid)
+            OverloadBuff:refresh(u, u)
         end
     end
 
@@ -1556,8 +1560,10 @@ OnInit.final("Spells", function(Require)
                         GroupAddUnit(pt.ug, target)
                         DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\PhoenixMissile\\Phoenix_Missile.mdl", GetUnitX(target), GetUnitY(target)))
                         DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                        if GetUnitAbilityLevel(target, FourCC('B02O')) > 0 then
-                            UnitRemoveAbility(target, FourCC('B02O'))
+
+                        local b = IgniteDebuff:get(nil, target)
+                        if b then
+                            b:dispel()
                             SEARINGARROWS.ignite(pt.source, target)
                         end
                     end
@@ -1661,11 +1667,30 @@ OnInit.final("Spells", function(Require)
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
             for target in each(ug) do
-                local dummy = Dummy.create(self.x, self.y, FourCC('A069'), 1, 2.5).unit
-                SetUnitOwner(dummy, Player(self.pid - 1), true)
-                BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(self.y - GetUnitY(target), self.x - GetUnitX(target)))
-                UnitDisableAbility(dummy, FourCC('Amov'), true)
-                InstantAttack(dummy, target)
+                local missile = Missiles:create(self.x, self.y, 50., 0, 0, 0) ---@type Missiles
+                missile:model("Abilities\\Weapons\\SearingArrow\\SearingArrowMissile.mdl")
+                missile:scale(1.)
+                missile:speed(2000)
+                missile:arc(40)
+                missile.source = self.caster
+                missile.target = target
+                missile.owner = Player(self.pid - 1)
+                missile:vision(400)
+                missile.damage = self.dmg * BOOST[self.pid]
+
+                missile.onHit = function(enemy)
+                    if enemy == missile.target then
+                        --apply debuff
+                        IgniteDebuff:add(missile.source, enemy):duration(5.)
+                        DamageTarget(missile.source, enemy, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+
+                        return true
+                    end
+
+                    return false
+                end
+
+                missile:launch()
             end
 
             DestroyGroup(ug)
@@ -2474,6 +2499,7 @@ OnInit.final("Spells", function(Require)
             missile.owner = Player(self.pid - 1)
             missile:vision(400)
             missile.damage = self.dmg * BOOST[self.pid]
+            missile.collideZ = true
 
             missile.onHit = function(target)
                 if target == missile.target then
@@ -3658,6 +3684,8 @@ OnInit.final("Spells", function(Require)
     ---@field orbdmg function
     ---@field orbaoe number
     ---@field freeze number
+    ---@field missile Missiles[]
+    ---@field icecd boolean[]
     FROZENORB = {}
     do
         local thistype = FROZENORB
@@ -3671,88 +3699,85 @@ OnInit.final("Spells", function(Require)
         thistype.orbaoe = 400.
         thistype.freeze = 3.
         thistype.values = {thistype.iceaoe, thistype.icedmg, thistype.orbrange, thistype.orbdmg, thistype.orbaoe, thistype.freeze}
+        thistype.missile = {}
+        thistype.icecd = {}
 
-        ---@type fun(pt: PlayerTimer)
-        function thistype.periodic(pt)
-            local x = GetUnitX(pt.target) ---@type number 
-            local y = GetUnitY(pt.target) ---@type number 
+        ---@type fun(pid: number, missile: Missiles)
+        function thistype.spawn_icicle(pid, missile)
+            thistype.icecd[pid] = true
 
-            pt.agi = pt.agi + 1
-            pt.dur = pt.dur - 6.
-
-            if pt.dur > 0. then
-                --orb movement
-                SetUnitXBounded(pt.target, x + 6 * Cos(pt.angle))
-                SetUnitYBounded(pt.target, y + 6 * Sin(pt.angle))
-
-                --icicle every second
-                if ModuloInteger(pt.agi, 32) == 0 then
-                    local ug = CreateGroup()
-                    local angle = 0. ---@type number 
-
-                    MakeGroupInRange(pt.pid, ug, x, y, thistype.iceaoe * LBOOST[pt.pid], Condition(FilterEnemy))
-
-                    for target in each(ug) do
-                        angle = Atan2(GetUnitY(target) - y, GetUnitX(target) - x)
-                        local dummy = Dummy.create(x + 50. * Cos(angle), y + 50 * Sin(angle), FourCC('A09F'), 1, 3.).unit
-                        SetUnitOwner(dummy, Player(pt.pid - 1), false)
-                        BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(pt.target), GetUnitX(target) - GetUnitX(pt.target)))
-                        SetUnitScale(dummy, 0.35, 0.35, 0.35)
-                        SetUnitFlyHeight(dummy, GetUnitFlyHeight(pt.target), 0)
-                        InstantAttack(dummy, target)
-                    end
-
-                    DestroyGroup(ug)
-                end
-
-                pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
-            else
-                --show original cast
-                UnitRemoveAbility(pt.source, FROZENORB.id2)
-                BlzUnitHideAbility(pt.source, FROZENORB.id, false)
-
-                --orb shatter
+            if missile.allocated then
                 local ug = CreateGroup()
-                MakeGroupInRange(pt.pid, ug, x, y, thistype.orbaoe * LBOOST[pt.pid], Condition(FilterEnemy))
+
+                MakeGroupInRange(pid, ug, missile.x, missile.y, thistype.iceaoe * LBOOST[pid], Condition(FilterEnemy))
 
                 for target in each(ug) do
-                    Freeze:add(pt.source, target):duration(thistype.freeze * LBOOST[pt.id])
-                    DamageTarget(pt.source, target, thistype.orbdmg(pt.pid) * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    local icicle = Missiles:create(missile.x, missile.y, 70., 0, 0, 0) ---@type Missiles
+                    icicle:model("war3mapImported\\BlizMissile.mdl")
+                    icicle:scale(0.6)
+                    icicle:speed(1000)
+                    icicle.source = missile.source
+                    icicle.owner = missile.owner
+                    icicle.target = target
+                    icicle:vision(400)
+
+                    icicle.onFinish = function()
+                        DamageTarget(icicle.source, icicle.target, thistype.icedmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+
+                        return true
+                    end
+
+                    icicle:launch()
                 end
 
                 DestroyGroup(ug)
 
-                DestroyEffect(AddSpecialEffect("war3mapImported\\FrostNova.mdx", x, y))
-
-                SetUnitAnimation(pt.target, "death")
-                pt:destroy()
+                TimerQueue:callDelayed(1., thistype.spawn_icicle, pid, missile)
             end
-
         end
 
         function thistype:onCast()
-            local pt
+            local missile = thistype.missile[self.pid]
 
-            if self.sid == thistype.id2 then
-                pt = TimerList[self.pid]:get(thistype.id, self.caster)
-
-                if pt then
-                    pt.dur = 0.
-                end
+            --recast
+            if missile then
+                missile:onFinish()
+                missile:terminate()
             else
-                pt = TimerList[self.pid]:add()
-                pt.angle = self.angle
-                pt.dur = self.orbrange
-                pt.tag = thistype.id
-                pt.agi = 16
+                missile = Missiles:create(self.x + 75. * Cos(self.angle), self.y + 75. * Sin(self.angle), 70., ---@type Missiles
+                self.x + self.orbrange * Cos(self.angle), self.y + self.orbrange * Sin(self.angle), 70.)
+                missile:model("war3mapImported\\FrostOrb.mdl")
+                missile:scale(1.3)
+                missile:speed(200)
+                missile.source = self.caster
+                missile.owner = Player(self.pid - 1)
+                missile:vision(self.iceaoe * LBOOST[self.pid])
 
-                pt.source = self.caster
-                pt.target = Dummy.create(self.x + 75 * Cos(pt.angle), self.y + 75 * Sin(pt.angle), 0, 0, 8.).unit
-                BlzSetUnitSkin(pt.target, FourCC('h06Z'))
-                SetUnitScale(pt.target, 1.3, 1.3, 1.3)
-                SetUnitFlyHeight(pt.target, 70.00, 0.00)
+                missile.onFinish = function()
+                    --show original cast
+                    UnitRemoveAbility(missile.source, thistype.id2)
+                    BlzUnitHideAbility(missile.source, thistype.id, false)
 
-                pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
+                    --orb shatter
+                    local ug = CreateGroup()
+                    MakeGroupInRange(self.pid, ug, missile.x, missile.y, self.orbaoe * LBOOST[self.pid], Condition(FilterEnemy))
+
+                    for target in each(ug) do
+                        Freeze:add(missile.source, target):duration(self.freeze * LBOOST[self.pid])
+                        DamageTarget(missile.source, target, self.orbdmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    end
+
+                    DestroyGroup(ug)
+
+                    DestroyEffect(AddSpecialEffect("war3mapImported\\FrostNova.mdx", missile.x, missile.y))
+                    thistype.missile[self.pid] = nil
+
+                    return true
+                end
+
+                missile:launch()
+                thistype.missile[self.pid] = missile
+                TimerQueue:callDelayed(0.5, thistype.spawn_icicle, self.pid, missile)
 
                 --show second cast
                 BlzUnitHideAbility(self.caster, FROZENORB.id, true)
@@ -3963,8 +3988,10 @@ OnInit.final("Spells", function(Require)
                         if rand == ELEMENTICE.value then --ice
                             Freeze:add(Hero[pt.pid], target):duration(2.)
                         elseif rand == ELEMENTEARTH.value then --earth
-                            if EarthDebuff:has(nil, target) then
-                                IncUnitAbilityLevel(target, FourCC('A04P'))
+                            local b = EarthDebuff:get(nil, target)
+                            if b then
+                                IncUnitAbilityLevel(target, b.RAWCODE)
+                                b:refresh()
                             end
                             EarthDebuff:add(Hero[pt.pid], target):duration(10.)
                         end
@@ -3980,7 +4007,7 @@ OnInit.final("Spells", function(Require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()  
+            local pt = TimerList[self.pid]:add()
             pt.x = self.targetX
             pt.y = self.targetY
             pt.dur = self.times
@@ -4215,7 +4242,7 @@ OnInit.final("Spells", function(Require)
             SetHeroAgi(destroyer[pt.pid], IMinBJ(GetHeroAgi(destroyer[pt.pid], false) + 50, 400), true)
 
             if pt.x == GetUnitX(destroyer[pt.pid]) and pt.y == GetUnitY(destroyer[pt.pid]) then
-                TimerQueue:callDelayed(FPS_32, thistype.periodic, pt)
+                pt.timer:callDelayed(1., thistype.periodic, pt)
             else
                 SetHeroAgi(destroyer[pt.pid], base, true)
                 pt:destroy()
@@ -4352,6 +4379,8 @@ OnInit.final("Spells", function(Require)
     do
         local thistype = STEEDCHARGE
         thistype.id = FourCC("A06B") ---@type integer 
+        thistype.dur = 10.
+        thistype.values = {thistype.dur}
 
         ---@type fun(pid: integer, angle: number, x: number, y: number)
         thistype.charge = function(pid, angle, x, y)
@@ -4396,6 +4425,7 @@ OnInit.final("Spells", function(Require)
             IssueImmediateOrderById(self.caster, 852180) --avatar
             BlzUnitHideAbility(self.caster, FourCC('A06K'), true)
             BlzStartUnitAbilityCooldown(self.caster, thistype.id, 30.)
+            SteedChargeBuff:add(self.caster, self.caster):duration(self.dur * LBOOST[self.pid])
 
             TimerQueue:callDelayed(0.05, thistype.charge, self.pid, self.angle, self.targetX, self.targetY)
         end
@@ -4463,7 +4493,8 @@ OnInit.final("Spells", function(Require)
 
         thistype.heal = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (BlzGetUnitMaxHP(Hero[pid]) - GetWidgetLife(Hero[pid])) * (0.2 + 0.01 * ablev) end ---@return number
         thistype.aoe = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 450. + 50. * ablev end ---@return number
-        thistype.values = {thistype.heal, thistype.aoe}
+        thistype.dur = 10.
+        thistype.values = {thistype.aoe, thistype.heal, thistype.dur}
 
         function thistype:onCast()
             local ug = CreateGroup()
@@ -4473,7 +4504,7 @@ OnInit.final("Spells", function(Require)
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Taunt\\TauntCaster.mdl", self.caster, "origin"))
 
             for target in each(ug) do
-                Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A04X'), 1):cast(Player(self.pid - 1), "slow", target)
+                ProvokeDebuff:add(self.caster, target):duration(self.dur * LBOOST[self.pid])
             end
 
             Taunt(self.caster, self.pid, 800., true, 2000, 2000)
@@ -5130,12 +5161,29 @@ OnInit.final("Spells", function(Require)
                     self.targetX = self.x + 40. * Cos(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
                     self.targetY = self.y + 40. * Sin(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
 
-                    local dummy = Dummy.create(self.targetX, self.targetY, FourCC('A008'), 1).unit
-                    SetUnitOwner(dummy, Player(self.pid - 1), true)
-                    BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(self.targetY - GetUnitY(target), self.targetX - GetUnitX(target)))
-                    SetUnitFlyHeight(dummy, 150., 0.)
-                    UnitDisableAbility(dummy, FourCC('Amov'), true)
-                    InstantAttack(dummy, target)
+                    --
+                    local missile = Missiles:create(self.targetX, self.targetY, 50., 0, 0, 20.) ---@type Missiles
+                    missile:model("war3mapImported\\TinkerRocketMissileModified2.mdl")
+                    missile:scale(1.1)
+                    missile:speed(750)
+                    missile.source = self.caster
+                    missile.owner = Player(self.pid - 1)
+                    missile.target = target
+                    missile:vision(400)
+                    missile.collision = 10
+                    missile.collideZ = true
+                    missile.damage = self.dmg * BOOST[self.pid]
+
+                    missile.onHit = function(enemy)
+                        if enemy == missile.target then
+                            DamageTarget(missile.source, enemy, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                            return true
+                        end
+
+                        return false
+                    end
+
+                    missile:launch()
                 end
             end
 
@@ -5423,6 +5471,7 @@ OnInit.final("Spells", function(Require)
                     BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(dummy), GetUnitX(target) - GetUnitX(dummy)))
                     UnitDisableAbility(dummy, FourCC('Amov'), true)
                     InstantAttack(dummy, target)
+                    DamageTarget(pt.source, target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
                 --dark seal augment
@@ -5446,6 +5495,7 @@ OnInit.final("Spells", function(Require)
                                 BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(dummy), GetUnitX(target) - GetUnitX(dummy)))
                                 UnitDisableAbility(dummy, FourCC('Amov'), true)
                                 InstantAttack(dummy, target)
+                                DamageTarget(pt.source, target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                             end
                         end
                     end
@@ -5471,6 +5521,7 @@ OnInit.final("Spells", function(Require)
             pt.dur = self.dur * LBOOST[self.pid]
             pt.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\LightningShield\\LightningShieldTarget.mdl", self.caster, "origin")
             pt.source = self.caster
+            pt.dmg = self.dmg
             BlzSetSpecialEffectTimeScale(pt.sfx, 1.5)
 
             pt.timer:callDelayed(1., thistype.periodic, pt)
@@ -5533,12 +5584,12 @@ OnInit.final("Spells", function(Require)
         thistype.values = {thistype.dmg}
 
         function thistype.cost(pid)
-            if GetUnitManaPercent(Hero[pid]) >= 0.5 then
-                if metamorphosis[pid] > 0 then
-                    SetUnitManaPercentBJ(Hero[pid], (GetUnitManaPercent(Hero[pid]) + 0.5))
-                else
-                    SetUnitManaPercentBJ(Hero[pid], (GetUnitManaPercent(Hero[pid]) - 1.00))
-                end
+            local maxmp = BlzGetUnitMaxMana(Hero[pid])
+            local pmana = GetUnitState(Hero[pid], UNIT_STATE_MANA) / maxmp * 100.
+            local pgain = (MetamorphosisBuff:has(Hero[pid], Hero[pid]) and 0.5) or -1.0
+
+            if pmana >= 0.5 or pgain > 0 then
+                SetUnitState(Hero[pid], UNIT_STATE_MANA, (pmana + pgain) * maxmp * 0.01)
             else
                 IssueImmediateOrder(Hero[pid], "unimmolation")
             end
@@ -5555,23 +5606,9 @@ OnInit.final("Spells", function(Require)
         thistype.dur = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 5. + 5. * ablev end ---@return number
         thistype.values = {thistype.dur}
 
-        ---@type fun(pt: PlayerTimer)
-        function thistype.expire(pt)
-            metamorphosis[pt.pid] = 0.
-
-            pt:destroy()
-        end
-
         function thistype:onCast()
             if GetUnitTypeId(self.caster) == HERO_DARK_SAVIOR then
-                local hp = GetWidgetLife(self.caster) * 0.5 ---@type number 
-
-                SetWidgetLife(self.caster, hp)
-                metamorphosis[self.pid] = math.max(0.01, hp / (BlzGetUnitMaxHP(self.caster) * 1.))
-
-                local pt = TimerList[self.pid]:add()
-
-                pt.timer:callDelayed(self.dur * LBOOST[self.pid], thistype.expire, pt)
+                MetamorphosisBuff:add(self.caster, self.caster):duration(self.dur * LBOOST[self.pid])
             end
         end
     end
@@ -6502,7 +6539,7 @@ OnInit.final("Spells", function(Require)
         dw:display()
     end
 
-    function OnCast()
+    function SpellCast()
         local caster  = GetTriggerUnit() ---@type unit 
         local target  = GetSpellTargetUnit() ---@type unit 
         local sid     = GetSpellAbilityId() ---@type integer 
@@ -6616,7 +6653,7 @@ OnInit.final("Spells", function(Require)
     end
 
     ---@return boolean
-    function OnChannel()
+    function SpellChannel()
         if GetSpellAbilityId() == FourCC('IATK') then
             UnitRemoveAbility(GetTriggerUnit(), FourCC('IATK'))
         end
@@ -6625,7 +6662,7 @@ OnInit.final("Spells", function(Require)
     end
 
     ---@return boolean
-    function OnLearn()
+    function SpellLearn()
         local u      = GetTriggerUnit() ---@type unit 
         local sid    = GetLearnedSkill() ---@type integer 
         local pid    = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
@@ -6653,7 +6690,7 @@ OnInit.final("Spells", function(Require)
         return false
     end
 
-    function OnFinish()
+    function SpellFinish()
         local caster = GetTriggerUnit() ---@type unit 
         local sid    = GetSpellAbilityId() ---@type integer 
         local p      = GetOwningPlayer(caster) ---@type player 
@@ -6720,7 +6757,7 @@ OnInit.final("Spells", function(Require)
         end
     end
 
-    function OnEffect()
+    function SpellEffect()
         local caster = GetTriggerUnit() ---@type unit 
         local target = GetSpellTargetUnit() ---@type unit 
         local p      = GetOwningPlayer(caster) ---@type player 
@@ -6997,53 +7034,49 @@ OnInit.final("Spells", function(Require)
                 DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", target, "chest"))
                 SummonExpire(target)
 
-                local missile = Missiles:create(targetX, targetY, 20., 0, 0, 50.) ---@type Missiles
+                local missile = Missiles:create(targetX, targetY, 30., 0, 0, 100.) ---@type Missiles
                 missile:model("war3mapImported\\Haunt_v2_Portrait.mdl")
 
                 missile:scale(1.1)
                 missile:speed(1000)
+                missile:arc(5)
                 missile.source = caster
                 missile.target = caster
+                missile.collideZ = true
                 missile.owner = p
                 missile:vision(400)
 
-                missile.onHit = function(u)
-                    if u == missile.source then
-                        local pid = GetPlayerId(missile.owner) + 1
-
-                        BorrowedLife[u] = 0
-                        UnitAddBonus(u, BONUS_HERO_STR, - R2I(GetHeroStr(u, false) * 0.1 * golemDevourStacks[pid]))
-                        if golemDevourStacks[pid] > 0 then
-                            Unit[u].mr = Unit[u].mr / (0.75 - golemDevourStacks[pid] * 0.1)
-                        end
-                        golemDevourStacks[pid] = golemDevourStacks[pid] + 1
-                        BlzSetHeroProperName(u, "Meat Golem (" .. (golemDevourStacks[pid]) .. ")")
-                        FloatingTextUnit(tostring(golemDevourStacks[pid]), u, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
-                        UnitAddBonus(u, BONUS_HERO_STR, R2I(GetHeroStr(u, false) * 0.1 * golemDevourStacks[pid]))
-                        SetUnitScale(u, 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07)
-                        --magnetic
-                        if golemDevourStacks[pid] == 1 then
-                            UnitAddAbility(u, FourCC('A071'))
-                        elseif golemDevourStacks[pid] == 2 then
-                            UnitAddAbility(u, FourCC('A06O'))
-                        --thunder clap
-                        elseif golemDevourStacks[pid] == 3 then
-                            UnitAddAbility(u, FourCC('A0B0'))
-                        elseif golemDevourStacks[pid] == 5 then
-                            UnitAddBonus(u, BONUS_ARMOR, R2I(BlzGetUnitArmor(u) * 0.25 + 0.5))
-                        end
-                        if golemDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
-                            UnitDisableAbility(u, FourCC('A06C'), true)
-                        end
-                        SetUnitAbilityLevel(u, FourCC('A071'), golemDevourStacks[pid])
-
-                        --magic resist -(25-30) percent
-                        Unit[u].mr = Unit[u].mr * (0.75 - golemDevourStacks[pid] * 0.1)
-
-                        return true
+                missile.onFinish = function()
+                    BorrowedLife[missile.source] = 0
+                    UnitAddBonus(missile.source, BONUS_HERO_STR, - R2I(GetHeroStr(missile.source, false) * 0.1 * golemDevourStacks[pid]))
+                    if golemDevourStacks[pid] > 0 then
+                        Unit[missile.source].mr = Unit[missile.source].mr / (0.75 - golemDevourStacks[pid] * 0.1)
                     end
+                    golemDevourStacks[pid] = golemDevourStacks[pid] + 1
+                    BlzSetHeroProperName(missile.source, "Meat Golem (" .. (golemDevourStacks[pid]) .. ")")
+                    FloatingTextUnit(tostring(golemDevourStacks[pid]), missile.source, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
+                    UnitAddBonus(missile.source, BONUS_HERO_STR, R2I(GetHeroStr(missile.source, false) * 0.1 * golemDevourStacks[pid]))
+                    SetUnitScale(missile.source, 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07)
+                    --magnetic
+                    if golemDevourStacks[pid] == 1 then
+                        UnitAddAbility(missile.source, FourCC('A071'))
+                    elseif golemDevourStacks[pid] == 2 then
+                        UnitAddAbility(missile.source, FourCC('A06O'))
+                    --thunder clap
+                    elseif golemDevourStacks[pid] == 3 then
+                        UnitAddAbility(missile.source, FourCC('A0B0'))
+                    elseif golemDevourStacks[pid] == 5 then
+                        UnitAddBonus(missile.source, BONUS_ARMOR, R2I(BlzGetUnitArmor(missile.source) * 0.25 + 0.5))
+                    end
+                    if golemDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
+                        UnitDisableAbility(missile.source, FourCC('A06C'), true)
+                    end
+                    SetUnitAbilityLevel(missile.source, FourCC('A071'), golemDevourStacks[pid])
 
-                    return false
+                    --magic resist -(25-30) percent
+                    Unit[missile.source].mr = Unit[missile.source].mr * (0.75 - golemDevourStacks[pid] * 0.1)
+
+                    return true
                 end
 
                 missile:launch()
@@ -7055,44 +7088,44 @@ OnInit.final("Spells", function(Require)
                 DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", target, "chest"))
                 SummonExpire(target)
 
-                local missile = Missiles:create(targetX, targetY, 20., 0, 0, 50.) ---@type Missiles
+                local missile = Missiles:create(targetX, targetY, 30., 0, 0, 100.) ---@type Missiles
                 missile:model("war3mapImported\\Haunt_v2_Portrait.mdl")
 
                 missile:scale(1.1)
                 missile:speed(1000)
+                missile:arc(5)
                 missile.source = caster
                 missile.target = caster
+                missile.collideZ = true
                 missile.owner = p
                 missile:vision(400)
 
-                missile.onHit = function(u)
-                    if u == missile.source then
-                        local pid = GetPlayerId(missile.owner) + 1
-
-                        BorrowedLife[u] = 0
-                        UnitAddBonus(u, BONUS_HERO_INT, - R2I(GetHeroInt(u, false) * 0.15 * destroyerDevourStacks[pid]))
-                        destroyerDevourStacks[pid] = destroyerDevourStacks[pid] + 1
-                        UnitAddBonus(u, BONUS_HERO_INT, R2I(GetHeroInt(u, false) * 0.15 * destroyerDevourStacks[pid]))
-                        BlzSetHeroProperName(u, "Destroyer (" .. (destroyerDevourStacks[pid]) .. ")")
-                        FloatingTextUnit(tostring(destroyerDevourStacks[pid]), u, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
-                        if destroyerDevourStacks[pid] == 1 then
-                            UnitAddAbility(u, FourCC('A071'))
-                            UnitAddAbility(u, FourCC('A061')) --blink
-                        elseif destroyerDevourStacks[pid] == 2 then
-                            UnitAddAbility(u, FourCC('A03B')) --crit
-                        elseif destroyerDevourStacks[pid] == 3 then
-                            SetHeroAgi(u, 200, true)
-                        elseif destroyerDevourStacks[pid] == 4 then
-                            SetUnitAbilityLevel(u, FourCC('A02D'), 2)
-                        elseif destroyerDevourStacks[pid] == 5 then
-                            SetHeroAgi(u, 400, true)
-                            UnitAddBonus(u, BONUS_HERO_INT, R2I(GetHeroInt(u, false) * 0.25))
-                        end
-                        if destroyerDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
-                            UnitDisableAbility(u, FourCC('A04Z'), true)
-                        end
-                        SetUnitAbilityLevel(u, FourCC('A071'), destroyerDevourStacks[pid])
+                missile.onFinish = function()
+                    BorrowedLife[missile.source] = 0
+                    UnitAddBonus(missile.source, BONUS_HERO_INT, - R2I(GetHeroInt(missile.source, false) * 0.15 * destroyerDevourStacks[pid]))
+                    destroyerDevourStacks[pid] = destroyerDevourStacks[pid] + 1
+                    UnitAddBonus(missile.source, BONUS_HERO_INT, R2I(GetHeroInt(missile.source, false) * 0.15 * destroyerDevourStacks[pid]))
+                    BlzSetHeroProperName(missile.source, "Destroyer (" .. (destroyerDevourStacks[pid]) .. ")")
+                    FloatingTextUnit(tostring(destroyerDevourStacks[pid]), missile.source, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
+                    if destroyerDevourStacks[pid] == 1 then
+                        UnitAddAbility(missile.source, FourCC('A071'))
+                        UnitAddAbility(missile.source, FourCC('A061')) --blink
+                    elseif destroyerDevourStacks[pid] == 2 then
+                        UnitAddAbility(missile.source, FourCC('A03B')) --crit
+                    elseif destroyerDevourStacks[pid] == 3 then
+                        SetHeroAgi(missile.source, 200, true)
+                    elseif destroyerDevourStacks[pid] == 4 then
+                        SetUnitAbilityLevel(missile.source, FourCC('A02D'), 2)
+                    elseif destroyerDevourStacks[pid] == 5 then
+                        SetHeroAgi(missile.source, 400, true)
+                        UnitAddBonus(missile.source, BONUS_HERO_INT, R2I(GetHeroInt(missile.source, false) * 0.25))
                     end
+                    if destroyerDevourStacks[pid] >= GetUnitAbilityLevel(Hero[pid], DEVOUR.id) + 1 then
+                        UnitDisableAbility(missile.source, FourCC('A04Z'), true)
+                    end
+                    SetUnitAbilityLevel(missile.source, FourCC('A071'), destroyerDevourStacks[pid])
+
+                    return true
                 end
 
                 missile:launch()
@@ -7276,7 +7309,6 @@ OnInit.final("Spells", function(Require)
         SetPlayerAbilityAvailable(u.player, SONG_PEACE, false)
         SetPlayerAbilityAvailable(u.player, SONG_WAR, false)
         SetPlayerAbilityAvailable(u.player, SONG_FATIGUE, false)
-        SetPlayerAbilityAvailable(u.player, DETECT_LEAVE_ABILITY, false)
 
         u = u.next
     end
@@ -7285,15 +7317,14 @@ OnInit.final("Spells", function(Require)
     SetPlayerAbilityAvailable(Player(PLAYER_NEUTRAL_PASSIVE), SONG_WAR, false)
     SetPlayerAbilityAvailable(Player(PLAYER_NEUTRAL_PASSIVE), SONG_PEACE, false)
     SetPlayerAbilityAvailable(Player(PLAYER_NEUTRAL_PASSIVE), SONG_FATIGUE, false)
-    SetPlayerAbilityAvailable(Player(PLAYER_NEUTRAL_PASSIVE), DETECT_LEAVE_ABILITY, false)
     TriggerRegisterPlayerUnitEvent(onenemyspell, pfoe, EVENT_PLAYER_UNIT_SPELL_EFFECT, nil)
     TriggerAddAction(onenemyspell, EnemySpells)
 
-    TriggerAddAction(spell, OnEffect)
-    TriggerAddAction(cast, OnCast)
-    TriggerAddAction(finish, OnFinish)
-    TriggerAddCondition(learn, Filter(OnLearn))
-    TriggerAddCondition(channel, Filter(OnChannel))
+    TriggerAddAction(spell, SpellEffect)
+    TriggerAddAction(cast, SpellCast)
+    TriggerAddAction(finish, SpellFinish)
+    TriggerAddCondition(learn, Filter(SpellLearn))
+    TriggerAddCondition(channel, Filter(SpellChannel))
 
     Spells = {
         [LIGHTSEAL.id] = LIGHTSEAL,
