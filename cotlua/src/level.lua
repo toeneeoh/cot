@@ -68,9 +68,7 @@ function OnLevel()
         end
 
         --trigger stat change event
-        if EVENT_STAT_CHANGE[u] then
-            EVENT_STAT_CHANGE[u](u)
-        end
+        EVENT_STAT_CHANGE.trigger(u)
 
         ExperienceControl(pid)
     end
