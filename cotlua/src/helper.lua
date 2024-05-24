@@ -1413,12 +1413,14 @@ function HighestStat(hero)
     local agi = GetHeroAgi(hero, true) ---@type integer 
     local int = GetHeroInt(hero, true) ---@type integer 
 
-    if str >= agi and str >= int then
-        return 0
-    elseif agi > str and agi >= int then
+    if str > agi and str > int then
         return 1
-    else
+    elseif agi > str and agi > int then
         return 2
+    elseif int > str and int > agi then
+        return 3
+    else
+        return MainStat(hero)
     end
 end
 
@@ -1937,6 +1939,8 @@ function PlayerCleanup(pid)
         end
     end
 
+    autoAttackDisabled[pid] = false
+    PlayerSelectedUnit[pid] = nil
     Profile[pid].hero:wipeData()
 
     if Profile[pid].autosave == true then
@@ -1980,16 +1984,14 @@ function PlayerCleanup(pid)
     BodyOfFireCharges[pid] = 5 --default
     limitBreak[pid] = 0
     limitBreakPoints[pid] = 0
-    metamorphosis[pid] = 0.
     Fleeing[pid] = false
-    BoostValue[pid] = 0
 
     if GetLocalPlayer() == p then
         PLAT_CONVERT.tooltip:text("Must purchase a converter to use!")
         ARCA_CONVERT.tooltip:text("Must purchase a converter to use!")
         PLAT_CONVERT:enabled(false)
         ARCA_CONVERT:enabled(false)
-        BlzFrameSetVisible(dummyFrame, false)
+        BlzFrameSetVisible(DPS_FRAME, false)
         BlzFrameSetVisible(LimitBreakBackdrop, false)
         BlzSetAbilityIcon(PARRY.id, "ReplaceableTextures\\CommandButtons\\BTNReflex.blp")
         BlzSetAbilityIcon(SPINDASH.id, "ReplaceableTextures\\CommandButtons\\BTNComed Fall.blp")
@@ -2072,12 +2074,12 @@ function RefreshHeroes()
     while U do
         if HeroID[U.id] > 0 then
             --update boost variance every second
-            BOOST[U.id] = 1. + BoostValue[U.id] + GetRandomReal(-0.2, 0.2)
-            LBOOST[U.id] = 1. + 0.5 * BoostValue[U.id]
+            BOOST[U.id] = 1. + Unit[Hero[U.id]].spellboost + GetRandomReal(-0.2, 0.2)
+            LBOOST[U.id] = 1. + 0.5 * Unit[Hero[U.id]].spellboost
 
             if DEV_ENABLED then
                 if BOOST_OFF then
-                    BOOST[U.id] = (1. + BoostValue[U.id])
+                    BOOST[U.id] = (1. + Unit[Hero[U.id]].spellboost)
                 end
             end
 
@@ -2324,7 +2326,7 @@ function MoveExpire(pt)
         bpmoving[pt.pid] = false
         pt:destroy()
     else
-        TimerQueue:callDelayed(1., MoveExpire, pt)
+        pt.timer:callDelayed(1., MoveExpire, pt)
     end
 end
 
@@ -2606,19 +2608,6 @@ function IndexWells(index)
     wellcount = wellcount - 1
 end
 
----@param level integer
----@return integer
-function RequiredXP(level)
-    local base        = 150 ---@type integer 
-    local levelFactor = 100 ---@type integer 
-
-    for i = 2, level do
-        base = base + i * levelFactor
-    end
-
-    return base
-end
-
 ---@type fun(id: integer, chance: integer, x: number, y: number)
 function BossDrop(id, chance, x, y)
     for _ = 0, HARD_MODE do
@@ -2633,7 +2622,7 @@ local StatTable = {
     GetHeroStr,
     GetHeroInt,
     GetHeroAgi,
-    function(a, b) return 0 end,
+    function() return 0 end,
 }
 
 ---@type fun(stat: integer, u: unit, bonuses: boolean): integer
@@ -2917,7 +2906,7 @@ function ParseItemTooltip(itm, s)
 
         if start then
             contents = contents:sub(start)
-            contents:gsub(affix, function(prefix, capture)
+            contents = contents:gsub(affix, function(prefix, capture)
 
                 --value range
                 if prefix == "|" then
@@ -2966,7 +2955,7 @@ function GetSpellTooltip(spell)
 
             if alt then
                 if prefix == "[" then
-                    return HL(RealToString(calc[count] * (1. + BoostValue[spell.pid] - 0.2)) .. " - " .. RealToString(calc[count] * (1. + BoostValue[spell.pid] + 0.2)), color)
+                    return HL(RealToString(calc[count] * (1. + Unit[Hero[spell.pid]].spellboost - 0.2)) .. " - " .. RealToString(calc[count] * (1. + Unit[Hero[spell.pid]].spellboost + 0.2)), color)
                 elseif prefix == "{" then
                     return HL(RealToString(calc[count] * LBOOST[spell.pid]), color)
                 elseif prefix == "\\" or prefix == "~" then
@@ -3474,11 +3463,25 @@ function SummonExpire(u)
     end
 end
 
+---@param level integer
+---@return integer
+function RequiredXP(level)
+    local base        = 150 ---@type integer 
+    local levelFactor = 100 ---@type integer 
+
+    for i = 2, level do
+        base = base + i * levelFactor
+    end
+
+    return base
+end
+
+
 ---@type fun(pt: PlayerTimer)
 function SummonDurationXPBar(pt)
     local lev = GetHeroLevel(pt.target) ---@type integer 
 
-    if BorrowedLife[pt.target] == 0 then
+    if BorrowedLife[pt.target] <= 0 then
         pt.dur = pt.dur - 0.5
     else
         BorrowedLife[pt.target] = math.max(0, BorrowedLife[pt.target] - 0.5)
@@ -3487,8 +3490,8 @@ function SummonDurationXPBar(pt)
     if pt.dur <= 0 then
         SummonExpire(pt.target)
     else
-        --UnitStripHeroLevel(pt.target, 1)
-        SetHeroXP(pt.target, R2I(RequiredXP(lev - 1) + ((lev + 1) * pt.dur * 100 / pt.time) - 1), false)
+        UnitStripHeroLevel(pt.target, 1)
+        SetHeroXP(pt.target, R2I(RequiredXP(lev) + ((lev + 1) * pt.dur * 100. / pt.time) - 100), false)
     end
 end
 
@@ -3620,25 +3623,34 @@ function IsHittable(enemy, player)
     return UnitAlive(enemy) and GetUnitAbilityLevel(enemy, FourCC('Avul')) == 0 and IsUnitEnemy(enemy, player)
 end
 
----@type fun(frame: framehandle, text: string, below: boolean)
-function FrameAddSimpleTooltip(frame, text, below)
-    local box = BlzCreateFrame("Leaderboard", frame, 0, 0)
-    local tooltip = BlzCreateFrameByType("TEXT", "", box, "", 0)
+---@type fun(frame: framehandle, text: string, below: boolean, point1: framepointtype|nil, point2: framepointtype|nil, x: number|nil, y: number|nil, margin: number|nil): table
+function FrameAddSimpleTooltip(frame, text, below, point1, point2, x, y, margin)
+    local self = {}
+    point1 = point1 or FRAMEPOINT_TOP
+    point2 = point2 or FRAMEPOINT_BOTTOM
+    x = x or 0.
+    y = y or -0.008
+    margin = margin or 0.008
+
+    self.box = BlzCreateFrame("Leaderboard", frame, 0, 0)
+    self.tooltip = BlzCreateFrameByType("TEXT", "", self.box, "", 0)
 
     if below then
-        BlzFrameSetPoint(tooltip, FRAMEPOINT_TOP, frame, FRAMEPOINT_BOTTOM, 0, -0.008)
-        BlzFrameSetPoint(box, FRAMEPOINT_TOPLEFT, tooltip, FRAMEPOINT_TOPLEFT, -0.008, 0.008)
-        BlzFrameSetPoint(box, FRAMEPOINT_BOTTOMRIGHT, tooltip, FRAMEPOINT_BOTTOMRIGHT, 0.008, -0.008)
+        BlzFrameSetPoint(self.tooltip, point1, frame, point2, x, y)
+        BlzFrameSetPoint(self.box, FRAMEPOINT_TOPLEFT, self.tooltip, FRAMEPOINT_TOPLEFT, -(margin), margin)
+        BlzFrameSetPoint(self.box, FRAMEPOINT_BOTTOMRIGHT, self.tooltip, FRAMEPOINT_BOTTOMRIGHT, margin, -(margin))
     else
-        BlzFrameSetPoint(tooltip, FRAMEPOINT_BOTTOMRIGHT, BlzGetFrameByName("CommandButton_3", 0), FRAMEPOINT_TOPRIGHT, 0.008, 0.034)
-        BlzFrameSetTextAlignment(tooltip, TEXT_JUSTIFY_TOP, TEXT_JUSTIFY_LEFT)
-        BlzFrameSetSize(tooltip, 0.275, 0)
-        BlzFrameSetPoint(box, FRAMEPOINT_TOPLEFT, tooltip, FRAMEPOINT_TOPLEFT, -0.008, 0.008)
-        BlzFrameSetPoint(box, FRAMEPOINT_BOTTOMRIGHT, tooltip, FRAMEPOINT_BOTTOMRIGHT, 0.008, -0.008)
+        BlzFrameSetPoint(self.tooltip, FRAMEPOINT_BOTTOMRIGHT, BlzGetFrameByName("CommandButton_3", 0), FRAMEPOINT_TOPRIGHT, 0.008, 0.034)
+        BlzFrameSetTextAlignment(self.tooltip, TEXT_JUSTIFY_TOP, TEXT_JUSTIFY_LEFT)
+        BlzFrameSetSize(self.tooltip, 0.275, 0)
+        BlzFrameSetPoint(self.box, FRAMEPOINT_TOPLEFT, self.tooltip, FRAMEPOINT_TOPLEFT, -0.008, 0.008)
+        BlzFrameSetPoint(self.box, FRAMEPOINT_BOTTOMRIGHT, self.tooltip, FRAMEPOINT_BOTTOMRIGHT, 0.008, -0.008)
     end
 
-    BlzFrameSetText(tooltip, text)
-    BlzFrameSetTooltip(frame, box)
+    BlzFrameSetText(self.tooltip, text)
+    BlzFrameSetTooltip(frame, self.box)
+
+    return self
 end
 
 ---@param uid integer
