@@ -197,9 +197,10 @@ OnInit.final("Items", function(Require)
             [FourCC('A0D3')] = 1, --jewel of the horde
             [FourCC('AIcd')] = 1, --command aura (warsong battle drums)
             [FourCC('A03F')] = 1, --endurance aura (blood elf war drums)
-            [FourCC('A018')] = 1, --drum of war
+            [FourCC('A04I')] = 1, --drum of war
             [FourCC('A03H')] = 1, --blood shield (vampiric aura)
             [FourCC('A03G')] = 1, --blood horn (unholy aura)
+            [FourCC('Aarm')] = 1, --armor of the gods (devotion aura)
         }
 
             ---@type fun(itm: Item)
@@ -416,7 +417,7 @@ OnInit.final("Items", function(Require)
                 SetUnitState(self.holder, UNIT_STATE_MANA, mana)
 
                 ItemGoldRate[pid] = ItemGoldRate[pid] + self:getValue(ITEM_GOLD_GAIN, 0)
-                BoostValue[pid] = BoostValue[pid] + self:getValue(ITEM_SPELLBOOST, 0) * 0.01
+                Unit[self.holder].spellboost = Unit[self.holder].spellboost + self:getValue(ITEM_SPELLBOOST, 0) * 0.01
                 Unit[self.holder].flatMS = Unit[self.holder].flatMS + self:getValue(ITEM_MOVESPEED, 0)
                 Unit[self.holder].regen = Unit[self.holder].regen + self:getValue(ITEM_REGENERATION, 0)
                 Unit[self.holder].evasion = Unit[self.holder].evasion + self:getValue(ITEM_EVASION, 0)
@@ -468,7 +469,7 @@ OnInit.final("Items", function(Require)
                 SetUnitState(self.holder, UNIT_STATE_MANA, mana)
 
                 ItemGoldRate[pid] = ItemGoldRate[pid] - self:getValue(ITEM_GOLD_GAIN, 0)
-                BoostValue[pid] = BoostValue[pid] - self:getValue(ITEM_SPELLBOOST, 0) * 0.01
+                Unit[self.holder].spellboost = Unit[self.holder].spellboost - self:getValue(ITEM_SPELLBOOST, 0) * 0.01
                 Unit[self.holder].flatMS = Unit[self.holder].flatMS - self:getValue(ITEM_MOVESPEED, 0)
                 Unit[self.holder].regen = Unit[self.holder].regen - self:getValue(ITEM_REGENERATION, 0)
                 Unit[self.holder].evasion = Unit[self.holder].evasion - self:getValue(ITEM_EVASION, 0)
@@ -1911,7 +1912,7 @@ function onPickup()
         if IsQuestDiscovered(Evil_Shopkeeper_Quest_1) == false then
             if GetUnitLevel(Hero[pid]) >= 50 then
                 QuestSetDiscovered(Evil_Shopkeeper_Quest_1, true)
-                QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1OPTIONAL QUEST|r|nThe Evil Shopkeeper")
+                QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1OPTIONAL QUEST|r\nThe Evil Shopkeeper")
             else
                 DisplayTextToPlayer(p, 0, 0, "You must be at least level 50 to begin this quest.")
             end
@@ -1922,7 +1923,7 @@ function onPickup()
             if IsQuestDiscovered(Defeat_The_Horde_Quest) == false then
                 DestroyEffect(TalkToMe20)
                 QuestSetDiscovered(Defeat_The_Horde_Quest, true)
-                QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1OPTIONAL QUEST|r|nThe Horde")
+                QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1OPTIONAL QUEST|r\nThe Horde")
                 PingMinimap(12577, -15801, 4)
                 PingMinimap(15645, -12309, 4)
 
@@ -1946,7 +1947,7 @@ function onPickup()
                 DisplayTextToPlayer(p, 0, 0, "Militia: The Orcs are still alive!")
             elseif IsQuestCompleted(Defeat_The_Horde_Quest) == true and not hordequest then
                 DisplayTextToPlayer(p, 0, 0, "Militia: As promised, the Key of Valor.")
-                Item.create(CreateItem(FourCC('I041'), -800, -865))
+                PlayerAddItemById(pid, FourCC('I041'))
                 hordequest = true
                 DestroyEffect(TalkToMe20)
             end
