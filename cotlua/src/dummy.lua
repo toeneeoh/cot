@@ -2,6 +2,7 @@
     dummy.lua
 
     A module used to create and recycle dummies for spell casting and projectile effects.
+    Includes globals / helpers for DPS testing.
 ]]
 
 OnInit.final("Dummy", function()
@@ -9,6 +10,15 @@ OnInit.final("Dummy", function()
     DUMMY_COUNT = 0
     DUMMY_STACK = {}
     DUMMY_RECYCLE_TIME = 5.
+
+    DPS_TIMER          = CreateTimer() ---@type timer 
+    DPS_TOTAL_PHYSICAL = 0. ---@type number 
+    DPS_TOTAL_MAGIC    = 0. ---@type number 
+    DPS_TOTAL          = 0. ---@type number 
+    DPS_LAST           = 0. ---@type number 
+    DPS_CURRENT        = 0. ---@type number 
+    DPS_PEAK           = 0. ---@type number 
+    DPS_STORAGE        = CircularArrayList.create() ---@type CircularArrayList 
 
     ---@class Dummy
     ---@field unit unit
@@ -113,6 +123,52 @@ OnInit.final("Dummy", function()
             SetUnitYBounded(self.unit, y)
 
             return self
+        end
+    end
+
+    --Punching Bag helper functions
+    ---@type fun(pt: PlayerTimer)
+    function DPS_HIDE_TEXT(pt)
+        pt.dur = pt.dur - 1
+
+        if pt.dur <= 0 then
+            if GetLocalPlayer() == Player(pt.pid - 1) then
+                BlzFrameSetVisible(DPS_FRAME, false)
+            end
+
+            pt:destroy()
+        end
+
+        pt.timer:callDelayed(1., DPS_HIDE_TEXT, pt)
+    end
+
+    function DPS_RESET()
+        DPS_TOTAL_PHYSICAL = 0.
+        DPS_TOTAL_MAGIC = 0.
+        DPS_TOTAL = 0.
+        DPS_LAST = 0.
+        DPS_CURRENT = 0.
+        DPS_PEAK = 0.
+        DPS_STORAGE:wipe()
+        BlzFrameSetText(DPS_FRAME_TEXTVALUE, "0\n0\n0\n0\n0\n0\n0s")
+    end
+
+    ---@type fun(pt: PlayerTimer)
+    function DPS_UPDATE(pt)
+        pt.time = pt.time + 0.1
+
+        if DPS_TOTAL <= 0 or DPS_TOTAL > 2000000000 then
+            DPS_RESET()
+            pt:destroy()
+        else
+            DPS_STORAGE:add(DPS_TOTAL)
+            if pt.time >= 1. then
+                DPS_PEAK = math.max(math.max(DPS_STORAGE:calcPeakDps(10), DPS_PEAK), DPS_CURRENT)
+                DPS_CURRENT = DPS_TOTAL / pt.time
+            end
+
+            BlzFrameSetText(DPS_FRAME_TEXTVALUE, RealToString(DPS_LAST) .. "\n" .. RealToString(DPS_TOTAL_PHYSICAL) .. "\n" .. RealToString(DPS_TOTAL_MAGIC) .. "\n" .. RealToString(DPS_TOTAL) .. "\n" .. RealToString(DPS_CURRENT) .. "\n" .. RealToString(DPS_PEAK) .. "\n" .. RealToString(pt.time) .. "s")
+            pt.timer:callDelayed(0.1, DPS_UPDATE, pt)
         end
     end
 end, Debug.getLine())
