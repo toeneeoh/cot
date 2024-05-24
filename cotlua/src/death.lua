@@ -344,11 +344,9 @@ function ReviveGods()
             end
         end
         SetHeroLevel(BossTable[i].unit, BossTable[i].level, false)
-        --reapply hardmode
+
         if HARD_MODE > 0 then
-            SetHeroStr(BossTable[i].unit, GetHeroStr(BossTable[i].unit, true) * 2, true)
-            BlzSetUnitBaseDamage(BossTable[i].unit, BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 2 + 1, 0)
-            Unit[BossTable[i].unit].mm = 2.
+            ApplyHardmode(i)
         end
     end
 
@@ -393,11 +391,8 @@ function BossRespawn(pt)
                     itm:lvl(ItemData[itm.id][ITEM_UPGRADE_MAX])
                 end
             end
-            --reapply hardmode
             if HARD_MODE > 0 then
-                SetHeroStr(BossTable[index].unit, GetHeroStr(BossTable[index].unit,true) * 2, true)
-                BlzSetUnitBaseDamage(BossTable[index].unit, BlzGetUnitBaseDamage(BossTable[index].unit, 0) * 2 + 1, 0)
-                Unit[BossTable[index].unit].mm = 2.
+                ApplyHardmode(index)
             end
             DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" .. BossTable[index].name .. " has revived.|r")
         end
