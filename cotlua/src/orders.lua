@@ -23,8 +23,6 @@ OnInit.final("Orders", function(Require)
     ORDER_ID_IMMOLATION     = 852177
     ORDER_ID_UNIMMOLATION   = 852178
 
-    metamorphosis = __jarray(0) ---@type number[] 
-
     local OrderTable = {
         [ORDER_ID_HOLD_POSITION] = function(id, source, p, pid)
         end,
@@ -215,7 +213,7 @@ function OnOrder()
     end
 
     --backpack ai
-    if source == Backpack[pid] and id ~= ORDER_ID_STOP and id ~= ORDER_ID_HOLD_POSITION then
+    if source == Backpack[pid] and id ~= ORDER_ID_MOVE and id ~= ORDER_ID_STOP and id ~= ORDER_ID_HOLD_POSITION then
         bpmoving[pid] = true
         local pt = TimerList[pid]:get('bkpk')
 
@@ -224,7 +222,7 @@ function OnOrder()
             pt.dur = 4.
             pt.tag = 'bkpk'
 
-            TimerQueue:callDelayed(1., MoveExpire, pt)
+            pt.timer:callDelayed(1., MoveExpire, pt)
         else
             pt.dur = 4.
         end
