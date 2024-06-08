@@ -88,6 +88,10 @@ modifiers:
 # - ability id"]]
     }
 
+    local function BUDDHA()
+        BlzSetEventDamage(0.00)
+    end
+
     --lookup table
     DEV_CMDS = {
         ["nocd"] = function(p, pid, args)
@@ -365,9 +369,11 @@ modifiers:
         end,
         ["buddha"] = function(p, pid, args)
             if BUDDHA_MODE[pid] then
+                EVENT_ON_FATAL_DAMAGE:unregister_unit_action(Hero[pid], BUDDHA)
                 DisplayTextToPlayer(p, 0, 0, "Buddha disabled.")
                 BUDDHA_MODE[pid] = false
             else
+                EVENT_ON_FATAL_DAMAGE:register_unit_action(Hero[pid], BUDDHA)
                 DisplayTextToPlayer(p, 0, 0, "Buddha enabled.")
                 BUDDHA_MODE[pid] = true
             end
@@ -567,6 +573,40 @@ modifiers:
         ["gc"] = function()
             print(GC)
         end,
+
+        ["benchmark"] = function()
+            local i = 5000
+            local BASE = 82
+            local s = ""
+            local ab = "!#$\x25&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}`" ---@type string 
+            print(os.time())
+
+            while i > 0 do
+                local b = i - (i // BASE) * BASE
+                s = SubString(ab, b, b + 1) .. s
+                i = i // BASE
+            end
+
+            print(os.time())
+            print(s)
+        end,
+
+        ["benchmark2"] = function()
+            local i = 5000
+            local BASE = 82
+            local s = ""
+            local ab = "!#$\x25&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}`" ---@type string 
+            print(os.time())
+
+            while i > 0 do
+                local b = ModuloInteger(i, BASE)
+                s = SubString(ab, b, b + 1) .. s
+                i = i // BASE
+            end
+
+            print(os.time())
+            print(s)
+        end
     }
 
 ---@param pid integer
