@@ -28,15 +28,15 @@ OnInit.final("Attacked", function(Require)
 
         --assassin blade spin
         if uid == HERO_ASSASSIN then
-            if BladeSpinCount[pid] >= BLADESPIN.times(pid) - 1 then
-                BladeSpinCount[pid] = 0
+            if BLADESPIN.count[pid] >= BLADESPIN.times(pid) - 1 then
+                BLADESPIN.count[pid] = 0
 
                 BLADESPIN.spin(source, false)
             end
         end
 
         --savior holy bash
-        if uid == HERO_SAVIOR and GetUnitAbilityLevel(source, HOLYBASH.id) > 0 and saviorBashCount[pid] == 9 then
+        if uid == HERO_SAVIOR and GetUnitAbilityLevel(source, HOLYBASH.id) > 0 and HOLYBASH.count[pid] == 9 then
             local pt = TimerList[pid]:get(LIGHTSEAL.id, source)
             local sfx
 
@@ -48,7 +48,7 @@ OnInit.final("Attacked", function(Require)
                 BlzSetSpecialEffectScale(sfx, 0.8)
             end
 
-            saviorBashCount[pid] = 10
+            HOLYBASH.count[pid] = 10
             BlzSetSpecialEffectTimeScale(sfx, 1.5)
             BlzSetSpecialEffectTime(sfx, 0.7)
             TimerQueue:callDelayed(1.5, DestroyEffect, sfx)
