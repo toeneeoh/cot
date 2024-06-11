@@ -27,7 +27,6 @@ OnInit.final("Spells", function(Require)
     destroyerDevourStacks   = __jarray(0) ---@type integer[] 
     BardSong                = __jarray(0) ---@type integer[] 
     IntenseFocus            = __jarray(0) ---@type integer[] 
-    metaDamageBonus         = __jarray(0) ---@type integer[] 
     masterElement           = __jarray(0) ---@type integer[] 
     BodyOfFireCharges       = __jarray(0) ---@type integer[] 
     lastCast                = __jarray(0) ---@type integer[] 
