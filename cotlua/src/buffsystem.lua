@@ -270,20 +270,21 @@ OnInit.global("BuffSystem", function(Require)
         local mts = {}
 
         ---@return Buff
-        function thistype:create()
+        function thistype:create(source, target)
             mts[self] = mts[self] or { __index = self }
 
             local b = setmetatable({}, mts[self])
+
+            b.pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            b.tpid = GetPlayerId(GetOwningPlayer(target)) + 1
 
             return b
         end
 
         ---@type fun(self: Buff, source: unit, target: unit): Buff
         function thistype:add(source, target)
-            local b = self:create()
+            local b = self:create(source, target)
 
-            b.pid = GetPlayerId(GetOwningPlayer(source)) + 1
-            b.tpid = GetPlayerId(GetOwningPlayer(target)) + 1
             b = b:check(source, target)
 
             return b
