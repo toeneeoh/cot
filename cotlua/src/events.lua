@@ -1,53 +1,72 @@
 --[[
     events.lua
 
-    A library that defines custom events that can be registered with functions
+    A library that defines custom events that can assign functions to units
 ]]
 
 OnInit.final("Events", function()
 
-    --Custom event that is called when a unit's stat is changed (either from leveling, UnitTable, or UnitSetBonus)
-    ---@class EVENT_STAT_CHANGE
+    ---@class EVENT
+    ---@field create function
+    ---@field unit_actions table
     ---@field trigger function
     ---@field register_unit_action function
-    ---@field register_event_action function
-    EVENT_STAT_CHANGE = {}
+    ---@field unregister_unit_action function
+    EVENT = {}
     do
-        local thistype = EVENT_STAT_CHANGE
-        local unit_actions = {} ---@type table[]
-        local event_actions = {} ---@type function[]
+        local thistype = EVENT
+        local unit_actions_mt = { __mode = 'k' } --make keys weak for when units are removed
+        local event_mt = { __index = thistype }
 
-        local mt = {
-                --make keys weak for when units are removed
-                __mode = 'k'
-            }
+        ---@type fun(): EVENT
+        function thistype.create()
+            local self = setmetatable({
+                unit_actions = setmetatable({}, unit_actions_mt),
+            }, event_mt)
 
-        setmetatable(unit_actions, mt)
+            return self
+        end
 
-        ---@type fun(u: unit)
-        function thistype.trigger(u)
-            --run any actions registered with this event
-            for _, v in ipairs(event_actions) do
-                v()
-            end
-
+        ---@type fun(self: EVENT, u: unit, ...)
+        function thistype:trigger(u, ...)
             --run any actions registered with this unit
-            if unit_actions[u] then
-                for _, v in ipairs(unit_actions[u]) do
-                    v(u)
+            local actions = self.unit_actions[u]
+            if actions then
+                for _, action in ipairs(actions) do
+                    action(u, ...)
                 end
             end
         end
 
-        ---@type fun(func: function)
-        function thistype.register_event_action(func)
-            event_actions[#event_actions + 1] = func
+        ---@type fun(self: EVENT, u: unit, func: function)
+        function thistype:register_unit_action(u, func)
+            if not u then
+                return
+            end
+            if not self.unit_actions[u] then
+                self.unit_actions[u] = {}
+            end
+            --prevent duplicate registers
+            if not TableHas(self.unit_actions[u], func) then
+                self.unit_actions[u][#self.unit_actions[u] + 1] = func
+            end
         end
 
-        ---@type fun(u: unit, func: function)
-        function thistype.register_unit_action(u, func)
-            unit_actions[u] = unit_actions[u] or {}
-            unit_actions[u][#unit_actions[u] + 1] = func
+        function thistype:unregister_unit_action(u, func)
+            if not u or not self.unit_actions[u] then
+                return
+            end
+
+            --remove all registered functions if not specified
+            if not func then
+                self.unit_actions[u] = nil
+            else
+                TableRemove(self.unit_actions[u], func)
+            end
         end
     end
+
+    --event that is called when a unit's stat is changed (either from leveling, UnitTable, or UnitSetBonus)
+    EVENT_STAT_CHANGE = EVENT.create() ---@type EVENT
+
 end, Debug.getLine())
