@@ -5,20 +5,24 @@
     Includes globals / helpers for DPS testing.
 ]]
 
-OnInit.final("Dummy", function()
+OnInit.final("Dummy", function(Require)
+    Require("TimerQueue")
+    Require("Events")
+    Require("Units")
 
     DUMMY_COUNT = 0
     DUMMY_STACK = {}
     DUMMY_RECYCLE_TIME = 5.
 
-    DPS_TIMER          = CreateTimer() ---@type timer 
-    DPS_TOTAL_PHYSICAL = 0. ---@type number 
-    DPS_TOTAL_MAGIC    = 0. ---@type number 
-    DPS_TOTAL          = 0. ---@type number 
-    DPS_LAST           = 0. ---@type number 
-    DPS_CURRENT        = 0. ---@type number 
-    DPS_PEAK           = 0. ---@type number 
-    DPS_STORAGE        = CircularArrayList.create() ---@type CircularArrayList 
+    DPS_TIMER          = TimerQueue.create()
+    DPS_STOPWATCH      = Stopwatch.create(false) ---@type Stopwatch
+    DPS_TOTAL_PHYSICAL = BigNum:new() ---@type BigNum 
+    DPS_TOTAL_MAGIC    = BigNum:new() ---@type BigNum 
+    DPS_TOTAL          = BigNum:new() ---@type BigNum 
+    DPS_LAST           = 0.
+    DPS_CURRENT        = BigNum:new() ---@type BigNum 
+    DPS_PEAK           = BigNum:new() ---@type BigNum 
+    DPS_STORAGE        = CircularArrayList.create(30) ---@type CircularArrayList 
 
     ---@class Dummy
     ---@field unit unit
@@ -74,6 +78,7 @@ OnInit.final("Dummy", function()
             BlzSetUnitAttackCooldown(self.unit, 0.01, 0)
             UnitAddBonus(self.unit, BONUS_ATTACK_SPEED, 4.)
             DUMMY_STACK[#DUMMY_STACK + 1] = self
+            EVENT_DUMMY_ON_HIT:unregister_unit_action(self.unit)
         end
 
         ---@type fun(x: number, y: number, abil: integer, ablev: integer, dur: any): Dummy
@@ -143,32 +148,95 @@ OnInit.final("Dummy", function()
     end
 
     function DPS_RESET()
-        DPS_TOTAL_PHYSICAL = 0.
-        DPS_TOTAL_MAGIC = 0.
-        DPS_TOTAL = 0.
+        DPS_TOTAL_PHYSICAL:set()
+        DPS_TOTAL_MAGIC:set()
+        DPS_TOTAL:set()
         DPS_LAST = 0.
-        DPS_CURRENT = 0.
-        DPS_PEAK = 0.
+        DPS_CURRENT:set()
+        DPS_PEAK:set()
         DPS_STORAGE:wipe()
         BlzFrameSetText(DPS_FRAME_TEXTVALUE, "0\n0\n0\n0\n0\n0\n0s")
     end
 
-    ---@type fun(pt: PlayerTimer)
-    function DPS_UPDATE(pt)
-        pt.time = pt.time + 0.1
+    local function calcPeakDps()
+        local i = DPS_STORAGE.START ---@type integer 
+        local output = 0.
+        local dps = 0.
+        local count = DPS_STORAGE.count
 
-        if DPS_TOTAL <= 0 or DPS_TOTAL > 2000000000 then
-            DPS_RESET()
-            pt:destroy()
-        else
-            DPS_STORAGE:add(DPS_TOTAL)
-            if pt.time >= 1. then
-                DPS_PEAK = math.max(math.max(DPS_STORAGE:calcPeakDps(10), DPS_PEAK), DPS_CURRENT)
-                DPS_CURRENT = DPS_TOTAL / pt.time
-            end
+        while count > 0 and DPS_STORAGE.data[i] do
+            dps = dps + DPS_STORAGE.data[i]
+            i = ModuloInteger((i + 1), DPS_STORAGE.MAXSIZE)
+            count = count - 1
+        end
 
-            BlzFrameSetText(DPS_FRAME_TEXTVALUE, RealToString(DPS_LAST) .. "\n" .. RealToString(DPS_TOTAL_PHYSICAL) .. "\n" .. RealToString(DPS_TOTAL_MAGIC) .. "\n" .. RealToString(DPS_TOTAL) .. "\n" .. RealToString(DPS_CURRENT) .. "\n" .. RealToString(DPS_PEAK) .. "\n" .. RealToString(pt.time) .. "s")
-            pt.timer:callDelayed(0.1, DPS_UPDATE, pt)
+        if dps > output then
+            output = dps
+        end
+
+        return output
+    end
+
+    function DPS_PEAK_UPDATE()
+        local time = DPS_STOPWATCH:getElapsed()
+        local calc = calcPeakDps()
+
+        DPS_CURRENT:set(DPS_TOTAL / math.ceil(time))
+        if calc > DPS_PEAK then
+            DPS_PEAK:set(calc)
+        end
+        if DPS_CURRENT > DPS_PEAK then
+            DPS_PEAK:set(DPS_CURRENT)
         end
     end
+
+    function DPS_UPDATE()
+        local time = DPS_STOPWATCH:getElapsed()
+
+        if DPS_TOTAL > 0 then
+            BlzFrameSetText(DPS_FRAME_TEXTVALUE, RealToString(DPS_LAST) .. "\n" .. RealToString(DPS_TOTAL_PHYSICAL) .. "\n" .. RealToString(DPS_TOTAL_MAGIC) .. "\n" .. RealToString(DPS_TOTAL) .. "\n" .. RealToString(DPS_CURRENT) .. "\n" .. RealToString(DPS_PEAK) .. "\n" .. RealToString(time) .. "s")
+        end
+    end
+
+    local function DPS_ON_HIT(target, source, damageCalc, damageType)
+        local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzFrameSetVisible(DPS_FRAME, true)
+        end
+        local pt = TimerList[pid]:get('pbag')
+
+        if pt then
+            pt.dur = 10.
+        else
+            pt = TimerList[pid]:add()
+            pt.dur = 10.
+            pt.tag = 'pbag'
+            pt.timer:callDelayed(1., DPS_HIDE_TEXT, pt)
+        end
+
+        if DPS_TOTAL <= 0 then
+            DPS_STOPWATCH:start()
+            TimerQueue:callPeriodically(0.2, function() return DPS_TOTAL <= 0 end, DPS_UPDATE)
+            TimerQueue:callPeriodically(1., function() return DPS_TOTAL <= 0 end, DPS_PEAK_UPDATE)
+        end
+
+        DPS_LAST = damageCalc
+
+        if damageType == PHYSICAL then
+            DPS_TOTAL_PHYSICAL:set(DPS_TOTAL_PHYSICAL + DPS_LAST)
+        elseif damageType == MAGIC then
+            DPS_TOTAL_MAGIC:set(DPS_TOTAL_MAGIC + DPS_LAST)
+        end
+        DPS_TOTAL:set(DPS_TOTAL + DPS_LAST)
+
+        DPS_STORAGE:add_timed(DPS_LAST, 1., 0.)
+        DPS_TIMER:reset()
+        DPS_TIMER:callDelayed(7.5, DPS_RESET)
+        BlzSetEventDamage(0.00)
+        SetWidgetLife(target, BlzGetUnitMaxHP(target))
+    end
+
+    EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(PUNCHING_BAG, DPS_ON_HIT)
+
 end, Debug.getLine())
