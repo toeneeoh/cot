@@ -332,12 +332,19 @@ end
 
 --Satan
 
+local function satan_onhit(source, target)
+    if IsUnitEnemy(target, pboss) then
+        DamageTarget(BossTable[BOSS_SATAN].unit, target, 10000., ATTACK_TYPE_NORMAL, MAGIC, "Flame Onslaught")
+    end
+end
+
 ---@type fun(x: number, y: number)
-function SatanFlameStrike(x, y)
+local function SatanFlameStrike(x, y)
     local dummy = Dummy.create(GetUnitX(BossTable[BOSS_SATAN].unit), GetUnitY(BossTable[BOSS_SATAN].unit), FourCC('A0DN'), 1)
 
     SetUnitOwner(dummy.unit, pboss, false)
     IssuePointOrder(dummy.unit, "flamestrike", x, y)
+    EVENT_DUMMY_ON_HIT:register_unit_action(dummy.unit, satan_onhit)
 end
 
 --Thanatos
