@@ -221,7 +221,6 @@ OnInit.final("SaveLoad", function(Require)
     do
         local loadHeroTrigger = CreateTrigger()
         local saveHeroTrigger = CreateTrigger()
-        local load = true ---@type boolean
 
         TriggerAddCondition(Profile.sync_event, Filter(Profile.LoadSync))
         TriggerAddCondition(loadHeroTrigger, Filter(onLoadCommand))
@@ -240,8 +239,7 @@ OnInit.final("SaveLoad", function(Require)
 
             --load all players
             while u do
-
-                load = true
+                local load = true
 
                 for _, v in ipairs(funnyList) do
                     if StringHash(u.name) == v then
@@ -261,7 +259,7 @@ OnInit.final("SaveLoad", function(Require)
                         local s = FileIO.Load(MAP_NAME .. "\\" .. u.name .. "\\profile.pld")
 
                         if s then
-                            BlzSendSyncData(SYNC_PREFIX, GetLine(1, s))
+                            BlzSendSyncData(SYNC_PREFIX, GetLine(0, s))
                         end
                     end
                 end
