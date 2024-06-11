@@ -42,12 +42,7 @@ OnInit.final("Keyboard", function(Require)
     local function Escape()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-        if GetLocalPlayer() == Player(pid - 1) then
-            BlzFrameSetVisible(STAT_WINDOW.frame, false)
-        end
-
-        --no longer viewing stat window
-        STAT_WINDOW.viewing[pid] = nil
+        STAT_WINDOW.close(pid)
 
         return false
     end
