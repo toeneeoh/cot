@@ -120,7 +120,6 @@ OnInit.global("PlayerData", function(Require)
     ---@class Profile
     ---@field pid integer
     ---@field currentSlot integer
-    ---@field profileHash integer
     ---@field phtl integer[]
     ---@field skin function
     ---@field hero HeroData
@@ -150,7 +149,6 @@ OnInit.global("PlayerData", function(Require)
             local self = {
                 pid = pid,
                 currentSlot = 0,
-                profileHash = GetRandomInt(500000, 510000),
                 phtl = __jarray(0),
                 hero = HeroData.create(pid),
                 timers = {},
@@ -202,15 +200,16 @@ OnInit.global("PlayerData", function(Require)
         ---@type fun(s: string, pid: integer): Profile | nil
         function thistype.load(s, pid)
             local p = Player(pid - 1)
+            local data = Load(s, p)
 
             --fail to load
-            if not Load(s, p) then
+            if not data then
                 DisplayTimedTextToPlayer(p, 0, 0, 30., GetCodeGenError())
                 return nil
             end
 
             local index = 1
-            local vers = SaveData[pid][index]
+            local vers = data[index]
 
             --TODO implement version handling
             if vers <= SAVE_LOAD_VERSION - 2 or vers >= SAVE_LOAD_VERSION + 2 then
@@ -225,7 +224,7 @@ OnInit.global("PlayerData", function(Require)
             index = index + 1
 
             for i = 0, MAX_SLOTS do
-                self.phtl[i] = SaveData[pid][index]
+                self.phtl[i] = data[index]
                 local prestige = (self.phtl[i] & 0x6) >> 1
                 local id = (self.phtl[i] & 0x1F8) >> 3
                 index = index + 1
@@ -234,8 +233,6 @@ OnInit.global("PlayerData", function(Require)
                     AllocatePrestige(pid, prestige, id)
                 end
             end
-
-            self.profileHash = SaveData[pid][index]
 
             return self
         end
@@ -246,7 +243,7 @@ OnInit.global("PlayerData", function(Require)
 
             thistype.savecode[pid - 1] = BlzGetTriggerSyncData()
 
-            if StringLength(thistype.savecode[pid - 1]) > 1 then
+            if (thistype.savecode[pid - 1]):len() > 1 then
                 if not Profile[pid] then
                     Profile[pid] = thistype.load(thistype.savecode[pid - 1], pid)
                 else
@@ -289,14 +286,16 @@ OnInit.global("PlayerData", function(Require)
                 data[#data + 1] = self.phtl[i]
             end
 
-            data[#data + 1] = self.profileHash
-
             local s = Compile(self.pid, data)
 
             if GAME_STATE == 2 then
+                local hero_name = GetObjectName(HeroID[self.pid])
+                local path = GetProfilePath(self.pid)
+                local backup_path = MAP_NAME .. "\\BACKUP\\" .. User[p].name .. "\\" .. hero_name .. self.hero.level .. "_" .. os.time() .. "\\slot" .. (self.currentSlot + 1) .. ".pld"
+
                 if GetLocalPlayer() == p then
-                    FileIO.Save(MAP_NAME .. "\\" .. User[p].name .. "\\" .. "profile.pld", "\n" .. s)
-                    FileIO.Save(MAP_NAME .. "\\" .. "BACKUP" .. "\\" .. GetObjectName(HeroID[self.pid]) .. GetHeroLevel(Hero[self.pid]) .. "_" .. TIME .. "\\" .. User[p].name .. "\\" .. "profile.pld", "\n" .. s)
+                    FileIO.Save(path, "\n" .. s)
+                    FileIO.Save(backup_path, "\n" .. s)
                 end
             end
 
@@ -309,7 +308,6 @@ OnInit.global("PlayerData", function(Require)
 
         function thistype:saveCharacter()
             local p = Player(self.pid - 1)
-            local data = {}
 
             --[[
                 hash
@@ -329,16 +327,16 @@ OnInit.global("PlayerData", function(Require)
                 skin
             ]]
 
-            data[#data + 1] = self.profileHash
-            data[#data + 1] = self.hero.prestige
+            local data = {}
             data[#data + 1] = self.hero.hardcore
+            data[#data + 1] = self.hero.prestige
             self.hero.id = SAVE_TABLE.KEY_UNITS[HeroID[self.pid]]
             data[#data + 1] = self.hero.id
             self.hero.level = GetHeroLevel(Hero[self.pid])
             data[#data + 1] = self.hero.level
-            self.hero.str = IMinBJ(MAX_STATS, GetHeroStr(Hero[self.pid], false))
-            self.hero.agi = IMinBJ(MAX_STATS, GetHeroAgi(Hero[self.pid], false))
-            self.hero.int = IMinBJ(MAX_STATS, GetHeroInt(Hero[self.pid], false))
+            self.hero.str = IMinBJ(MAX_STATS, Unit[Hero[self.pid]].str)
+            self.hero.agi = IMinBJ(MAX_STATS, Unit[Hero[self.pid]].agi)
+            self.hero.int = IMinBJ(MAX_STATS, Unit[Hero[self.pid]].int)
             data[#data + 1] = self.hero.str
             data[#data + 1] = self.hero.agi
             data[#data + 1] = self.hero.int
@@ -375,9 +373,13 @@ OnInit.global("PlayerData", function(Require)
             local s = Compile(self.pid, data)
 
             if GAME_STATE == 2 then
+                local hero_name = GetObjectName(HeroID[self.pid])
+                local path = GetCharacterPath(self.pid, self.currentSlot)
+                local backup_path = MAP_NAME .. "\\BACKUP\\" .. User[p].name .. "\\" .. hero_name .. self.hero.level .. "_" .. os.time() .. "\\slot" .. (self.currentSlot + 1) .. ".pld"
+
                 if GetLocalPlayer() == p then
-                    FileIO.Save(MAP_NAME .. "\\" .. User[p].name .. "\\slot" .. (self.currentSlot + 1) .. ".pld", GetObjectName(HeroID[pid]) .. " " .. I2S(GetHeroLevel(Hero[pid])) .. "\n" .. s)
-                    FileIO.Save(MAP_NAME .. "\\" .. "BACKUP" .. "\\" .. GetObjectName(HeroID[pid]) .. I2S(GetHeroLevel(Hero[pid])) .. "_" .. os.time() .. "\\" .. User[p].name .. "\\slot" .. (self.currentSlot + 1) .. ".pld", GetObjectName(HeroID[pid]) .. " " .. I2S(GetHeroLevel(Hero[pid])) .. "\n" .. s)
+                    FileIO.Save(path, hero_name .. " " .. self.hero.level .. "\n" .. s)
+                    FileIO.Save(backup_path, hero_name .. " " .. self.hero.level .. "\n" .. s)
                 end
             end
 
@@ -387,52 +389,59 @@ OnInit.global("PlayerData", function(Require)
         ---@type fun(self: Profile, data: string)
         function thistype:loadCharacter(data)
             local p = Player(self.pid - 1)
+            data = Load(data, p)
 
-            if not Load(data, p) then
+            if not data then
                 DisplayTimedTextToPlayer(p, 0, 0, 30., GetCodeGenError())
                 return
             end
 
-            local index = 1
-            local hash = SaveData[self.pid][index]
+            local index = 0
             local counter = function()
                 index = index + 1
                 return index
             end
 
-            self.hero.prestige = SaveData[self.pid][counter()]
-            self.hero.hardcore = SaveData[self.pid][counter()]
-            self.hero.id = SaveData[self.pid][counter()]
-            self.hero.level = SaveData[self.pid][counter()]
-            self.hero.str = IMinBJ(MAX_STATS, SaveData[self.pid][counter()])
-            self.hero.agi = IMinBJ(MAX_STATS, SaveData[self.pid][counter()])
-            self.hero.int = IMinBJ(MAX_STATS, SaveData[self.pid][counter()])
+            self.hero.hardcore = data[counter()]
+            self.hero.prestige = data[counter()]
+            self.hero.id = data[counter()]
+            self.hero.level = data[counter()]
+            self.hero.str = IMinBJ(MAX_STATS, data[counter()])
+            self.hero.agi = IMinBJ(MAX_STATS, data[counter()])
+            self.hero.int = IMinBJ(MAX_STATS, data[counter()])
             for i = 0, MAX_INVENTORY_SLOTS - 1 do
-                local id = SaveData[self.pid][counter()]
-                local stats = SaveData[self.pid][counter()]
+                local id = data[counter()]
+                local stats = data[counter()]
 
                 self.hero.items[i] = Item.decode(id, stats)
                 if self.hero.items[i] then
                     self.hero.items[i].owner = p
                 end
             end
-            self.hero.teleport = SaveData[self.pid][counter()]
-            self.hero.reveal = SaveData[self.pid][counter()]
-            self.hero.platinum = SaveData[self.pid][counter()]
-            self.hero.arcadite = SaveData[self.pid][counter()]
-            self.hero.crystal = SaveData[self.pid][counter()]
-            self.hero.time = SaveData[self.pid][counter()]
-            self.hero.gold = SaveData[self.pid][counter()]
-            self.hero.lumber = SaveData[self.pid][counter()]
-            self.hero.skin = SaveData[self.pid][counter()]
+            self.hero.teleport = data[counter()]
+            self.hero.reveal = data[counter()]
+            self.hero.platinum = data[counter()]
+            self.hero.arcadite = data[counter()]
+            self.hero.crystal = data[counter()]
+            self.hero.time = data[counter()]
+            self.hero.gold = data[counter()]
+            self.hero.lumber = data[counter()]
+            self.hero.skin = data[counter()]
 
             local hardcore = self.phtl[self.currentSlot] & 0x1
             local prestige = (self.phtl[self.currentSlot] & 0x6) >> 1
             local id = (self.phtl[self.currentSlot] & 0x1F8) >> 3
             local herolevel = (self.phtl[self.currentSlot] & 0x7FE00) >> 9
 
+            if DEV_ENABLED then
+                print("hardcore: " .. hardcore .. " expected: " .. self.hero.hardcore)
+                print("prestige: " .. prestige .. " expected: " .. self.hero.prestige)
+                print("id: " .. id .. " expected: " .. self.hero.id)
+                print("herolevel: " .. herolevel .. " expected: " .. self.hero.level)
+            end
+
             --TODO remove hero level mismatch?
-            if (hash ~= profileHash) or (prestige ~= self.hero.prestige) or (hardcore ~= self.hero.hardcore) or (id ~= self.hero.id) or (herolevel ~= self.hero.level) then
+            if (hardcore ~= self.hero.hardcore) or (prestige ~= self.hero.prestige) or (id ~= self.hero.id) or (herolevel ~= self.hero.level) then
                 DisplayTextToPlayer(p, 0, 0, "Invalid character data!")
                 self.hero:wipeData()
                 DisplayHeroSelectionDialog(self.pid)
@@ -494,7 +503,7 @@ OnInit.global("PlayerData", function(Require)
     ---@field id number
     ---@field infused boolean
     ---@field limitbreak boolean
-    ---@field cd number
+    ---@field cooldown number
     ---@field time number
     ---@field element number
     ---@field spell number
@@ -676,7 +685,14 @@ OnInit.global("PlayerData", function(Require)
         end
 
         --hero proficiencies / inner resistances
+        Unit[Hero[pid]].mr = HeroStats[HeroID[pid]].magic_resist
+        Unit[Hero[pid]].pr = HeroStats[HeroID[pid]].phys_resist
+        Unit[Hero[pid]].pm = HeroStats[HeroID[pid]].phys_damage
+        Unit[Hero[pid]].cc_flat = HeroStats[HeroID[pid]].crit_chance
+        Unit[Hero[pid]].cd_flat = HeroStats[HeroID[pid]].crit_damage
+
         if HeroID[pid] == HERO_ARCANIST then
+            EVENT_ON_HIT:register_unit_action(HeroID[pid], CONTROLTIME.onHit)
             UnitRemoveAbility(Hero[pid], ARCANECOMETS.id)
         elseif HeroID[pid] == HERO_ROYAL_GUARDIAN then
             BlzUnitHideAbility(Hero[pid], FourCC('A06K'), true)
@@ -687,14 +703,14 @@ OnInit.global("PlayerData", function(Require)
                 BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
             end
         elseif HeroID[pid] == HERO_ASSASSIN then
+            EVENT_ON_HIT:register_unit_action(HeroID[pid], BLADESPIN.onHit)
             UnitRemoveAbility(Hero[pid], BLADESPIN.id)
+        elseif HeroID[pid] == HERO_MASTER_ROGUE then
+            Unit[Hero[pid]].cc_percent = 1.2
+            INSTANTDEATH.apply(Hero[pid], pid)
         elseif HeroID[pid] == HERO_VAMPIRE then
-            EVENT_STAT_CHANGE.register_unit_action(Hero[pid], BLOODBANK.refresh)
+            EVENT_STAT_CHANGE:register_unit_action(Hero[pid], BLOODBANK.refresh)
         end
-
-        Unit[Hero[pid]].mr = HeroStats[HeroID[pid]].magic_resist
-        Unit[Hero[pid]].pr = HeroStats[HeroID[pid]].phys_resist
-        Unit[Hero[pid]].pm = HeroStats[HeroID[pid]].phys_damage
 
         HERO_GROUP[#HERO_GROUP + 1] = Hero[pid]
         SetPrestigeEffects(pid)
