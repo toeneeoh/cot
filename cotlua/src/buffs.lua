@@ -126,11 +126,11 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].flatMS = Unit[self.target].flatMS - 150
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat - 150
         end
 
         function thistype:onApply()
-            Unit[self.target].flatMS = Unit[self.target].flatMS + 150
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat + 150
         end
     end
 
@@ -143,11 +143,11 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].flatMS = Unit[self.target].flatMS - 150
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat - 150
         end
 
         function thistype:onApply()
-            Unit[self.target].flatMS = Unit[self.target].flatMS + 150
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat + 150
         end
     end
 
@@ -160,11 +160,11 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].flatMS = Unit[self.target].flatMS - 75
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat - 75
         end
 
         function thistype:onApply()
-            Unit[self.target].flatMS = Unit[self.target].flatMS + 75
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat + 75
         end
     end
 
@@ -177,11 +177,11 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].flatMS = Unit[self.target].flatMS - 150
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat - 150
         end
 
         function thistype:onApply()
-            Unit[self.target].flatMS = Unit[self.target].flatMS + 150
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat + 150
         end
     end
 
@@ -305,19 +305,26 @@ OnInit.global("Buffs", function(Require)
         thistype.count         = 10 ---@type integer 
         thistype.dmg      = 0. ---@type number 
 
-        function thistype:onHit()
-            self.count = self.count - 1
+        local function onHit(source, target)
+            local self = SongOfWarEncoreBuff:get(nil, source)
 
-            if self.count <= 0 then
-                self:remove()
+            if self then
+                self.count = self.count - 1
+                DamageTarget(self.source, target, self.dmg * BOOST[GetPlayerId(GetOwningPlayer(self.source)) + 1], ATTACK_TYPE_NORMAL, MAGIC, ENCORE.tag)
+
+                if self.count <= 0 then
+                    self:remove()
+                end
             end
         end
 
         function thistype:onRemove()
+            EVENT_ON_HIT:unregister_unit_action(self.target, onHit)
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
+            EVENT_ON_HIT:register_unit_action(self.target, onHit)
             self.dmg = (.25 + .25 * GetUnitAbilityLevel(self.source, ENCORE.id)) * GetHeroStat(MainStat(self.target), self.target, true)
 
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Items\\VampiricPotion\\VampPotionCaster.mdl", self.target, "origin")
@@ -385,7 +392,8 @@ OnInit.global("Buffs", function(Require)
         thistype.count      = 0. ---@type number 
         thistype.attack      = 0. ---@type number 
 
-        function thistype:onHit()
+        local function onHit(source, target)
+            local self = FlamingBowBuff:get(nil, source)
             local ablev = GetUnitAbilityLevel(self.target, FLAMINGBOW.id) ---@type integer 
 
             UnitAddBonus(self.target, BONUS_DAMAGE, -self.attack)
@@ -401,12 +409,17 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onRemove()
+            Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent - self.pen
+            EVENT_ON_HIT:unregister_unit_action(self.target, onHit)
             DestroyEffect(self.sfx)
             UnitRemoveAbility(self.target, FourCC('A08B'))
             UnitAddBonus(self.target, BONUS_DAMAGE, -self.attack)
         end
 
         function thistype:onApply()
+            self.pen = FLAMINGBOW.pierce(self.tpid)
+            Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent + self.pen
+            EVENT_ON_HIT:register_unit_action(self.target, onHit)
             self.attack = FLAMINGBOW.bonus(self.tpid)
 
             self.sfx = AddSpecialEffectTarget("Environment\\SmallBuildingspeffect\\SmallBuildingspeffect2.mdl", self.target, "weapon")
@@ -442,13 +455,13 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
         end
 
         function thistype:onApply()
-            self.ms = 0.75 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.75 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
         end
     end
 
@@ -497,7 +510,7 @@ OnInit.global("Buffs", function(Require)
         function thistype:onRemove()
             SetUnitPathing(self.target, true)
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
 
             BlzSetSpecialEffectScale(self.sfx, 0)
             DestroyEffect(self.sfx)
@@ -506,9 +519,9 @@ OnInit.global("Buffs", function(Require)
         function thistype:onApply()
             SetUnitPathing(self.target, false)
 
-            self.ms = 0.5 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.5 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
 
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Human\\Banish\\BanishTarget.mdl", self.target, "chest")
         end
@@ -634,6 +647,7 @@ OnInit.global("Buffs", function(Require)
         thistype.timer = nil ---@type TimerQueue
 
         function thistype:onRemove()
+            EVENT_ON_FATAL_DAMAGE:unregister_unit_action(self.target, SOULLINK.onHit)
             FadeSFX(self.sfx, true)
             TimerQueue:callDelayed(2., HideEffect, self.sfx)
             DestroyLightning(self.lfx)
@@ -651,6 +665,7 @@ OnInit.global("Buffs", function(Require)
             local x      = GetUnitX(self.target) + 75. * math.cos(angle) ---@type number 
             local y      = GetUnitY(self.target) + 75. * math.sin(angle) ---@type number 
 
+            EVENT_ON_FATAL_DAMAGE:register_unit_action(self.target, SOULLINK.onHit)
             self.hp = GetWidgetLife(self.target)
             self.mana = GetUnitState(self.target, UNIT_STATE_MANA)
 
@@ -739,11 +754,21 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.multiplier      = 0. ---@type number 
 
+        local function onHit(source, target, amount, damageType)
+            local self = thistype:get(nil, source)
+
+            if damageType == PHYSICAL then
+                DamageTarget(source, target, amount* self.multiplier, ATTACK_TYPE_NORMAL, PURE, LAWOFRESONANCE.tag)
+            end
+        end
+
         function thistype:onRemove()
+            EVENT_ON_HIT_AFTER_REDUCTIONS:unregister_unit_action(self.target, onHit)
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
+            EVENT_ON_HIT_AFTER_REDUCTIONS:register_unit_action(self.target, onHit)
             self.multiplier = LAWOFRESONANCE.echo(self.pid) * 0.01
 
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\Parasite\\ParasiteTarget.mdl", self.target, "overhead")
@@ -806,12 +831,12 @@ OnInit.global("Buffs", function(Require)
                 HP(self.target, self.target, BLOODMIST.heal(self.tpid) * BOOST[self.tpid], BLOODMIST.tag)
                 if self.ms == 0 then
                     self.ms = 50 + 50 * GetUnitAbilityLevel(self.source, BLOODMIST.id)
-                    Unit[self.target].flatMS = Unit[self.target].flatMS + self.ms
+                    Unit[self.target].ms_flat = Unit[self.target].ms_flat + self.ms
                     PlayerAddItemById(self.tpid, PHASED_MOVEMENT)
                     BlzSetSpecialEffectColor(self.sfx, 255, 255, 255)
                 end
             else
-                Unit[self.target].flatMS = Unit[self.target].flatMS + self.ms
+                Unit[self.target].ms_flat = Unit[self.target].ms_flat + self.ms
                 self.ms = 0
                 UnitRemoveAbility(self.target, FourCC('B02Q'))
                 BlzSetSpecialEffectColor(self.sfx, 0, 0, 0)
@@ -823,7 +848,7 @@ OnInit.global("Buffs", function(Require)
         function thistype:onRemove()
             DestroyEffect(self.sfx)
 
-            Unit[self.target].flatMS = Unit[self.target].flatMS - self.ms
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat - self.ms
             UnitRemoveAbility(self.target, FourCC('B02Q'))
 
             self.timer:destroy()
@@ -834,7 +859,7 @@ OnInit.global("Buffs", function(Require)
 
             if BLOODBANK.get(self.tpid) >= BLOODMIST.cost(self.tpid, ablev) then
                 self.ms = 50 + 50 * GetUnitAbilityLevel(self.target, BLOODMIST.id)
-                Unit[self.target].flatMS = Unit[self.target].flatMS + self.ms
+                Unit[self.target].ms_flat = Unit[self.target].ms_flat + self.ms
             end
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Chumpool.mdx", self.target, "origin")
@@ -853,6 +878,12 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.agi      = 0. ---@type number 
         thistype.str      = 0. ---@type number 
+
+        local function onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            DamageTarget(source, target, BLOODLORD.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, BLOODLORD.tag)
+            DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Coup de Grace.mdx", target, "chest"))
+        end
 
         local function periodic(self)
             local ug = CreateGroup()
@@ -878,6 +909,7 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onRemove()
+            EVENT_ON_HIT:unregister_unit_action(self.source, onHit)
             BlzSetUnitAttackCooldown(self.source, BlzGetUnitAttackCooldown(self.source, 0) / 0.7, 0)
             UnitAddBonus(self.source, BONUS_HERO_AGI, -self.agi)
             UnitAddBonus(self.source, BONUS_HERO_STR, -self.str)
@@ -893,6 +925,8 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onApply()
+            EVENT_ON_HIT:register_unit_action(self.source, onHit)
+
             if GetHeroAgi(self.source, true) > GetHeroStr(self.source, true) then
                 UnitDisableAbility(self.source, BLOODLEECH.id, true)
                 BlzUnitHideAbility(self.source, BLOODLEECH.id, false)
@@ -995,6 +1029,18 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.soundPlayed         = false ---@type boolean 
 
+        local function onHit(target, source, amount_ref)
+            local self = ParryBuff:get(target, target)
+
+            if self then
+                local pid = GetPlayerId(GetOwningPlayer(target)) + 1
+                amount_ref.value = 0.00
+                self:playSound()
+
+                DamageTarget(target, source, PARRY.dmg(pid) * (((limitBreak[pid] & 0x1) > 0 and 2.) or 1.), ATTACK_TYPE_NORMAL, MAGIC, PARRY.tag)
+            end
+        end
+
         function thistype:playSound()
             if not self.soundPlayed then
                 self.soundPlayed = true
@@ -1004,11 +1050,13 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onRemove()
+            EVENT_ON_STRUCK_MULTIPLIER:unregister_unit_action(self.target, onHit)
             AddUnitAnimationProperties(self.target, "ready", false)
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
+            EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(self.target, onHit)
             AddUnitAnimationProperties(self.target, "ready", true)
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Buff_Shield_Non.mdx", self.target, "chest")
@@ -1096,6 +1144,7 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onRemove()
+            EVENT_ON_STRUCK_AFTER_REDUCTIONS:unregister_unit_action(self.target, UNDYINGRAGE.onHit)
             self.timer:destroy()
             Unit[self.target].regen = Unit[self.target].regen - self.bonusRegen
 
@@ -1109,7 +1158,6 @@ OnInit.global("Buffs", function(Require)
             end
 
             Unit[self.target].noregen = false
-            UnitSetBonus(self.target, BONUS_LIFE_REGEN, Unit[self.target].regen * Unit[self.target].healamp)
         end
 
         local periodic = function(self)
@@ -1125,13 +1173,13 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onApply()
+            EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(self.target, UNDYINGRAGE.onHit)
             self.text = CreateTextTag()
             self.totalRegen = 0.
             SetTextTagText(self.text, (R2I(self.totalRegen)) .. "\x25", 0.025)
             SetTextTagColor(self.text, R2I(Pow(100 - self.totalRegen, 1.1)), R2I(SquareRoot(math.max(0, self.totalRegen) * 500)), 0, 255)
 
             Unit[self.target].noregen = true
-            UnitSetBonus(self.target, BONUS_LIFE_REGEN, 0)
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\DemonicAdornment.mdx", self.target, "head")
 
@@ -1150,14 +1198,17 @@ OnInit.global("Buffs", function(Require)
         thistype.timer        = nil ---@type TimerQueue
 
         function thistype:onRemove()
-            Unit[self.target].flatMS = Unit[self.target].flatMS - 100
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat - 100
+            Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent - self.pen
 
             self.timer:destroy()
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            Unit[self.target].flatMS = Unit[self.target].flatMS + 100
+            self.pen = RAMPAGE.pen(self.tpid)
+            Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent + self.pen
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat + 100
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Windwalk Blood.mdx", self.source, "origin")
 
@@ -1181,14 +1232,14 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / 1.25, 0)
         end
 
         function thistype:onApply()
-            self.ms = 0.25 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.25 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * 1.25, 0)
         end
     end
@@ -1201,13 +1252,19 @@ OnInit.global("Buffs", function(Require)
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
+        local function onHit(target, source)
+            FrostArmorDebuff:add(target, source):duration(3.)
+        end
+
         function thistype:onRemove()
+            EVENT_ON_HIT:unregister_unit_action(self.target, onHit)
             UnitAddBonus(self.source, BONUS_ARMOR, -100.)
 
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
+            EVENT_ON_HIT:register_unit_action(self.target, onHit)
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Undead\\FrostArmor\\FrostArmorTarget.mdl", self.source, "chest")
 
             UnitAddBonus(self.source, BONUS_ARMOR, 100.)
@@ -1239,6 +1296,53 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Amst') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        local function onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            BodyOfFireCharges[pid] = BodyOfFireCharges[pid] - 1
+
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
+            end
+
+            --disable casting at 0 charges
+            if BodyOfFireCharges[pid] <= 0 then
+                UnitDisableAbility(source, MAGNETICSTRIKE.id, true)
+                BlzUnitHideAbility(source, MAGNETICSTRIKE.id, false)
+            end
+
+            --refresh charge timer
+            local pt = TimerList[pid]:get('bofi', source, nil)
+            if not pt then
+                pt = TimerList[pid]:add()
+                pt.source = source
+                pt.tag = 'bofi'
+
+                BlzStartUnitAbilityCooldown(source, BODYOFFIRE.id, 5.)
+                TimerQueue:callDelayed(5., BODYOFFIRE.cooldown, pt)
+            end
+            MagneticStrikeBuff:dispel(source, source)
+
+            local ug = CreateGroup()
+            MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), 250. * LBOOST[pid], Condition(FilterEnemy))
+
+            for u in each(ug) do
+                MagneticStrikeDebuff:add(source, u):duration(10.)
+            end
+
+            DestroyGroup(ug)
+
+            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Other\\Charm\\CharmTarget.mdl", GetUnitX(target), GetUnitY(target)))
+            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(target), GetUnitY(target)))
+        end
+
+        function thistype:onRemove()
+            EVENT_ON_STRUCK_MULTIPLIER:unregister_unit_action(self.target, onHit)
+        end
+
+        function thistype:onApply()
+            EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(self.target, onHit)
+        end
     end
 
     ---@class InfernalStrikeBuff : Buff
@@ -1248,27 +1352,87 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Aist') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-    end
 
-    ---@class PiercingStrikeDebuff : Buff
-    PiercingStrikeDebuff = setmetatable({}, mt)
-    do
-        local thistype = PiercingStrikeDebuff
-        thistype.RAWCODE         = FourCC('Apie') ---@type integer 
-        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
-        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+        local function onHit(source, target, amount_ref)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            BodyOfFireCharges[pid] = BodyOfFireCharges[pid] - 1
+
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
+            end
+
+            --disable casting at 0 charges
+            if BodyOfFireCharges[pid] <= 0 then
+                UnitDisableAbility(source, INFERNALSTRIKE.id, true)
+                BlzUnitHideAbility(source, INFERNALSTRIKE.id, false)
+            end
+
+            --refresh charge timer
+            local pt = TimerList[pid]:get('bofi', source, nil)
+            if not pt then
+                pt = TimerList[pid]:add()
+                pt.source = source
+                pt.tag = 'bofi'
+
+                BlzStartUnitAbilityCooldown(source, BODYOFFIRE.id, 5.)
+                TimerQueue:callDelayed(5., BODYOFFIRE.cooldown, pt)
+            end
+
+            InfernalStrikeBuff:dispel(source, source)
+            amount_ref.value = 0.00
+
+            local ablev = GetUnitAbilityLevel(source, INFERNALSTRIKE.id)
+
+            local ug = CreateGroup()
+            MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), 250. * LBOOST[pid], Condition(FilterEnemy))
+            local count = BlzGroupGetSize(ug)
+
+            for u in each(ug) do
+                if IsUnitType(u, UNIT_TYPE_HERO) then
+                    count = count + 4
+                end
+                local dtype = BlzGetUnitIntegerField(target, UNIT_IF_DEFENSE_TYPE)
+
+                if dtype == 1 or dtype == 7 then --boss
+                    DamageTarget(source, u, ((GetHeroStr(source, true) * ablev) + GetWidgetLife(u) * (0.25 + 0.05 * ablev)) * 0.5 * LBOOST[pid], ATTACK_TYPE_NORMAL, PHYSICAL_NO_RECURSE, INFERNALSTRIKE.tag)
+                else
+                    DamageTarget(source, u, ((GetHeroStr(source, true) * ablev) + GetWidgetLife(u) * (0.25 + 0.05 * ablev)) * LBOOST[pid], ATTACK_TYPE_NORMAL, PHYSICAL_NO_RECURSE, INFERNALSTRIKE.tag)
+                end
+            end
+
+            DestroyGroup(ug)
+
+            DestroyEffect(AddSpecialEffect("war3mapImported\\Lava_Slam.mdx", GetUnitX(target), GetUnitY(target)))
+            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(target), GetUnitY(target)))
+
+            --6 percent max heal
+            HP(source, source, BlzGetUnitMaxHP(source) * 0.01 * IMinBJ(6, count), INFERNALSTRIKE.tag)
+        end
 
         function thistype:onRemove()
-            DestroyEffect(self.sfx)
+            EVENT_ON_STRUCK_MULTIPLIER:unregister_unit_action(self.target, onHit)
         end
 
         function thistype:onApply()
-            self.sfx = AddSpecialEffectTarget("war3mapImported\\Armor Penetration Orange.mdx", self.target, "overhead")
+            EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(self.target, onHit)
+        end
+    end
 
-            BlzSetSpecialEffectScale(self.sfx, 0)
-            if GetLocalPlayer() == GetOwningPlayer(self.source) then
-                BlzSetSpecialEffectScale(self.sfx, 1)
-            end
+    ---@class PiercingStrikeBuff : Buff
+    PiercingStrikeBuff = setmetatable({}, mt)
+    do
+        local thistype = PiercingStrikeBuff
+        thistype.RAWCODE         = FourCC('Apie') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent - self.pen
+        end
+
+        function thistype:onApply()
+            self.pen = PIERCINGSTRIKE.pen(self.tpid)
+            Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent + self.pen
         end
     end
 
@@ -1280,12 +1444,20 @@ OnInit.global("Buffs", function(Require)
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
+        local function onHit(target, source, amount_ref)
+            local pid = GetPlayerId(GetOwningPlayer(target)) + 1
+
+            if target == Hero[pid] then
+                amount_ref.value = 0.
+            end
+        end
+
         function thistype:onRemove()
-            HeroInvul[self.pid] = false
+            EVENT_ON_STRUCK_MULTIPLIER:unregister_unit_action(self.target, onHit)
         end
 
         function thistype:onApply()
-            HeroInvul[self.pid] = true
+            EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(self.target, onHit)
         end
     end
 
@@ -1386,11 +1558,11 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].flatMS = Unit[self.target].flatMS - 100
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat - 100
         end
 
         function thistype:onApply()
-            Unit[self.target].flatMS = Unit[self.target].flatMS + 100
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat + 100
         end
     end
 
@@ -1460,15 +1632,15 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Cripple\\CrippleTarget.mdl", self.target, "chest")
-            self.ms = 0.5 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.5 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
         end
     end
 
@@ -1481,13 +1653,13 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
         end
 
         function thistype:onApply()
-            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.3 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
         end
     end
 
@@ -1576,18 +1748,17 @@ OnInit.global("Buffs", function(Require)
         thistype.regen      = 0. ---@type number 
 
         function thistype:onRemove()
-            UnitAddBonus(self.target, BONUS_LIFE_REGEN, self.regen)
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].regen = Unit[self.target].regen + self.regen
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
         end
 
         function thistype:onApply()
-            self.ms = SANCTIFIEDGROUND.ms * 0.01 * (math.min(1, Unit[self.target].percentMS))
-
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            self.ms = SANCTIFIEDGROUND.ms * 0.01 * (math.min(1, Unit[self.target].ms_percent))
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
 
             if IsBoss(self.target) < 0 then
-                self.regen = UnitGetBonus(self.target, BONUS_LIFE_REGEN)
-                UnitAddBonus(self.target, BONUS_LIFE_REGEN, -self.regen)
+                self.regen = Unit[self.target].regen
+                Unit[self.target].regen = 0
             end
         end
     end
@@ -1601,13 +1772,13 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].flatMS = Unit[self.target].flatMS - self.ms
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat - self.ms
         end
 
         function thistype:onApply()
             self.ms = 25 + 25 * GetUnitAbilityLevel(self.source, DIVINELIGHT.id)
 
-            Unit[self.target].flatMS = Unit[self.target].flatMS + self.ms
+            Unit[self.target].ms_flat = Unit[self.target].ms_flat + self.ms
         end
     end
 
@@ -1644,13 +1815,13 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
         end
 
         function thistype:onApply()
-            self.ms = (0.28 + 0.02 * GetUnitAbilityLevel(self.source, SMOKEBOMB.id)) * (math.min(1, Unit[self.target].percentMS))
+            self.ms = (0.28 + 0.02 * GetUnitAbilityLevel(self.source, SMOKEBOMB.id)) * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
         end
     end
 
@@ -1706,7 +1877,7 @@ OnInit.global("Buffs", function(Require)
         thistype.armor         = 0 ---@type integer 
 
         function thistype.periodic(self)
-            local dmg = NERVEGAS.dmg(self.pid) * BOOST[self.pid] / (NERVEGAS.dur * LBOOST[self.pid] * 0.5)
+            local dmg = NERVEGAS.dmg(self.pid) * BOOST[self.pid] / (NERVEGAS.dur * LBOOST[self.pid] * 2.)
 
             DamageTarget(self.source, self.target, dmg, ATTACK_TYPE_NORMAL, MAGIC, "Nerve Gas")
 
@@ -1715,16 +1886,16 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
             UnitAddBonus(self.target, BONUS_ARMOR, self.armor)
             DestroyEffect(self.sfx)
             self.timer:destroy()
         end
 
         function thistype:onApply()
-            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.3 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
             self.armor = R2I(BlzGetUnitArmor(self.target) * 0.2)
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\AcidBomb\\BottleImpact.mdl", self.target, "chest")
 
@@ -1746,13 +1917,13 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.75)
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
         end
 
         function thistype:onApply()
-            self.ms = 0.5 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.5 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .75)
         end
@@ -1838,7 +2009,7 @@ OnInit.global("Buffs", function(Require)
             DestroyEffect(self.sfx)
             DestroyEffect(self.sfx2)
             self.timer:destroy()
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
         end
 
         function thistype:onApply()
@@ -1849,9 +2020,9 @@ OnInit.global("Buffs", function(Require)
             self.timer = TimerQueue.create()
             self.timer:callDelayed(5., periodic, self)
 
-            self.ms = 0.4 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.4 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
         end
     end
 
@@ -1888,14 +2059,14 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .25)
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = 0.35 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.35 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\FrostDamage\\FrostDamage.mdl", self.target, "chest")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.25)
@@ -1906,10 +2077,10 @@ OnInit.global("Buffs", function(Require)
     TidalWaveDebuff = setmetatable({}, mt)
     do
         local thistype = TidalWaveDebuff
-        thistype.RAWCODE         = FourCC('Atwa') ---@type integer 
+        thistype.RAWCODE         = FourCC('Atdw') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.percent      = .15 ---@type number 
+        thistype.percent         = .15 ---@type number 
 
         function thistype:onRemove()
             Unit[self.target].dr = Unit[self.target].dr / (1 + self.percent)
@@ -1930,14 +2101,14 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = 0.5 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.5 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\FrostDamage\\FrostDamage.mdl", self.target, "chest")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.3)
@@ -1954,14 +2125,14 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.3 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Human\\slow\\slowtarget.mdl", self.target, "origin")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.3)
@@ -1978,14 +2149,14 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .3)
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.3 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\StasisTrap\\StasisTotemTarget.mdl", self.target, "overhead")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.3)
@@ -2002,14 +2173,14 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, .35)
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
-            self.ms = 0.35 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.35 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\StasisTrap\\StasisTotemTarget.mdl", self.target, "overhead")
 
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.35)
@@ -2076,13 +2247,13 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
         end
 
         function thistype:onApply()
-            self.ms = 0.3 * (math.min(1, Unit[self.target].percentMS))
+            self.ms = 0.3 * (math.min(1, Unit[self.target].ms_percent))
 
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
         end
     end
 
@@ -2385,11 +2556,18 @@ OnInit.global("Buffs", function(Require)
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
+        local function onHit(source, target, amount)
+            HP(source, source, amount * 0.05, "Vampiric Potion")
+            DestroyEffect(AddSpecialEffectTarget("war3mapImported\\VampiricAuraTarget.mdx", source, "chest"))
+        end
+
         function thistype:onRemove()
+            EVENT_ON_HIT_AFTER_REDUCTIONS:unregister_unit_action(self.target, onHit)
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
+            EVENT_ON_HIT_AFTER_REDUCTIONS:register_unit_action(self.target, onHit)
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Items\\VampiricPotion\\VampPotionCaster.mdl", self.target, "origin")
         end
     end
@@ -2419,7 +2597,7 @@ OnInit.global("Buffs", function(Require)
             BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.as, 0)
             Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
             Unit[self.target].dr = Unit[self.target].dr / self.dr
-            Unit[self.target].percentMS = Unit[self.target].percentMS + self.ms
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
         end
 
         function thistype:onApply()
@@ -2447,8 +2625,8 @@ OnInit.global("Buffs", function(Require)
             Unit[self.target].spellboost = Unit[self.target].spellboost + self.spellboost
             Unit[self.target].dr = Unit[self.target].dr * self.dr
 
-            self.ms = WeatherTable[self.weather].ms * 0.01 * (math.min(1, Unit[self.target].percentMS))
-            Unit[self.target].percentMS = Unit[self.target].percentMS - self.ms
+            self.ms = WeatherTable[self.weather].ms * 0.01 * (math.min(1, Unit[self.target].ms_percent))
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
         end
     end
 end, Debug.getLine())
