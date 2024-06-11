@@ -139,8 +139,8 @@ OnInit.final("SpellView", function(Require)
         local startIndex         = 0 ---@type integer 
         local skillCode ---@type integer 
         local addCount         = 0 ---@type integer 
-        while not (startIndex + 3 >= StringLength(abiString)) do
-            skillCode = FourCC(SubString(abiString, startIndex, startIndex + 4))
+        while not (startIndex + 3 >= abiString:len()) do
+            skillCode = FourCC(abiString:sub(startIndex + 1, startIndex + 5))
             startIndex = startIndex + 5
             DataAbiCode[addCount] = skillCode
             addCount = addCount + 1
