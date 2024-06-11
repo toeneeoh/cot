@@ -32,7 +32,7 @@ OnInit.final("Multiboard", function()
     FLAG_TAKEN = 0x80
     FLAG_SUMMON = 0x100
     DAMAGE_LOG_FLAGS = __jarray(0x1C0) ---@type integer[]
-    DAMAGE_LOG = CircularArrayList.create(5000) ---@type CircularArrayList
+    DAMAGE_LOG = CircularArrayList.create(500) ---@type CircularArrayList
 
     do
         local MB = MULTIBOARD
