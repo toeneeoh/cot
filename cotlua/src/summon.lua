@@ -11,7 +11,6 @@ OnInit.final("Summon", function(Require)
     Require('Users')
 
     SummonGroup = {} ---@type unit[]
-
     helicopter  = {} ---@type unit[] 
     heliangle   = __jarray(0) ---@type number[] 
     helitargets = {} ---@type group[] 
