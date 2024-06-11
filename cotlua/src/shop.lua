@@ -276,28 +276,15 @@ OnInit.final("Shop", function(Require)
         function thistype.addComponents(id, compstring)
             if id > 0 then
                 local self = thistype.create(id, 0) ---@type ShopItem
-                local i         = 0 ---@type integer 
-                local i2         = 1 ---@type integer 
-                local start         = 0 ---@type integer 
-                local end_         = 0 ---@type integer 
-                local tag        = "" ---@type string 
 
                 self.componentCount = 0
                 self.component = {}
                 self.counter = __jarray(0)
 
-                while not (i2 > StringLength(compstring) + 1) do
-                    if SubString(compstring, i, i2) == " " or i2 > StringLength(compstring) then
-                        end_ = i
-                        tag = SubString(compstring, start, end_)
-                        if FourCC(tag) ~= 0 then
-                            thistype.save(id, FourCC(tag))
-                        end
-                        start = i2
+                for tag in compstring:gmatch("\x25S+") do
+                    if FourCC(tag) ~= 0 then
+                        thistype.save(id, FourCC(tag))
                     end
-
-                    i = i + 1
-                    i2 = i2 + 1
                 end
             end
         end
@@ -2145,20 +2132,7 @@ OnInit.final("Shop", function(Require)
 
         ---@type fun(source: string, target: string):boolean
         function thistype.find(source, target)
-            local sourceLength = StringLength(source)
-            local targetLength = StringLength(target)
-            local i = 0
-
-            if targetLength <= sourceLength then
-                while not (i > sourceLength - targetLength) do
-                        if SubString(source, i, i + targetLength) == target then
-                            return true
-                        end
-                    i = i + 1
-                end
-            end
-
-            return false
+            return source:find(target) ~= nil
         end
 
         ---@type fun(id: integer, icon: string, description: string):integer
