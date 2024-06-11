@@ -173,7 +173,8 @@ OnInit.final("Commands", function(Require)
             NewProfile(pid)
         end,
         ["-info"] = function(p, pid, args)
-            DisplayTimedTextToPlayer(p, 0, 0, 30, infoString[S2I(SubString(cmd,6,8))])
+            local index = S2I(args[2]) or 1
+            DisplayTimedTextToPlayer(p, 0, 0, 30, infoString[index])
         end,
         ["-unstuck"] = function(p, pid, args)
             if GetLocalPlayer() == p then
