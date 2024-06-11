@@ -133,9 +133,10 @@ OnInit.final("Orders", function(Require)
         --issued immolation on order
         [ORDER_ID_IMMOLATION] = function(id, source, p, pid)
             --phoenix ranger multishot
-            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not IS_TELEPORTING[pid] then
+            if not MultiShot[pid] and GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not IS_TELEPORTING[pid] then
                 SetPlayerAbilityAvailable(p, prMulti[IMinBJ(4, GetHeroLevel(source) // 50)], true)
                 MultiShot[pid] = true
+                Unit[source].pm = Unit[source].pm * 0.6
 
             --assassin phantomslash
             elseif GetUnitAbilityLevel(source, PHANTOMSLASH.id) > 0 and not IsUnitStunned(source) then
@@ -159,13 +160,14 @@ OnInit.final("Orders", function(Require)
         --issued immolation off order
         [852178] = function(id, source, p, pid)
             --phoenix ranger multishot
-            if GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not IS_TELEPORTING[pid] then
+            if MultiShot[pid] and GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not IS_TELEPORTING[pid] then
                 SetPlayerAbilityAvailable(p, prMulti[0], false)
                 SetPlayerAbilityAvailable(p, prMulti[1], false)
                 SetPlayerAbilityAvailable(p, prMulti[2], false)
                 SetPlayerAbilityAvailable(p, prMulti[3], false)
                 SetPlayerAbilityAvailable(p, prMulti[4], false)
                 MultiShot[pid] = false
+                Unit[source].pm = Unit[source].pm / 0.6
             end
 
             --bard inspire
