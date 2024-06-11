@@ -53,7 +53,7 @@ OnInit.global("Bonus", function()
         [BONUS_HERO_BASE_INT] = function(u, _, amount) return SetHeroInt(u, amount, true) end,
         [BONUS_MOVE_SPEED] = function(u, _, amount)
             local pid = GetPlayerId(GetOwningPlayer(u)) + 1
-            local ms = Unit[u].flatMS * Unit[u].percentMS
+            local ms = Unit[u].ms_flat * Unit[u].ms_percent
 
             if u == Hero[pid] then
                 --have backpack move at highest possible speed
@@ -95,7 +95,7 @@ OnInit.global("Bonus", function()
         DecUnitAbilityLevel(u, abil)
 
         --trigger stat change event
-        EVENT_STAT_CHANGE.trigger(u)
+        EVENT_STAT_CHANGE:trigger(u)
     end
 
     ---@type fun(u: unit, bonus: integer, amount: number)
