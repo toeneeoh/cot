@@ -25,9 +25,7 @@ OnInit.final("Spells", function(Require)
     ResurrectionRevival     = __jarray(0) ---@type integer[] 
     golemDevourStacks       = __jarray(0) ---@type integer[] 
     destroyerDevourStacks   = __jarray(0) ---@type integer[] 
-    saviorBashCount         = __jarray(0) ---@type integer[] 
     BardSong                = __jarray(0) ---@type integer[] 
-    BladeSpinCount          = __jarray(0) ---@type integer[] 
     IntenseFocus            = __jarray(0) ---@type integer[] 
     metaDamageBonus         = __jarray(0) ---@type integer[] 
     masterElement           = __jarray(0) ---@type integer[] 
@@ -42,7 +40,6 @@ OnInit.final("Spells", function(Require)
     HiddenGuise             = {} ---@type boolean[] 
     sniperstance            = {} ---@type boolean[] 
     hero_panel_on           = {} ---@type boolean[] 
-    gaiaArmorCD             = __jarray(0) ---@type integer[] 
     ReincarnationRevival    = {} ---@type boolean[] 
     heliCD                  = {} ---@type boolean[] 
     destroyerSacrificeFlag  = {} ---@type boolean[] 
@@ -128,8 +125,9 @@ OnInit.final("Spells", function(Require)
         end
 
         --Stub methods
-        function thistype:onCast() end
-        function thistype:onLearn() end
+        function thistype.onCast() end
+        function thistype.onLearn(source, ablev, pid) end
+        --function thistype.onHit() end
     end
 
     --savior
@@ -289,6 +287,7 @@ OnInit.final("Spells", function(Require)
     ---@field aoe number
     ---@field dmg function
     ---@field heal function
+    ---@field count number[]
     HOLYBASH = {}
     do
         local thistype = HOLYBASH
@@ -298,6 +297,49 @@ OnInit.final("Spells", function(Require)
         thistype.aoe = 600. ---@type number
         thistype.heal = function(pid) return 25 + 0.5 * GetHeroStr(Hero[pid], true) end ---@return number
         thistype.values = {thistype.dmg, thistype.aoe, thistype.heal}
+        thistype.count = __jarray(0)
+
+        local function onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+
+            thistype.count[pid] = thistype.count[pid] + 1
+            if thistype.count[pid] > 10 then
+                DamageTarget(source, target, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                thistype.count[pid] = 0
+
+                local pt = TimerList[pid]:get(LIGHTSEAL.id, source)
+
+                --light seal augment
+                if pt then
+                    MakeGroupInRange(pid, pt.ug, pt.x, pt.y, pt.aoe, Condition(FilterEnemy))
+
+                    for u in each(pt.ug) do
+                        if u ~= target then
+                            StunUnit(pid, u, 2.)
+                            DamageTarget(source, u, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                        end
+                    end
+                end
+
+                StunUnit(pid, target, 2.)
+
+                --aoe heal
+                local ug = CreateGroup()
+                MakeGroupInRange(pid, ug, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), thistype.aoe * LBOOST[pid], Condition(FilterAlly))
+
+                for u in each(ug) do
+                    DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Human\\HolyBolt\\HolyBoltSpecialArt.mdl", u, "origin")) --change effect
+                    HP(source, u, thistype.heal(pid) * BOOST[pid], thistype.tag)
+                end
+
+                DestroyGroup(ug)
+            end
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_HIT:register_unit_action(source, onHit)
+        end
+
     end
 
     ---@class THUNDERCLAP : Spell
@@ -360,13 +402,12 @@ OnInit.final("Spells", function(Require)
         thistype.values = {thistype.attack, thistype.armor, thistype.heal, thistype.dmg, thistype.dur}
 
         function thistype:onCast()
-            local b = RighteousMightBuff:create()
+            local b = RighteousMightBuff:create(self.caster, self.caster)
             local ug = CreateGroup()
             local angle = 0. ---@type number 
 
             b.dmg = self.attack
             b.armor = self.armor
-            b.pid = self.pid
             b = b:check(self.caster, self.caster)
             b:duration(self.dur * LBOOST[self.pid])
 
@@ -392,48 +433,30 @@ OnInit.final("Spells", function(Require)
     --elite marksman
 
     ---@class SNIPERSTANCE : Spell
-    ---@field crit function
     SNIPERSTANCE = {}
     do
         local thistype = SNIPERSTANCE
         thistype.id = FourCC("A049") ---@type integer 
-
-        ---@type fun(pid: integer):number
-        thistype.crit = function(pid)
-            local id   = 0 ---@type integer 
-            local crit = 2. + GetHeroLevel(Hero[pid]) // 50 ---@type number 
-
-            for i = 1, 5 do
-                id = GetItemTypeId(UnitItemInSlot(Hero[pid], i))
-
-                if id ~= 0 then
-                    crit = crit + (ItemData[id][ITEM_CRIT_DAMAGE]) * (ItemData[id][ITEM_CRIT_CHANCE]) * 0.02
-                end
-            end
-
-            return crit
-        end
-        thistype.values = {thistype.crit}
 
         ---@type fun(self: SNIPERSTANCE)
         function thistype.delay(self)
             UnitRemoveAbility(self.caster, FourCC('Avul'))
             UnitRemoveAbility(self.caster, FourCC('A03C'))
             UnitAddAbility(self.caster, FourCC('A03C'))
-            Unit[self.caster].movespeed = (sniperstance[self.pid] and 100) or Unit[self.caster].flatMS * Unit[self.caster].percentMS
+            Unit[self.caster].movespeed = (sniperstance[self.pid] and 100) or Unit[self.caster].ms_flat * Unit[self.caster].ms_percent
         end
 
         function thistype:onCast()
-            local cd = 3.
+            local cooldown = 3.
             local s = "Disable"
 
             if sniperstance[self.pid] then
-                cd = 6.
+                cooldown = 6.
                 s = "Enable"
             end
 
             for i = 0, 9 do
-                BlzSetUnitAbilityCooldown(self.caster, TRIROCKET.id, i, cd)
+                BlzSetUnitAbilityCooldown(self.caster, TRIROCKET.id, i, cooldown)
                 BlzSetAbilityStringLevelField(BlzGetUnitAbility(self.caster, thistype.id), ABILITY_SLF_TOOLTIP_NORMAL, i, s .. " Sniper Stance - [|cffffcc00D|r]")
             end
 
@@ -447,15 +470,15 @@ OnInit.final("Spells", function(Require)
 
     ---@class TRIROCKET : Spell
     ---@field dmg function
-    ---@field cd function
+    ---@field cooldown function
     TRIROCKET = {}
     do
         local thistype = TRIROCKET
         thistype.id = FourCC("A06I") ---@type integer 
 
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (ablev * GetHeroAgi(Hero[pid], true) + (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + BlzGetUnitBaseDamage(Hero[pid], 0)) * ablev * .1) end ---@return number
-        thistype.cd = function(pid) return sniperstance[pid] and 3. or 6. end
-        thistype.values = {thistype.dmg, thistype.cd}
+        thistype.cooldown = function(pid) return sniperstance[pid] and 3. or 6. end
+        thistype.values = {thistype.dmg, thistype.cooldown}
 
         ---@type fun(pt: PlayerTimer)
         function thistype.periodic(pt)
@@ -766,8 +789,8 @@ OnInit.final("Spells", function(Require)
             OverloadBuff:add(self.caster, self.caster)
         end
 
-        function thistype.onLearn(u, ablev, pid)
-            OverloadBuff:refresh(u, u)
+        function thistype.onLearn(source, ablev, pid)
+            OverloadBuff:refresh(source, source)
         end
     end
 
@@ -1153,29 +1176,21 @@ OnInit.final("Spells", function(Require)
 
     ---@class INSTANTDEATH : Spell
     ---@field mult function
-    ---@field chance number
-    ---@field crit function
+    ---@field apply function
     INSTANTDEATH = {}
     do
         local thistype = INSTANTDEATH
         thistype.id = FourCC("A0QQ") ---@type integer 
 
-        thistype.chance = 5.
-        thistype.mult = function(pid) return 12 + GetHeroLevel(Hero[pid]) // 50 * 3. end ---@return number
-        thistype.crit = function(pid, unitangle, target) ---@return number
-            local chance = thistype.chance
+        thistype.mult = function(pid) return 400. + GetHeroLevel(Hero[pid]) // 50 * 100. end ---@return number
+        thistype.bonus = __jarray(0)
+        thistype.values = {thistype.mult}
 
-            if GetUnitAbilityLevel(Hero[pid], BACKSTAB.id) > 0 and RAbsBJ(unitangle - GetUnitFacing(target)) < 45 then
-                chance = chance * 2.
-            end
-
-            if GetRandomInt(0, 99) < chance * LBOOST[pid] then
-                return thistype.mult(pid)
-            end
-
-            return 0.
+        function thistype.apply(u, pid)
+            Unit[u].cd_flat = Unit[u].cd_flat - thistype.bonus[u]
+            thistype.bonus[u] = thistype.mult(pid)
+            Unit[u].cd_flat = Unit[u].cd_flat + thistype.bonus[u]
         end
-        thistype.values = {thistype.chance, thistype.mult}
     end
 
     ---@class DEATHSTRIKE : Spell
@@ -1254,7 +1269,6 @@ OnInit.final("Spells", function(Require)
             BlzSetSpecialEffectYaw(sfx, GetUnitFacing(self.caster) * bj_DEGTORAD)
             TimerQueue:callDelayed(2., DestroyEffect, sfx)
 
-            HiddenGuise[self.pid] = true
             UnitRemoveAbility(self.caster, FourCC('BOwk'))
             UnitAddAbility(self.caster, FourCC('Avul'))
             ToggleCommandCard(self.caster, false)
@@ -1316,13 +1330,48 @@ OnInit.final("Spells", function(Require)
 
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (GetHeroAgi(Hero[pid], true) * 0.16 + (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) * .03) * ablev end ---@return number
         thistype.values = {thistype.dmg}
+
+        function thistype.onLearn(source, ablev, pid)
+            if ablev == 1 then
+                EVENT_ON_HIT:register_unit_action(source, thistype.onHit)
+            end
+        end
+
+        function thistype.onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            local angle = Atan2(GetUnitY(source) - GetUnitY(target), GetUnitX(source) - GetUnitX(target)) - (bj_DEGTORAD * (GetUnitFacing(target) - 180))
+
+            if angle > bj_PI then
+                angle = angle - 2 * bj_PI
+            elseif angle < -bj_PI then
+                angle = angle + 2 * bj_PI
+            end
+
+            if RAbsBJ(angle) <= (0.25 * bj_PI) and (IsUnitType(target, UNIT_TYPE_STRUCTURE) == false) then
+                DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", target, "chest"))
+                DamageTarget(source, target, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+            end
+        end
     end
 
     ---@class PIERCINGSTRIKE : Spell
+    ---@field pen function
     PIERCINGSTRIKE = {}
     do
         local thistype = PIERCINGSTRIKE
+        thistype.pen = function(pid) return (30 + GetUnitAbilityLevel(Hero[pid], PIERCINGSTRIKE.id)) end
         thistype.id = FourCC("A0QU") ---@type integer 
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_HIT:register_unit_action(source, thistype.onHit)
+        end
+
+        function thistype.onHit(source)
+            if GetRandomInt(0, 99) < 20 then
+                PiercingStrikeBuff:add(source, source):duration(3.)
+                SetUnitAnimation(source, "spell slam")
+            end
+        end
     end
 
     --oblivion guard
@@ -1357,6 +1406,19 @@ OnInit.final("Spells", function(Require)
                 BlzStartUnitAbilityCooldown(pt.source, BODYOFFIRE.id, 5.)
                 TimerQueue:callDelayed(5., thistype.cooldown, pt)
             end
+        end
+
+        function thistype.onHit(target, source, amount, damageType)
+            local ablev = GetUnitAbilityLevel(target, BODYOFFIRE.id)
+            if ablev > 0 and damageType == PHYSICAL and IsUnitEnemy(target, GetOwningPlayer(source)) then
+                local tpid = GetPlayerId(GetOwningPlayer(target)) + 1
+                local returnDmg = (amount * 0.05 * ablev) + BODYOFFIRE.dmg(tpid)
+                DamageTarget(target, source, returnDmg * BOOST[tpid], ATTACK_TYPE_NORMAL, MAGIC, BODYOFFIRE.tag)
+            end
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(source, thistype.onHit)
         end
     end
 
@@ -1432,8 +1494,8 @@ OnInit.final("Spells", function(Require)
             MagneticStanceBuff:add(self.caster, self.caster)
         end
 
-        function thistype.onLearn(u, ablev, pid)
-            MagneticStanceBuff:refresh(u, u)
+        function thistype.onLearn(source, ablev, pid)
+            MagneticStanceBuff:refresh(source, source)
         end
     end
 
@@ -1617,6 +1679,27 @@ OnInit.final("Spells", function(Require)
         thistype.chance = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 2 * ablev end
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroAgi(Hero[pid], true) * ablev + BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE) end
         thistype.values = {thistype.chance, thistype.dmg}
+
+        local function onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            local ablev = GetUnitAbilityLevel(source, thistype.id)
+
+            if math.random() * 100. < ablev * 2 * LBOOST[pid] then
+                DamageTarget(source, target, (((UnitGetBonus(source, BONUS_DAMAGE) + GetHeroAgi(source, true)) * .3 + GetHeroAgi(source, true) * ablev)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, FLAMINGBOW.tag)
+                DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\PhoenixMissile\\Phoenix_Missile.mdl", GetUnitX(target),GetUnitY(target)))
+
+                local b = IgniteDebuff:get(nil, target)
+                if b then
+                    b:dispel()
+                    SEARINGARROWS.ignite(source, target)
+                end
+            end
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_HIT:register_unit_action(source, onHit)
+        end
+
     end
 
     ---@class SEARINGARROWS : Spell
@@ -1667,19 +1750,20 @@ OnInit.final("Spells", function(Require)
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
             for target in each(ug) do
-                local missile = Missiles:create(self.x, self.y, 50., 0, 0, 0) ---@type Missiles
+                local missile = Missiles:create(self.x, self.y, 40., 0, 0, 0) ---@type Missiles
                 missile:model("Abilities\\Weapons\\SearingArrow\\SearingArrowMissile.mdl")
                 missile:scale(1.)
-                missile:speed(2000)
-                missile:arc(40)
+                missile:speed(1250)
+                missile:arc(15)
                 missile.source = self.caster
                 missile.target = target
                 missile.owner = Player(self.pid - 1)
+                missile.collision = 50
                 missile:vision(400)
                 missile.damage = self.dmg * BOOST[self.pid]
 
                 missile.onHit = function(enemy)
-                    if enemy == missile.target then
+                    if IsHittable(enemy, missile.owner) then
                         --apply debuff
                         IgniteDebuff:add(missile.source, enemy):duration(5.)
                         DamageTarget(missile.source, enemy, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
@@ -1706,7 +1790,6 @@ OnInit.final("Spells", function(Require)
     do
         local thistype = FLAMINGBOW
         thistype.id = FourCC("A0F6") ---@type integer 
-
         thistype.pierce = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 10. + 1. * ablev end ---@return number
         thistype.bonus = function(pid) return 0.5 * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end ---@return number
         thistype.total = function(pid)
@@ -1867,12 +1950,50 @@ OnInit.final("Spells", function(Require)
         thistype.aoe = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 195. + 5. * ablev end ---@return number
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.45 + 0.05 * ablev) * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end ---@return number
         thistype.values = {thistype.chance, thistype.aoe, thistype.dmg}
+
+        function thistype.onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            local chance = BLOODCLEAVE.chance
+            local double = 1
+
+            if RampageBuff:has(source, source) then
+                chance = chance + 5
+            end
+
+            if UndyingRageBuff:has(source, source) then
+                chance = chance * 2
+                double = 2
+            end
+
+            if math.random() * 100. < chance * LBOOST[pid] then
+                local heal = 0
+                local ug = CreateGroup()
+                MakeGroupInRange(pid, ug, GetUnitX(source), GetUnitY(source), BLOODCLEAVE.aoe(pid) * LBOOST[pid], Condition(FilterEnemy))
+                DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Reapers Claws Red.mdx", source, "chest"))
+
+                for u in each(ug) do
+                    DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Coup de Grace.mdx", u, "chest"))
+                    heal = heal + BLOODCLEAVE.dmg(pid) * BOOST[pid] * ApplyArmorMult(source, target, PHYSICAL)
+                    if math.random() * 100. < Unit[source].cc then
+                        heal = heal * 1 + Unit[source].cd * 0.01
+                    end
+                    DamageTarget(source, u, BLOODCLEAVE.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, PHYSICAL_NO_RECURSE, BLOODCLEAVE.tag)
+                end
+
+                DestroyGroup(ug)
+
+                --leech health
+                HP(source, source, heal * double, BLOODCLEAVE.tag)
+            end
+        end
     end
 
     ---@class RAMPAGE : Spell
+    ---@field pen function
     RAMPAGE = {}
     do
         local thistype = RAMPAGE
+        thistype.pen = function(pid) return (5 * GetUnitAbilityLevel(Hero[pid], RAMPAGE.id)) end
         thistype.id = FourCC("A0GZ") ---@type integer 
 
         function thistype:onCast()
@@ -1887,6 +2008,7 @@ OnInit.final("Spells", function(Require)
     ---@field current_regen number[]
     ---@field current_attack number[]
     ---@field timer TimerQueue[]
+    ---@field onHit function
     UNDYINGRAGE = {}
     do
         local thistype = UNDYINGRAGE
@@ -1935,10 +2057,20 @@ OnInit.final("Spells", function(Require)
             UndyingRageBuff:add(self.caster, self.caster):duration(self.dur * LBOOST[self.pid])
         end
 
-        function thistype.onLearn(u, ablev, pid)
+        function thistype.onLearn(source, ablev, pid)
             if not thistype.timer[pid] then
                 thistype.timer[pid] = TimerQueue.create()
                 thistype.timer[pid]:callDelayed(0.01, thistype.refresh, pid)
+            end
+        end
+
+        function thistype.onHit(target, source, damageCalc, damageType)
+            --undying rage delayed damage
+            buff = UndyingRageBuff:get(nil, target)
+
+            if buff then
+                buff:addRegen(-damageCalc)
+                BlzSetEventDamage(0.00)
             end
         end
     end
@@ -2268,9 +2400,9 @@ OnInit.final("Spells", function(Require)
             end
         end
         
-        function thistype.onLearn(u, ablev, pid)
+        function thistype.onLearn(source, ablev, pid)
             if limitBreak[pid] & 0x8 > 0 then
-                BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(u, thistype.id), ABILITY_ILF_TARGET_TYPE, ablev - 1, 0)
+                BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(source, thistype.id), ABILITY_ILF_TARGET_TYPE, ablev - 1, 0)
             end
         end
     end
@@ -2430,10 +2562,10 @@ OnInit.final("Spells", function(Require)
             thistype.effect(self.caster, self.x, self.y)
         end
 
-        function thistype.onLearn(u, ablev, pid)
+        function thistype.onLearn(source, ablev, pid)
             if ablev == 1 then
-                UnitDisableAbility(u, thistype.id, true)
-                BlzUnitHideAbility(u, thistype.id, false)
+                UnitDisableAbility(source, thistype.id, true)
+                BlzUnitHideAbility(source, thistype.id, false)
             end
         end
     end
@@ -2454,9 +2586,9 @@ OnInit.final("Spells", function(Require)
             end
         end
 
-        function thistype.onLearn(u, ablev, pid)
+        function thistype.onLearn(source, ablev, pid)
             limitBreakPoints[pid] = math.min(2, limitBreakPoints[pid] + 1)
-            if GetLocalPlayer() == GetOwningPlayer(u) then
+            if GetLocalPlayer() == GetOwningPlayer(source) then
                 BlzFrameSetVisible(LimitBreakBackdrop, true)
             end
         end
@@ -2490,7 +2622,7 @@ OnInit.final("Spells", function(Require)
         thistype.values = {thistype.dmg, thistype.aoe, thistype.dur}
 
         function thistype:onCast()
-            local missile = Missiles:create(self.x, self.y, 20., 0, 0, 0) ---@type Missiles
+            local missile = Missiles:create(self.x, self.y, 30., 0, 0, 0) ---@type Missiles
             missile:model("Abilities\\Spells\\Other\\FrostBolt\\FrostBoltMissile.mdl")
             missile:scale(1.1)
             missile:speed(1200)
@@ -2498,6 +2630,7 @@ OnInit.final("Spells", function(Require)
             missile.target = self.target
             missile.owner = Player(self.pid - 1)
             missile:vision(400)
+            missile.collision = 50
             missile.damage = self.dmg * BOOST[self.pid]
             missile.collideZ = true
 
@@ -2695,16 +2828,22 @@ OnInit.final("Spells", function(Require)
                         end
 
                         SoakedDebuff:add(Hero[pt.pid], target):duration(5.)
-                        local debuff = TidalWaveDebuff:add(Hero[pt.pid], target)
+                        local b = TidalWaveDebuff:get(nil, target)
 
-                        if IsUnitType(target, UNIT_TYPE_HERO) == true then
-                            debuff:duration(5.)
-                        else
-                            debuff:duration(10.)
-                        end
+                        if not b then
+                            b = TidalWaveDebuff:create(Hero[pt.pid], target)
 
-                        if pt.infused then
-                            debuff.percent = .20
+                            if pt.infused then
+                                b.percent = .20
+                            end
+
+                            b:check(Hero[pt.pid], target)
+
+                            if IsUnitType(target, UNIT_TYPE_HERO) == true then
+                                b:duration(5.)
+                            else
+                                b:duration(10.)
+                            end
                         end
                     end
                 end
@@ -2757,6 +2896,19 @@ OnInit.final("Spells", function(Require)
         thistype.dur = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return ablev + 3 end
         thistype.values = {thistype.aoe, thistype.dmg, thistype.dur}
 
+        local function onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            local pt = TimerList[pid]:get(BLIZZARD.id, source)
+
+            if pt then
+                local dmg = pt.dmg
+                if pt.infused then
+                    dmg = dmg * 1.3
+                end
+                DamageTarget(Hero[pid], target, dmg * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, BLIZZARD.tag)
+            end
+        end
+
         function thistype:onCast()
             local pt = TimerList[self.pid]:add()
 
@@ -2780,6 +2932,7 @@ OnInit.final("Spells", function(Require)
             end
 
             IssuePointOrder(pt.source, "blizzard", self.targetX, self.targetY)
+            EVENT_DUMMY_ON_HIT:register_unit_action(pt.source, onHit)
 
             pt.timer:callDelayed(pt.dur, PlayerTimer.destroy, pt)
         end
@@ -2954,6 +3107,11 @@ OnInit.final("Spells", function(Require)
 
         function thistype.get(pid)
             return thistype.bank[pid]
+        end
+
+        function thistype.onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            thistype.add(pid, thistype.gain(pid))
         end
     end
 
@@ -3135,8 +3293,8 @@ OnInit.final("Spells", function(Require)
             BloodLordBuff:add(self.caster, self.caster):duration(self.dur)
         end
 
-        function thistype.onLearn(u)
-            BLOODBANK.refresh(u)
+        function thistype.onLearn(source)
+            BLOODBANK.refresh(source)
         end
     end
 
@@ -3390,6 +3548,7 @@ OnInit.final("Spells", function(Require)
 
     ---@class SOULLINK : Spell
     ---@field dur number
+    ---@field onHit function
     SOULLINK = {}
     do
         local thistype = SOULLINK
@@ -3400,6 +3559,16 @@ OnInit.final("Spells", function(Require)
 
         function thistype:onCast()
             SoulLinkBuff:add(self.caster, self.target):duration(self.dur * LBOOST[self.pid])
+        end
+
+        function thistype.onHit(target, source, damageCalc, damageType)
+            --soul link
+            buff = SoulLinkBuff:get(nil, target)
+
+            if buff then
+                BlzSetEventDamage(0.00)
+                buff:remove()
+            end
         end
     end
 
@@ -3483,9 +3652,9 @@ OnInit.final("Spells", function(Require)
             DestroyGroup(ug)
         end
 
-        function thistype.onLearn(u, ablev, pid)
-            if JusticeAuraBuff:has(u, u) then
-                JusticeAuraBuff:dispel(u, u)
+        function thistype.onLearn(source, ablev, pid)
+            if JusticeAuraBuff:has(source, source) then
+                JusticeAuraBuff:dispel(source, source)
             end
         end
     end
@@ -3793,9 +3962,44 @@ OnInit.final("Spells", function(Require)
     do
         local thistype = GAIAARMOR
         thistype.id = FourCC("A032") ---@type integer 
+        thistype.id2 = FourCC("A033") ---@type integer 
 
         thistype.shield = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroInt(Hero[pid], true) * (0.5 + 0.5 * ablev) end ---@return number
         thistype.values = {thistype.shield}
+
+        ---@type fun(pt: PlayerTimer)
+        local function fatal_push(pt)
+            local angle = 0. ---@type number 
+            local x     = 0. ---@type number 
+            local y     = 0. ---@type number 
+
+            pt.dur = pt.dur - 1
+
+            if pt.dur > 0. then
+                for target in each(pt.ug) do
+                    x = GetUnitX(target)
+                    y = GetUnitY(target)
+                    angle = Atan2(y - GetUnitY(Hero[pt.pid]), x - GetUnitX(Hero[pt.pid]))
+                    if IsTerrainWalkable(x + pt.speed * Cos(angle), y + pt.speed * Sin(angle)) then
+                        SetUnitXBounded(target, x + pt.speed * Cos(angle))
+                        SetUnitYBounded(target, y + pt.speed * Sin(angle))
+                    end
+                end
+                pt.timer:callDelayed(FPS_32, fatal_push, pt)
+            else
+                pt:destroy()
+            end
+        end
+
+        ---@type fun(pt: PlayerTimer)
+        local function fatal_cooldown(pt)
+            if GetUnitAbilityLevel(pt.source, thistype.id) >= 1 then
+                EVENT_ON_FATAL_DAMAGE:register_unit_action(pt.source, thistype.onHit)
+
+                UnitAddAbility(pt.source, thistype.id2)
+                BlzUnitHideAbility(pt.source, thistype.id2, true)
+            end
+        end
 
         function thistype:onCast()
             local pt = TimerList[self.pid]:add()
@@ -3813,16 +4017,42 @@ OnInit.final("Spells", function(Require)
             pt.timer:callDelayed(30., PlayerTimer.destroy, pt)
         end
 
-        function thistype.onLearn(u, ablev, pid)
-            if ablev == 1 then
-                UnitAddAbility(u, FourCC('A033'))
-                BlzUnitHideAbility(u, FourCC('A033'), true)
-                
-                --avoids tome of retraining abuse
-                if gaiaArmorCD[pid] == 0 then
-                    gaiaArmorCD[pid] = 1
-                end
+        function thistype.onLearn(source, ablev, pid)
+            if ablev == 1 and not TimerList[pid]:has(thistype.id2) then
+                EVENT_ON_FATAL_DAMAGE:register_unit_action(source, thistype.onHit)
+                UnitAddAbility(source, thistype.id2)
+                BlzUnitHideAbility(source, thistype.id2, true)
             end
+        end
+
+        function thistype.onHit(target, source, damageCalc, damageType)
+            local tpid = GetPlayerId(GetOwningPlayer(target)) + 1
+            local pt = TimerList[tpid]:add()
+
+            print("Yeah")
+            EVENT_ON_FATAL_DAMAGE:unregister_unit_action(target, thistype.onHit)
+            BlzSetEventDamage(0.00)
+            HP(target, target, BlzGetUnitMaxHP(target) * 0.2 * GetUnitAbilityLevel(target, GAIAARMOR.id), GAIAARMOR.tag)
+            MP(target, BlzGetUnitMaxMana(target) * 0.2 * GetUnitAbilityLevel(target, GAIAARMOR.id))
+            UnitRemoveAbility(target, thistype.id2)
+            UnitRemoveAbility(target, FourCC('B005'))
+            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl", target, "origin"))
+
+            pt.dur = 35.
+            pt.speed = 20.
+            pt.ug = CreateGroup()
+            MakeGroupInRange(tpid, pt.ug, GetUnitX(target), GetUnitY(target), 400., Condition(FilterEnemy))
+
+            for u in each(pt.ug) do
+                Stun:add(target, u):duration(4.)
+            end
+
+            pt.timer:callDelayed(FPS_32, fatal_push, pt)
+
+            pt = TimerList[tpid]:add()
+            pt.tag = thistype.id2
+            pt.source = target
+            pt.timer:callDelayed(120., fatal_cooldown, pt)
         end
     end
 
@@ -4102,6 +4332,28 @@ OnInit.final("Spells", function(Require)
         thistype.int = function(pid) return 0.25 * GetHeroInt(Hero[pid], true) end ---@return number
         thistype.values = {thistype.hounds, thistype.str, thistype.agi, thistype.int}
 
+        local function onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+
+            --deadly bite
+            if GetRandomInt(0, 99) < 25 then
+                if destroyerSacrificeFlag[pid] then
+                    --aoe attack
+                    local ug = CreateGroup()
+                    MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), 400. * LBOOST[pid], Condition(FilterEnemy))
+
+                    for u in each(ug) do
+                        DamageTarget(source, u, GetHeroInt(source, true) * 1.25 * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, "Deadly Bite")
+                    end
+
+                    DestroyGroup(ug)
+                else
+                    DamageTarget(source, target, GetHeroInt(source, true) * LBOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, "Deadly Bite")
+                end
+                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", GetUnitX(target), GetUnitY(target)))
+            end
+        end
+
         function thistype:onCast()
             local pt
             local offset = self.pid * PLAYER_CAP ---@type integer 
@@ -4138,6 +4390,7 @@ OnInit.final("Spells", function(Require)
                 TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl", hounds[offset + i], "origin"))
 
                 SUMMONINGIMPROVEMENT.apply(self.pid, hounds[offset + i], R2I(self.str * BOOST[self.pid]), R2I(self.agi * BOOST[self.pid]), R2I(self.int * BOOST[self.pid]))
+                EVENT_ON_HIT:register_unit_action(hounds[offset + i], onHit)
 
                 if destroyerSacrificeFlag[self.pid] then
                     SetUnitVertexColor(hounds[offset + i], 90, 90, 230, 255)
@@ -4146,6 +4399,7 @@ OnInit.final("Spells", function(Require)
                 end
 
                 SummonGroup[#SummonGroup + 1] = hounds[offset + i]
+                EVENT_ON_FATAL_DAMAGE:register_unit_action(hounds[offset + i], SummonExpire)
 
                 SetHeroXP(hounds[offset + i], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
 
@@ -4208,6 +4462,8 @@ OnInit.final("Spells", function(Require)
             TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl", meatgolem[self.pid], "origin"))
             SUMMONINGIMPROVEMENT.apply(self.pid, meatgolem[self.pid], R2I(self.str * BOOST[self.pid]), 0, R2I(self.int * BOOST[self.pid]))
             SummonGroup[#SummonGroup + 1] = meatgolem[self.pid]
+            EVENT_ON_FATAL_DAMAGE:register_unit_action(meatgolem[self.pid], SummonExpire)
+
             SetHeroXP(meatgolem[self.pid], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
 
             pt.timer:callPeriodically(0.5, nil, SummonDurationXPBar, pt)
@@ -4228,6 +4484,17 @@ OnInit.final("Spells", function(Require)
         thistype.agi = function(pid) return 0.005 * GetHeroInt(Hero[pid], true) end ---@return number
         thistype.int = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 0.5 * GetHeroInt(Hero[pid], true) * ablev end ---@return number
         thistype.values = {thistype.str, thistype.agi, thistype.int}
+
+        local function onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            local chance = (15 and destroyerDevourStacks[pid] >= 4) or 10
+
+            --annihilation strike
+            if GetRandomInt(0, 99) < chance then
+                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", GetUnitX(target), GetUnitY(target)))
+                DamageTarget(source, target, GetHeroInt(source, true) * LBOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, "Annihilation Strike")
+            end
+        end
 
         ---@type fun(pt: PlayerTimer)
         function thistype.periodic(pt)
@@ -4295,6 +4562,7 @@ OnInit.final("Spells", function(Require)
             BlzSetHeroProperName(destroyer[self.pid], "Destroyer")
             TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl", destroyer[self.pid], "origin"))
             SUMMONINGIMPROVEMENT.apply(self.pid, destroyer[self.pid], R2I(self.str * BOOST[self.pid]), R2I(self.agi * BOOST[self.pid]), R2I(self.int * BOOST[self.pid]))
+            EVENT_ON_HIT:register_unit_action(destroyer[self.pid], onHit)
 
             --revert hounds to normal
             for i = 1, #SummonGroup do
@@ -4307,6 +4575,8 @@ OnInit.final("Spells", function(Require)
             end
 
             SummonGroup[#SummonGroup + 1] = destroyer[self.pid]
+            EVENT_ON_FATAL_DAMAGE:register_unit_action(destroyer[self.pid], SummonExpire)
+
             SetHeroXP(destroyer[self.pid], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
 
             pt.timer:callPeriodically(0.5, nil, SummonDurationXPBar, pt)
@@ -4825,6 +5095,8 @@ OnInit.final("Spells", function(Require)
     ---@field amdg function
     ---@field aoe number
     ---@field pdmg function
+    ---@field count number[]
+    ---@field onHit function
     BLADESPIN = {}
     do
         local thistype = BLADESPIN
@@ -4835,6 +5107,7 @@ OnInit.final("Spells", function(Require)
         thistype.aoe = 250. ---@type number
         thistype.admg = function(pid) return 4. * GetHeroAgi(Hero[pid], true) end ---@return number
         thistype.values = {thistype.times, thistype.pdmg, thistype.aoe, thistype.admg}
+        thistype.count = __jarray(0)
 
         ---@type fun(caster: unit, active: boolean)
         function thistype.spin(caster, active)
@@ -4873,6 +5146,11 @@ OnInit.final("Spells", function(Require)
             end
 
             DestroyGroup(ug)
+        end
+
+        function thistype.onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            thistype.count[pid] = thistype.count[pid] + 1
         end
     end
 
@@ -4966,12 +5244,35 @@ OnInit.final("Spells", function(Require)
 
     ---@class CONTROLTIME : Spell
     ---@field dur number
+    ---@field onHit function
     CONTROLTIME = {}
     do
         local thistype = CONTROLTIME
         thistype.id = FourCC("A04C") ---@type integer 
         thistype.dur = 10. ---@type number
         thistype.values = {thistype.dur}
+
+        function thistype.onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+
+            if TimerList[pid]:has(ARCANOSPHERE.id) then
+                BlzStartUnitAbilityCooldown(Hero[pid], ARCANECOMETS.id, math.max(0.0001, BlzGetUnitAbilityCooldownRemaining(Hero[pid], ARCANECOMETS.id) - 3.))
+            else
+                BlzStartUnitAbilityCooldown(Hero[pid], ARCANEBOLTS.id, math.max(0.0001, BlzGetUnitAbilityCooldownRemaining(Hero[pid], ARCANEBOLTS.id) - 3.))
+            end
+
+            local pt = TimerList[pid]:get(ARCANESHIFT.id, Hero[pid])
+
+            if pt then
+                pt.cooldown = pt.cooldown - 3
+            else
+                BlzStartUnitAbilityCooldown(Hero[pid], ARCANESHIFT.id, math.max(0.0001, BlzGetUnitAbilityCooldownRemaining(Hero[pid], ARCANESHIFT.id) - 3.))
+            end
+            BlzStartUnitAbilityCooldown(Hero[pid], ARCANEBARRAGE.id, math.max(0.0001, BlzGetUnitAbilityCooldownRemaining(Hero[pid], ARCANEBARRAGE.id) - 3.))
+            BlzStartUnitAbilityCooldown(Hero[pid], STASISFIELD.id, math.max(0.0001, BlzGetUnitAbilityCooldownRemaining(Hero[pid], STASISFIELD.id) - 3.))
+            BlzStartUnitAbilityCooldown(Hero[pid], ARCANOSPHERE.id, math.max(0.0001, BlzGetUnitAbilityCooldownRemaining(Hero[pid], ARCANOSPHERE.id) - 3.))
+            BlzStartUnitAbilityCooldown(Hero[pid], CONTROLTIME.id, math.max(0.0001, BlzGetUnitAbilityCooldownRemaining(Hero[pid], CONTROLTIME.id) - 3.))
+        end
 
         function thistype:onCast()
             ControlTimeBuff:add(self.caster, self.caster):duration(self.dur * LBOOST[self.pid])
@@ -5126,7 +5427,7 @@ OnInit.final("Spells", function(Require)
     ---@class ARCANEBARRAGE : Spell
     ---@field aoe number
     ---@field dmg function
-    ---@field cd function
+    ---@field cooldown function
     ARCANEBARRAGE = {}
     do
         local thistype = ARCANEBARRAGE
@@ -5134,8 +5435,8 @@ OnInit.final("Spells", function(Require)
 
         thistype.aoe = 750. ---@type number
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroInt(Hero[pid], true) * (ablev + 1.) end ---@return number
-        thistype.cd = function(pid) return TimerList[pid]:has(ARCANOSPHERE.id) and 8. or 25. end
-        thistype.values = {thistype.aoe, thistype.dmg, thistype.cd}
+        thistype.cooldown = function(pid) return TimerList[pid]:has(ARCANOSPHERE.id) and 8. or 25. end
+        thistype.values = {thistype.aoe, thistype.dmg, thistype.cooldown}
 
         function thistype:onCast()
             ArcaneBarrageBuff:add(self.caster, self.caster):duration(3)
@@ -5350,7 +5651,7 @@ OnInit.final("Spells", function(Require)
                     DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
-                BlzStartUnitAbilityCooldown(pt.source, thistype.id, pt.cd - pt.time)
+                BlzStartUnitAbilityCooldown(pt.source, thistype.id, pt.cooldown - pt.time)
 
                 pt:destroy()
             else
@@ -5376,7 +5677,7 @@ OnInit.final("Spells", function(Require)
                     pt.ug = CreateGroup()
                     pt.dmg = self.dmg * BOOST[self.pid]
                     pt.dur = self.dur * LBOOST[self.pid]
-                    pt.cd = 80 --original cooldown
+                    pt.cooldown = 80 --original cooldown
                     pt.source = self.caster
                     pt.tag = thistype.id
                     pt.x = self.targetX
@@ -5583,6 +5884,19 @@ OnInit.final("Spells", function(Require)
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.6 + 0.1 * ablev) * GetHeroInt(Hero[pid], true) end
         thistype.values = {thistype.dmg}
 
+        local function onHit(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+
+            if GetUnitAbilityLevel(source, FourCC('B01A')) > 0 then
+                DamageTarget(source, target, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                thistype.cost(pid)
+            end
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_HIT:register_unit_action(source, onHit)
+        end
+
         function thistype.cost(pid)
             local maxmp = BlzGetUnitMaxMana(Hero[pid])
             local pmana = GetUnitState(Hero[pid], UNIT_STATE_MANA) / maxmp * 100.
@@ -5705,6 +6019,7 @@ OnInit.final("Spells", function(Require)
     ---@field heal function
     ---@field peacedur number
     ---@field fatiguedur number
+    ---@field onHit function
     ENCORE = {}
     do
         local thistype = ENCORE
@@ -6063,8 +6378,14 @@ OnInit.final("Spells", function(Require)
     end
 
     ---@type fun(pid: integer)
-    function InstillFearExpire(pid)
+    local function instillfear_expire(pid)
         InstillFear[pid] = nil
+    end
+
+    local function instillfear_onhit(source, target)
+        local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+        InstillFear[pid] = target
+        TimerQueue:callDelayed(7., instillfear_expire, pid)
     end
 
     ---@type fun(pid: integer)
@@ -6097,40 +6418,6 @@ OnInit.final("Spells", function(Require)
     function ResetCD(pid)
         UnitResetCooldown(Hero[pid])
         UnitResetCooldown(Backpack[pid])
-    end
-
-    ---@type fun(pt: PlayerTimer)
-    function GaiaArmorPush(pt)
-        local angle = 0. ---@type number 
-        local x     = 0. ---@type number 
-        local y     = 0. ---@type number 
-
-        pt.dur = pt.dur - 1
-
-        if pt.dur > 0. then
-            for target in each(pt.ug) do
-                x = GetUnitX(target)
-                y = GetUnitY(target)
-                angle = Atan2(y - GetUnitY(Hero[pt.pid]), x - GetUnitX(Hero[pt.pid]))
-                if IsTerrainWalkable(x + pt.speed * Cos(angle), y + pt.speed * Sin(angle)) then
-                    SetUnitXBounded(target, x + pt.speed * Cos(angle))
-                    SetUnitYBounded(target, y + pt.speed * Sin(angle))
-                end
-            end
-            pt.timer:callDelayed(FPS_32, GaiaArmorPush, pt)
-        else
-            pt:destroy()
-        end
-    end
-
-    ---@type fun(pid: integer)
-    function GaiaArmorCD(pid)
-        gaiaArmorCD[pid] = 1
-
-        if HeroID[pid] == HERO_ELEMENTALIST then
-            UnitAddAbility(Hero[pid], FourCC('A033'))
-            BlzUnitHideAbility(Hero[pid], FourCC('A033'), true)
-        end
     end
 
     ---@type fun(pt: PlayerTimer)
@@ -6663,17 +6950,17 @@ OnInit.final("Spells", function(Require)
 
     ---@return boolean
     function SpellLearn()
-        local u      = GetTriggerUnit() ---@type unit 
+        local source = GetTriggerUnit() ---@type unit 
         local sid    = GetLearnedSkill() ---@type integer 
-        local pid    = GetPlayerId(GetOwningPlayer(u)) + 1 ---@type integer 
-        local ablev  = GetUnitAbilityLevel(u, sid) ---@type integer 
+        local pid    = GetPlayerId(GetOwningPlayer(source)) + 1 ---@type integer 
+        local ablev  = GetUnitAbilityLevel(source, sid) ---@type integer 
         local i      = 0 ---@type integer 
-        local abil   = BlzGetUnitAbilityByIndex(u, i) ---@type ability 
+        local abil   = BlzGetUnitAbilityByIndex(source, i) ---@type ability 
 
         --find ability
         while abil and BlzGetAbilityId(abil) ~= sid do
             i = i + 1
-            abil = BlzGetUnitAbilityByIndex(u, i)
+            abil = BlzGetUnitAbilityByIndex(source, i)
         end
 
         --store original tooltip
@@ -6684,7 +6971,7 @@ OnInit.final("Spells", function(Require)
 
         --execute onlearn function
         if Spells[sid] then
-            Spells[sid].onLearn(u, ablev, pid)
+            Spells[sid].onLearn(source, ablev, pid)
         end
 
         return false
@@ -6859,7 +7146,8 @@ OnInit.final("Spells", function(Require)
             end
         elseif sid == FourCC('A02A') then --Instill Fear
             if HasProficiency(pid, PROF_DAGGER) then
-                Dummy.create(x, y, FourCC('A0AE'), 1):cast(p, "firebolt", target)
+                local dummy = Dummy.create(x, y, FourCC('A0AE'), 1):cast(p, "firebolt", target)
+                EVENT_DUMMY_ON_HIT:register_unit_action(dummy.unit, instillfear_onhit)
             else
                 DisplayTimedTextToPlayer(p, 0, 0, 15., "You do not have the proficiency to use this spell!")
             end
@@ -7048,14 +7336,14 @@ OnInit.final("Spells", function(Require)
 
                 missile.onFinish = function()
                     BorrowedLife[missile.source] = 0
-                    UnitAddBonus(missile.source, BONUS_HERO_STR, - R2I(GetHeroStr(missile.source, false) * 0.1 * golemDevourStacks[pid]))
+                    UnitAddBonus(missile.source, BONUS_HERO_STR, - R2I(Unit[missile.source].str * 0.1 * golemDevourStacks[pid]))
                     if golemDevourStacks[pid] > 0 then
                         Unit[missile.source].mr = Unit[missile.source].mr / (0.75 - golemDevourStacks[pid] * 0.1)
                     end
                     golemDevourStacks[pid] = golemDevourStacks[pid] + 1
                     BlzSetHeroProperName(missile.source, "Meat Golem (" .. (golemDevourStacks[pid]) .. ")")
                     FloatingTextUnit(tostring(golemDevourStacks[pid]), missile.source, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
-                    UnitAddBonus(missile.source, BONUS_HERO_STR, R2I(GetHeroStr(missile.source, false) * 0.1 * golemDevourStacks[pid]))
+                    UnitAddBonus(missile.source, BONUS_HERO_STR, R2I(Unit[missile.source].str * 0.1 * golemDevourStacks[pid]))
                     SetUnitScale(missile.source, 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07, 1 + golemDevourStacks[pid] * 0.07)
                     --magnetic
                     if golemDevourStacks[pid] == 1 then
@@ -7112,6 +7400,8 @@ OnInit.final("Spells", function(Require)
                         UnitAddAbility(missile.source, FourCC('A061')) --blink
                     elseif destroyerDevourStacks[pid] == 2 then
                         UnitAddAbility(missile.source, FourCC('A03B')) --crit
+                        Unit[missile.source].cc_flat = Unit[missile.source].cc_flat + 25
+                        Unit[missile.source].cd_flat = Unit[missile.source].cd_flat + 200
                     elseif destroyerDevourStacks[pid] == 3 then
                         SetHeroAgi(missile.source, 200, true)
                     elseif destroyerDevourStacks[pid] == 4 then
