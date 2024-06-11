@@ -575,39 +575,23 @@ modifiers:
         end,
 
         ["benchmark"] = function()
-            local i = 5000
-            local BASE = 82
+            local i = 20000
+            local BASE = 10
             local s = ""
             local ab = "!#$\x25&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}`" ---@type string 
-            print(os.time())
+            local t = os.clock()
+            local c
 
             while i > 0 do
                 local b = i - (i // BASE) * BASE
-                s = SubString(ab, b, b + 1) .. s
-                i = i // BASE
+                s = ab:sub(b + 1, b + 1) .. s
+                c = s:len()
+                i = i - 1
             end
 
-            print(os.time())
-            print(s)
+            print(os.clock() - t)
         end,
-
-        ["benchmark2"] = function()
-            local i = 5000
-            local BASE = 82
-            local s = ""
-            local ab = "!#$\x25&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}`" ---@type string 
-            print(os.time())
-
-            while i > 0 do
-                local b = ModuloInteger(i, BASE)
-                s = SubString(ab, b, b + 1) .. s
-                i = i // BASE
-            end
-
-            print(os.time())
-            print(s)
-        end
-    }
+   }
 
 ---@param pid integer
 function EventSetup(pid)
@@ -877,7 +861,7 @@ end
     local devcmd = CreateTrigger()
 
     DEV_ENABLED = true
-    SAVE_LOAD_VERSION = 2 ^ 30
+    SAVE_LOAD_VERSION = 0x40000000
     MAP_NAME = "CoT Nevermore BETA"
 
     for i = 0, PLAYER_CAP do
