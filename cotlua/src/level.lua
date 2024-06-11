@@ -10,36 +10,23 @@ function OnLevel()
 
     if u == Hero[pid] then
         if uid == HERO_DARK_SUMMONER then --summoning improvement level
-            SetUnitAbilityLevel(u, SUMMONINGIMPROVEMENT.id, GetHeroLevel(u) // 10 + 1)
-        end
-
-        if uid == HERO_DARK_SAVIOR then --dark seal level
-            SetUnitAbilityLevel(u, DARKSEAL.id, GetHeroLevel(u) // 100 + 1)
-        end
-
-        if uid == HERO_SAVIOR then --light seal level
-            SetUnitAbilityLevel(u, LIGHTSEAL.id, GetHeroLevel(u) // 100 + 1)
-        end
-
-        if uid == HERO_OBLIVION_GUARD then --body of fire level
-            SetUnitAbilityLevel(u, BODYOFFIRE.id, GetHeroLevel(u) // 100 + 1)
-        end
-
-        if uid == HERO_MARKSMAN or uid == HERO_MARKSMAN_SNIPER then --sniper stance level
-            SetUnitAbilityLevel(u, SNIPERSTANCE.id, GetHeroLevel(u) // 50 + 1)
-        end
-
-        if uid == HERO_THUNDERBLADE then --overload level
-            SetUnitAbilityLevel(u, OVERLOAD.id, GetHeroLevel(u) // 75 + 1)
-        end
-
-        if uid == HERO_ASSASSIN then --blade spin level
-            SetUnitAbilityLevel(u, BLADESPIN.id, IMinBJ(4, GetHeroLevel(u) // 100 + 1))
-            SetUnitAbilityLevel(u, BLADESPINPASSIVE.id, IMinBJ(4, GetHeroLevel(u) // 100 + 1))
-        end
-
-        if uid == HERO_MASTER_ROGUE then --instant death level
-            SetUnitAbilityLevel(u, INSTANTDEATH.id, GetHeroLevel(u) // 50 + 1)
+            SetUnitAbilityLevel(u, SUMMONINGIMPROVEMENT.id, level // 10 + 1)
+        elseif uid == HERO_DARK_SAVIOR then --dark seal level
+            SetUnitAbilityLevel(u, DARKSEAL.id, level // 100 + 1)
+        elseif uid == HERO_SAVIOR then --light seal level
+            SetUnitAbilityLevel(u, LIGHTSEAL.id, level // 100 + 1)
+        elseif uid == HERO_OBLIVION_GUARD then --body of fire level
+            SetUnitAbilityLevel(u, BODYOFFIRE.id, level // 100 + 1)
+        elseif uid == HERO_MARKSMAN or uid == HERO_MARKSMAN_SNIPER then --sniper stance level
+            SetUnitAbilityLevel(u, SNIPERSTANCE.id, level // 50 + 1)
+        elseif uid == HERO_THUNDERBLADE then --overload level
+            SetUnitAbilityLevel(u, OVERLOAD.id, level // 75 + 1)
+        elseif uid == HERO_ASSASSIN then --blade spin level
+            SetUnitAbilityLevel(u, BLADESPIN.id, IMinBJ(4, level // 100 + 1))
+            SetUnitAbilityLevel(u, BLADESPINPASSIVE.id, IMinBJ(4, level // 100 + 1))
+        elseif uid == HERO_MASTER_ROGUE then --instant death level
+            SetUnitAbilityLevel(u, INSTANTDEATH.id, level // 50 + 1)
+            INSTANTDEATH.apply(u, pid)
         end
 
         if not LOAD_FLAG[pid] then
@@ -68,7 +55,7 @@ function OnLevel()
         end
 
         --trigger stat change event
-        EVENT_STAT_CHANGE.trigger(u)
+        EVENT_STAT_CHANGE:trigger(u)
 
         ExperienceControl(pid)
     end
