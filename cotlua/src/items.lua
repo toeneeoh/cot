@@ -157,7 +157,7 @@ OnInit.final("Items", function(Require)
             --first time setup
             if ItemData[self.id][ITEM_TOOLTIP] == 0 then
                 --if an item's description exists, use that for parsing (exception for default shops)
-                ParseItemTooltip(self.obj, (StringLength(BlzGetItemDescription(self.obj)) > 1 and BlzGetItemDescription(self.obj)) or "")
+                ParseItemTooltip(self.obj, ((BlzGetItemDescription(self.obj):len()) > 1 and BlzGetItemDescription(self.obj)) or "")
             end
 
             --determine if saveable (misc category yields 7 instead of ITEM_TYPE_MISCELLANEOUS 's value of 6)
@@ -174,7 +174,7 @@ OnInit.final("Items", function(Require)
 
             --randomize rolls
             local count = 0
-            for i = ITEM_HEALTH, ITEM_STAT_TOTAL do
+            for i = 1, ITEM_STAT_TOTAL do
                 if ItemData[self.id][i .. "range"] ~= 0 then
                     self.quality[count] = GetRandomInt(0, 63)
                     count = count + 1
@@ -418,11 +418,13 @@ OnInit.final("Items", function(Require)
 
                 ItemGoldRate[pid] = ItemGoldRate[pid] + self:getValue(ITEM_GOLD_GAIN, 0)
                 Unit[self.holder].spellboost = Unit[self.holder].spellboost + self:getValue(ITEM_SPELLBOOST, 0) * 0.01
-                Unit[self.holder].flatMS = Unit[self.holder].flatMS + self:getValue(ITEM_MOVESPEED, 0)
+                Unit[self.holder].ms_flat = Unit[self.holder].ms_flat + self:getValue(ITEM_MOVESPEED, 0)
                 Unit[self.holder].regen = Unit[self.holder].regen + self:getValue(ITEM_REGENERATION, 0)
                 Unit[self.holder].evasion = Unit[self.holder].evasion + self:getValue(ITEM_EVASION, 0)
                 Unit[self.holder].mr = Unit[self.holder].mr * (1 - self:getValue(ITEM_MAGIC_RESIST, 0) * 0.01)
                 Unit[self.holder].dr = Unit[self.holder].dr * (1 - self:getValue(ITEM_DAMAGE_RESIST, 0) * 0.01)
+                Unit[self.holder].cc_flat = Unit[self.holder].cc_flat + self:getValue(ITEM_CRIT_CHANCE, 0)
+                Unit[self.holder].cd_flat = Unit[self.holder].cd_flat + self:getValue(ITEM_CRIT_DAMAGE, 0)
                 BlzSetUnitAttackCooldown(self.holder, BlzGetUnitAttackCooldown(self.holder, 0) / (1. + self:getValue(ITEM_BASE_ATTACK_SPEED, 0) * 0.01), 0)
 
                 --shield
@@ -470,11 +472,13 @@ OnInit.final("Items", function(Require)
 
                 ItemGoldRate[pid] = ItemGoldRate[pid] - self:getValue(ITEM_GOLD_GAIN, 0)
                 Unit[self.holder].spellboost = Unit[self.holder].spellboost - self:getValue(ITEM_SPELLBOOST, 0) * 0.01
-                Unit[self.holder].flatMS = Unit[self.holder].flatMS - self:getValue(ITEM_MOVESPEED, 0)
+                Unit[self.holder].ms_flat = Unit[self.holder].ms_flat - self:getValue(ITEM_MOVESPEED, 0)
                 Unit[self.holder].regen = Unit[self.holder].regen - self:getValue(ITEM_REGENERATION, 0)
                 Unit[self.holder].evasion = Unit[self.holder].evasion - self:getValue(ITEM_EVASION, 0)
                 Unit[self.holder].mr = Unit[self.holder].mr / (1 - self:getValue(ITEM_MAGIC_RESIST, 0) * 0.01)
                 Unit[self.holder].dr = Unit[self.holder].dr / (1 - self:getValue(ITEM_DAMAGE_RESIST, 0) * 0.01)
+                Unit[self.holder].cc_flat = Unit[self.holder].cc_flat - self:getValue(ITEM_CRIT_CHANCE, 0)
+                Unit[self.holder].cd_flat = Unit[self.holder].cd_flat - self:getValue(ITEM_CRIT_DAMAGE, 0)
                 BlzSetUnitAttackCooldown(self.holder, BlzGetUnitAttackCooldown(self.holder, 0) * (1. + self:getValue(ITEM_BASE_ATTACK_SPEED, 0) * 0.01), 0)
 
                 --shield
@@ -488,16 +492,6 @@ OnInit.final("Items", function(Require)
         end
 
         local parse_item_stat = {
-            [ITEM_CRIT_CHANCE] = function(self, index, value, lower, upper, valuestr, range)
-                if range ~= 0 then
-                    return "|n + |cffffcc00" .. lower .. "-" .. upper .. "\x25 " .. self:getValue(index + 1, 1) .. "-" .. self:getValue(index + 1, 2) .. "x|r |cffffcc00Critical Strike|r"
-                else
-                    return "|n + |cffffcc00" .. valuestr .. "\x25 " .. self:getValue(index + 1, 0) .. "x|r |cffffcc00Critical Strike|r"
-                end
-            end,
-            [ITEM_CRIT_DAMAGE] = function()
-                return ""
-            end,
             [ITEM_ABILITY] = function(self, index, value, lower, upper, valuestr, range)
                 local s = ParseItemAbilityTooltip(self, index, value, lower, upper)
 
@@ -505,12 +499,12 @@ OnInit.final("Items", function(Require)
             end,
 
             default = function(self, index, value, lower, upper, valuestr, range, posneg)
-                local prefix = STAT_TAG[index].prefix or "|r "
+                local suffix = STAT_TAG[index].suffix or "|r "
 
                 if range ~= 0 then
-                    return "|n + |cffffcc00" .. lower .. "-" .. upper .. prefix .. STAT_TAG[index].tag .. ""
+                    return "|n + |cffffcc00" .. lower .. "-" .. upper .. suffix .. " " .. STAT_TAG[index].tag
                 else
-                    return "|n " .. posneg .. valuestr .. prefix .. STAT_TAG[index].tag
+                    return "|n " .. posneg .. valuestr .. suffix .. " " .. STAT_TAG[index].tag
                 end
             end
         }
@@ -542,12 +536,12 @@ OnInit.final("Items", function(Require)
             norm_new = norm_new .. "|n"
             alt_new = norm_new
 
-            --body lines
+            --body stats
             for index = 1, ITEM_STAT_TOTAL do
                 local value = self:getValue(index, 0)
 
+                --write non-zero stats
                 if value ~= 0 then
-                --write line
                     local lower = self:getValue(index, 1)
                     local upper = self:getValue(index, 2)
                     local valuestr = tostring(value)
@@ -568,14 +562,10 @@ OnInit.final("Items", function(Require)
                     end
 
                     --normal tooltip
-                    if index == ITEM_CRIT_CHANCE then
-                        norm_new = norm_new .. "|n + |cffffcc00" .. valuestr .. "\x25 "
-                    elseif index == ITEM_CRIT_DAMAGE then
-                        norm_new = norm_new .. valuestr .. (STAT_TAG[index].prefix or " ") .. STAT_TAG[index].tag
-                    elseif index == ITEM_ABILITY or index == ITEM_ABILITY2 then
+                    if index == ITEM_ABILITY or index == ITEM_ABILITY2 then
                         norm_new = norm_new .. parse_item_stat[index](self, index, value, 0, 0)
                     else
-                        norm_new = norm_new .. "|n " .. posneg .. valuestr .. (STAT_TAG[index].prefix or " ") .. STAT_TAG[index].tag
+                        norm_new = norm_new .. "|n " .. posneg .. valuestr .. (STAT_TAG[index].suffix or "") .. " " .. STAT_TAG[index].tag
                     end
                 end
             end
@@ -599,8 +589,8 @@ OnInit.final("Items", function(Require)
             BlzSetItemExtendedTooltip(self.obj, self.tooltip)
         end
 
-        ---@type fun(self: Item, id: integer, stats: integer): Item|nil
-        function thistype:decode(id, stats)
+        ---@type fun(id: integer, stats: integer): Item|nil
+        function thistype.decode(id, stats)
             if id == 0 then
                 return nil
             end
@@ -2065,22 +2055,22 @@ function onPickup()
     elseif itemid == FourCC('I0N0') then --grimoire of focus
         local refund = 0
         if GetHeroStr(Hero[pid], false) - 50 > 20 then
-            UnitAddBonus(Hero[pid], BONUS_HERO_BASE_STR, GetHeroStr(Hero[pid], false) - 50)
+            Unit[Hero[pid]].str = Unit[Hero[pid]].str - 50
             refund = refund + 5000
         elseif GetHeroStr(Hero[pid], false) >= 20 then
-            UnitSetBonus(Hero[pid], BONUS_HERO_BASE_STR, 20)
+            Unit[Hero[pid]].str = 20
         end
         if GetHeroAgi(Hero[pid], false) - 50 > 20 then
-            UnitAddBonus(Hero[pid], BONUS_HERO_BASE_AGI, GetHeroAgi(Hero[pid], false) - 50)
+            Unit[Hero[pid]].agi = Unit[Hero[pid]].agi - 50
             refund = refund + 5000
         elseif GetHeroAgi(Hero[pid], false) >= 20 then
-            UnitSetBonus(Hero[pid], BONUS_HERO_BASE_AGI, 20)
+            Unit[Hero[pid]].agi = 20
         end
         if GetHeroInt(Hero[pid], false) - 50 > 20 then
-            UnitAddBonus(Hero[pid], BONUS_HERO_BASE_INT, GetHeroInt(Hero[pid], false) - 50)
+            Unit[Hero[pid]].int = Unit[Hero[pid]].int - 50
             refund = refund + 5000
         elseif GetHeroInt(Hero[pid], false) >= 20 then
-            UnitSetBonus(Hero[pid], BONUS_HERO_BASE_INT, 20)
+            Unit[Hero[pid]].int = 20
         end
         if refund > 0 then
             AddCurrency(pid, GOLD, refund)
