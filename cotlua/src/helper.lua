@@ -11,23 +11,18 @@ OnInit.global("Helper", function(Require)
     ---@field iterator function
     ---@field data table
     ---@field add function
+    ---@field add_timed function
     ---@field count integer
     ---@field START integer
     ---@field END integer
     ---@field MAXSIZE integer
     ---@field create function
     ---@field destroy function
-    ---@field addUp function
-    ---@field calcPeakDps function
     ---@field wipe function
     CircularArrayList = {}
     do
         local thistype = CircularArrayList
         local mt = { __index = thistype }
-        thistype.count = 0
-        thistype.START = 0
-        thistype.END   = 0
-        thistype.MAXSIZE = 200
 
         function thistype:iterator()
             local index = self.START
@@ -36,96 +31,60 @@ OnInit.global("Helper", function(Require)
             return function()
                 if count < self.count then
                     local value = self.data[index]
-                    index = ModuloInteger(index + 1, self.MAXSIZE)
+                    index = math.fmod(index + 1, self.MAXSIZE)
                     count = count + 1
                     return value
                 end
             end
         end
 
-        function thistype:destroy()
-            self = nil
-        end
-
         ---@type fun(size: integer): CircularArrayList
         function thistype.create(size)
             local self = {
                 data = {},
+                count = 0,
+                START = 1,
+                END = 1,
+                MAXSIZE = size or 200
             }
 
-            if size ~= nil then
-                self.MAXSIZE = size
-            end
-
             setmetatable(self, mt)
-
             return self
         end
 
         ---@param value any
         function thistype:add(value)
             self.data[self.END] = value
-            self.END = ModuloInteger((self.END + 1), self.MAXSIZE)
+            self.END = math.fmod((self.END + 1), self.MAXSIZE)
 
             if self.count < self.MAXSIZE then
                 self.count = self.count + 1
             else
-                -- Free up the last 10 slots
-                self.START = ModuloInteger((self.START + 10), self.MAXSIZE)
-                self.count = self.count - 10
+                -- Free up the last slot
+                self.START = math.fmod((self.START + 1), self.MAXSIZE)
             end
         end
 
-        --[[
-        --functions below used for training dummy dps
-        --]]
-
-        ---@param start integer
-        ---@param end_ integer
-        ---@return number
-        function thistype:addUp(start, end_)
-            local dps = 0. ---@type number 
-            local j = start ---@type integer 
-
-            while j ~= end_ do
-                if self.data[j] then
-                    dps = dps + self.data[j]
-                end
-
-                j = ModuloInteger((j + 1), self.MAXSIZE)
+        local function remove(self)
+            if self.count > 0 then
+                self.START = math.fmod((self.START + 1), self.MAXSIZE)
+                self.count = self.count - 1
             end
-
-            return dps
         end
 
-        ---@param interval integer
-        ---@return number
-        function thistype:calcPeakDps(interval)
-            local i = self.START ---@type integer 
-            local dps2 = 0. ---@type number 
-            local output = 0. ---@type number 
+        ---@param value any
+        ---@param time number
+        function thistype:add_timed(value, time)
+            self:add(value)
 
-            if self.count > interval then
-                --first iteration
-                local dps1 = self:addUp(i, ModuloInteger((i + 10),self.MAXSIZE))
-
-                while i ~= self.END do
-                        dps2 = dps1
-                        dps1 = self:addUp(ModuloInteger((i + 1),self.MAXSIZE), ModuloInteger((i + 11), self.MAXSIZE))
-
-                        output = math.max(output, dps1 - dps2)
-                    i = ModuloInteger((i + 1),self.MAXSIZE)
-                end
-            end
-
-            return output
+            TimerQueue:callDelayed(time, remove, self)
         end
 
         function thistype:wipe()
-            self.count = 0
-            self.START = 0
-            self.END = 0
             self.data = {}
+            self.count = 0
+            self.START = 1
+            self.END = 1
         end
     end
 
@@ -268,7 +227,6 @@ do
     local Z_OFFSET_BON            = 75             ---@type number -- How much extra height the text gains
     local VELOCITY                = 2.5              ---@type number -- How fast the text move in x/y plane
     local MAX_PER_TICK            = 4 ---@type integer 
-    local TMR                     = CreateTimer() ---@type timer 
     local count                   = 0 ---@type integer 
     local instances               = {}
 
@@ -278,7 +236,7 @@ do
     do
         local thistype = ArcingTextTag
 
-        function thistype.update()
+        local function update()
             local i = 1
             count = 0
 
@@ -294,10 +252,6 @@ do
                 if self.time <= 0 then
                     instances[i] = instances[#instances]
                     instances[#instances] = nil
-
-                    if #instances == 0 then
-                        PauseTimer(TMR)
-                    end
                 else
                     i = i + 1
                 end
@@ -337,14 +291,12 @@ do
                     SetTextTagText(self.tt, text, SIZE_MIN * size)
                     SetTextTagPos(self.tt, self.x, self.y, Z_OFFSET)
                 end
-            else
-                self.tt = nil
             end
 
             instances[#instances+1] = self
 
             if #instances == 1 then
-                TimerStart(TMR, FPS_32, true, thistype.update)
+                TimerQueue:callPeriodically(FPS_32, function() return #instances == 0 end, update)
             end
 
             return self
@@ -1639,13 +1591,16 @@ function GetLine(line, contents)
         return ""
     end
 
-    local lines = {}
+    local count = 0
 
-    for match in contents:gmatch("[^\n]*\n") do
-        lines[#lines + 1] = match
+    for match in contents:gmatch("[^\n]*\n?") do
+        if count == line then
+            return match
+        end
+        count = count + 1
     end
 
-    return lines[line]
+    return ""
 end
 
 ---@param pid integer
@@ -1676,6 +1631,16 @@ function ConfirmDeleteCharacter()
     end
 
     return false
+end
+
+---@type fun(pid: integer, slot: integer): string
+function GetCharacterPath(pid, slot)
+     return MAP_NAME .. "\\" .. User[pid - 1].name .. "\\slot" .. (slot + 1) .. ".pld"
+end
+
+---@type fun(pid: integer): string
+function GetProfilePath(pid)
+    return MAP_NAME .. "\\" .. User[pid - 1].name .. "\\profile.pld"
 end
 
 ---@return boolean
@@ -1732,9 +1697,10 @@ function LoadMenu()
         else
             --load character
             DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, "Loading |c006969ffhero|r from selected slot...")
+            local path = GetCharacterPath(pid, Profile[pid].currentSlot)
 
             if GetLocalPlayer() == GetTriggerPlayer() then
-                BlzSendSyncData(SYNC_PREFIX, GetLine(1, FileIO.Load(MAP_NAME .. "\\" + User[pid - 1].name .. "\\slot" .. (Profile[pid].currentSlot + 1) .. ".pld")))
+                BlzSendSyncData(SYNC_PREFIX, GetLine(1, FileIO.Load(path)))
             end
         end
     end
@@ -2115,7 +2081,7 @@ function RefreshHeroes()
                 SetWidgetLife(Backpack[U.id], BlzGetUnitMaxHP(Backpack[U.id]) * hp)
                 local mp = GetUnitState(Hero[U.id], UNIT_STATE_MANA) / GetUnitState(Hero[U.id], UNIT_STATE_MAX_MANA)
                 SetUnitState(Backpack[U.id], UNIT_STATE_MANA, GetUnitState(Backpack[U.id], UNIT_STATE_MAX_MANA) * mp)
-                --SetUnitMoveSpeed(Backpack[U.id], Unit[Hero[U.id]].flatMS * Unit[Hero[U.id]].percentMS)
+                --SetUnitMoveSpeed(Backpack[U.id], Unit[Hero[U.id]].ms_flat * Unit[Hero[U.id]].ms_percent)
             end
 
             --tooltips
@@ -2191,9 +2157,9 @@ function StatTome(pid, bonus, type, plat)
     local levelMax       = TomeCap(hlev)
 
     if hlev > 25 then
-        totalStats = IMaxBJ(250, GetHeroStr(Hero[pid],false) + GetHeroAgi(Hero[pid],false) + GetHeroInt(Hero[pid],false))
+        totalStats = IMaxBJ(250, Unit[Hero[pid]].str + Unit[Hero[pid]].agi + Unit[Hero[pid]].int)
     else
-        totalStats = IMaxBJ(50, GetHeroStr(Hero[pid],false) + GetHeroAgi(Hero[pid],false) + GetHeroInt(Hero[pid],false))
+        totalStats = IMaxBJ(50, Unit[Hero[pid]].str + Unit[Hero[pid]].agi + Unit[Hero[pid]].int)
     end
 
     trueBonus = R2I(bonus * 17.2 // Pow(totalStats, 0.35))
@@ -2227,15 +2193,15 @@ function StatTome(pid, bonus, type, plat)
     }
 
     if type == 1 then
-        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_STR, GetHeroStr(Hero[pid], false) + trueBonus)
+        Unit[Hero[pid]].str = Unit[Hero[pid]].str + trueBonus
     elseif type == 2 then
-        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_AGI, GetHeroAgi(Hero[pid], false) + trueBonus)
+        Unit[Hero[pid]].agi = Unit[Hero[pid]].agi + trueBonus
     elseif type == 3 then
-        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_INT, GetHeroInt(Hero[pid], false) + trueBonus)
+        Unit[Hero[pid]].int = Unit[Hero[pid]].int + trueBonus
     elseif type == 4 then
-        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_STR, GetHeroStr(Hero[pid], false) + trueBonus)
-        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_AGI, GetHeroAgi(Hero[pid], false) + trueBonus)
-        UnitAddBonus(Hero[pid], BONUS_HERO_BASE_INT, GetHeroInt(Hero[pid], false) + trueBonus)
+        Unit[Hero[pid]].str = Unit[Hero[pid]].str + trueBonus
+        Unit[Hero[pid]].agi = Unit[Hero[pid]].agi + trueBonus
+        Unit[Hero[pid]].int = Unit[Hero[pid]].int + trueBonus
     end
 
     DisplayTextToPlayer(p, 0, 0, msg .. trueBonus .. statText[type])
@@ -2343,15 +2309,29 @@ function SelectGroupedRegion(groupnumber)
     return RegionCount[GetRandomInt(lowBound, highBound - 1)]
 end
 
---formats a real to a string with commas
----@param value number
+--formats a number to a string with commas (no decimals), truncates 10 digit numbers by 3 digits and uses scientific notation
+---@param value BigNum|number
 ---@return string
 function RealToString(value)
-    local _, _, minus, int = tostring(math.floor(value)):find("([-]?)(\x25d+)")
+    local e = ""
+    local s = ""
+
+    if type(value) == "table" then
+        local len = value:len_digits()
+        if len >= 10 then
+            s = tostring(value):sub(1, len - 3)
+            e = "e+" .. (len - 7)
+        else
+            s = tostring(value)
+        end
+    else
+        s = tostring(math.floor(value))
+    end
+    local _, _, minus, int = s:find("([-]?)(\x25d+)")
 
     int = int:reverse():gsub("(\x25d\x25d\x25d)", "\x251,")
 
-    return minus .. int:reverse():gsub("^,", "")
+    return minus .. int:reverse():gsub("^,", "") .. e
 end
 
 ---@type fun(pid: integer, prof: integer): boolean
@@ -2405,19 +2385,11 @@ function ItemInfo(pid, itm)
         DisplayTimedTextToPlayer(p, 0, 0, 15., "|cffbbbbbbProficiency|r: " .. RealToString(ItemProfMod(itm.id, pid) * 100) .. "\x25")
     end
 
-    for i = ITEM_HEALTH, ITEM_STAT_TOTAL do
-        if ItemData[itm.id][i] ~= 0 and STAT_TAG[i] and i ~= ITEM_CRIT_DAMAGE then --skip crit dmg because crit is one line
-            s = ""
+    for i = 1, ITEM_STAT_TOTAL do
+        if ItemData[itm.id][i] ~= 0 and STAT_TAG[i] then
+            s = STAT_TAG[i].suffix or ""
 
-            if i == ITEM_MAGIC_RESIST or i == ITEM_DAMAGE_RESIST or i == ITEM_EVASION or i == ITEM_CRIT_CHANCE or i == ITEM_SPELLBOOST or i == ITEM_GOLD_GAIN then
-                s = "\x25"
-            end
-
-            if i == ITEM_CRIT_CHANCE then
-                DisplayTimedTextToPlayer(p, 0, 0, 15., STAT_TAG[i].tag .. ": " .. RealToString(itm:getValue(ITEM_CRIT_CHANCE, 0)) .. "\x25 " .. RealToString(itm:getValue(ITEM_CRIT_DAMAGE, 0)) .. "x")
-            else
-                DisplayTimedTextToPlayer(p, 0, 0, 15., STAT_TAG[i].tag .. ": " .. RealToString(itm:getValue(i, 0)) .. s)
-            end
+            DisplayTimedTextToPlayer(p, 0, 0, 15., STAT_TAG[i].tag .. ": " .. RealToString(itm:getValue(i, 0)) .. s)
         end
     end
 
@@ -2686,7 +2658,7 @@ function ToggleAutoAttack(pid)
     if autoAttackDisabled[pid] then
         autoAttackDisabled[pid] = false
         DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "Toggled Auto Attacking on.")
-        if Unit[Hero[pid]].canAttack then
+        if Unit[Hero[pid]].can_attack then
             BlzSetUnitWeaponBooleanField(Hero[pid], UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, true)
         end
     else
@@ -2858,73 +2830,82 @@ function ParseItemTooltip(itm, s)
 
         --get index and value
         local tag, suffix, value = contents:match("(\x25a+)([ \x25*])(\x25-?\x25d+)")
-        local index = SAVE_TABLE.KEY_ITEMS[tag]
+        local index
+        for i, v in ipairs(STAT_TAG) do
+            if v.syntax == tag then
+                index = i
+                break
+            end
+        end
 
-        --assign value
-        ItemData[itemid][index] = S2I(value)
-        --fixed toggle
-        ItemData[itemid][index .. "fixed"] = (suffix == "*") and 1 or 0
+        if index then
 
-        --process ability data if available
-        contents = contents:gsub("(#.*)", function(capture)
-            local data = capture:sub(7, #capture)
+            --assign value
+            ItemData[itemid][index] = S2I(value)
+            --fixed toggle
+            ItemData[itemid][index .. "fixed"] = (suffix == "*") and 1 or 0
 
-            ItemData[itemid][index * ABILITY_OFFSET] = FourCC(capture:sub(2, 5))
-            ItemData[itemid][index * ABILITY_OFFSET .. "abil"] = data
+            --process ability data if available
+            contents = contents:gsub("(#.*)", function(capture)
+                local data = capture:sub(7, #capture)
 
-            --place sfx data into table
-            for entry in data:gmatch("(\x25S+)") do
-                local args = {}
+                ItemData[itemid][index * ABILITY_OFFSET] = FourCC(capture:sub(2, 5))
+                ItemData[itemid][index * ABILITY_OFFSET .. "abil"] = data
 
-                --parse [sfx|level|attach|path] entries
-                for arg in entry:gmatch("([^|]+)") do
-                    args[#args + 1] = arg
-                end
+                --place sfx data into table
+                for entry in data:gmatch("(\x25S+)") do
+                    local args = {}
 
-                if #args == 4 then
-                    local tbl = ItemData[itemid].sfx
-
-                    if type(tbl) ~= "table" then
-                        tbl = {}
-                        ItemData[itemid].sfx = tbl
+                    --parse [sfx|level|attach|path] entries
+                    for arg in entry:gmatch("([^|]+)") do
+                        args[#args + 1] = arg
                     end
 
-                    tbl[#tbl + 1] = {
-                        level = args[2],
-                        attach = args[3],
-                        path = args[4],
-                    }
+                    if #args == 4 then
+                        local tbl = ItemData[itemid].sfx
+
+                        if type(tbl) ~= "table" then
+                            tbl = {}
+                            ItemData[itemid].sfx = tbl
+                        end
+
+                        tbl[#tbl + 1] = {
+                            level = args[2],
+                            attach = args[3],
+                            path = args[4],
+                        }
+                    end
                 end
-            end
 
-            return ""
-        end)
-
-        --process affixes
-        local affix = "([|=>\x25@])(\x25-?\x25d*)"
-        local start = contents:find(affix)
-
-        if start then
-            contents = contents:sub(start)
-            contents = contents:gsub(affix, function(prefix, capture)
-
-                --value range
-                if prefix == "|" then
-                    ItemData[itemid][index .. "range"] = S2I(capture)
-                --flat per level
-                elseif prefix == "=" then
-                    ItemData[itemid][index .. "fpl"] = S2I(capture)
-                --flat per rarity
-                elseif prefix == ">" then
-                    ItemData[itemid][index .. "fpr"] = S2I(capture)
-                --percent effectiveness
-                elseif prefix == "\x25" then
-                    ItemData[itemid][index .. "percent"] = S2I(capture)
-                --unlock at
-                elseif prefix == "@" then
-                    ItemData[itemid][index .. "unlock"] = S2I(capture)
-                end
+                return ""
             end)
+
+            --process affixes
+            local affix = "([|=>\x25@])(\x25-?\x25d*)"
+            local start = contents:find(affix)
+
+            if start then
+                contents = contents:sub(start)
+                contents = contents:gsub(affix, function(prefix, capture)
+
+                    --value range
+                    if prefix == "|" then
+                        ItemData[itemid][index .. "range"] = S2I(capture)
+                    --flat per level
+                    elseif prefix == "=" then
+                        ItemData[itemid][index .. "fpl"] = S2I(capture)
+                    --flat per rarity
+                    elseif prefix == ">" then
+                        ItemData[itemid][index .. "fpr"] = S2I(capture)
+                    --percent effectiveness
+                    elseif prefix == "\x25" then
+                        ItemData[itemid][index .. "percent"] = S2I(capture)
+                    --unlock at
+                    elseif prefix == "@" then
+                        ItemData[itemid][index .. "unlock"] = S2I(capture)
+                    end
+                end)
+            end
         end
     end)
 end
@@ -2972,14 +2953,14 @@ end
 
 ---@type fun(u: unit, id: integer, dur: number, anim: integer, timescale: number)
 function SpellCast(u, id, dur, anim, timescale)
-    Unit[u].castTime = dur
-
     BlzStartUnitAbilityCooldown(u, id, BlzGetUnitAbilityCooldown(u, id, GetUnitAbilityLevel(u, id) - 1))
     DelayAnimation(BOSS_ID, u, dur, 0, 1., true)
     if anim ~= -1 then
         SetUnitTimeScale(u, timescale)
         SetUnitAnimationByIndex(u, anim)
     end
+
+    Unit[u].cast_time = dur
 end
 
 ---@param pid integer
