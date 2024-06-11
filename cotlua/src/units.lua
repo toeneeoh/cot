@@ -11,6 +11,7 @@ OnInit.final("Units", function(Require)
     Require('Shop')
     Require('Items')
     Require('Spells')
+    Require('Events')
 
     BossTable           = {} ---@type table[]
     BossNearbyPlayers   = __jarray(0) ---@type integer[] 
@@ -1123,7 +1124,6 @@ end
 
     local x      = 0. ---@type number 
     local y      = 0. ---@type number 
-    local target ---@type unit 
 
     --velreon guard
     velreon_guard = CreateUnit(Player(PLAYER_TOWN), FourCC('h04A'), 29919., -2419., 225.)
@@ -1157,6 +1157,40 @@ end
     --town paladin
     townpaladin = CreateUnit(Player(PLAYER_TOWN), FourCC('H01T'), -176.3, 666, 90.)
     BlzSetUnitMaxMana(townpaladin, 0)
+
+    local function paladin_on_hit(target, source, damageCalc, damageType)
+        if damageCalc >= 100. then
+            if GetRandomInt(0, 1) == 0 then
+                local pt = TimerList[0]:get('pala', source)
+                local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+
+                if pt then
+                    pt.dur = 30.
+                else
+                    if not TimerList[0]:has('pala') then
+                        PaladinEnrage(true)
+                    end
+
+                    pt = TimerList[0]:add()
+                    pt.dur = 30.
+                    pt.source = source
+                    pt.tag = 'pala'
+                    pt.pid = pid
+
+                    SetPlayerAllianceStateBJ(Player(pid - 1), Player(PLAYER_TOWN), bj_ALLIANCE_UNALLIED)
+                    SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), Player(pid - 1), bj_ALLIANCE_UNALLIED)
+
+                    if GetUnitCurrentOrder(target) ~= OrderId("attack") or GetUnitCurrentOrder(target) ~= OrderId("smart") then
+                        IssueTargetOrder(target, "attack", source)
+                    end
+
+                    pt.timer:callDelayed(0.5, PaladinAggroExpire, pt)
+                end
+            end
+        end
+    end
+    EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(townpaladin, paladin_on_hit)
+
     --prechaos trainer
     prechaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 26205., 252., 270.)
     local itm = UnitAddItemById(prechaosTrainer, FourCC('I0MY'))
@@ -1171,7 +1205,7 @@ end
     itm.spawn = 0
 
     --colo banners
-    target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h00G'), 0, 0, 180.00)
+    local target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h00G'), 0, 0, 180.00)
     x = GetRectCenterX(gg_rct_ColoBanner1)
     y = GetRectCenterY(gg_rct_ColoBanner1)
     SetUnitPathing(target, false)
@@ -1297,7 +1331,7 @@ end
         end
     end
 
-    --start death march cd
+    --start death march cooldown
     BlzStartUnitAbilityCooldown(BossTable[BOSS_DEATH_KNIGHT].unit, FourCC('A0AU'), 2040. - (User.AmountPlaying * 240))
 
     ShowUnit(BossTable[BOSS_LIFE].unit, false) --gods
@@ -1337,115 +1371,115 @@ end
     --hero circle
     HeroCircle[0] = {
         unit = gg_unit_H02A_0568, --oblivion guard
-        skin = FourCC('H02A'),
+        skin = HERO_OBLIVION_GUARD,
         select = FourCC('A07S'),
         passive = FourCC('A0HQ')
     }
     HeroCircle[1] = {
         unit = gg_unit_H03N_0612, --bloodzerker
-        skin = FourCC('H03N'),
+        skin = HERO_BLOODZERKER,
         select = FourCC('A07T'),
         passive = FourCC('A06N')
     }
     HeroCircle[2] = {
         unit = gg_unit_H04Z_0604, --royal guardian
-        skin = FourCC('H04Z'),
+        skin = HERO_ROYAL_GUARDIAN,
         select = FourCC('A07U'),
         passive = FourCC('A0I5')
     }
     HeroCircle[3] = {
         unit = gg_unit_H012_0605, --warrior
-        skin = FourCC('H012'),
+        skin = HERO_WARRIOR,
         select = FourCC('A07V'),
         passive = FourCC('A0IE')
     }
     HeroCircle[4] = {
         unit = gg_unit_U003_0081, --vampire
-        skin = FourCC('U003'),
+        skin = HERO_VAMPIRE,
         select = FourCC('A029'),
         passive = FourCC('A05E')
     }
     HeroCircle[5] = {
         unit = gg_unit_H01N_0606, --savior
-        skin = FourCC('H01N'),
+        skin = HERO_SAVIOR,
         select = FourCC('A07W'),
         passive = FourCC('A0HW')
     }
     HeroCircle[6] = {
         unit = gg_unit_H01S_0607, --dark savior
-        skin = FourCC('H01S'),
+        skin = HERO_DARK_SAVIOR,
         select = FourCC('A07Z'),
         passive = FourCC('A0DL')
     }
     HeroCircle[7] = {
         unit = gg_unit_H05B_0608, --Crusader
-        skin = FourCC('H05B'),
+        skin = HERO_CRUSADER,
         select = FourCC('A080'),
         passive = FourCC('A0I4')
     }
     HeroCircle[8] = {
         unit = gg_unit_H029_0617, --arcanist
-        skin = FourCC('H029'),
+        skin = HERO_ARCANIST,
         select = FourCC('A081'),
         passive = FourCC('A0EY')
     }
     HeroCircle[9] = {
         unit = gg_unit_O02S_0615, --dark summoner
-        skin = FourCC('O02S'),
+        skin = HERO_DARK_SUMMONER,
         select = FourCC('A082'),
         passive = FourCC('A0I0')
     }
     HeroCircle[10] = {
         unit = gg_unit_H00R_0610, --bard
-        skin = FourCC('H00R'),
+        skin = HERO_BARD,
         select = FourCC('A084'),
         passive = FourCC('A0HV')
     }
     HeroCircle[11] = {
         unit = gg_unit_E00G_0616, --hydromancer
-        skin = FourCC('E00G'),
+        skin = HERO_HYDROMANCER,
         select = FourCC('A086'),
         passive = FourCC('A0EC')
     }
     HeroCircle[12] = {
         unit = gg_unit_E012_0613, --high priestess
-        skin = FourCC('E012'),
+        skin = HERO_HIGH_PRIEST,
         select = FourCC('A087'),
         passive = FourCC('A0I2')
     }
     HeroCircle[13] = {
         unit = gg_unit_E00W_0614, --elementalist
-        skin = FourCC('E00W'),
+        skin = HERO_ELEMENTALIST,
         select = FourCC('A089'),
         passive = FourCC('A0I3')
     }
     HeroCircle[14] = {
         unit = gg_unit_E002_0585, --assassin
-        skin = FourCC('E002'),
+        skin = HERO_ASSASSIN,
         select = FourCC('A07J'),
         passive = FourCC('A01N')
     }
     HeroCircle[15] = {
         unit = gg_unit_O03J_0609, --thunder blade
-        skin = FourCC('O03J'),
+        skin = HERO_THUNDERBLADE,
         select = FourCC('A01P'),
         passive = FourCC('A039')
     }
     HeroCircle[16] = {
         unit = gg_unit_E015_0586, --master rogue
-        skin = FourCC('E015'),
+        skin = HERO_MASTER_ROGUE,
         select = FourCC('A07L'),
         passive = FourCC('A0I1')
     }
     HeroCircle[17] = {
         unit = gg_unit_E008_0587, --elite marksman
-        skin = FourCC('E008'),
+        skin = HERO_MARKSMAN,
         select = FourCC('A07M'),
         passive = FourCC('A070')
     }
     HeroCircle[18] = {
         unit = gg_unit_E00X_0611, --phoenix ranger
-        skin = FourCC('E00X'),
+        skin = HERO_PHOENIX_RANGER,
         select = FourCC('A07N'),
         passive = FourCC('A0I6')
     }
