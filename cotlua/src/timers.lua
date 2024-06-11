@@ -61,21 +61,18 @@ end
 ---@type fun(pt: PlayerTimer)
 function ReturnBoss(pt)
     if UnitAlive(BossTable[pt.id].unit) and not CHAOS_LOADING then
-        local angle = Atan2(GetLocationY(BossTable[pt.id].loc) - GetUnitY(BossTable[pt.id].unit), GetLocationX(BossTable[pt.id].loc) - GetUnitX(BossTable[pt.id].unit))
         if IsUnitInRangeLoc(BossTable[pt.id].unit, BossTable[pt.id].loc, 100.) then
             pt:destroy()
-            SetUnitMoveSpeed(BossTable[pt.id].unit, GetUnitDefaultMoveSpeed(BossTable[pt.id].unit))
+            Unit[BossTable[pt.id].unit].overmovespeed = nil
             SetUnitPathing(BossTable[pt.id].unit, true)
             UnitRemoveAbility(BossTable[pt.id].unit, FourCC('Amrf'))
             SetUnitTurnSpeed(BossTable[pt.id].unit, GetUnitDefaultTurnSpeed(BossTable[pt.id].unit))
         else
-            SetUnitXBounded(BossTable[pt.id].unit, GetUnitX(BossTable[pt.id].unit) + 20. * Cos(angle))
-            SetUnitYBounded(BossTable[pt.id].unit, GetUnitY(BossTable[pt.id].unit) + 20. * Sin(angle))
-            IssuePointOrder(BossTable[pt.id].unit, "move", GetUnitX(BossTable[pt.id].unit) + 70. * Cos(angle), GetUnitY(BossTable[pt.id].unit) + 70. * Sin(angle))
-            UnitRemoveBuffs(BossTable[pt.id].unit, false, true)
+            IssuePointOrder(BossTable[pt.id].unit, "move", GetLocationX(BossTable[pt.id].loc), GetLocationY(BossTable[pt.id].loc))
+            Buff.dispelAll(BossTable[pt.id].unit)
         end
 
-        pt.timer:callDelayed(0.06, ReturnBoss, pt)
+        pt.timer:callDelayed(0.25, ReturnBoss, pt)
     else
         pt:destroy()
     end
@@ -115,9 +112,6 @@ function Periodic()
                     end
                 end
             end
-
-            --update life regeneration
-            UnitSetBonus(Hero[pid], BONUS_LIFE_REGEN, (Unit[Hero[pid]].noregen == true and 0) or Unit[Hero[pid]].regen * Unit[Hero[pid]].healamp)
         end
 
         u = u.next
@@ -372,18 +366,18 @@ function OneSecond()
             --death knight / legion exception
             if BossTable[i].id ~= FourCC('H04R') and BossTable[i].id ~= FourCC('H040') then
                 if IsUnitInRangeLoc(BossTable[i].unit, BossTable[i].loc, BossTable[i].leash) == false and GetUnitAbilityLevel(BossTable[i].unit, FourCC('Amrf')) == 0 then
-                    hp = GetHeroStr(BossTable[i].unit, false) * 25 * 0.16
+                    hp = Unit[BossTable[i].unit].str * 25. * 0.16
                     if GetUnitAbilityLevel(BossTable[i].unit, FourCC('Asan')) > 0 then
                         hp = hp * 0.5
                     end
-                    UnitSetBonus(BossTable[i].unit, BONUS_LIFE_REGEN, hp)
+                    Unit[BossTable[i].unit].regen = hp
+                    Unit[BossTable[i].unit].overmovespeed = 750
                     UnitAddAbility(BossTable[i].unit, FourCC('Amrf'))
-                    SetUnitMoveSpeed(BossTable[i].unit, MOVESPEED.MAX)
                     SetUnitPathing(BossTable[i].unit, false)
                     SetUnitTurnSpeed(BossTable[i].unit, 1.)
                     local pt = TimerList[BOSS_ID]:add()
                     pt.id = i
-                    pt.timer:callDelayed(0.06, ReturnBoss, pt)
+                    pt.timer:callDelayed(0.25, ReturnBoss, pt)
                 end
             end
 
@@ -401,7 +395,7 @@ function OneSecond()
                 TimerQueue:callDelayed(5., BossBonusLinger, i)
             end
 
-            hp = GetHeroStr(BossTable[i].unit, false) * 25
+            hp = Unit[BossTable[i].unit].str * 25
 
             --calculate hp regeneration
             if GetWidgetLife(BossTable[i].unit) <= hp * 0.15 then -- 15 percent hp double regen
@@ -415,11 +409,11 @@ function OneSecond()
             end
 
             if numplayers == 0 then --out of combat?
-                hp = GetHeroStr(BossTable[i].unit, false) * 25 * 0.02 --2 percent
+                hp = Unit[BossTable[i].unit].str * 25. * 0.02 --2 percent
             else --bonus damage and health
                 if CHAOS_MODE then
                     UnitSetBonus(BossTable[i].unit, BONUS_DAMAGE, R2I(BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 0.2 * (BossNearbyPlayers[i] - 1)))
-                    UnitSetBonus(BossTable[i].unit, BONUS_HERO_STR, R2I(GetHeroStr(BossTable[i].unit, false) * 0.2 * (BossNearbyPlayers[i] - 1)))
+                    UnitSetBonus(BossTable[i].unit, BONUS_HERO_STR, R2I(Unit[BossTable[i].unit].str * 0.2 * (BossNearbyPlayers[i] - 1)))
                 end
             end
 
@@ -430,7 +424,7 @@ function OneSecond()
 
             --non-returning hp regeneration
             if GetUnitAbilityLevel(BossTable[i].unit, FourCC('Amrf')) == 0 then
-                UnitSetBonus(BossTable[i].unit, BONUS_LIFE_REGEN, hp)
+                Unit[BossTable[i].unit].regen = hp
             end
         end
     end
@@ -439,11 +433,11 @@ function OneSecond()
     for _, target in ipairs(SummonGroup) do
         if UnitAlive(target) and GetUnitAbilityLevel(target, FourCC('A06Q')) > 0 then
             if GetUnitTypeId(target) == SUMMON_DESTROYER then
-                UnitSetBonus(target, BONUS_LIFE_REGEN, BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q'))))
+                Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q')))
             elseif GetUnitTypeId(target) == SUMMON_HOUND and GetUnitAbilityLevel(target, FourCC('A06Q')) > 9 then
-                UnitSetBonus(target, BONUS_LIFE_REGEN, BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q'))))
+                Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q')))
             else
-                UnitSetBonus(target, BONUS_LIFE_REGEN, BlzGetUnitMaxHP(target) * (0.02 + 0.00025 * GetUnitAbilityLevel(target, FourCC('A06Q'))))
+                Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.00025 * GetUnitAbilityLevel(target, FourCC('A06Q')))
             end
         end
     end
