@@ -602,6 +602,31 @@ OnInit.final("UI", function(Require)
         --BlzFrameSetPoint(separator_down, FRAMEPOINT_BOTTOMLEFT, text, FRAMEPOINT_BOTTOMLEFT, -0.002, -0.005)
         --BlzFrameSetPoint(separator_left, FRAMEPOINT_LEFT, text, FRAMEPOINT_LEFT, -0.002, 0.)
 
+        local function RefreshStatWindowOnStatChange()
+            local U = User.first
+
+            while U do
+                --if a player is viewing the stat window of a unit, refresh it
+                if STAT_WINDOW.viewing[U.id] then
+                    RefreshStatWindow(U.id)
+                end
+
+                U = U.next
+            end
+        end
+
+        STAT_WINDOW.close = function(pid)
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzFrameSetVisible(STAT_WINDOW.frame, false)
+            end
+
+            --no longer viewing stat window
+            if STAT_WINDOW.viewing[pid] then
+                EVENT_STAT_CHANGE:unregister_unit_action(STAT_WINDOW.viewing[pid], RefreshStatWindowOnStatChange)
+                STAT_WINDOW.viewing[pid] = nil
+            end
+        end
+
         local onClose = function()
             local f = Button.table[BlzGetTriggerFrame()]
             local pid = GetPlayerId(GetTriggerPlayer()) + 1
@@ -609,11 +634,9 @@ OnInit.final("UI", function(Require)
             if GetLocalPlayer() == Player(pid - 1) then
                 BlzFrameSetEnable(f.frame, false)
                 BlzFrameSetEnable(f.frame, true)
-                BlzFrameSetVisible(frame, false)
             end
 
-            --no longer viewing stat window
-            STAT_WINDOW.viewing[pid] = nil
+            STAT_WINDOW.close(pid)
         end
 
         local STAT_CLOSE_BACKDROP = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", frame, 0, 0)
@@ -628,86 +651,68 @@ OnInit.final("UI", function(Require)
 
         BlzFrameSetVisible(STAT_WINDOW.frame, false)
 
-        function RefreshStatWindow(u, pid)
-            if u then
-                STAT_WINDOW.viewing[pid] = u
+        function RefreshStatWindow(pid)
+            local u = STAT_WINDOW.viewing[pid]
+            local tpid = GetPlayerId(GetOwningPlayer(u)) + 1
+            local stat_number = ""
+            local stat_tag = ""
+            local name = (u == Hero[tpid] and User[tpid - 1].nameColored) or GetUnitName(u)
+            local ishero = (u == Hero[tpid] and 3) or 2
 
-                local tpid = GetPlayerId(GetOwningPlayer(u)) + 1
-                local stat_number = ""
-                local stat_tag = ""
-                local name = (u == Hero[tpid] and User[tpid - 1].nameColored) or GetUnitName(u)
-                local ishero = (u == Hero[tpid] and 3) or 2
+            --fill out stats
+            for type = 1, ishero do
+                for i, v in ipairs(STAT_TAG) do
+                    if v.type == type then
+                        local num = v.getter(u)
+                        stat_number = stat_number .. num .. (v.suffix or "") .. "|n"
+                        stat_tag = stat_tag .. (v.alternate or v.tag) .. "|n"
 
-                --fill out stats
-                for type = 1, ishero do
-                    for i, v in ipairs(STAT_TAG) do
-                        local prefix = v.prefix or ""
+                        if v.breakdown then
+                            if not v.breakdown_frame then
+                                v.breakdown_backdrop = BlzCreateFrameByType("BACKDROP", "", STAT_WINDOW.frame, "", 0)
+                                v.breakdown_frame = BlzCreateFrameByType("FRAME", "", v.breakdown_backdrop, "", 0)
+                                BlzFrameSetTexture(v.breakdown_backdrop, "war3mapImported\\question.blp", 0, true)
+                                BlzFrameSetScale(v.breakdown_backdrop, 0.6)
+                                BlzFrameSetSize(v.breakdown_backdrop, 0.016, 0.016)
+                                BlzFrameSetAllPoints(v.breakdown_frame, v.breakdown_backdrop)
+                                v.breakdown_tooltip = FrameAddSimpleTooltip(v.breakdown_frame, "", true, FRAMEPOINT_BOTTOMLEFT, FRAMEPOINT_TOPRIGHT, 0., 0.008, 0.01)
+                            end
 
-                        if v.type == type then
-                            local num = v.getter(u)
-                            stat_number = stat_number .. num .. prefix .. "|n"
-                            stat_tag = stat_tag .. (v.alternate or v.tag) .. "|n"
-
-                            if v.breakdown then
-                                if not v.breakdown_frame then
-                                    v.breakdown_backdrop = BlzCreateFrameByType("BACKDROP", "", STAT_WINDOW.frame, "", 0)
-                                    v.breakdown_frame = BlzCreateFrameByType("FRAME", "", v.breakdown_backdrop, "", 0)
-                                    BlzFrameSetTexture(v.breakdown_backdrop, "war3mapImported\\question.blp", 0, true)
-                                    BlzFrameSetScale(v.breakdown_backdrop, 0.6)
-                                    BlzFrameSetSize(v.breakdown_backdrop, 0.016, 0.016)
-                                    BlzFrameSetAllPoints(v.breakdown_frame, v.breakdown_backdrop)
-                                    v.breakdown_tooltip = FrameAddSimpleTooltip(v.breakdown_frame, "", true, FRAMEPOINT_BOTTOMLEFT, FRAMEPOINT_TOPRIGHT, 0., 0.008, 0.01)
-                                end
-
-                                if GetLocalPlayer() == Player(pid - 1) then
-                                    BlzFrameSetText(v.breakdown_tooltip.tooltip, v.breakdown(u))
-                                    BlzFrameSetPoint(v.breakdown_backdrop, FRAMEPOINT_TOPLEFT, STAT_WINDOW.number, FRAMEPOINT_TOPLEFT, num:len() * 0.012, -i * 0.014)
-                                end
+                            if GetLocalPlayer() == Player(pid - 1) then
+                                BlzFrameSetText(v.breakdown_tooltip.tooltip, v.breakdown(u))
+                                BlzFrameSetPoint(v.breakdown_backdrop, FRAMEPOINT_TOPLEFT, STAT_WINDOW.number, FRAMEPOINT_TOPLEFT, num:len() * 0.012, -i * 0.014)
                             end
                         end
                     end
                 end
+            end
 
-                if GetLocalPlayer() == Player(pid - 1) then
-                    --set text and size
-                    BlzFrameSetText(title, name)
-                    BlzFrameSetText(number, stat_number)
-                    BlzFrameSetText(text, stat_tag)
+            if GetLocalPlayer() == Player(pid - 1) then
+                --set text and size
+                BlzFrameSetText(title, name)
+                BlzFrameSetText(number, stat_number)
+                BlzFrameSetText(text, stat_tag)
 
-                    --local w = BlzFrameGetWidth(number) + BlzFrameGetWidth(text) + 0.0035
-                    --local h = BlzFrameGetHeight(text) + 0.004
-                    --BlzFrameSetSize(separator_up, w, 0.001)
-                    --BlzFrameSetSize(separator_right, 0.001, h)
-                    --BlzFrameSetSize(separator_down, w, 0.001)
-                    --BlzFrameSetSize(separator_left, 0.001, h)
-                end
+                --local w = BlzFrameGetWidth(number) + BlzFrameGetWidth(text) + 0.0035
+                --local h = BlzFrameGetHeight(text) + 0.004
+                --BlzFrameSetSize(separator_up, w, 0.001)
+                --BlzFrameSetSize(separator_right, 0.001, h)
+                --BlzFrameSetSize(separator_down, w, 0.001)
+                --BlzFrameSetSize(separator_left, 0.001, h)
             end
         end
 
         function DisplayStatWindow(u, pid)
             if u and not BlzGetUnitBooleanField(u, UNIT_BF_IS_A_BUILDING) then
-                RefreshStatWindow(u, pid)
+                STAT_WINDOW.close(pid)
+                STAT_WINDOW.viewing[pid] = u
+                EVENT_STAT_CHANGE:register_unit_action(u, RefreshStatWindowOnStatChange)
+                RefreshStatWindow(pid)
 
                 if GetLocalPlayer() == Player(pid - 1) then
                     BlzFrameSetVisible(STAT_WINDOW.frame, true)
                 end
             end
         end
-
-        local function RefreshStatWindowOnStatChange()
-            local U = User.first
-
-            while U do
-                --if a player is viewing the stat window of a unit, refresh it
-                if STAT_WINDOW.viewing[U.id] then
-                    RefreshStatWindow(STAT_WINDOW.viewing[U.id], U.id)
-                end
-
-                U = U.next
-            end
-        end
-
-        --Refresh stat window on stat change event
-        EVENT_STAT_CHANGE.register_event_action(RefreshStatWindowOnStatChange)
     end
 end, Debug.getLine())
