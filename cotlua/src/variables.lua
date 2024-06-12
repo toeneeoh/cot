@@ -27,6 +27,7 @@ OnInit.global("Variables", function(Require)
     FPS_32                             = 0.03125
     FPS_64                             = 0.015625
     DETECT_LEAVE_ABILITY               = FourCC('uDex') ---@type integer 
+    INT_32_LIMIT                       = 2147483647
 
     --units
     DUMMY_CASTER                       = FourCC('e011')
@@ -74,47 +75,47 @@ OnInit.global("Variables", function(Require)
 
     HeroStats = {
         [HERO_PHOENIX_RANGER]   = { prof = PROF_BOW + PROF_LEATHER,
-                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3 },
+                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3, crit_chance = 5., crit_damage = 100. },
         [HERO_MARKSMAN]         = { prof = PROF_BOW + PROF_LEATHER,
-                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3 },
+                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3, crit_chance = 5., crit_damage = 100. },
         [HERO_MARKSMAN_SNIPER]  = { prof = PROF_BOW + PROF_LEATHER,
-                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3 },
+                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3, crit_chance = 5., crit_damage = 100. },
         [HERO_MASTER_ROGUE]     = { prof = PROF_DAGGER + PROF_LEATHER,
-                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25 },
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25, crit_chance = 5., crit_damage = 100. },
         [HERO_THUNDERBLADE]     = { prof = PROF_DAGGER + PROF_LEATHER,
-                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25 },
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25, crit_chance = 5., crit_damage = 100. },
         [HERO_ASSASSIN]         = { prof = PROF_DAGGER + PROF_LEATHER,
-                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25 },
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25, crit_chance = 5., crit_damage = 100. },
         [HERO_VAMPIRE]          = { prof = PROF_HEAVY + PROF_PLATE + PROF_DAGGER + PROF_LEATHER,
-                                    phys_resist = 1.5, magic_resist = 1.5, phys_damage = 1.25 },
+                                    phys_resist = 1.5, magic_resist = 1.5, phys_damage = 1.25, crit_chance = 5., crit_damage = 100. },
         [HERO_BLOODZERKER]      = { prof = PROF_HEAVY + PROF_SWORD + PROF_PLATE,
-                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.2 },
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
         [HERO_WARRIOR]          = { prof = PROF_HEAVY + PROF_SWORD + PROF_PLATE,
-                                    phys_resist = 1.1, magic_resist = 1.5, phys_damage = 1.2 },
+                                    phys_resist = 1.1, magic_resist = 1.5, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
         [HERO_ROYAL_GUARDIAN]   = { prof = PROF_HEAVY + PROF_SWORD + PROF_PLATE + PROF_FULLPLATE,
-                                    phys_resist = 0.9, magic_resist = 1.5, phys_damage = 1.2 },
+                                    phys_resist = 0.9, magic_resist = 1.5, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
         [HERO_OBLIVION_GUARD]   = { prof = PROF_HEAVY + PROF_PLATE + PROF_FULLPLATE,
-                                    phys_resist = 1.0, magic_resist = 1.3, phys_damage = 1.2 },
+                                    phys_resist = 1.0, magic_resist = 1.3, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
         [HERO_CRUSADER]         = { prof = PROF_HEAVY + PROF_FULLPLATE + PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.1, magic_resist = 1.1, phys_damage = 1.2 },
+                                    phys_resist = 1.1, magic_resist = 1.1, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
         [HERO_DARK_SAVIOR]      = { prof = PROF_SWORD + PROF_PLATE + PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.6, magic_resist = 1.0, phys_damage = 1.2 },
+                                    phys_resist = 1.6, magic_resist = 1.0, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
         [HERO_DARK_SAVIOR_DEMON]= { prof = PROF_SWORD + PROF_PLATE + PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.6, magic_resist = 1.0, phys_damage = 1.2 },
+                                    phys_resist = 1.6, magic_resist = 1.0, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
         [HERO_SAVIOR]           = { prof = PROF_SWORD + PROF_PLATE + PROF_HEAVY + PROF_FULLPLATE,
-                                    phys_resist = 1.2, magic_resist = 1.3, phys_damage = 1.2 },
+                                    phys_resist = 1.2, magic_resist = 1.3, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
         [HERO_DARK_SUMMONER]    = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
         [HERO_BARD]             = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
         [HERO_ARCANIST]         = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
         [HERO_HYDROMANCER]      = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
         [HERO_HIGH_PRIEST]      = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
         [HERO_ELEMENTALIST]     = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0 },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
     }
 
     --default stats return 1.
@@ -189,22 +190,24 @@ OnInit.global("Variables", function(Require)
     ITEM_SPELLBOOST                    = 15
     ITEM_CRIT_CHANCE                   = 16
     ITEM_CRIT_DAMAGE                   = 17
-    ITEM_BASE_ATTACK_SPEED             = 18
-    ITEM_GOLD_GAIN                     = 19
-    ITEM_ABILITY                       = 20
-    ITEM_ABILITY2                      = 21
-    ITEM_STAT_TOTAL                    = 21
+    ITEM_CRIT_CHANCE_MULT              = 18
+    ITEM_CRIT_DAMAGE_MULT              = 19
+    ITEM_BASE_ATTACK_SPEED             = 20
+    ITEM_GOLD_GAIN                     = 21
+    ITEM_ABILITY                       = 22
+    ITEM_ABILITY2                      = 23
+    ITEM_STAT_TOTAL                    = 23
 
     --not auto generated
-    ITEM_TOOLTIP                       = 22
-    ITEM_TIER                          = 23
-    ITEM_TYPE                          = 24
-    ITEM_UPGRADE_MAX                   = 25
-    ITEM_LEVEL_REQUIREMENT             = 26
-    ITEM_LIMIT                         = 27
-    ITEM_COST                          = 28
-    ITEM_DISCOUNT                      = 29
-    ITEM_STACK                         = 30
+    ITEM_TOOLTIP                       = 24
+    ITEM_TIER                          = 25
+    ITEM_TYPE                          = 26
+    ITEM_UPGRADE_MAX                   = 27
+    ITEM_LEVEL_REQUIREMENT             = 28
+    ITEM_LIMIT                         = 29
+    ITEM_COST                          = 30
+    ITEM_DISCOUNT                      = 31
+    ITEM_STACK                         = 32
 
     CUSTOM_ITEM_OFFSET = FourCC('I000') ---@type integer 
     MAX_SAVED_ITEMS    = 8191 ---@type integer 
@@ -212,35 +215,7 @@ OnInit.global("Variables", function(Require)
     SAVE_UNIT_TYPE     = {} ---@type integer[] 
 
     SAVE_TABLE = {
-        KEY_ITEMS = {
-            health = ITEM_HEALTH,
-            mana = ITEM_MANA,
-            damage = ITEM_DAMAGE,
-            armor = ITEM_ARMOR,
-            str = ITEM_STRENGTH,
-            agi = ITEM_AGILITY,
-            int = ITEM_INTELLIGENCE,
-            regen = ITEM_REGENERATION,
-            dr = ITEM_DAMAGE_RESIST,
-            mr = ITEM_MAGIC_RESIST,
-            ms = ITEM_MOVESPEED,
-            evasion = ITEM_EVASION,
-            spellboost = ITEM_SPELLBOOST,
-            cc = ITEM_CRIT_CHANCE,
-            cd = ITEM_CRIT_DAMAGE,
-            bat = ITEM_BASE_ATTACK_SPEED,
-            gold = ITEM_GOLD_GAIN,
-            abil = ITEM_ABILITY,
-            abiltwo = ITEM_ABILITY2,
-            tier = ITEM_TIER,
-            type = ITEM_TYPE,
-            upg = ITEM_UPGRADE_MAX,
-            req = ITEM_LEVEL_REQUIREMENT,
-            limit = ITEM_LIMIT,
-            cost = ITEM_COST,
-            discount = ITEM_DISCOUNT,
-            stack = ITEM_STACK,
-        },
+        KEY_ITEMS = {},
         KEY_UNITS = {}
     }
 
@@ -1699,64 +1674,138 @@ OnInit.global("Variables", function(Require)
     }
     PROF[0] = 0
 
-    --types: 1 - power, 2 - utility, 3 - player only
+    --types: 1 - power, 2 - utility, 3 - player only, 4 - hidden
     STAT_TAG = {
-        [ITEM_HEALTH]            = { tag = "|cffff0000Health|r", type = 1,
-    getter = function(u) return RealToString(GetWidgetLife(u)) .. " / " .. RealToString(BlzGetUnitMaxHP(u)) end},
-        [ITEM_MANA]              = { tag = "|cff6699ffMana|r", type = 1,
-    getter = function(u) return RealToString(GetUnitState(u, UNIT_STATE_MANA)) .. " / " .. RealToString(GetUnitState(u, UNIT_STATE_MAX_MANA)) end},
-        [ITEM_DAMAGE]            = { tag = "|cffff6600Damage|r", type = 1,
-    getter = function(u) return RealToString(BlzGetUnitBaseDamage(u, 0) + UnitGetBonus(u, BONUS_DAMAGE)) end},
-        [ITEM_ARMOR]             = { tag = "|cffa4a4feArmor|r", type = 1,
-    getter = function(u) return RealToString(BlzGetUnitArmor(u)) end},
-        [ITEM_STRENGTH]          = { tag = "|cffbb0000Strength|r", type = 1,
-    getter = function(u) return RealToString(GetHeroStr(u, true)) end},
-        [ITEM_AGILITY]           = { tag = "|cff008800Agility|r", type = 1,
-    getter = function(u) return RealToString(GetHeroAgi(u, true)) end},
-        [ITEM_INTELLIGENCE]      = { tag = "|cff2255ffIntelligence|r", type = 1,
-    getter = function(u) return RealToString(GetHeroInt(u, true)) end},
-        [ITEM_REGENERATION]      = { tag = "|cffa00070Regeneration|r", type = 1,
-    getter = function(u) return RealToString(UnitGetBonus(u, BONUS_LIFE_REGEN)) end},
-        [ITEM_DAMAGE_RESIST]     = { tag = "|cffff8040Damage Resist|r", alternate = "|cffff8040Physical Taken|r", type = 1, prefix = "\x25 ",
-    breakdown = function(u)
-        return "|cffffcc00Base Reduction:|r " .. R2S(100. - (HeroStats[GetUnitTypeId(u)].phys_resist) * 100.)  .. "\x25" ..
-        "\n|cffffcc00Spell/Item Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].pr) * 100. / HeroStats[GetUnitTypeId(u)].phys_resist)  .. "\x25" ..
-        "\n|cffffcc00Armor Reduction:|r " .. R2S(((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u))) * 100.)  .. "\x25" ..
-        "\n|cffffcc00Total Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u))))) .. "\x25"
-    end,
-    getter = function(u)
-        return R2S((Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))))
-    end},
-        [ITEM_MAGIC_RESIST]      = { tag = "|cff8000ffMagic Resist|r", alternate = "|cff8000ffMagical Taken|r", type = 1, prefix = "\x25 ",
-    getter = function(u) return R2S((Unit[u].dr * Unit[u].mr) * 100.) end},
-        [ITEM_DAMAGE_MULT]     = { tag = "|cffff8040Physical Dealt|r", type = 1, prefix = "\x25 ",
-    getter = function(u) return R2S((Unit[u].dm * Unit[u].pm) * 100.) end},
-        [ITEM_MAGIC_MULT]      = { tag = "|cff8000ffMagic Dealt|r", type = 1, prefix = "\x25 ",
-    getter = function(u) return R2S((Unit[u].dm * Unit[u].mm) * 100.) end},
-        [ITEM_MOVESPEED]         = { tag = "|cff888888Movespeed|r", type = 2,
-    getter = function(u) return RealToString(Unit[u].movespeed) end},
-        [ITEM_CRIT_CHANCE]       = { tag = "|cffffcc00Critical Chance|r", type = 1, prefix = "\x25 ",
-    getter = function(u) return "0" end},
-        [ITEM_CRIT_DAMAGE]       = { tag = "|cffffcc00Critical Damage|r", type = 1, prefix = "\x25 ",
-    getter = function(u) return "0" end},
-        [ITEM_EVASION]           = { tag = "|cff008080Evasion|r", type = 2, prefix = "\x25 ",
-    getter = function(u) return math.min(100, (Unit[u].evasion)) end},
-        [ITEM_SPELLBOOST]        = { tag = "|cff80ffffSpellboost|r", type = 1, prefix = "\x25 ",
-    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(Unit[u].spellboost * 100.) end},
-        [ITEM_BASE_ATTACK_SPEED] = { tag = "|cff446600Base Attack Speed|r", type = 1,
-    getter = function(u) local as = 1 / BlzGetUnitAttackCooldown(u, 0) return R2S(as) .. " attacks per second" end},
-        [ITEM_GOLD_GAIN]         = { tag = "|cffffff00Gold Find|r", type = 3, prefix = "\x25 ",
-    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return ItemGoldRate[pid] end},
-        [ITEM_GOLD_GAIN + 1]     = { tag = "|cff446600Total Attack Speed|r", type = 1,
-    getter = function(u) local as = (1 / BlzGetUnitAttackCooldown(u, 0)) * (1 + math.min(GetHeroAgi(u, true), 400) * 0.01) return R2S(as) .. " attacks per second" end},
-        [ITEM_GOLD_GAIN + 2]     = { tag = "|cff808080Experience Rate|r", type = 3,
-    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(XP_Rate[pid]) end},
-        [ITEM_GOLD_GAIN + 3]     = { tag = "|cff808080Colosseum XP Rate|r", type = 3, prefix = "\x25 ",
-    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(Colosseum_XP[pid] * 100.) end},
-        [ITEM_GOLD_GAIN + 4]     = { tag = "|cff808000Hero Time Played|r", type = 3,
-    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
-        [ITEM_GOLD_GAIN + 5]     = { tag = "|cff808000Total Time Played|r", type = 3,
-    getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
+        [ITEM_HEALTH]            = {
+            tag = "|cffff0000Health|r", type = 1, syntax = "health",
+            getter = function(u) return RealToString(GetWidgetLife(u)) .. " / " .. RealToString(BlzGetUnitMaxHP(u)) end},
+        [ITEM_MANA]              = {
+            tag = "|cff6699ffMana|r", type = 1, syntax = "mana",
+            getter = function(u) return RealToString(GetUnitState(u, UNIT_STATE_MANA)) .. " / " .. RealToString(GetUnitState(u, UNIT_STATE_MAX_MANA)) end},
+        [ITEM_DAMAGE]            = {
+            tag = "|cffff6600Damage|r", type = 1, syntax = "damage",
+            getter = function(u) return RealToString(BlzGetUnitBaseDamage(u, 0) + UnitGetBonus(u, BONUS_DAMAGE)) end},
+        [ITEM_ARMOR]             = {
+            tag = "|cffa4a4feArmor|r", type = 1, syntax = "armor",
+            getter = function(u) return RealToString(BlzGetUnitArmor(u)) end},
+        [ITEM_STRENGTH]          = {
+            tag = "|cffbb0000Strength|r", type = 1, syntax = "str",
+            getter = function(u) return RealToString(GetHeroStr(u, true)) end},
+        [ITEM_AGILITY]           = {
+            tag = "|cff008800Agility|r", type = 1, syntax = "agi",
+            getter = function(u) return RealToString(GetHeroAgi(u, true)) end},
+        [ITEM_INTELLIGENCE]      = {
+            tag = "|cff2255ffIntelligence|r", type = 1, syntax = "int",
+            getter = function(u) return RealToString(GetHeroInt(u, true)) end},
+        [ITEM_REGENERATION]      = {
+            tag = "|cffa00070Regeneration|r", type = 1, syntax = "regen",
+            getter = function(u) return RealToString(Unit[u].regen) end},
+        [ITEM_DAMAGE_RESIST]     = {
+            tag = "|cffff8040Damage Resist|r", alternate = "|cffff8040Physical Taken|r", type = 1, suffix = "\x25", syntax = "dr",
+            breakdown = function(u)
+                local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
+                local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
+                local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. R2S((1. - chaos_reduc) * 100) .. "\x25" or "")
+
+                return "|cffffcc00Base Reduction:|r " .. R2S(100. - (HeroStats[GetUnitTypeId(u)].phys_resist) * 100.)  .. "\x25" ..
+                "\n|cffffcc00Spell/Item Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].pr) * 100. / HeroStats[GetUnitTypeId(u)].phys_resist)  .. "\x25" ..
+                "\n|cffffcc00Armor Reduction:|r " .. R2S(((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u))) * 100.)  .. "\x25" ..
+                chaos ..
+                "\n|cffffcc00Total Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))) * chaos_reduc) .. "\x25"
+            end,
+            getter = function(u)
+                local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
+                local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
+
+                return R2S((Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))) * chaos_reduc)
+            end},
+        [ITEM_MAGIC_RESIST]      = {
+            tag = "|cff8000ffMagic Resist|r", alternate = "|cff8000ffMagical Taken|r", type = 1, suffix = "\x25", syntax = "mr",
+            breakdown = function(u)
+                local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
+                local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
+                local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. R2S((1. - chaos_reduc) * 100) .. "\x25" or "")
+
+                return "|cffffcc00Base Reduction:|r " .. R2S(100. - (HeroStats[GetUnitTypeId(u)].magic_resist) * 100.)  .. "\x25" ..
+                "\n|cffffcc00Spell/Item Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].mr) * 100. / HeroStats[GetUnitTypeId(u)].magic_resist)  .. "\x25" ..
+                chaos ..
+                "\n|cffffcc00Total Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].mr) * 100. * chaos_reduc) .. "\x25"
+            end,
+            getter = function(u)
+                local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
+                local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
+
+                return R2S((Unit[u].dr * Unit[u].mr) * 100. * chaos_reduc) end},
+        [ITEM_DAMAGE_MULT]       = {
+            tag = "|cffff8040Physical Dealt|r", type = 1, suffix = "\x25", syntax = "dm",
+            getter = function(u) return R2S((Unit[u].dm * Unit[u].pm) * 100.) end},
+        [ITEM_MAGIC_MULT]        = {
+            tag = "|cff8000ffMagic Dealt|r", type = 1, suffix = "\x25", syntax = "mm",
+            getter = function(u) return R2S((Unit[u].dm * Unit[u].mm) * 100.) end},
+        [ITEM_MOVESPEED]         = {
+            tag = "|cff888888Movespeed|r", type = 2, syntax = "ms",
+            getter = function(u) return RealToString(Unit[u].movespeed) end},
+        [ITEM_EVASION]           = {
+            tag = "|cff008080Evasion|r", type = 2, suffix = "\x25", syntax = "evasion",
+            getter = function(u) return math.min(100, (Unit[u].evasion)) end},
+        [ITEM_SPELLBOOST]        = {
+            tag = "|cff80ffffSpellboost|r", type = 1, suffix = "\x25", syntax = "spellboost",
+            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(Unit[u].spellboost * 100.) end},
+        [ITEM_CRIT_CHANCE]       = {
+            tag = "|cffffcc00Critical Chance|r", type = 1, suffix = "\x25", syntax = "cc",
+            getter = function(u) return R2S(Unit[u].cc) end},
+        [ITEM_CRIT_DAMAGE]       = {
+            tag = "|cffffcc00Critical Damage|r", type = 1, suffix = "\x25", syntax = "cd",
+            getter = function(u) return R2S(Unit[u].cd) end},
+        [ITEM_CRIT_CHANCE_MULT]  = {
+            tag = "|cffffcc00Critical Chance Multiplier|r", type = 4, suffix = "\x25", syntax = "cc_percent",
+            getter = function(u) return R2S(Unit[u].cc) end},
+        [ITEM_CRIT_DAMAGE_MULT]  = {
+            tag = "|cffffcc00Critical Damage Multiplier|r", type = 4, suffix = "\x25", syntax = "cd_percent",
+            getter = function(u) return R2S(Unit[u].cd * 100.) end},
+        [ITEM_BASE_ATTACK_SPEED] = {
+            tag = "|cff446600Base Attack Speed|r", type = 1, syntax = "bat",
+            getter = function(u) local as = 1 / BlzGetUnitAttackCooldown(u, 0) return R2S(as) .. " attacks per second" end},
+        [ITEM_GOLD_GAIN]         = {
+            tag = "|cffffff00Gold Find|r", type = 3, suffix = "\x25", syntax = "gold",
+            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return ItemGoldRate[pid] end},
+        [ITEM_ABILITY]           = {
+            type = 4, syntax = "abil"},
+        [ITEM_ABILITY2]          = {
+            type = 4, syntax = "abil2"},
+        [ITEM_TOOLTIP]           = {
+            type = 4, syntax = ""},
+        [ITEM_TIER]              = {
+            type = 4, syntax = "tier"},
+        [ITEM_TYPE]              = {
+            type = 4, syntax = "type"},
+        [ITEM_UPGRADE_MAX]       = {
+            type = 4, syntax = "upg"},
+        [ITEM_LEVEL_REQUIREMENT] = {
+            type = 4, syntax = "req"},
+        [ITEM_LIMIT]             = {
+            type = 4, syntax = "limit"},
+        [ITEM_COST]              = {
+            type = 4, syntax = "cost"},
+        [ITEM_DISCOUNT]          = {
+            type = 4, syntax = "discount"},
+        [ITEM_STACK]             = {
+            type = 4, syntax = "stack"},
+        [ITEM_STACK + 1]     = {
+            tag = "|cff446600Total Attack Speed|r", type = 1,
+            getter = function(u) local as = (1 / BlzGetUnitAttackCooldown(u, 0)) * (1 + math.min(GetHeroAgi(u, true), 400) * 0.01) return R2S(as) .. " attacks per second" end},
+        [ITEM_STACK + 2]     = {
+            tag = "|cff808080Experience Rate|r", type = 3,
+            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(XP_Rate[pid]) end},
+        [ITEM_STACK + 3]     = {
+            tag = "|cff808080Colosseum XP Rate|r", type = 3, suffix = "\x25",
+            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(Colosseum_XP[pid] * 100.) end},
+        [ITEM_STACK + 4]     = {
+            tag = "|cff808000Hero Time Played|r", type = 3,
+            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
+        [ITEM_STACK + 5]     = {
+            tag = "|cff808000Total Time Played|r", type = 3,
+            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
     }
 
     LIMIT_STRING[1] = "You can only wear one of this item."
