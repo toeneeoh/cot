@@ -106,7 +106,7 @@ OnInit.global("CodeGen", function()
 
         while i <= #str do
             local tmp = str:sub(i, i)
-            local token_length = (CHAR:find(tmp) or 0) + 1
+            local token_length = (CHAR:find(tmp, 1, true) or 0) + 1
 
             --ignore space indicator
             if token_length > 1 then

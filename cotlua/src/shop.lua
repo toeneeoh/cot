@@ -2132,7 +2132,7 @@ OnInit.final("Shop", function(Require)
 
         ---@type fun(source: string, target: string):boolean
         function thistype.find(source, target)
-            return source:find(target) ~= nil
+            return source:find(target, 1, true) ~= nil
         end
 
         ---@type fun(id: integer, icon: string, description: string):integer
