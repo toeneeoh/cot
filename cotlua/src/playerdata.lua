@@ -118,6 +118,7 @@ OnInit.global("PlayerData", function(Require)
     end
 
     ---@class Profile
+    ---@field new boolean
     ---@field pid integer
     ---@field currentSlot integer
     ---@field phtl integer[]
