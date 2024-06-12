@@ -311,6 +311,7 @@ function NewProfileClick()
 
     if index ~= -1 then
         Profile[pid] = Profile.create(pid)
+        Profile[pid].new = true
         SpawnWispSelector(pid)
 
         dw:destroy()
@@ -321,13 +322,12 @@ end
 
 ---@param pid integer
 function NewProfile(pid)
-    if Profile[pid] then
-        DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 30, "You already have a profile!")
+    if Profile[pid].new then
+        DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 30, "You already started a new profile!")
     else
         local dw = DialogWindow.create(pid, "Start a new profile?\n|cFFFF0000Any existing profile will be\noverwritten.|r", NewProfileClick) ---@type DialogWindow
 
         dw:addButton("Yes")
-
         dw:display()
     end
 end
