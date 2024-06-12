@@ -173,14 +173,14 @@ OnInit.final("Items", function(Require)
             end
 
             --randomize rolls
-            local count = 0
+            local count = 1
             for i = 1, ITEM_STAT_TOTAL do
                 if ItemData[self.id][i .. "range"] ~= 0 then
                     self.quality[count] = GetRandomInt(0, 63)
                     count = count + 1
                 end
 
-                if count >= QUALITY_SAVED then break end
+                if count > QUALITY_SAVED then break end
             end
 
             if ItemData[self.id][ITEM_TIER] ~= 0 then
@@ -360,7 +360,7 @@ OnInit.final("Items", function(Require)
                 local final = 0
 
                 if hasVariance then
-                    local count = 0
+                    local count = 1
 
                     --find the quality index
                     for index = 0, STAT - 1 do
@@ -499,7 +499,7 @@ OnInit.final("Items", function(Require)
             end,
 
             default = function(self, index, value, lower, upper, valuestr, range, posneg)
-                local suffix = STAT_TAG[index].suffix or "|r "
+                local suffix = STAT_TAG[index].suffix or "|r"
 
                 if range ~= 0 then
                     return "|n + |cffffcc00" .. lower .. "-" .. upper .. suffix .. " " .. STAT_TAG[index].tag
@@ -595,26 +595,23 @@ OnInit.final("Items", function(Require)
                 return nil
             end
 
-            local itemid = id & (2 ^ 13 - 1) ---@type integer 
-            local shift = 13 ---@type integer 
+            local itemid = id & 0x1FFF
             local itm = thistype.create(CreateItem(CUSTOM_ITEM_OFFSET + itemid, 30000., 30000.))
-            itm.level = BlzBitAnd(id, 2 ^ (shift + 5) + 2 ^ (shift + 4) + 2 ^ (shift + 3) + 2 ^ (shift + 2) + 2 ^ (shift + 1) + 2 ^ (shift)) // 2 ^ (shift)
+            local mask = 0x7E000
+            itm.level = (id & mask) >> 13
 
-            for i = 0, 1 do
-                shift = shift + 6
-
-                if id >= 2 ^ (shift) then
-                    itm.quality[i] = BlzBitAnd(id, 2 ^ (shift + 5) + 2 ^ (shift + 4) + 2 ^ (shift + 3) + 2 ^ (shift + 2) + 2 ^ (shift + 1) + 2 ^ (shift)) / 2 ^ (shift)
-                end
+            for i = 1, 2 do
+                mask = mask << 6
+                itm.quality[i] = (id & mask)
             end
 
-            shift = 0
-            local mask = 0x3F --111111
+            local shift = 0
+            mask = 0x3F
 
-            for i = 2, QUALITY_SAVED - 1 do
+            for i = 3, QUALITY_SAVED do
                 itm.quality[i] = (stats & mask) >> shift
 
-                mask = mask << 6
+                mask = (mask << 6)
                 shift = shift + 6
             end
 
@@ -623,17 +620,19 @@ OnInit.final("Items", function(Require)
             return itm
         end
 
+        --save 5 more quality integers, 6 bits for each
         ---@return integer
         function thistype:encode()
             local id = 0
 
-            for i = 2, 6 do
-                id = id + self.quality[i] * 2 ^ ((i - 2) * 6)
+            for i = 3, 7 do
+                id = id + self.quality[i] << ((i - 3) * 6)
             end
 
             return id
         end
 
+        --from least to most significant: first 13 bits for id, next 6 for level, 6 for each quality
         ---@type fun(self: Item): integer
         function thistype:encode_id()
             local id = ItemToIndex(self.id)
@@ -642,10 +641,10 @@ OnInit.final("Items", function(Require)
                 return 0
             end
 
-            id = id + self.level * 2 ^ (13 + i * 6)
+            id = id + (self.level << 13)
 
-            for i = 0, 1 do
-                id = id + self.quality[i] * 2 ^ (13 + (i + 1) * 6)
+            for i = 1, 2 do
+                id = id + (self.quality[i] << (13 + i * 6))
             end
 
             return id
