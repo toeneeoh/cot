@@ -1950,7 +1950,7 @@ OnInit.final("Spells", function(Require)
         thistype.dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.45 + 0.05 * ablev) * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end ---@return number
         thistype.values = {thistype.chance, thistype.aoe, thistype.dmg}
 
-        function thistype.onHit(source, target)
+        local function onHit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             local chance = BLOODCLEAVE.chance
             local double = 1
@@ -1971,11 +1971,9 @@ OnInit.final("Spells", function(Require)
                 DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Reapers Claws Red.mdx", source, "chest"))
 
                 for u in each(ug) do
+                    local cd = (math.random() * 100. < Unit[source].cc and (1. + Unit[source].cd * 0.01)) or 1
                     DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Coup de Grace.mdx", u, "chest"))
-                    heal = heal + BLOODCLEAVE.dmg(pid) * BOOST[pid] * ApplyArmorMult(source, target, PHYSICAL)
-                    if math.random() * 100. < Unit[source].cc then
-                        heal = heal * 1 + Unit[source].cd * 0.01
-                    end
+                    heal = heal + BLOODCLEAVE.dmg(pid) * BOOST[pid] * ApplyArmorMult(source, target, PHYSICAL) * cd
                     DamageTarget(source, u, BLOODCLEAVE.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, PHYSICAL_NO_RECURSE, BLOODCLEAVE.tag)
                 end
 
@@ -1983,6 +1981,12 @@ OnInit.final("Spells", function(Require)
 
                 --leech health
                 HP(source, source, heal * double, BLOODCLEAVE.tag)
+            end
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            if ablev == 1 then
+                EVENT_ON_HIT:register_unit_action(source, onHit)
             end
         end
     end
