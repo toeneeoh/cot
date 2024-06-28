@@ -103,8 +103,6 @@ end
 ---@param pid integer
 function DeathHandler(pid)
     local p  = Player(pid - 1)
-    local x  = GetUnitX(HeroGrave[pid]) ---@type number 
-    local y  = GetUnitY(HeroGrave[pid]) ---@type number 
     local ug = CreateGroup()
 
     CleanupSummons(p)
