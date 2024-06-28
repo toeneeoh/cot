@@ -14,19 +14,11 @@ OnInit.final("HeroSpells", function(Require)
 
     DMG_NUMBERS             = __jarray(0) ---@type integer[] 
     ResurrectionRevival     = __jarray(0) ---@type integer[] 
-    golemDevourStacks       = __jarray(0) ---@type integer[] 
-    destroyerDevourStacks   = __jarray(0) ---@type integer[] 
-    BardSong                = __jarray(0) ---@type integer[] 
     IntenseFocus            = __jarray(0) ---@type integer[] 
     masterElement           = __jarray(0) ---@type integer[] 
     lastCast                = __jarray(0) ---@type integer[] 
     limitBreak              = __jarray(0) ---@type integer[] 
     limitBreakPoints        = __jarray(0) ---@type integer[] 
-    BorrowedLife            = __jarray(0) ---@type number[] 
-    improvementArmorBonus   = __jarray(0) ---@type integer[] 
-
-    destroyerSacrificeFlag  = {} ---@type boolean[] 
-    PhantomSlashing         = {} ---@type boolean[] 
 
     destroyer   = {} ---@type unit[] 
     meatgolem   = {} ---@type unit[] 
@@ -3538,7 +3530,6 @@ OnInit.final("HeroSpells", function(Require)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
             DamageTarget(source, target, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-            DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\AncestralGuardianMissile\\AncestralGuardianMissile.mdl", target, "chest"))
         end
         function thistype:onCast()
             local ug = CreateGroup()
@@ -4346,13 +4337,14 @@ OnInit.final("HeroSpells", function(Require)
                 BlzSetUnitArmor(summon, agi)
             end
             SetHeroInt(summon, int, true)
-            improvementArmorBonus[pid] = 0
+
+            local armor = 0
 
             if ablev > 0 then
                 SetUnitMoveSpeed(summon, GetUnitDefaultMoveSpeed(summon) + ablev * 10.)
 
                 --armor bonus
-                improvementArmorBonus[pid] = improvementArmorBonus[pid] + R2I((Pow(ablev, 1.2) + (Pow(ablev, 4.) - Pow(ablev, 3.9)) / 90.) / 2. + ablev + 6.5)
+                armor = armor + R2I((Pow(ablev, 1.2) + (Pow(ablev, 4.) - Pow(ablev, 3.9)) / 90.) / 2. + ablev + 6.5)
 
                 --status bar buff
                 UnitAddAbility(summon, FourCC('A06Q'))
@@ -4378,13 +4370,34 @@ OnInit.final("HeroSpells", function(Require)
             elseif uid == SUMMON_HOUND then --demon hound
             end
 
-            UnitSetBonus(summon, BONUS_ARMOR, improvementArmorBonus[pid])
+            UnitSetBonus(summon, BONUS_ARMOR, armor)
         end
 
         function thistype:onCast()
             RecallSummons(self.pid)
         end
     end
+
+    -- emulates timed life using hero XP (perhaps make general purpose custom frame for this later)
+    ---@type fun(pt: PlayerTimer)
+    local function summon_timed_life_bar(pt)
+        local lev = GetHeroLevel(pt.target) ---@type integer 
+
+        if Unit[pt.target].borrowed_life <= 0 then
+            pt.dur = pt.dur - 0.5
+        else
+            Unit[pt.target].borrowed_life = math.max(0, Unit[pt.target].borrowed_life - 0.5)
+        end
+
+        if pt.dur <= 0 then
+            SummonExpire(pt.target)
+        else
+            UnitStripHeroLevel(pt.target, 1)
+            SetHeroXP(pt.target, R2I(RequiredXP(lev) + ((lev + 1) * pt.dur * 100. / pt.time) - 100), false)
+        end
+    end
+
+    local is_destroyer_sacrificed = {} ---@type boolean[] 
 
     ---@class SUMMONDEMONHOUND : Spell
     ---@field hounds function
@@ -4407,7 +4420,7 @@ OnInit.final("HeroSpells", function(Require)
 
             --deadly bite
             if GetRandomInt(0, 99) < 25 then
-                if destroyerSacrificeFlag[pid] then
+                if is_destroyer_sacrificed[pid] then
                     --aoe attack
                     local ug = CreateGroup()
                     MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), 400. * LBOOST[pid], Condition(FilterEnemy))
@@ -4462,7 +4475,7 @@ OnInit.final("HeroSpells", function(Require)
                 SUMMONINGIMPROVEMENT.apply(self.pid, hounds[offset + i], R2I(self.str * BOOST[self.pid]), R2I(self.agi * BOOST[self.pid]), R2I(self.int * BOOST[self.pid]))
                 EVENT_ON_HIT:register_unit_action(hounds[offset + i], onHit)
 
-                if destroyerSacrificeFlag[self.pid] then
+                if is_destroyer_sacrificed[self.pid] then
                     SetUnitVertexColor(hounds[offset + i], 90, 90, 230, 255)
                     SetUnitScale(hounds[offset + i], 1.15, 1.15, 1.15)
                     SetUnitAbilityLevel(hounds[offset + i], FourCC('A06F'), 2)
@@ -4473,7 +4486,7 @@ OnInit.final("HeroSpells", function(Require)
 
                 SetHeroXP(hounds[offset + i], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
 
-                pt.timer:callPeriodically(0.5, nil, SummonDurationXPBar, pt)
+                pt.timer:callPeriodically(0.5, nil, summon_timed_life_bar, pt)
             end
         end
     end
@@ -4525,8 +4538,8 @@ OnInit.final("HeroSpells", function(Require)
             pt.tag = meatgolem[self.pid]
             pt.target = meatgolem[self.pid]
 
-            golemDevourStacks[self.pid] = 0
-            BorrowedLife[meatgolem[self.pid]] = 0
+            Unit[meatgolem[self.pid]].devour_stacks = 0
+            Unit[meatgolem[self.pid]].borrowed_life = 0
 
             BlzSetHeroProperName(meatgolem[self.pid], "Meat Golem")
             TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl", meatgolem[self.pid], "origin"))
@@ -4536,7 +4549,7 @@ OnInit.final("HeroSpells", function(Require)
 
             SetHeroXP(meatgolem[self.pid], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
 
-            pt.timer:callPeriodically(0.5, nil, SummonDurationXPBar, pt)
+            pt.timer:callPeriodically(0.5, nil, summon_timed_life_bar, pt)
         end
     end
 
@@ -4557,7 +4570,7 @@ OnInit.final("HeroSpells", function(Require)
 
         local function onHit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
-            local chance = (15 and destroyerDevourStacks[pid] >= 4) or 10
+            local chance = (15 and Unit[source].devour_stacks >= 4) or 10
 
             --annihilation strike
             if GetRandomInt(0, 99) < chance then
@@ -4570,9 +4583,9 @@ OnInit.final("HeroSpells", function(Require)
         function thistype.periodic(pt)
             local base = 0 ---@type integer 
 
-            if destroyerDevourStacks[pt.pid] == 5 then
+            if Unit[destroyer[pt.pid]].devour_stacks == 5 then
                 base = 400
-            elseif destroyerDevourStacks[pt.pid] >= 3 then
+            elseif Unit[destroyer[pt.pid]].devour_stacks >= 3 then
                 base = 200
             end
 
@@ -4625,9 +4638,9 @@ OnInit.final("HeroSpells", function(Require)
             pt.tag = destroyer[self.pid]
             pt.target = destroyer[self.pid]
 
-            BorrowedLife[destroyer[self.pid]] = 0
-            destroyerDevourStacks[self.pid] = 0
-            destroyerSacrificeFlag[self.pid] = false
+            Unit[destroyer[self.pid]].borrowed_life = 0
+            Unit[destroyer[self.pid]].devour_stacks = 0
+            is_destroyer_sacrificed[self.pid] = false
 
             BlzSetHeroProperName(destroyer[self.pid], "Destroyer")
             TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl", destroyer[self.pid], "origin"))
@@ -4649,7 +4662,7 @@ OnInit.final("HeroSpells", function(Require)
 
             SetHeroXP(destroyer[self.pid], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
 
-            pt.timer:callPeriodically(0.5, nil, SummonDurationXPBar, pt)
+            pt.timer:callPeriodically(0.5, nil, summon_timed_life_bar, pt)
         end
     end
 
@@ -4703,7 +4716,7 @@ OnInit.final("HeroSpells", function(Require)
                 end
             --meat golem
             elseif GetUnitTypeId(self.target) == SUMMON_GOLEM then
-                if golemDevourStacks[self.pid] < 4 then
+                if Unit[self.target].devour_stacks < 4 then
                     SummonExpire(self.target)
                 end
 
@@ -4713,7 +4726,7 @@ OnInit.final("HeroSpells", function(Require)
             --destroyer
             elseif GetUnitTypeId(self.target) == SUMMON_DESTROYER then
                 SummonExpire(self.target)
-                destroyerSacrificeFlag[self.pid] = true
+                is_destroyer_sacrificed[self.pid] = true
 
                 for i = 1, #SummonGroup do
                     local target = SummonGroup[i]
@@ -5231,9 +5244,11 @@ OnInit.final("HeroSpells", function(Require)
 
     ---@class PHANTOMSLASH : Spell
     ---@field dmg function
+    ---@field slashing boolean[]
     PHANTOMSLASH = Spell.define("A07Y")
     do
         local thistype = PHANTOMSLASH
+        thistype.slashing = {}
 
         thistype.values = {
             dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroAgi(Hero[pid], true) * 1.5 * ablev end,
@@ -5270,19 +5285,22 @@ OnInit.final("HeroSpells", function(Require)
 
                 pt.timer:callDelayed(FPS_32, periodic, pt)
             else
-                BlzUnitClearOrders(pt.source, true)
-                BlzUnitDisableAbility(pt.source, thistype.id, false, false)
-
-                PhantomSlashing[pt.pid] = false
-                Unit[pt.source].evasion = Unit[pt.source].evasion - 100
-                SetUnitTimeScale(pt.source, 1.)
-                SetUnitAnimationByIndex(pt.source, 4)
                 pt:destroy()
             end
         end
 
+        local function onRemove(self)
+            BlzUnitClearOrders(self.source, true)
+            BlzUnitDisableAbility(self.source, thistype.id, false, false)
+
+            thistype.slashing[self.pid] = false
+            Unit[self.source].evasion = Unit[self.source].evasion - 100
+            SetUnitTimeScale(self.source, 1.)
+            SetUnitAnimationByIndex(self.source, 4)
+        end
+
         function thistype:onCast()
-            PhantomSlashing[self.pid] = true
+            thistype.slashing[self.pid] = true
             Unit[self.caster].evasion = Unit[self.caster].evasion + 100
 
             BlzUnitDisableAbility(self.caster, thistype.id, true, false)
@@ -5295,6 +5313,7 @@ OnInit.final("HeroSpells", function(Require)
             pt.angle = Atan2(self.targetY - self.y, self.targetX - self.x)
             pt.source = self.caster
             pt.ug = CreateGroup()
+            pt.onRemove = onRemove
 
             TimerQueue:callDelayed(FPS_32, IssueImmediateOrderById, pt.source, ORDER_ID_UNIMMOLATION)
             pt.timer:callDelayed(FPS_32, periodic, pt)
@@ -5945,28 +5964,23 @@ OnInit.final("HeroSpells", function(Require)
         }
 
         local function onHit(source, target)
-            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
-
             if GetUnitAbilityLevel(source, FourCC('B01A')) > 0 then
-                DamageTarget(source, target, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                thistype.cost(pid)
+                local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+                local maxmp = BlzGetUnitMaxMana(source)
+                local pmana = GetUnitState(source, UNIT_STATE_MANA) / maxmp * 100.
+                local pgain = (MetamorphosisBuff:has(source, source) and 0.5) or -1.0
+
+                if pmana >= 0.5 or pgain > 0 then
+                    SetUnitState(source, UNIT_STATE_MANA, (pmana + pgain) * maxmp * 0.01)
+                    DamageTarget(source, target, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                else
+                    IssueImmediateOrder(source, "unimmolation")
+                end
             end
         end
 
         function thistype.onLearn(source, ablev, pid)
             EVENT_ON_HIT:register_unit_action(source, onHit)
-        end
-
-        function thistype.cost(pid)
-            local maxmp = BlzGetUnitMaxMana(Hero[pid])
-            local pmana = GetUnitState(Hero[pid], UNIT_STATE_MANA) / maxmp * 100.
-            local pgain = (MetamorphosisBuff:has(Hero[pid], Hero[pid]) and 0.5) or -1.0
-
-            if pmana >= 0.5 or pgain > 0 then
-                SetUnitState(Hero[pid], UNIT_STATE_MANA, (pmana + pgain) * maxmp * 0.01)
-            else
-                IssueImmediateOrder(Hero[pid], "unimmolation")
-            end
         end
     end
 
@@ -5989,83 +6003,68 @@ OnInit.final("HeroSpells", function(Require)
 
     --bard
 
+    BARD_SONG = __jarray(0)
+
+    local song_color = {
+        [SONG_FATIGUE] = 3,
+        [SONG_HARMONY] = 6,
+        [SONG_PEACE] = 4,
+        [SONG_WAR] = 0
+    }
+
+    local function change_song(self, song)
+        local p = Player(self.pid - 1)
+
+        BARD_SONG[self.pid] = song
+        SetPlayerAbilityAvailable(p, SONG_FATIGUE, false)
+        SetPlayerAbilityAvailable(p, SONG_HARMONY, false)
+        SetPlayerAbilityAvailable(p, SONG_PEACE, false)
+        SetPlayerAbilityAvailable(p, SONG_WAR, false)
+
+        SetPlayerAbilityAvailable(p, song, true)
+        if songeffect[self.pid] == nil then
+            songeffect[self.pid] = AddSpecialEffectTarget("war3mapImported\\Music effect01.mdx", self.caster, "overhead")
+        end
+        BlzSetSpecialEffectColorByPlayer(songeffect[self.pid], Player(song_color[song]))
+    end
+
     ---@class SONGOFFATIGUE : Spell
-    SONGOFFATIGUE = Spell.define("A025")
+    local SONGOFFATIGUE = Spell.define("A025")
     do
         local thistype = SONGOFFATIGUE
 
         function thistype:onCast()
-            local p = Player(self.pid - 1) 
-
-            BardSong[self.pid] = SONG_FATIGUE
-            SetPlayerAbilityAvailable(p, SONG_FATIGUE, true)
-            SetPlayerAbilityAvailable(p, SONG_HARMONY, false)
-            SetPlayerAbilityAvailable(p, SONG_PEACE, false)
-            SetPlayerAbilityAvailable(p, SONG_WAR, false)
-            if songeffect[self.pid] == nil then
-                songeffect[self.pid] = AddSpecialEffectTarget("war3mapImported\\Music effect01.mdx", self.caster, "overhead")
-            end
-            BlzSetSpecialEffectColorByPlayer(songeffect[self.pid], Player(3))
+            change_song(self, SONG_FATIGUE)
         end
     end
 
     ---@class SONGOFHARMONY : Spell
-    SONGOFHARMONY = Spell.define("A026")
+    local SONGOFHARMONY = Spell.define("A026")
     do
         local thistype = SONGOFHARMONY
 
         function thistype:onCast()
-            local p = Player(self.pid - 1) 
-
-            BardSong[self.pid] = SONG_HARMONY
-            SetPlayerAbilityAvailable(p, SONG_FATIGUE, false)
-            SetPlayerAbilityAvailable(p, SONG_HARMONY, true)
-            SetPlayerAbilityAvailable(p, SONG_PEACE, false)
-            SetPlayerAbilityAvailable(p, SONG_WAR, false)
-            if songeffect[self.pid] == nil then
-                songeffect[self.pid] = AddSpecialEffectTarget("war3mapImported\\Music effect01.mdx", self.caster, "overhead")
-            end
-            BlzSetSpecialEffectColorByPlayer(songeffect[self.pid], Player(6))
+            change_song(self, SONG_HARMONY)
         end
     end
 
     ---@class SONGOFPEACE : Spell
-    SONGOFPEACE = Spell.define("A027")
+    local SONGOFPEACE = Spell.define("A027")
     do
         local thistype = SONGOFPEACE
 
         function thistype:onCast()
-            local p = Player(self.pid - 1) 
-
-            BardSong[self.pid] = SONG_PEACE
-            SetPlayerAbilityAvailable(p, SONG_FATIGUE, false)
-            SetPlayerAbilityAvailable(p, SONG_HARMONY, false)
-            SetPlayerAbilityAvailable(p, SONG_PEACE, true)
-            SetPlayerAbilityAvailable(p, SONG_WAR, false)
-            if songeffect[self.pid] == nil then
-                songeffect[self.pid] = AddSpecialEffectTarget("war3mapImported\\Music effect01.mdx", self.caster, "overhead")
-            end
-            BlzSetSpecialEffectColorByPlayer(songeffect[self.pid], Player(4))
+            change_song(self, SONG_PEACE)
         end
     end
 
     ---@class SONGOFWAR : Spell
-    SONGOFWAR = Spell.define("A02C")
+    local SONGOFWAR = Spell.define("A02C")
     do
         local thistype = SONGOFWAR
 
         function thistype:onCast()
-            local p = Player(self.pid - 1) 
-
-            BardSong[self.pid] = SONG_WAR
-            SetPlayerAbilityAvailable(p, SONG_FATIGUE, false)
-            SetPlayerAbilityAvailable(p, SONG_HARMONY, false)
-            SetPlayerAbilityAvailable(p, SONG_PEACE, false)
-            SetPlayerAbilityAvailable(p, SONG_WAR, true)
-            if songeffect[self.pid] == nil then
-                songeffect[self.pid] = AddSpecialEffectTarget("war3mapImported\\Music effect01.mdx", self.caster, "overhead")
-            end
-            BlzSetSpecialEffectColorByPlayer(songeffect[self.pid], Player(0))
+            change_song(self, SONG_WAR)
         end
     end
 
@@ -6090,16 +6089,16 @@ OnInit.final("HeroSpells", function(Require)
 
         function thistype:onCast()
             local ug = CreateGroup()
-            local p = Player(self.pid - 1) 
+            local p = Player(self.pid - 1)
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(isalive))
 
-            --harmony all allied units
-            --war all allied heroes
-            --fatigue all enemies
-            --peace all heroes
+            -- harmony all allied units
+            -- war all allied heroes
+            -- fatigue all enemies
+            -- peace all heroes
 
-            --improv
+            -- improv
             local pt = TimerList[self.pid]:get(IMPROV.id, nil, self.caster)
             local x2, y2, aoe, song = 0, 0, 0, 0
 
@@ -6114,28 +6113,28 @@ OnInit.final("HeroSpells", function(Require)
             for target in each(ug) do
                 self.tpid = GetPlayerId(GetOwningPlayer(target)) + 1
 
-                --allied units
+                -- allied units
                 if IsUnitAlly(target, p) == true then
-                    --song of harmony
-                    if (BardSong[self.pid] == SONG_HARMONY and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_HARMONY and IsUnitInRangeXY(target, x2, y2, aoe)) then
+                    -- song of harmony
+                    if (BARD_SONG[self.pid] == SONG_HARMONY and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_HARMONY and IsUnitInRangeXY(target, x2, y2, aoe)) then
                         HP(self.caster, target, self.heal * BOOST[self.pid], thistype.tag)
                         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAuraTarget.mdl", target, "origin"))
                     end
-                    --heroes
+                    -- heroes
                     if target == Hero[self.tpid] then
-                        --song of war
-                        if (BardSong[self.pid] == SONG_WAR and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_WAR and IsUnitInRangeXY(target, x2, y2, aoe)) then
+                        -- song of war
+                        if (BARD_SONG[self.pid] == SONG_WAR and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_WAR and IsUnitInRangeXY(target, x2, y2, aoe)) then
                             SongOfWarEncoreBuff:add(self.caster, target):duration(thistype.wardur * LBOOST[self.pid])
                         end
-                        --song of peace
-                        if (BardSong[self.pid] == SONG_PEACE and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_PEACE and IsUnitInRangeXY(target, x2, y2, aoe)) then
+                        -- song of peace
+                        if (BARD_SONG[self.pid] == SONG_PEACE and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_PEACE and IsUnitInRangeXY(target, x2, y2, aoe)) then
                             SongOfPeaceEncoreBuff:add(self.caster, target):duration(thistype.peacedur * LBOOST[self.pid])
                         end
                     end
                 else
-                --enemies
-                    --song of fatigue
-                    if (BardSong[self.pid] == SONG_FATIGUE and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_FATIGUE and IsUnitInRangeXY(target, x2, y2, aoe)) then
+                -- enemies
+                    -- song of fatigue
+                    if (BARD_SONG[self.pid] == SONG_FATIGUE and IsUnitInRangeXY(target, self.x, self.y, aoe)) or (song == SONG_FATIGUE and IsUnitInRangeXY(target, x2, y2, aoe)) then
                         StunUnit(self.pid, target, thistype.fatiguedur * LBOOST[self.pid])
                     end
                 end
@@ -6156,7 +6155,7 @@ OnInit.final("HeroSpells", function(Require)
         }
 
         function thistype:onCast()
-            local p = Player(self.pid - 1) 
+            local p = Player(self.pid - 1)
             local heal = self.heal * BOOST[self.pid] ---@type number 
 
             if GetUnitTypeId(self.target) == BACKPACK then
@@ -6184,7 +6183,7 @@ OnInit.final("HeroSpells", function(Require)
         }
 
         ---@type fun(pt: PlayerTimer)
-        function thistype.periodic(pt)
+        local function periodic(pt)
             pt.time = pt.time + 1.
 
             if pt.time >= pt.dur then
@@ -6220,17 +6219,17 @@ OnInit.final("HeroSpells", function(Require)
 
                 DestroyGroup(ug)
 
-                pt.timer:callDelayed(1., thistype.periodic, pt)
+                pt.timer:callDelayed(1., periodic, pt)
             end
         end
 
         function thistype:onCast()
-            if BardSong[self.pid] ~= 0 then
+            if BARD_SONG[self.pid] ~= 0 then
                 local pt = TimerList[self.pid]:add()
 
                 pt.x = self.targetX
                 pt.y = self.targetY
-                pt.song = BardSong[self.pid]
+                pt.song = BARD_SONG[self.pid]
                 pt.tag = thistype.id --important for aura check
                 pt.aoe = self.aoe * LBOOST[self.pid]
                 pt.dmg = self.dmg
@@ -6242,28 +6241,28 @@ OnInit.final("HeroSpells", function(Require)
                 SetUnitOwner(pt.source, Player(PLAYER_TOWN), true)
 
                 --the order matters here
-                UnitAddAbility(pt.source, BardSong[self.pid])
+                UnitAddAbility(pt.source, BARD_SONG[self.pid])
 
                 --auras for allies
-                if BardSong[self.pid] ~= SONG_FATIGUE then
-                    BlzSetAbilityRealLevelField(BlzGetUnitAbility(pt.source, BardSong[self.pid]), ABILITY_RLF_AREA_OF_EFFECT, 0, pt.aoe)
-                    IncUnitAbilityLevel(pt.source, BardSong[self.pid])
-                    DecUnitAbilityLevel(pt.source, BardSong[self.pid])
+                if BARD_SONG[self.pid] ~= SONG_FATIGUE then
+                    BlzSetAbilityRealLevelField(BlzGetUnitAbility(pt.source, BARD_SONG[self.pid]), ABILITY_RLF_AREA_OF_EFFECT, 0, pt.aoe)
+                    IncUnitAbilityLevel(pt.source, BARD_SONG[self.pid])
+                    DecUnitAbilityLevel(pt.source, BARD_SONG[self.pid])
                 end
 
-                if BardSong[self.pid] == SONG_WAR then
+                if BARD_SONG[self.pid] == SONG_WAR then
                     pt.sfx = AddSpecialEffectTarget("war3mapImported\\QuestMarkingRed.mdx", pt.source, "origin")
-                elseif BardSong[self.pid] == SONG_HARMONY then
+                elseif BARD_SONG[self.pid] == SONG_HARMONY then
                     pt.sfx = AddSpecialEffectTarget("war3mapImported\\QuestMarkingGreen.mdx", pt.source, "origin")
-                elseif BardSong[self.pid] == SONG_PEACE then
+                elseif BARD_SONG[self.pid] == SONG_PEACE then
                     pt.sfx = AddSpecialEffectTarget("war3mapImported\\QuestMarkingYellow.mdx", pt.source, "origin")
-                elseif BardSong[self.pid] == SONG_FATIGUE then
+                elseif BARD_SONG[self.pid] == SONG_FATIGUE then
                     pt.sfx = AddSpecialEffectTarget("war3mapImported\\QuestMarkingPurple.mdx", pt.source, "origin")
                 end
 
                 BlzSetSpecialEffectScale(pt.sfx, 4.5)
 
-                pt.timer:callDelayed(1., thistype.periodic, pt)
+                pt.timer:callDelayed(1., periodic, pt)
             end
         end
     end
@@ -6293,7 +6292,7 @@ OnInit.final("HeroSpells", function(Require)
         }
 
         ---@type fun(pt: PlayerTimer)
-        function thistype.periodic(pt)
+        local function periodic(pt)
 
             pt.count = pt.count + 1
             pt.dur = pt.dur - FPS_32
@@ -6335,7 +6334,7 @@ OnInit.final("HeroSpells", function(Require)
 
                 DestroyGroup(ug)
 
-                pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
+                pt.timer:callDelayed(FPS_32, periodic, pt)
             else
                 pt:destroy()
             end
@@ -6353,7 +6352,7 @@ OnInit.final("HeroSpells", function(Require)
             pt.count = 0
             SetUnitScale(pt.target, 0.5, 0.5, 0.5)
 
-            pt.timer:callDelayed(FPS_32, thistype.periodic, pt)
+            pt.timer:callDelayed(FPS_32, periodic, pt)
         end
     end
 
