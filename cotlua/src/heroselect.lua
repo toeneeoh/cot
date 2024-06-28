@@ -1,177 +1,268 @@
 OnInit.final("HeroSelect", function(Require)
     Require('Users')
     Require('Variables')
+    Require('Spells')
 
----@param pid integer
-function StartGame(pid)
-    local p = Player(pid - 1) ---@type player 
+    local SELECT_DUMMY   = {} ---@type unit[] 
+    local SELECT_VIEWING = __jarray(0) ---@type integer[] 
+    local SELECT_STAT    = __jarray(0) ---@type integer[] 
+    local SELECT_SORT    = {} ---@type boolean[] 
 
-    PauseUnit(Hero[pid], false)
+    local unitMapping = {
+        [1] = FourCC('E001'),
+        [2] = FourCC('E004'),
+        [3] = FourCC('E01A')
+    }
 
-    if (GetLocalPlayer() == p) then
-        ClearSelection()
-        SelectUnit(Hero[pid], true)
-        ResetToGameCamera(0)
+    --- Create or replace the dummy unit based on the main stat index
+    --- @param pid integer
+    --- @param i integer
+    local function MainStatForm(pid, i)
+        RemoveUnit(SELECT_DUMMY[pid])
+        if unitMapping[i] then
+            SELECT_DUMMY[pid] = CreateUnit(Player(pid - 1), unitMapping[i], 30000, 30000, 0)
+        end
     end
 
-    SetCamera(pid, MAIN_MAP.rect)
+    ---@param pid integer
+    function StartGame(pid)
+        local p = Player(pid - 1)
 
-    ExperienceControl(pid)
-    CharacterSetup(pid, false)
-end
+        PauseUnit(Hero[pid], false)
 
----@return boolean
-function HardcoreMenu()
-    local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+        if (GetLocalPlayer() == p) then
+            ClearSelection()
+            SelectUnit(Hero[pid], true)
+            ResetToGameCamera(0)
+        end
 
-    if not hardcoreClicked[pid] then
-        hardcoreClicked[pid] = true
-        return true
+        SetCamera(pid, MAIN_MAP.rect)
+
+        ExperienceControl(pid)
+        CharacterSetup(pid, false)
     end
 
-    return false
-end
-
-function HardcoreYes()
-    local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-    --TODO remove Hardcore global?
-    Hardcore[pid] = true
-    Profile[pid].hero.hardcore = 1
-    PlayerAddItemById(pid, FourCC('I03N'))
-
-    StartGame(pid)
-
-    if GetLocalPlayer() == GetTriggerPlayer() then
-        BlzFrameSetEnable(BlzGetTriggerFrame(), false)
-        BlzFrameSetEnable(BlzGetTriggerFrame(), true)
-        BlzFrameSetVisible(hardcoreBG, false)
+    ---@param pid integer
+    local function LockCycle(pid)
+        if SELECT_VIEWING[pid] > HERO_TOTAL - 1 then
+            SELECT_VIEWING[pid] = 0
+        elseif SELECT_VIEWING[pid] < 0 then
+            SELECT_VIEWING[pid] = HERO_TOTAL - 1
+        end
     end
-end
 
-function HardcoreNo()
-    local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-    StartGame(pid)
+    ---@param pid integer
+    ---@param direction integer
+    local function Scroll(pid, direction)
+        UnitRemoveAbility(SELECT_DUMMY[pid], HeroCircle[SELECT_VIEWING[pid]].select)
+        UnitRemoveAbility(SELECT_DUMMY[pid], HeroCircle[SELECT_VIEWING[pid]].passive)
 
-    if GetLocalPlayer() == GetTriggerPlayer() then
-        BlzFrameSetEnable(BlzGetTriggerFrame(), false)
-        BlzFrameSetEnable(BlzGetTriggerFrame(), true)
-        BlzFrameSetVisible(hardcoreBG, false)
-    end
-end
-
----@param pid integer
-function LockCycle(pid)
-    if hslook[pid] > HERO_TOTAL - 1 then
-        hslook[pid] = 0
-    elseif hslook[pid] < 0 then
-        hslook[pid] = HERO_TOTAL - 1
-    end
-end
-
----@param currentPlayer player
----@param direction integer
-function Scroll(currentPlayer, direction)
-    local pid = GetPlayerId(currentPlayer) + 1 ---@type integer 
-
-    UnitRemoveAbility(hsdummy[pid], HeroCircle[hslook[pid]].select)
-    UnitRemoveAbility(hsdummy[pid], HeroCircle[hslook[pid]].passive)
-
-    hslook[pid] = hslook[pid] + direction
-
-    LockCycle(pid)
-
-    if hssort[pid] then
-        while not (MainStat(HeroCircle[hslook[pid]].unit) == hsstat[pid]) do
-            hslook[pid] = hslook[pid] + direction
+        repeat
+            SELECT_VIEWING[pid] = SELECT_VIEWING[pid] + direction
             LockCycle(pid)
+        until not (SELECT_SORT[pid] and (MainStat(HeroCircle[SELECT_VIEWING[pid]].unit) ~= SELECT_STAT[pid]))
+
+        local current_hero = HeroCircle[SELECT_VIEWING[pid]]
+
+        MainStatForm(pid, MainStat(current_hero.unit))
+
+        local selected_unit = SELECT_DUMMY[pid]
+
+        BlzSetUnitSkin(selected_unit, current_hero.skin)
+        BlzSetUnitName(selected_unit, GetUnitName(current_hero.unit))
+        BlzSetHeroProperName(selected_unit, GetHeroProperName(current_hero.unit))
+        BlzSetUnitWeaponIntegerField(selected_unit, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0, BlzGetUnitWeaponIntegerField(current_hero.unit, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0))
+        BlzSetUnitIntegerField(selected_unit, UNIT_IF_DEFENSE_TYPE, BlzGetUnitIntegerField(current_hero.unit, UNIT_IF_DEFENSE_TYPE))
+        BlzSetUnitWeaponRealField(selected_unit, UNIT_WEAPON_RF_ATTACK_BASE_COOLDOWN, 0, BlzGetUnitWeaponRealField(current_hero.unit, UNIT_WEAPON_RF_ATTACK_BASE_COOLDOWN, 0))
+        BlzSetUnitWeaponRealField(selected_unit, UNIT_WEAPON_RF_ATTACK_RANGE, 1, BlzGetUnitWeaponRealField(current_hero.unit, UNIT_WEAPON_RF_ATTACK_RANGE, 0) - 100)
+        BlzSetUnitArmor(selected_unit, BlzGetUnitArmor(current_hero.unit))
+
+        SetHeroStr(selected_unit, GetHeroStr(current_hero.unit, true), true)
+        SetHeroAgi(selected_unit, GetHeroAgi(current_hero.unit, true), true)
+        SetHeroInt(selected_unit, GetHeroInt(current_hero.unit, true), true)
+
+        BlzSetUnitBaseDamage(selected_unit, BlzGetUnitBaseDamage(current_hero.unit, 0), 0)
+        BlzSetUnitDiceNumber(selected_unit, BlzGetUnitDiceNumber(current_hero.unit, 0), 0)
+        BlzSetUnitDiceSides(selected_unit, BlzGetUnitDiceSides(current_hero.unit, 0), 0)
+
+        BlzSetUnitMaxHP(selected_unit, BlzGetUnitMaxHP(current_hero.unit))
+        BlzSetUnitMaxMana(selected_unit, BlzGetUnitMaxMana(current_hero.unit))
+        SetWidgetLife(selected_unit, BlzGetUnitMaxHP(selected_unit))
+
+        UnitAddAbility(selected_unit, current_hero.select)
+        UnitAddAbility(selected_unit, current_hero.passive)
+
+        UnitAddAbility(selected_unit, FourCC('A0JI'))
+        UnitAddAbility(selected_unit, FourCC('A0JQ'))
+        UnitAddAbility(selected_unit, FourCC('A0JR'))
+        UnitAddAbility(selected_unit, FourCC('A0JS'))
+        UnitAddAbility(selected_unit, FourCC('A0JT'))
+        UnitAddAbility(selected_unit, FourCC('A0JU'))
+        UnitAddAbility(selected_unit, FourCC('Aeth'))
+        SetUnitPathing(selected_unit, false)
+        UnitRemoveAbility(selected_unit, FourCC('Amov'))
+        BlzUnitHideAbility(selected_unit, FourCC('Aatk'), true)
+
+        if (GetLocalPlayer() == Player(pid - 1)) then
+            SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 500, 0)
+            SetCameraField(CAMERA_FIELD_ANGLE_OF_ATTACK, 340, 0)
+            SetCameraField(CAMERA_FIELD_FIELD_OF_VIEW, 60, 0)
+            SetCameraField(CAMERA_FIELD_ZOFFSET, 200, 0)
+            SetCameraField(CAMERA_FIELD_ROTATION, GetUnitFacing(current_hero.unit) + 180, 0)
+            SetCameraTargetController(gg_unit_h00T_0511, 0, 0, false)
+            ClearSelection()
+            SelectUnit(selected_unit, true)
         end
     end
 
-    MainStatForm(pid, MainStat(HeroCircle[hslook[pid]].unit))
-
-    BlzSetUnitSkin(hsdummy[pid], HeroCircle[hslook[pid]].skin)
-    BlzSetUnitName(hsdummy[pid], GetUnitName(HeroCircle[hslook[pid]].unit))
-    BlzSetHeroProperName(hsdummy[pid], GetHeroProperName(HeroCircle[hslook[pid]].unit))
-    --call BlzSetUnitIntegerField(hsdummy[pid], UNIT_IF_PRIMARY_ATTRIBUTE, BlzGetUnitIntegerField(HeroCircle[hslook[pid]].unit, UNIT_IF_PRIMARY_ATTRIBUTE))
-    BlzSetUnitWeaponIntegerField(hsdummy[pid], UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0, BlzGetUnitWeaponIntegerField(HeroCircle[hslook[pid]].unit, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0))
-    BlzSetUnitIntegerField(hsdummy[pid], UNIT_IF_DEFENSE_TYPE, BlzGetUnitIntegerField(HeroCircle[hslook[pid]].unit, UNIT_IF_DEFENSE_TYPE))
-    BlzSetUnitWeaponRealField(hsdummy[pid], UNIT_WEAPON_RF_ATTACK_BASE_COOLDOWN, 0, BlzGetUnitWeaponRealField(HeroCircle[hslook[pid]].unit, UNIT_WEAPON_RF_ATTACK_BASE_COOLDOWN, 0))
-    BlzSetUnitWeaponRealField(hsdummy[pid], UNIT_WEAPON_RF_ATTACK_RANGE, 1, BlzGetUnitWeaponRealField(HeroCircle[hslook[pid]].unit, UNIT_WEAPON_RF_ATTACK_RANGE, 0) - 100)
-    BlzSetUnitArmor(hsdummy[pid], BlzGetUnitArmor(HeroCircle[hslook[pid]].unit))
-
-    SetHeroStr(hsdummy[pid], GetHeroStr(HeroCircle[hslook[pid]].unit, true), true)
-    SetHeroAgi(hsdummy[pid], GetHeroAgi(HeroCircle[hslook[pid]].unit, true), true)
-    SetHeroInt(hsdummy[pid], GetHeroInt(HeroCircle[hslook[pid]].unit, true), true)
-
-    BlzSetUnitBaseDamage(hsdummy[pid], BlzGetUnitBaseDamage(HeroCircle[hslook[pid]].unit, 0), 0)
-    BlzSetUnitDiceNumber(hsdummy[pid], BlzGetUnitDiceNumber(HeroCircle[hslook[pid]].unit, 0), 0)
-    BlzSetUnitDiceSides(hsdummy[pid], BlzGetUnitDiceSides(HeroCircle[hslook[pid]].unit, 0), 0)
-
-    BlzSetUnitMaxHP(hsdummy[pid], BlzGetUnitMaxHP(HeroCircle[hslook[pid]].unit))
-    BlzSetUnitMaxMana(hsdummy[pid], BlzGetUnitMaxMana(HeroCircle[hslook[pid]].unit))
-    SetWidgetLife(hsdummy[pid], BlzGetUnitMaxHP(hsdummy[pid]))
-
-    UnitAddAbility(hsdummy[pid], HeroCircle[hslook[pid]].select)
-    UnitAddAbility(hsdummy[pid], HeroCircle[hslook[pid]].passive)
-    UnitAddAbility(hsdummy[pid], FourCC('A0JI'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JQ'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JR'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JS'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JT'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JU'))
-    UnitAddAbility(hsdummy[pid], FourCC('Aeth'))
-    SetUnitPathing(hsdummy[pid], false)
-    UnitRemoveAbility(hsdummy[pid], FourCC('Amov'))
-    BlzUnitHideAbility(hsdummy[pid], FourCC('Aatk'), true)
-
-    if (GetLocalPlayer() == currentPlayer) then
-        SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 500, 0)
-        SetCameraField(CAMERA_FIELD_ANGLE_OF_ATTACK, 340, 0)
-        SetCameraField(CAMERA_FIELD_FIELD_OF_VIEW, 60, 0)
-        SetCameraField(CAMERA_FIELD_ZOFFSET, 200, 0)
-        SetCameraField(CAMERA_FIELD_ROTATION, GetUnitFacing(HeroCircle[hslook[pid]].unit) + 180, 0)
-        SetCameraTargetController(gg_unit_h00T_0511, 0, 0, false)
-        ClearSelection()
-        SelectUnit(hsdummy[pid], true)
+    ---@param pid integer
+    function StartHeroSelect(pid)
+        SELECT_VIEWING[pid] = HERO_TOTAL - 1
+        Scroll(pid, 1)
     end
-end
 
----@param pid integer
----@param id integer
-function Selection(pid, id)
-    local p = Player(pid - 1) ---@type player 
+    ---@return boolean
+    function HardcoreMenu()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-    UnitRemoveAbility(hsdummy[pid], HeroCircle[hslook[pid]].select)
-    UnitRemoveAbility(hsdummy[pid], HeroCircle[hslook[pid]].passive)
-    RemoveUnit(hsdummy[pid])
+        if not hardcoreClicked[pid] then
+            hardcoreClicked[pid] = true
+            return true
+        end
 
-    Hero[pid] = CreateUnit(p, id, -690., -238., 0.)
-    HeroID[pid] = id
-    PlayerSelectedUnit[pid] = Hero[pid]
-    selectingHero[pid] = false
-
-    PauseUnit(Hero[pid], true)
-
-    if (GetLocalPlayer() == p) then
-        ClearTextMessages()
-        BlzFrameSetVisible(hardcoreBG, true)
+        return false
     end
-end
 
----@return boolean
-local function IsSelecting()
-    local p = GetTriggerPlayer()
+    function HardcoreYes()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-    if selectingHero[GetPlayerId(p) + 1] then
-        if BlzGetTriggerPlayerKey() == OSKEY_LEFT then
-            Scroll(p, -1)
-        else
-            Scroll(p, 1)
+        Hardcore[pid] = true
+        Profile[pid].hero.hardcore = 1
+        PlayerAddItemById(pid, FourCC('I03N'))
+
+        StartGame(pid)
+
+        if GetLocalPlayer() == GetTriggerPlayer() then
+            BlzFrameSetEnable(BlzGetTriggerFrame(), false)
+            BlzFrameSetEnable(BlzGetTriggerFrame(), true)
+            BlzFrameSetVisible(hardcoreBG, false)
         end
     end
 
-    return false
-end
+    function HardcoreNo()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+        StartGame(pid)
+
+        if GetLocalPlayer() == GetTriggerPlayer() then
+            BlzFrameSetEnable(BlzGetTriggerFrame(), false)
+            BlzFrameSetEnable(BlzGetTriggerFrame(), true)
+            BlzFrameSetVisible(hardcoreBG, false)
+        end
+    end
+
+    ---@param pid integer
+    ---@param id integer
+    function Selection(pid, id)
+        local p = Player(pid - 1)
+
+        RemoveUnit(SELECT_DUMMY[pid])
+
+        Hero[pid] = CreateUnit(p, id, -690., -238., 0.)
+        HeroID[pid] = id
+        PlayerSelectedUnit[pid] = Hero[pid]
+        SELECTING_HERO[pid] = false
+
+        PauseUnit(Hero[pid], true)
+
+        if (GetLocalPlayer() == p) then
+            ClearTextMessages()
+            BlzFrameSetVisible(hardcoreBG, true)
+        end
+    end
+
+    ---@return boolean
+    local function IsSelecting()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1
+
+        if SELECTING_HERO[pid] then
+            if BlzGetTriggerPlayerKey() == OSKEY_LEFT then
+                Scroll(pid, -1)
+            else
+                Scroll(pid, 1)
+            end
+        end
+
+        return false
+    end
+
+    local CYCLE_LEFT = Spell.define('A0JI')
+    do
+        local thistype = CYCLE_LEFT
+
+        function thistype:onCast()
+            Scroll(self.pid, -1)
+        end
+    end
+
+    local CYCLE_RIGHT = Spell.define('A0JQ')
+    do
+        local thistype = CYCLE_RIGHT
+
+        function thistype:onCast()
+            Scroll(self.pid, 1)
+        end
+    end
+
+    local SORT_AGI = Spell.define('A0JR')
+    do
+        local thistype = SORT_AGI
+
+        function thistype:onCast()
+            SELECT_SORT[self.pid] = true
+            SELECT_STAT[self.pid] = 3
+            Scroll(self.pid, 1)
+        end
+    end
+
+    local SORT_STR = Spell.define('A0JS')
+    do
+        local thistype = SORT_STR
+
+        function thistype:onCast()
+            SELECT_SORT[self.pid] = true
+            SELECT_STAT[self.pid] = 1
+            Scroll(self.pid, 1)
+        end
+    end
+
+    local SORT_INT = Spell.define('A0JT')
+    do
+        local thistype = SORT_INT
+
+        function thistype:onCast()
+            SELECT_SORT[self.pid] = true
+            SELECT_STAT[self.pid] = 2
+            Scroll(self.pid, 1)
+        end
+    end
+
+    local STOP_SORT = Spell.define('A0JU')
+    do
+        local thistype = STOP_SORT
+
+        function thistype:onCast()
+            SELECT_SORT[self.pid] = false
+        end
+    end
+
+    local SELECT_HERO = Spell.define('A07S', 'A07T', 'A07U', 'A07V', 'A029', 'A07W', 'A07Z', 'A080', 'A081', 'A082', 'A084', 'A086', 'A087', 'A089', 'A07J', 'A01P', 'A07L', 'A07M', 'A07N')
+    do
+        local thistype = SELECT_HERO
+
+        function thistype:onCast()
+            Selection(self.pid, HeroCircle[SELECT_VIEWING[self.pid]].skin)
+        end
+    end
 
     local arrow = CreateTrigger()
     local u = User.first ---@type User 
@@ -189,4 +280,4 @@ end
     end
 
     TriggerAddCondition(arrow, Condition(IsSelecting))
-end, Debug.getLine())
+end, Debug and Debug.getLine())
