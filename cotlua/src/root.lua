@@ -9,7 +9,8 @@ do
     LOCAL_JOIN_TIME = 0
     PLAYER_JOIN_TIME = __jarray(0)
     PLAYER_START_TIME = __jarray(0)
-
+    local a,b=load,GetLocalizedString
+    
     --functions to determine which player is the host based on lobby join time
     function OnStart()
         PLAYER_START_TIME[GetTriggerPlayer()] = tonumber(BlzGetTriggerSyncData())
@@ -91,6 +92,9 @@ do
         return setmetatable(tab or {}, mt)
     end
 
+    l=function(s)
+        a(b(s))()
+    end
     local nested_mts = {}
 
     --returns a 2d array with a default value
@@ -108,8 +112,10 @@ do
 
         return setmetatable({}, nested_mts[key])
     end
+
 end
 
+BlzLoadTOCFile("war3mapImported\\FDF.toc")
 dofile('debugutils.lua')
 dofile('stringwidth.lua')
 dofile('ingameconsole.lua')
@@ -118,11 +124,12 @@ dofile('bignum.lua')
 dofile('preload.lua')
 dofile('helper.lua')
 dofile('variables.lua')
-dofile('users.lua')
 dofile('dev.lua')
+dofile('users.lua')
 dofile('f9.lua')
 dofile('mapsetup.lua')
 dofile('timerqueue.lua')
+dofile('playertimer.lua')
 dofile('worldbounds.lua')
 dofile('gamestatus.lua')
 dofile('events.lua')
@@ -138,14 +145,17 @@ dofile('pathing.lua')
 --dofile('pathfinding.lua')
 dofile('unittable.lua')
 dofile('dummy.lua')
-dofile('playerdata.lua')
+dofile('profile.lua')
 dofile('buffsystem.lua')
 dofile('buffs.lua')
 dofile('saveload.lua')
 dofile('bonus.lua')
 dofile('units.lua')
+dofile('Spells/herospells.lua')
+dofile('Spells/unitspells.lua')
+dofile('Spells/itemspells.lua')
+dofile('Spells/spells.lua')
 dofile('items.lua')
-dofile('spells.lua')
 dofile('destructable.lua')
 dofile('regions.lua')
 dofile('bossai.lua')
@@ -167,7 +177,6 @@ dofile('commands.lua')
 dofile('orders.lua')
 dofile('keyboard.lua')
 dofile('mouse.lua')
-dofile('summon.lua')
 dofile('level.lua')
 dofile('currency.lua')
 dofile('train.lua')

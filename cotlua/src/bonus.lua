@@ -104,4 +104,4 @@ OnInit.global("Bonus", function()
             UnitSetBonus(u, bonus, UnitGetBonus(u, bonus) + amount)
         end
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

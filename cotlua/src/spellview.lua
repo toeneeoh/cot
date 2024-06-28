@@ -205,7 +205,6 @@ OnInit.final("SpellView", function(Require)
         local cdTotal ---@type number 
         local abiCode ---@type integer 
         local abi ---@type ability 
-        local mySpell ---@type Spell 
         local u = GetMainSelectedUnit() ---@type unit?
 
         if u ~= LastUnit then
@@ -286,11 +285,9 @@ OnInit.final("SpellView", function(Require)
                         spellType = BlzGetAbilityId(abi)
 
                         if Spells[spellType] then
-                            mySpell = Spells[spellType]:create(GetPlayerId(GetOwningPlayer(u)) + 1)
+                            local mySpell = Spells[spellType]:create(GetPlayerId(GetOwningPlayer(u)) + 1, spellType)
 
-                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipText", 0), GetSpellTooltip(mySpell))
-
-                            mySpell:destroy()
+                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipText", 0), mySpell:get_tooltip())
                         else
                             if level > 0 then
                                 BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipText", 0), BlzGetAbilityExtendedTooltip(abiCode, level - 1))
@@ -381,4 +378,4 @@ OnInit.final("SpellView", function(Require)
     TimerStart(t, UpdateTime, true, Update)
 
     InitFrames()
-end, Debug.getLine())
+end, Debug and Debug.getLine())

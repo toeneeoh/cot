@@ -65,4 +65,4 @@ function IsTerrainWalkable(x, y)
     return (TERRAIN_X - x) ^ 2 + (TERRAIN_Y - y) ^ 2 <= MAX_RANGE ^ 2 and not IsTerrainPathable(x, y, PATHING_TYPE_WALKABILITY)
 end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

@@ -41,4 +41,4 @@ end
 
     TriggerAddAction(cancel, OnTrainCancel)
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

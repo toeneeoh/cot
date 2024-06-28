@@ -499,13 +499,13 @@ OnInit.final("UI", function(Require)
             local pid = GetPlayerId(GetTriggerPlayer()) + 1
             local enabled = false
 
-            if ConverterBought[pid] then
-                if frame == PLAT_CONVERT then
-                    enabled = not PlatConverter[pid]
-                    PlatConverter[pid] = enabled
-                elseif frame == ARCA_CONVERT then
-                    enabled = not ArcaConverter[pid]
-                    ArcaConverter[pid] = enabled
+            if IS_CONVERTER_PURCHASED[pid] then
+                if frame == PLAT_CONVERT_FRAME then
+                    enabled = not IS_CONVERTING_PLAT[pid]
+                    IS_CONVERTING_PLAT[pid] = enabled
+                elseif frame == ARC_CONVERT_FRAME then
+                    enabled = not IS_CONVERTING_ARC[pid]
+                    IS_CONVERTING_ARC[pid] = enabled
                 end
             end
 
@@ -516,17 +516,17 @@ OnInit.final("UI", function(Require)
             end
         end
 
-        PLAT_CONVERT = Button.create(CONVERTER_FRAME, 0.018, 0.018, -0.125, 0, true)
-        PLAT_CONVERT:icon("ReplaceableTextures\\CommandButtons\\BTNConvert.blp")
-        PLAT_CONVERT:onClick(onConvert)
-        PLAT_CONVERT:enabled(false)
-        PLAT_CONVERT.tooltip:text("Must purchase a converter to use!")
+        PLAT_CONVERT_FRAME = Button.create(CONVERTER_FRAME, 0.018, 0.018, -0.125, 0, true)
+        PLAT_CONVERT_FRAME:icon("ReplaceableTextures\\CommandButtons\\BTNConvert.blp")
+        PLAT_CONVERT_FRAME:onClick(onConvert)
+        PLAT_CONVERT_FRAME:enabled(false)
+        PLAT_CONVERT_FRAME.tooltip:text("Must purchase a converter to use!")
 
-        ARCA_CONVERT = Button.create(CONVERTER_FRAME, 0.018, 0.018, 0.1125, 0, true)
-        ARCA_CONVERT:icon("ReplaceableTextures\\CommandButtons\\BTNConvert.blp")
-        ARCA_CONVERT:onClick(onConvert)
-        ARCA_CONVERT:enabled(false)
-        ARCA_CONVERT.tooltip:text("Must purchase a converter to use!")
+        ARC_CONVERT_FRAME = Button.create(CONVERTER_FRAME, 0.018, 0.018, 0.1125, 0, true)
+        ARC_CONVERT_FRAME:icon("ReplaceableTextures\\CommandButtons\\BTNConvert.blp")
+        ARC_CONVERT_FRAME:onClick(onConvert)
+        ARC_CONVERT_FRAME:enabled(false)
+        ARC_CONVERT_FRAME.tooltip:text("Must purchase a converter to use!")
 
         --plat/arc frames
         PLAT_FRAME = BlzCreateFrameByType("FRAME", "", RESOURCE_BAR, "", 0)
@@ -715,4 +715,4 @@ OnInit.final("UI", function(Require)
             end
         end
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

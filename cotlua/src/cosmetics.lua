@@ -11,7 +11,7 @@ OnInit.final("Cosmetics", function(Require)
 
     DONATOR_AURA_OFFSET = 1000 ---@type integer 
 
-    isdonator = {} ---@type boolean[] 
+    IS_DONATOR = {} ---@type boolean[] 
     local donator = {
         "lcm#1458 11111111111111111111111 1111111111111111111",
         "Mayday#12613 01 0",
@@ -341,10 +341,10 @@ OnInit.final("Cosmetics", function(Require)
         end
 
         if CosmeticTable[u.name][0] > 0 then
-            isdonator[u.id] = true
+            IS_DONATOR[u.id] = true
         end
 
         u = u.next
     end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

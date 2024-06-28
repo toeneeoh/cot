@@ -7,7 +7,7 @@
 OnInit.final("MapSetup", function(Require)
     Require('Users')
     Require('Variables')
-    Require('PlayerData')
+    Require('Profile')
 
     --create floating texttags
     SetTextTagText(ColoText, "", 15.00)
@@ -107,4 +107,4 @@ OnInit.final("MapSetup", function(Require)
     ShowInterface(true, 0)
     EnableUserControl(true)
     TimerQueue:callDelayed(0., DisplayCineFilter, false)
-end, Debug.getLine())
+end, Debug and Debug.getLine())

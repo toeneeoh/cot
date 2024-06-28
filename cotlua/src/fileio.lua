@@ -102,4 +102,4 @@ OnInit.global("FileIO", function()
         SaveAsserted = saveAsserted,
         enabled = fileIO_enabled,
     }
-end, Debug.getLine())
+end, Debug and Debug.getLine())

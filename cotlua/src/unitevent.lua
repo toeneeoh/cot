@@ -21,4 +21,4 @@ OnInit.global("UnitEvent", function()
         end
         TriggerAddCondition(triggers[event], Filter(filterfunc))
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

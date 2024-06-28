@@ -165,4 +165,4 @@ OnInit.global("Users", function()
 
         TriggerAddCondition(LEAVE_TRIGGER, Filter(thistype.onLeave))
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

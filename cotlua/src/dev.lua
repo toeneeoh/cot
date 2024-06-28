@@ -1,16 +1,19 @@
 --[[
     dev.lua
 
-    A module used for debugging and testing.
+    A library used for debugging and testing.
 ]]
 
 OnInit.final("Dev", function(Require)
-    Require('Variables')
+    DEV_ENABLED = true
+    SAVE_LOAD_VERSION = 0x40000000
+    MAP_NAME = "CoT Nevermore BETA"
+
+    Require("Orders")
 
     EXTRA_DEBUG    = false ---@type boolean 
-    DEBUG_HERO    = false ---@type boolean 
-    A_STAR_PATHING = false ---@type boolean 
-    MS_OVERRIDE = false
+    DEBUG_HERO     = false ---@type boolean 
+    MS_OVERRIDE    = false
     BUDDHA_MODE    = {} ---@type boolean[] 
     nocd           = {} ---@type boolean[] 
     nocost         = {} ---@type boolean[] 
@@ -85,11 +88,12 @@ modifiers:
 > - flat scaling per rarity
 % - percent scaling per level (default is 100%) // this one is ignorable
 @ - unlocks at specified level
-# - ability id"]]
+# - ability id"]],
+        ["go"] = "Lazy command to pick a hero quickly"
     }
 
-    local function BUDDHA()
-        BlzSetEventDamage(0.00)
+    local function BUDDHA(target, source, amount)
+        amount.value = 0.
     end
 
     --lookup table
@@ -574,301 +578,356 @@ modifiers:
             print(GC)
         end,
 
-        ["benchmark"] = function()
-            local i = 20000
-            local BASE = 10
-            local s = ""
-            local ab = "!#$\x25&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}`" ---@type string 
-            local t = os.clock()
-            local c
+        ["benchmark"] = function(p, pid, args)
+            iterations = (args[2] and S2I(args[2])) or 1000
 
-            while i > 0 do
-                local b = i - (i // BASE) * BASE
-                s = ab:sub(b + 1, b + 1) .. s
-                c = s:len()
-                i = i - 1
+            --local time = benchmark(test_local, iterations)
+            --print(string.format("Function time: %.4f seconds", time))
+        end,
+
+        ["go"] = function(p, pid, args)
+            local hero = (args[2]) or "oblivion"
+
+            for i = 0, HERO_TOTAL - 1 do
+                local id = HeroCircle[i].skin
+                local name = GetObjectName(id):lower()
+
+                if name:find(hero, nil, true) then
+                    Selection(pid, id)
+                    StartGame(pid)
+                    if (GetLocalPlayer() == p) then
+                        BlzFrameSetVisible(hardcoreBG, false)
+                    end
+                    break
+                end
             end
-
-            print(os.clock() - t)
         end,
    }
 
----@param pid integer
-function EventSetup(pid)
-    local i  = pid - 1 ---@type integer 
-    local i2 = 0 ---@type integer 
-    local p  = Player(pid - 1) ---@type player 
+    ---@param pid integer
+    function EventSetup(pid)
+        local i  = pid - 1 ---@type integer 
+        local i2 = 0 ---@type integer 
+        local p  = Player(pid - 1) 
 
-    --make user
-    if not User[p] then
-        User[p] = {}
-        setmetatable(User[p], { __index = User })
-        User[p].player = p
-        User[p].id = i + 1
-        User[p].isPlaying = true
-        User[p].color = GetPlayerColor(p)
-        User[p].name = GetPlayerName(p)
-        User[p].hex = OriginalHex[i]
-        User[p].nameColored = User[p].hex .. User[p].name .. "|r"
+        --make user
+        if not User[p] then
+            User[p] = {}
+            setmetatable(User[p], { __index = User })
+            User[p].player = p
+            User[p].id = i + 1
+            User[p].isPlaying = true
+            User[p].color = GetPlayerColor(p)
+            User[p].name = GetPlayerName(p)
+            User[p].hex = OriginalHex[i]
+            User[p].nameColored = User[p].hex .. User[p].name .. "|r"
 
-        User.last = User[p]
+            User.last = User[p]
 
-        User[p].prev = User[User.AmountPlaying - 1]
-        User[p].prev.next = User[p]
-        User[p].next = nil
+            User[p].prev = User[User.AmountPlaying - 1]
+            User[p].prev.next = User[p]
+            User[p].next = nil
 
-        User[User.AmountPlaying] = User[p]
-        User.AmountPlaying = User.AmountPlaying + 1
+            User[User.AmountPlaying] = User[p]
+            User.AmountPlaying = User.AmountPlaying + 1
 
-        TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_LEAVE)
-        TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_DEFEAT)
+            TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_LEAVE)
+            TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_DEFEAT)
 
-        ForceAddPlayer(FORCE_PLAYING, p)
-    end
+            ForceAddPlayer(FORCE_PLAYING, p)
+        end
 
-    local index = User.AmountPlaying
-    MULTIBOARD.MAIN:addRows(1)
-    MULTIBOARD.MAIN:get(index, 1).text = {0.02, 0, 0.09, MULTIBOARD.ICON_SIZE}
-    MULTIBOARD.MAIN:get(index, 2).icon = {0.11, 0, MULTIBOARD.ICON_SIZE, MULTIBOARD.ICON_SIZE}
-    MULTIBOARD.MAIN:get(index, 3).icon = {0.13, 0, MULTIBOARD.ICON_SIZE, MULTIBOARD.ICON_SIZE}
-    MULTIBOARD.MAIN:get(index, 4).text = {0.15, 0, 0.08, MULTIBOARD.ICON_SIZE}
-    MULTIBOARD.MAIN:get(index, 5).text = {0.23, 0, 0.03, MULTIBOARD.ICON_SIZE}
-    MULTIBOARD.MAIN:get(index, 6).text = {0.26, 0, 0.03, MULTIBOARD.ICON_SIZE}
-    MULTIBOARD.MAIN:refresh()
+        local index = User.AmountPlaying
+        MULTIBOARD.MAIN:addRows(1)
+        MULTIBOARD.MAIN:get(index, 1).text = {0.02, 0, 0.09, MULTIBOARD.ICON_SIZE}
+        MULTIBOARD.MAIN:get(index, 2).icon = {0.11, 0, MULTIBOARD.ICON_SIZE, MULTIBOARD.ICON_SIZE}
+        MULTIBOARD.MAIN:get(index, 3).icon = {0.13, 0, MULTIBOARD.ICON_SIZE, MULTIBOARD.ICON_SIZE}
+        MULTIBOARD.MAIN:get(index, 4).text = {0.15, 0, 0.08, MULTIBOARD.ICON_SIZE}
+        MULTIBOARD.MAIN:get(index, 5).text = {0.23, 0, 0.03, MULTIBOARD.ICON_SIZE}
+        MULTIBOARD.MAIN:get(index, 6).text = {0.26, 0, 0.03, MULTIBOARD.ICON_SIZE}
+        MULTIBOARD.MAIN:refresh()
 
-    --alliance setup
-    SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), Player(pid - 1), bj_ALLIANCE_ALLIED)
-    SetPlayerAlliance(Player(pid - 1), Player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_SHARED_SPELLS, true)
-    SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('o03K'), 1)
-    SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('e016'), 15)
-    SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('e017'), 8)
-    SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('e018'), 3)
-    SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('u01H'), 3)
-    SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('h06S'), 15)
-    SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('h06U'), 3)
-    SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('h06T'), 8)
-    AddPlayerTechResearched(Player(pid - 1), FourCC('R013'), 1)
-    AddPlayerTechResearched(Player(pid - 1), FourCC('R014'), 1)
-    AddPlayerTechResearched(Player(pid - 1), FourCC('R015'), 1)
-    AddPlayerTechResearched(Player(pid - 1), FourCC('R016'), 1)
-    AddPlayerTechResearched(Player(pid - 1), FourCC('R017'), 1)
+        --alliance setup
+        SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), Player(pid - 1), bj_ALLIANCE_ALLIED)
+        SetPlayerAlliance(Player(pid - 1), Player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_SHARED_SPELLS, true)
+        SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('o03K'), 1)
+        SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('e016'), 15)
+        SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('e017'), 8)
+        SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('e018'), 3)
+        SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('u01H'), 3)
+        SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('h06S'), 15)
+        SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('h06U'), 3)
+        SetPlayerTechMaxAllowed(Player(pid - 1), FourCC('h06T'), 8)
+        AddPlayerTechResearched(Player(pid - 1), FourCC('R013'), 1)
+        AddPlayerTechResearched(Player(pid - 1), FourCC('R014'), 1)
+        AddPlayerTechResearched(Player(pid - 1), FourCC('R015'), 1)
+        AddPlayerTechResearched(Player(pid - 1), FourCC('R016'), 1)
+        AddPlayerTechResearched(Player(pid - 1), FourCC('R017'), 1)
 
-    i = 0
-    while i ~= bj_MAX_PLAYERS do
+        i = 0
+        while i ~= bj_MAX_PLAYERS do
 
-        i2 = 0
-        while i2 ~= bj_MAX_PLAYERS do
-            if i ~= i2 then
-                SetPlayerAlliance(Player(i), Player(i2), ALLIANCE_SHARED_VISION, true)
-                SetPlayerAlliance(Player(i), Player(i2), ALLIANCE_SHARED_CONTROL, false)
+            i2 = 0
+            while i2 ~= bj_MAX_PLAYERS do
+                if i ~= i2 then
+                    SetPlayerAlliance(Player(i), Player(i2), ALLIANCE_SHARED_VISION, true)
+                    SetPlayerAlliance(Player(i), Player(i2), ALLIANCE_SHARED_CONTROL, false)
+                end
+                i2 = i2 + 1
             end
-            i2 = i2 + 1
+
+            i = i + 1
         end
 
-        i = i + 1
+        --spell setup
+        local spell   = CreateTrigger()
+        local cast    = CreateTrigger()
+        local finish  = CreateTrigger()
+        local learn   = CreateTrigger()
+        local channel = CreateTrigger()
+        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[0], false) --pr setup
+        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[1], false)
+        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[2], false)
+        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[3], false)
+        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[4], false)
+        SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0AP'), false)
+        SetPlayerAbilityAvailable(Player(pid - 1), SONG_HARMONY, false)  --bard setup
+        SetPlayerAbilityAvailable(Player(pid - 1), SONG_PEACE, false)
+        SetPlayerAbilityAvailable(Player(pid - 1), SONG_WAR, false)
+        SetPlayerAbilityAvailable(Player(pid - 1), SONG_FATIGUE, false)
+
+        TriggerRegisterUnitEvent(spell, Hero[pid], EVENT_UNIT_SPELL_EFFECT)
+        TriggerRegisterUnitEvent(cast, Hero[pid], EVENT_UNIT_SPELL_CAST)
+        TriggerRegisterUnitEvent(finish, Hero[pid], EVENT_UNIT_SPELL_CHANNEL)
+        TriggerRegisterUnitEvent(learn, Hero[pid], EVENT_UNIT_SPELL_FINISH)
+        TriggerRegisterUnitEvent(channel, Hero[pid], EVENT_UNIT_HERO_SKILL)
+
+        TriggerAddAction(spell, SpellEffect)
+        TriggerAddAction(cast, SpellCast)
+        TriggerAddAction(finish, SpellFinish)
+        TriggerAddCondition(learn, Filter(SpellLearn))
+        TriggerAddCondition(channel, Filter(SpellChannel))
+
+        --death setup
+        local death = CreateTrigger()
+        TriggerRegisterUnitEvent(death, Hero[pid], EVENT_UNIT_DEATH)
+
+        TriggerAddAction(death, OnDeath)
+
+        --attack setup
+        local attacked = CreateTrigger()
+        TriggerRegisterUnitEvent(attacked, Hero[pid], EVENT_UNIT_ATTACKED)
+
+        TriggerAddCondition(attacked, Filter(OnAttack))
+
+        --damage setup
+        local beforearmor = CreateTrigger()
+        TriggerRegisterUnitEvent(beforearmor, Hero[pid], EVENT_UNIT_DAMAGING)
+
+        TriggerAddCondition(beforearmor, Filter(OnDamage))
+
+        --item setup
+        local onpickup = CreateTrigger()
+        local ondrop   = CreateTrigger()
+        local useitem  = CreateTrigger()
+        local onsell   = CreateTrigger()
+        TriggerRegisterUnitEvent(onpickup, Hero[pid], EVENT_UNIT_PICKUP_ITEM)
+        TriggerRegisterUnitEvent(ondrop, Hero[pid], EVENT_UNIT_DROP_ITEM)
+        TriggerRegisterUnitEvent(useitem, Hero[pid], EVENT_UNIT_USE_ITEM)
+        TriggerRegisterUnitEvent(onsell, Hero[pid], EVENT_UNIT_PAWN_ITEM)
+
+        --order setup
+        local ordertarget = CreateTrigger()
+        --TriggerRegisterPlayerUnitEvent(pointOrder, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, nil)
+        --TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, nil)
+        TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_ORDER, nil)
+
+        --TriggerAddAction(pointOrder, OnOrder)
+        TriggerAddCondition(ordertarget, Condition(OnOrder))
+
+        TriggerAddCondition(onpickup, Condition(PickupFilter))
+        TriggerAddAction(onpickup, onPickup)
+        TriggerAddAction(ondrop, onDrop)
+        TriggerAddAction(useitem, onUse)
+        TriggerAddCondition(onsell, Condition(onSell))
     end
 
-    --spell setup
-    local spell   = CreateTrigger()
-    local cast    = CreateTrigger()
-    local finish  = CreateTrigger()
-    local learn   = CreateTrigger()
-    local channel = CreateTrigger()
-    SetPlayerAbilityAvailable(Player(pid - 1), prMulti[0], false) --pr setup
-    SetPlayerAbilityAvailable(Player(pid - 1), prMulti[1], false)
-    SetPlayerAbilityAvailable(Player(pid - 1), prMulti[2], false)
-    SetPlayerAbilityAvailable(Player(pid - 1), prMulti[3], false)
-    SetPlayerAbilityAvailable(Player(pid - 1), prMulti[4], false)
-    SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0AP'), false)
-    SetPlayerAbilityAvailable(Player(pid - 1), SONG_HARMONY, false)  --bard setup
-    SetPlayerAbilityAvailable(Player(pid - 1), SONG_PEACE, false)
-    SetPlayerAbilityAvailable(Player(pid - 1), SONG_WAR, false)
-    SetPlayerAbilityAvailable(Player(pid - 1), SONG_FATIGUE, false)
+    function PreloadItemSearch()
+        local count = 0 ---@type integer 
+        local itm ---@type item 
 
-    TriggerRegisterUnitEvent(spell, Hero[pid], EVENT_UNIT_SPELL_EFFECT)
-    TriggerRegisterUnitEvent(cast, Hero[pid], EVENT_UNIT_SPELL_CAST)
-    TriggerRegisterUnitEvent(finish, Hero[pid], EVENT_UNIT_SPELL_CHANNEL)
-    TriggerRegisterUnitEvent(learn, Hero[pid], EVENT_UNIT_SPELL_FINISH)
-    TriggerRegisterUnitEvent(channel, Hero[pid], EVENT_UNIT_HERO_SKILL)
-
-    TriggerAddAction(spell, SpellEffect)
-    TriggerAddAction(cast, SpellCast)
-    TriggerAddAction(finish, SpellFinish)
-    TriggerAddCondition(learn, Filter(SpellLearn))
-    TriggerAddCondition(channel, Filter(SpellChannel))
-
-    --death setup
-    local death = CreateTrigger()
-    TriggerRegisterUnitEvent(death, Hero[pid], EVENT_UNIT_DEATH)
-
-    TriggerAddAction(death, OnDeath)
-
-    --attack setup
-    local attacked = CreateTrigger()
-    TriggerRegisterUnitEvent(attacked, Hero[pid], EVENT_UNIT_ATTACKED)
-
-    TriggerAddCondition(attacked, Filter(OnAttack))
-
-    --damage setup
-    local beforearmor = CreateTrigger()
-    TriggerRegisterUnitEvent(beforearmor, Hero[pid], EVENT_UNIT_DAMAGING)
-
-    TriggerAddCondition(beforearmor, Filter(OnDamage))
-
-    --item setup
-    local onpickup = CreateTrigger()
-    local ondrop   = CreateTrigger()
-    local useitem  = CreateTrigger()
-    local onsell   = CreateTrigger()
-    TriggerRegisterUnitEvent(onpickup, Hero[pid], EVENT_UNIT_PICKUP_ITEM)
-    TriggerRegisterUnitEvent(ondrop, Hero[pid], EVENT_UNIT_DROP_ITEM)
-    TriggerRegisterUnitEvent(useitem, Hero[pid], EVENT_UNIT_USE_ITEM)
-    TriggerRegisterUnitEvent(onsell, Hero[pid], EVENT_UNIT_PAWN_ITEM)
-
-    --order setup
-    local ordertarget = CreateTrigger()
-    --TriggerRegisterPlayerUnitEvent(pointOrder, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, nil)
-    --TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, nil)
-    TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_ORDER, nil)
-
-    --TriggerAddAction(pointOrder, OnOrder)
-    TriggerAddCondition(ordertarget, Condition(OnOrder))
-
-    TriggerAddCondition(onpickup, Condition(PickupFilter))
-    TriggerAddAction(onpickup, onPickup)
-    TriggerAddAction(ondrop, onDrop)
-    TriggerAddAction(useitem, onUse)
-    TriggerAddCondition(onsell, Condition(onSell))
-end
-
-function PreloadItemSearch()
-    local count = 0 ---@type integer 
-    local itm ---@type item 
-
-    --searchable items
-    --I000 to I0zz (3844~ items)
-    for i = 0, 19018 do
-        if GetObjectName(CUSTOM_ITEM_OFFSET + i) ~= "Default string" then
-            itm = CreateItem(CUSTOM_ITEM_OFFSET + i, 30000., 30000.)
-            if GetItemType(itm) ~= ITEM_TYPE_POWERUP and GetItemType(itm) ~= ITEM_TYPE_CAMPAIGN then
-                SEARCHABLE[i] = true
+        --searchable items
+        --I000 to I0zz (3844~ items)
+        for i = 0, 19018 do
+            if GetObjectName(CUSTOM_ITEM_OFFSET + i) ~= "Default string" then
+                itm = CreateItem(CUSTOM_ITEM_OFFSET + i, 30000., 30000.)
+                if GetItemType(itm) ~= ITEM_TYPE_POWERUP and GetItemType(itm) ~= ITEM_TYPE_CAMPAIGN then
+                    SEARCHABLE[i] = true
+                end
+                SetWidgetLife(itm, 1.)
+                RemoveItem(itm)
             end
-            SetWidgetLife(itm, 1.)
-            RemoveItem(itm)
-        end
 
-        count = count + 1
+            count = count + 1
 
-        --ignore non word/digit characters
-        if count == 10 then
-            i = i + 7
-        elseif count == 36 then
-            i = i + 6
-        elseif count == 62 then
-            i = i + 181
-            count = 0
-        end
-    end
-end
-
----@param id integer
-function WipeItemStats(id)
-    for i = 1, 30 do
-        ItemData[id][i] = 0
-        ItemData[id][i .. "range"] = 0
-        ItemData[id][i .. "fpl"] = 0
-        ItemData[id][i .. "fpr"] = 0
-        ItemData[id][i .. "percent"] = 0
-        ItemData[id][i .. "unlock"] = 0
-        ItemData[id][i .. "fixed"] = 0
-        ItemData[id][i * ABILITY_OFFSET] = 0
-        ItemData[id][i * ABILITY_OFFSET .. "abil"] = nil
-    end
-end
-
-function SearchPage()
-    local p   = GetTriggerPlayer() ---@type player 
-    local pid = GetPlayerId(p) + 1 ---@type integer 
-    local dw    = DialogWindow[pid] ---@type DialogWindow 
-    local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
-
-    if index ~= -1 then
-        local itm = PlayerAddItemById(pid, dw.data[index])
-        itm:lvl(IMaxBJ(0, ItemData[itm.id][ITEM_UPGRADE_MAX] - ITEM_MAX_LEVEL_VARIANCE))
-
-        dw:destroy()
-    end
-
-    return false
-end
-
----@param search string
----@param pid integer
-function FindItem(search, pid)
-    local itemCode = "" ---@type string 
-    local id       = 0 ---@type integer 
-    local name     = "" ---@type string 
-    local count    = 0 ---@type integer 
-    local dw = DialogWindow.create(pid, "", SearchPage)
-
-    --searchable items
-    --I000 to I0zz (3844~ items)
-    for i = 0, 19018 do
-        id = CUSTOM_ITEM_OFFSET + i
-        itemCode = IntToFourCC(id)
-        name = GetObjectName(id)
-        if name ~= "" and SEARCHABLE[i] then
-            if string.find(name:lower(), search:lower()) then
-                dw:addButton(itemCode .. " - " .. name, id)
+            --ignore non word/digit characters
+            if count == 10 then
+                i = i + 7
+            elseif count == 36 then
+                i = i + 6
+            elseif count == 62 then
+                i = i + 181
+                count = 0
             end
         end
+    end
 
-        if dw.ButtonCount >= DialogWindow.BUTTON_MAX then
-            break
+    ---@param id integer
+    function WipeItemStats(id)
+        for i = 1, 30 do
+            ItemData[id][i] = 0
+            ItemData[id][i .. "range"] = 0
+            ItemData[id][i .. "fpl"] = 0
+            ItemData[id][i .. "fpr"] = 0
+            ItemData[id][i .. "percent"] = 0
+            ItemData[id][i .. "unlock"] = 0
+            ItemData[id][i .. "fixed"] = 0
+            ItemData[id][i * ABILITY_OFFSET] = 0
+            ItemData[id][i * ABILITY_OFFSET .. "abil"] = nil
+        end
+    end
+
+    function SearchPage()
+        local p   = GetTriggerPlayer() 
+        local pid = GetPlayerId(p) + 1 ---@type integer 
+        local dw    = DialogWindow[pid] ---@type DialogWindow 
+        local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
+
+        if index ~= -1 then
+            local itm = Item.create(CreateItem(dw.data[index], 30000., 30000.))
+            itm:lvl(IMaxBJ(0, ItemData[itm.id][ITEM_UPGRADE_MAX] - ITEM_MAX_LEVEL_VARIANCE))
+            UnitAddItem(Hero[pid], itm.obj)
+
+            dw:destroy()
         end
 
-        count = count + 1
+        return false
+    end
 
-        --ignore non word/digit characters
-        if count == 10 then
-            i = i + 7
-        elseif count == 36 then
-            i = i + 6
-        elseif count == 62 then
-            i = i + 181
-            count = 0
+    ---@param search string
+    ---@param pid integer
+    function FindItem(search, pid)
+        local itemCode = "" ---@type string 
+        local id       = 0 ---@type integer 
+        local name     = "" ---@type string 
+        local count    = 0 ---@type integer 
+        local dw = DialogWindow.create(pid, "", SearchPage)
+
+        --searchable items
+        --I000 to I0zz (3844~ items)
+        for i = 0, 19018 do
+            id = CUSTOM_ITEM_OFFSET + i
+            itemCode = IntToFourCC(id)
+            name = GetObjectName(id)
+            if name ~= "" and SEARCHABLE[i] then
+                if string.find(name:lower(), search:lower()) then
+                    dw:addButton(itemCode .. " - " .. name, id)
+                end
+            end
+
+            if dw.ButtonCount >= DialogWindow.BUTTON_MAX then
+                break
+            end
+
+            count = count + 1
+
+            --ignore non word/digit characters
+            if count == 10 then
+                i = i + 7
+            elseif count == 36 then
+                i = i + 6
+            elseif count == 62 then
+                i = i + 181
+                count = 0
+            end
+        end
+
+        dw:display()
+    end
+
+    function DevCommands()
+        local p    = GetTriggerPlayer() 
+        local pid  = GetPlayerId(p) + 1 ---@type integer 
+        local args = {}
+
+        --propogate args table
+        for arg in GetEventPlayerChatString():gmatch("\x25S+") do
+            args[#args + 1] = arg
+        end
+
+        if DEV_CMDS[args[1]:sub(2)] then
+            DEV_CMDS[args[1]:sub(2)](p, pid, args)
         end
     end
-
-    dw:display()
-end
-
-function DevCommands()
-    local p    = GetTriggerPlayer() ---@type player 
-    local pid  = GetPlayerId(p) + 1 ---@type integer 
-    local args = {}
-
-    --propogate args table
-    for arg in GetEventPlayerChatString():gmatch("\x25S+") do
-        args[#args + 1] = arg
-    end
-
-    if DEV_CMDS[args[1]:sub(2)] then
-        DEV_CMDS[args[1]:sub(2)](p, pid, args)
-    end
-end
 
     local devcmd = CreateTrigger()
-
-    DEV_ENABLED = true
-    SAVE_LOAD_VERSION = 0x40000000
-    MAP_NAME = "CoT Nevermore BETA"
-
     for i = 0, PLAYER_CAP do
         TriggerRegisterPlayerChatEvent(devcmd, Player(i), "-", false)
     end
 
     TimerQueue:callDelayed(0., PreloadItemSearch)
 
+    ---@type fun(pid: integer)
+    local function ResetCD(pid)
+        UnitResetCooldown(Hero[pid])
+        UnitResetCooldown(Backpack[pid])
+    end
+
+    local function newOnOrder()
+        local source = GetTriggerUnit() ---@type unit 
+        local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+
+        if nocd[pid] then
+            TimerQueue:callDelayed(0.1, ResetCD, pid)
+        end
+
+        if nocost[pid] and HeroID[pid] ~= HERO_VAMPIRE then
+            SetUnitState(Hero[pid], UNIT_STATE_MANA, GetUnitState(Hero[pid], UNIT_STATE_MAX_MANA))
+        end
+
+        --[[
+        if EXTRA_DEBUG then
+            if DEBUG_HERO and source == Hero[pid] then
+                print(GetUnitName(source) .. " " .. OrderId2String(id) .. " " .. id)
+            elseif not DEBUG_HERO then
+                print(GetUnitName(source) .. " " .. OrderId2String(id) .. " " .. id)
+            end
+        end
+
+        --[[local x2, y2 = GetUnitX(source), GetUnitY(source)
+
+        if source == Hero[pid] then
+            if (id == ORDER_ID_SMART or id == ORDER_ID_ATTACK) and CoordinateQueue[pid] then
+                CoordinateQueue[pid]:clear()
+                TurnQueue[pid] = {}
+            end
+
+            if A_STAR_PATHING and (id == ORDER_ID_SMART or id == ORDER_ID_ATTACK) and x ~= 0 and y ~= 0 then
+                QueuePathing(source, x2, y2, x, y)
+            end
+        end]]
+        --]]
+    end
+
+    local origOnOrder = OnOrder
+    OnOrder = function()
+        origOnOrder()
+        newOnOrder()
+    end
+
+    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_ORDER, newOnOrder)
+    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, newOnOrder)
+    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, newOnOrder)
+
     TriggerAddAction(devcmd, DevCommands)
-end, Debug.getLine())
+end, Debug and Debug.getLine())

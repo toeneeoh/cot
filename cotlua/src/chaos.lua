@@ -132,7 +132,7 @@ function SetupChaos()
     while u do
         x = GetUnitX(Hero[u.id])
         y = GetUnitY(Hero[u.id])
-        if not selectingHero[u.id] and RectContainsCoords(gg_rct_Colosseum, x, y) == false and RectContainsCoords(gg_rct_Infinite_Struggle, x, y) == false and RectContainsCoords(gg_rct_Church, x, y) == false then
+        if not SELECTING_HERO[u.id] and RectContainsCoords(gg_rct_Colosseum, x, y) == false and RectContainsCoords(gg_rct_Infinite_Struggle, x, y) == false and RectContainsCoords(gg_rct_Church, x, y) == false then
             TableRemove(GODS_GROUP, u.player)
             MoveHeroLoc(u.id, TownCenter)
         end
@@ -286,4 +286,4 @@ function BeginChaos()
     TimerQueue:callDelayed(3., SetupChaos)
 end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

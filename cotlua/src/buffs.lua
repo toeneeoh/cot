@@ -239,7 +239,7 @@ OnInit.global("Buffs", function(Require)
             if self.source == self.target then
                 --unimmolation
                 self.timer:destroy()
-                IssueImmediateOrderById(self.source, 852178)
+                IssueImmediateOrderById(self.source, ORDER_ID_UNIMMOLATION)
             end
         end
 
@@ -364,6 +364,7 @@ OnInit.global("Buffs", function(Require)
             SetUnitVertexColor(self.target, 255, 255, 255, 255)
 
             self.timer:destroy()
+            Unit[self.target].dm = Unit[self.target].dm / self.dm
             Unit[self.target].dr = Unit[self.target].dr / self.dr
         end
 
@@ -376,8 +377,11 @@ OnInit.global("Buffs", function(Require)
             self.timer:callPeriodically(3., nil, Taunt, self.target, self.tpid, 800., false, 500, 500)
             self.timer:callPeriodically(0.1, nil, pull, self.tpid, self.target)
 
-            self.dr = (0.95 - 0.05 * GetUnitAbilityLevel(self.source, MAGNETICSTANCE.id))
+            local ablev = GetUnitAbilityLevel(self.source, MAGNETICSTANCE.id)
+            self.dr = (0.95 - 0.05 * ablev)
+            self.dm = (0.45 + 0.05 * ablev)
 
+            Unit[self.target].dm = Unit[self.target].dm * self.dm
             Unit[self.target].dr = Unit[self.target].dr * self.dr
         end
     end
@@ -754,11 +758,11 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.multiplier      = 0. ---@type number 
 
-        local function onHit(source, target, amount, damageType)
+        local function onHit(source, target, amount, amount_after_red, damage_type)
             local self = thistype:get(nil, source)
 
-            if damageType == PHYSICAL then
-                DamageTarget(source, target, amount* self.multiplier, ATTACK_TYPE_NORMAL, PURE, LAWOFRESONANCE.tag)
+            if damage_type == PHYSICAL then
+                DamageTarget(source, target, amount_after_red * self.multiplier, ATTACK_TYPE_NORMAL, PURE, LAWOFRESONANCE.tag)
             end
         end
 
@@ -836,7 +840,7 @@ OnInit.global("Buffs", function(Require)
                     BlzSetSpecialEffectColor(self.sfx, 255, 255, 255)
                 end
             else
-                Unit[self.target].ms_flat = Unit[self.target].ms_flat + self.ms
+                Unit[self.target].ms_flat = Unit[self.target].ms_flat - self.ms
                 self.ms = 0
                 UnitRemoveAbility(self.target, FourCC('B02Q'))
                 BlzSetSpecialEffectColor(self.sfx, 0, 0, 0)
@@ -856,6 +860,7 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onApply()
             local ablev = GetUnitAbilityLevel(self.target, BLOODMIST.id)
+            self.ms = 0
 
             if BLOODBANK.get(self.tpid) >= BLOODMIST.cost(self.tpid, ablev) then
                 self.ms = 50 + 50 * GetUnitAbilityLevel(self.target, BLOODMIST.id)
@@ -898,9 +903,8 @@ OnInit.global("Buffs", function(Require)
                 BLOODBANK.add(self.tpid, BLOODLEECH.gain(self.tpid) / 3.)
                 DamageTarget(self.source, target, BLOODLEECH.dmg(self.tpid) / 3. * BOOST[self.tpid], ATTACK_TYPE_NORMAL, MAGIC, BLOODLORD.tag)
 
-                local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A0A1'), 1).unit
-                BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(self.source) - GetUnitY(dummy), GetUnitX(self.source) - GetUnitX(dummy)))
-                InstantAttack(dummy, self.source)
+                local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A0A1'), 1)
+                dummy:attack(self.source)
             end
 
             DestroyGroup(ug)
@@ -1280,12 +1284,12 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            Unit[self.target].mr = Unit[self.target].mr / 1.25
+            Unit[self.target].dr = Unit[self.target].dr / 1.15
         end
 
         function thistype:onApply()
-            --25% magic amp
-            Unit[self.target].mr = Unit[self.target].mr * 1.25
+            --15% damage amp
+            Unit[self.target].dr = Unit[self.target].dr * 1.15
         end
     end
 
@@ -1299,35 +1303,35 @@ OnInit.global("Buffs", function(Require)
 
         local function onHit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
-            BodyOfFireCharges[pid] = BodyOfFireCharges[pid] - 1
+            BODYOFFIRE.charges[pid] = BODYOFFIRE.charges[pid] - 1
 
             if GetLocalPlayer() == Player(pid - 1) then
-                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
+                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BODYOFFIRE.charges[pid]) .. ".blp")
             end
 
             --disable casting at 0 charges
-            if BodyOfFireCharges[pid] <= 0 then
+            if BODYOFFIRE.charges[pid] <= 0 then
                 UnitDisableAbility(source, MAGNETICSTRIKE.id, true)
                 BlzUnitHideAbility(source, MAGNETICSTRIKE.id, false)
             end
 
             --refresh charge timer
-            local pt = TimerList[pid]:get('bofi', source, nil)
+            local pt = TimerList[pid]:get(BODYOFFIRE.id, source, nil)
             if not pt then
                 pt = TimerList[pid]:add()
                 pt.source = source
-                pt.tag = 'bofi'
+                pt.tag = BODYOFFIRE.id
 
                 BlzStartUnitAbilityCooldown(source, BODYOFFIRE.id, 5.)
-                TimerQueue:callDelayed(5., BODYOFFIRE.cooldown, pt)
+                pt.timer:callDelayed(5., BODYOFFIRE.cooldown, pt)
             end
             MagneticStrikeBuff:dispel(source, source)
 
             local ug = CreateGroup()
-            MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), 250. * LBOOST[pid], Condition(FilterEnemy))
+            MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), MAGNETICSTRIKE.aoe(pid) * LBOOST[pid], Condition(FilterEnemy))
 
             for u in each(ug) do
-                MagneticStrikeDebuff:add(source, u):duration(10.)
+                MagneticStrikeDebuff:add(source, u):duration(MAGNETICSTRIKE.dur(pid) * LBOOST[pid])
             end
 
             DestroyGroup(ug)
@@ -1337,11 +1341,11 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onRemove()
-            EVENT_ON_STRUCK_MULTIPLIER:unregister_unit_action(self.target, onHit)
+            EVENT_ON_HIT_MULTIPLIER:unregister_unit_action(self.target, onHit)
         end
 
         function thistype:onApply()
-            EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(self.target, onHit)
+            EVENT_ON_HIT_MULTIPLIER:register_unit_action(self.target, onHit)
         end
     end
 
@@ -1355,27 +1359,27 @@ OnInit.global("Buffs", function(Require)
 
         local function onHit(source, target, amount_ref)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
-            BodyOfFireCharges[pid] = BodyOfFireCharges[pid] - 1
+            BODYOFFIRE.charges[pid] = BODYOFFIRE.charges[pid] - 1
 
             if GetLocalPlayer() == Player(pid - 1) then
-                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BodyOfFireCharges[pid]) .. ".blp")
+                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BODYOFFIRE.charges[pid]) .. ".blp")
             end
 
             --disable casting at 0 charges
-            if BodyOfFireCharges[pid] <= 0 then
+            if BODYOFFIRE.charges[pid] <= 0 then
                 UnitDisableAbility(source, INFERNALSTRIKE.id, true)
                 BlzUnitHideAbility(source, INFERNALSTRIKE.id, false)
             end
 
             --refresh charge timer
-            local pt = TimerList[pid]:get('bofi', source, nil)
+            local pt = TimerList[pid]:get(BODYOFFIRE.id, source, nil)
             if not pt then
                 pt = TimerList[pid]:add()
                 pt.source = source
-                pt.tag = 'bofi'
+                pt.tag = BODYOFFIRE.id
 
                 BlzStartUnitAbilityCooldown(source, BODYOFFIRE.id, 5.)
-                TimerQueue:callDelayed(5., BODYOFFIRE.cooldown, pt)
+                pt.timer:callDelayed(5., BODYOFFIRE.cooldown, pt)
             end
 
             InfernalStrikeBuff:dispel(source, source)
@@ -1394,9 +1398,9 @@ OnInit.global("Buffs", function(Require)
                 local dtype = BlzGetUnitIntegerField(target, UNIT_IF_DEFENSE_TYPE)
 
                 if dtype == 1 or dtype == 7 then --boss
-                    DamageTarget(source, u, ((GetHeroStr(source, true) * ablev) + GetWidgetLife(u) * (0.25 + 0.05 * ablev)) * 0.5 * LBOOST[pid], ATTACK_TYPE_NORMAL, PHYSICAL_NO_RECURSE, INFERNALSTRIKE.tag)
+                    DamageTarget(source, u, ((GetHeroStr(source, true) * ablev) + GetWidgetLife(u) * (0.25 + 0.05 * ablev)) * 0.5 * LBOOST[pid], ATTACK_TYPE_NORMAL, PHYSICAL, INFERNALSTRIKE.tag)
                 else
-                    DamageTarget(source, u, ((GetHeroStr(source, true) * ablev) + GetWidgetLife(u) * (0.25 + 0.05 * ablev)) * LBOOST[pid], ATTACK_TYPE_NORMAL, PHYSICAL_NO_RECURSE, INFERNALSTRIKE.tag)
+                    DamageTarget(source, u, ((GetHeroStr(source, true) * ablev) + GetWidgetLife(u) * (0.25 + 0.05 * ablev)) * LBOOST[pid], ATTACK_TYPE_NORMAL, PHYSICAL, INFERNALSTRIKE.tag)
                 end
             end
 
@@ -1410,11 +1414,11 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onRemove()
-            EVENT_ON_STRUCK_MULTIPLIER:unregister_unit_action(self.target, onHit)
+            EVENT_ON_HIT_MULTIPLIER:unregister_unit_action(self.target, onHit)
         end
 
         function thistype:onApply()
-            EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(self.target, onHit)
+            EVENT_ON_HIT_MULTIPLIER:register_unit_action(self.target, onHit)
         end
     end
 
@@ -1981,6 +1985,10 @@ OnInit.global("Buffs", function(Require)
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
+        local function onHit(source, target)
+            DamageTarget(source, target, GetWidgetLife(target) * 0.005, ATTACK_TYPE_NORMAL, PURE, ELEMENTLIGHTNING.tag)
+        end
+
         local function periodic(self)
             if UnitAlive(self.target) then
                 local ug = CreateGroup()
@@ -1991,11 +1999,8 @@ OnInit.global("Buffs", function(Require)
 
                 local target = FirstOfGroup(ug)
                 if target then
-                    local dummy = Dummy.create(x, y, FourCC('A09W'), 1, 1.).unit
-                    SetUnitOwner(dummy, Player(self.tpid - 1), false)
-                    BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(target) - y, GetUnitX(target) - x))
-                    InstantAttack(dummy, target)
-                    DamageTarget(Hero[self.pid], target, GetWidgetLife(target) * 0.005, ATTACK_TYPE_NORMAL, PURE, ELEMENTLIGHTNING.tag)
+                    local dummy = Dummy.create(x, y, FourCC('A09W'), 1, 1.)
+                    dummy:attack(target, self.target, onHit)
                 end
 
                 DestroyGroup(ug)
@@ -2556,8 +2561,8 @@ OnInit.global("Buffs", function(Require)
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
-        local function onHit(source, target, amount)
-            HP(source, source, amount * 0.05, "Vampiric Potion")
+        local function onHit(source, target, amount, amount_after_red)
+            HP(source, source, amount_after_red * 0.05, "Vampiric Potion")
             DestroyEffect(AddSpecialEffectTarget("war3mapImported\\VampiricAuraTarget.mdx", source, "chest"))
         end
 
@@ -2629,4 +2634,4 @@ OnInit.global("Buffs", function(Require)
             Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
         end
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

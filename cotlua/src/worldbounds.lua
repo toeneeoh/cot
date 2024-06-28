@@ -151,4 +151,4 @@ do
 
 end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

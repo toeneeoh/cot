@@ -11,7 +11,7 @@ OnInit.final("SaveLoad", function(Require)
     Require('Variables')
     Require('GameStatus')
     Require('FileIO')
-    Require('PlayerData')
+    Require('Profile')
 
     SAVE_UNIT_TYPE[1] = HERO_ARCANIST
     SAVE_UNIT_TYPE[2] = HERO_ASSASSIN
@@ -62,8 +62,8 @@ OnInit.final("SaveLoad", function(Require)
             return false
         end
 
-        newcharacter[pid] = false
-        DisplayHeroSelectionDialog(pid)
+        Profile[pid].new_char = false
+        Profile[pid]:open_dialog()
 
         return false
     end
@@ -81,12 +81,12 @@ OnInit.final("SaveLoad", function(Require)
             GAME_STATE = 2
         end
 
-        forceSaving[pid] = false
+        IS_FORCE_SAVING[pid] = false
 
         --save profile and hero
-        if newcharacter[pid] then
-            newcharacter[pid] = false
-            SetSaveSlot(pid)
+        if Profile[pid].new_char then
+            Profile[pid].new_char = false
+            Profile[pid]:get_empty_slot()
         end
 
         Profile[pid]:saveCharacter()
@@ -98,18 +98,18 @@ OnInit.final("SaveLoad", function(Require)
     local function ForceSaveTimed(pt)
         pt.time = pt.time + 1
 
-        if pt.time < pt.dur and not forceSaving[pt.pid] then
+        if pt.time < pt.dur and not IS_FORCE_SAVING[pt.pid] then
             if (GetLocalPlayer() == Player(pt.pid - 1)) then
                 ClearTextMessages()
             end
             DisplayTimedTextToPlayer(Player(pt.pid - 1), 0, 0, 60., "Force save aborted!")
 
-            forceSaving[pt.pid] = false
+            IS_FORCE_SAVING[pt.pid] = false
             pt:destroy()
-        elseif pt.time >= pt.dur and forceSaving[pt.pid] then
+        elseif pt.time >= pt.dur and IS_FORCE_SAVING[pt.pid] then
             ForceSave(Player(pt.pid - 1))
 
-            forceSaving[pt.pid] = false
+            IS_FORCE_SAVING[pt.pid] = false
             pt:destroy()
         end
     end
@@ -137,9 +137,9 @@ OnInit.final("SaveLoad", function(Require)
             ClearTextMessages()
         end
 
-        if newcharacter[pid] then
-            newcharacter[pid] = false
-            SetSaveSlot(pid)
+        if Profile[pid].new_char then
+            Profile[pid].new_char = false
+            Profile[pid]:get_empty_slot()
         end
 
         Profile[pid]:saveCharacter()
@@ -168,8 +168,8 @@ OnInit.final("SaveLoad", function(Require)
         end
 
         if timed then
-            forceSaving[pid] = true
-            IS_TELEPORTING[pid] = true
+            IS_FORCE_SAVING[pid] = true
+            Unit[Hero[pid]].busy = true
             PauseUnit(Hero[pid], true)
             PauseUnit(Backpack[pid], true)
             UnitRemoveAbility(Hero[pid], FourCC('Binv'))
@@ -198,8 +198,8 @@ OnInit.final("SaveLoad", function(Require)
         if (cmd == "-forcesave") then
             if InCombat(Hero[pid]) then
                 DisplayTextToPlayer(p, 0, 0, "You cannot do this while in combat!")
-            elseif IS_TELEPORTING[pid] then
-                DisplayTextToPlayer(p, 0, 0, "You cannot do this while teleporting!")
+            elseif Unit[Hero[pid]].busy then
+                DisplayTextToPlayer(p, 0, 0, "You cannot do this right now!")
             elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) or RectContainsCoords(gg_rct_Tavern, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) then
                 ActionSaveForce(p, false)
             else
@@ -268,4 +268,4 @@ OnInit.final("SaveLoad", function(Require)
             end
         end
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

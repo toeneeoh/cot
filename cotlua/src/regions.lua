@@ -6,7 +6,6 @@
 ]]
 
 OnInit.final("Regions", function(Require)
-    Require('Helper')
     Require('WorldBounds')
 
     GUARD_CAPTURED = false ---@type boolean 
@@ -227,7 +226,7 @@ OnInit.final("Regions", function(Require)
         local u   = GetFilterUnit() ---@type unit 
         local x   = GetUnitX(u) ---@type number 
         local y   = GetUnitY(u) ---@type number 
-        local p   = GetOwningPlayer(u) ---@type player 
+        local p   = GetOwningPlayer(u)
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
         if u == Hero[pid] then
@@ -352,4 +351,4 @@ OnInit.final("Regions", function(Require)
     RegionAddRect(LAVA_REGION, gg_rct_Lava2)
 
     TriggerRegisterEnterRegion(lavaTrigger, LAVA_REGION, Filter(LavaRegion))
-end, Debug.getLine())
+end, Debug and Debug.getLine())

@@ -45,4 +45,4 @@ do
     TimerQueue:callPeriodically(MS_PERIOD, nil, MS_PERIODIC)
 end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

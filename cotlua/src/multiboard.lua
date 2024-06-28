@@ -316,7 +316,7 @@ OnInit.final("Multiboard", function()
 
                 if u then
                     --main
-                    local nameText = (isdonator[pid] and u.nameColored .. "|r|cffffcc00*|r") or u.nameColored
+                    local nameText = (IS_DONATOR[pid] and u.nameColored .. "|r|cffffcc00*|r") or u.nameColored
                     local hcIcon = (Hardcore[pid] and "ReplaceableTextures\\CommandButtons\\BTNBirial.blp") or "TransparentTexture.blp"
                     local heroIcon = (HeroID[pid] > 0 and BlzGetAbilityIcon(HeroID[pid])) or "TransparentTexture.blp"
                     local hp = (HeroID[pid] > 0 and GetWidgetLife(Hero[pid]) / BlzGetUnitMaxHP(Hero[pid]) * 100.) or 0
@@ -512,4 +512,4 @@ OnInit.final("Multiboard", function()
 
         RefreshMB()
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

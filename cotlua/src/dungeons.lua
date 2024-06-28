@@ -229,8 +229,8 @@ OnInit.final("Dungeons", function(Require)
         DestroyGroup(ug)
     end
 
-    ---@type fun(amount: number, source: unit, target: unit, damageType: damagetype): number
-    function DungeonOnDamage(amount, source, target, damageType)
+    ---@type fun(amount: number, source: unit, target: unit, damage_type: damagetype): number
+    function DungeonOnDamage(amount, source, target, damage_type)
         local uid = GetUnitTypeId(source) ---@type integer 
         local tuid = GetUnitTypeId(target) ---@type integer 
 
@@ -242,7 +242,7 @@ OnInit.final("Dungeons", function(Require)
                 IssueImmediateOrder(target, "battleroar")
             end
 
-            if damageType == PHYSICAL and GetUnitAbilityLevel(target, FourCC('B04S')) > 0 then
+            if damage_type == PHYSICAL and GetUnitAbilityLevel(target, FourCC('B04S')) > 0 then
                 DamageTarget(target, source, BlzGetUnitMaxHP(source) * 0.4, ATTACK_TYPE_NORMAL, MAGIC)
             end
         elseif tuid == FourCC('n005') then --naga elite
@@ -261,14 +261,14 @@ OnInit.final("Dungeons", function(Require)
                 IssueImmediateOrder(target, "battleroar")
             end
         elseif tuid == FourCC('u002') then --beetle
-            if damageType == MAGIC then
+            if damage_type == MAGIC then
                 amount = 0.00
             end
         end
 
         --source
         if uid == FourCC('n01L') then --naga defender
-            if damageType == PHYSICAL then
+            if damage_type == PHYSICAL then
                 amount = 0.00
 
                 if not Unit[source].hits then
@@ -304,6 +304,11 @@ OnInit.final("Dungeons", function(Require)
         return amount
     end
 
+    local function spirit_call_on_hit(source, target)
+        DamageTarget(source, target, BlzGetUnitMaxHP(target) * 0.1, ATTACK_TYPE_NORMAL, MAGIC, "Spirit Call")
+        SpiritCallSlow:add(source, target):duration(5.)
+    end
+
     ---@type fun(time: integer)
     function SpiritCallPeriodic(time)
         local ug  = CreateGroup()
@@ -314,27 +319,24 @@ OnInit.final("Dungeons", function(Require)
         GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon_Boss, Condition(isspirit))
 
         if time >= 0 then
-            for target in each(ug) do
+            for source in each(ug) do
                 if GetRandomInt(0, 99) < 25 then
                     GroupEnumUnitsInRect(ug2, gg_rct_Naga_Dungeon_Boss, Condition(isplayerunit))
                     local u = BlzGroupUnitAt(ug2, GetRandomInt(0, BlzGroupGetSize(ug2) - 1))
-                    IssuePointOrder(target, "move", GetUnitX(u) + GetRandomInt(-150, 150), GetUnitY(u) + GetRandomInt(-150, 150))
+                    IssuePointOrder(source, "move", GetUnitX(u) + GetRandomInt(-150, 150), GetUnitY(u) + GetRandomInt(-150, 150))
                 end
-                GroupEnumUnitsInRange(ug2, GetUnitX(target), GetUnitY(target), 300., Condition(isplayerunit))
+                GroupEnumUnitsInRange(ug2, GetUnitX(source), GetUnitY(source), 300., Condition(isplayerunit))
                 for enemy in each(ug2) do
-                    local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A09R'), 1).unit
-                    BlzSetUnitFacingEx(dummy, bj_RADTODEG * Atan2(GetUnitY(enemy) - GetUnitY(target), GetUnitX(enemy) - GetUnitX(target)))
-                    InstantAttack(dummy, enemy)
-                    SpiritCallSlow:add(target, enemy):duration(5.)
-                    DamageTarget(target, enemy, BlzGetUnitMaxHP(enemy) * 0.1, ATTACK_TYPE_NORMAL, MAGIC, "Spirit Call")
+                    local dummy = Dummy.create(GetUnitX(source), GetUnitY(source), FourCC('A09R'), 1)
+                    dummy:attack(enemy, source, spirit_call_on_hit)
                 end
             end
             TimerQueue:callDelayed(1., SpiritCallPeriodic, time)
         else
-            for target in each(ug) do
-                SetUnitVertexColor(target, 100, 255, 100, 255)
-                SetUnitScale(target, 1, 1, 1)
-                IssuePointOrder(target, "move", GetRandomReal(GetRectMinX(gg_rct_Naga_Dungeon_Boss_Vision), GetRectMaxX(gg_rct_Naga_Dungeon_Boss_Vision)), GetRandomReal(GetRectMinY(gg_rct_Naga_Dungeon_Boss_Vision), GetRectMaxY(gg_rct_Naga_Dungeon_Boss_Vision)))
+            for source in each(ug) do
+                SetUnitVertexColor(source, 100, 255, 100, 255)
+                SetUnitScale(source, 1, 1, 1)
+                IssuePointOrder(source, "move", GetRandomReal(GetRectMinX(gg_rct_Naga_Dungeon_Boss_Vision), GetRectMaxX(gg_rct_Naga_Dungeon_Boss_Vision)), GetRandomReal(GetRectMinY(gg_rct_Naga_Dungeon_Boss_Vision), GetRectMaxY(gg_rct_Naga_Dungeon_Boss_Vision)))
             end
         end
 
@@ -533,4 +535,4 @@ OnInit.final("Dungeons", function(Require)
             end
         end
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

@@ -51,8 +51,8 @@ OnInit.final("Keyboard", function(Require)
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
         local itm ---@type Item 
 
-        if altModifier[pid] then
-            altModifier[pid] = false
+        if IS_ALT_DOWN[pid] then
+            IS_ALT_DOWN[pid] = false
 
             UpdateSpellTooltips(pid)
 
@@ -73,8 +73,8 @@ OnInit.final("Keyboard", function(Require)
     local function Alt_Down()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-        if not altModifier[pid] then
-            altModifier[pid] = true
+        if not IS_ALT_DOWN[pid] then
+            IS_ALT_DOWN[pid] = true
 
             UpdateSpellTooltips(pid)
             UpdateItemTooltips(pid)
@@ -86,8 +86,8 @@ OnInit.final("Keyboard", function(Require)
     local function Alt_Up()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-        if altModifier[pid] then
-            altModifier[pid] = false
+        if IS_ALT_DOWN[pid] then
+            IS_ALT_DOWN[pid] = false
 
             UpdateSpellTooltips(pid)
             UpdateItemTooltips(pid)
@@ -150,4 +150,4 @@ OnInit.final("Keyboard", function(Require)
         TriggerAddCondition(esc, Filter(Escape))
         TriggerAddCondition(forwardslash, Filter(Forward_Slash))
         TriggerAddCondition(period, Filter(Period))
-end, Debug.getLine())
+end, Debug and Debug.getLine())

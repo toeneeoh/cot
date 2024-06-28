@@ -25,4 +25,4 @@ OnInit.final("GameStatus", function(Require)
         GAME_STATE = 2
     end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

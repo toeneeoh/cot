@@ -124,7 +124,7 @@ OnInit.global("CodeGen", function()
     ---@type fun(pid: integer, data: table): string
     function Compile(pid, data)
         local out = "" ---@type string 
-        local p   = Player(pid - 1) ---@type player 
+        local p   = Player(pid - 1) 
 
         for _, v in ipairs(data) do
             local x = Encode(v)
@@ -151,4 +151,4 @@ OnInit.global("CodeGen", function()
         return out
     end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

@@ -52,8 +52,8 @@ function SetupDuel(pid, tpid, spawn1, spawn2, face, face2, arena)
     local y  = GetRectCenterY(spawn1) ---@type number 
     local x2 = GetRectCenterX(spawn2) ---@type number 
     local y2 = GetRectCenterY(spawn2) ---@type number 
-    local p  = GetOwningPlayer(a) ---@type player 
-    local p2 = GetOwningPlayer(b) ---@type player 
+    local p  = GetOwningPlayer(a)
+    local p2 = GetOwningPlayer(b)
 
     ArenaQueue[pid] = 0
     ArenaQueue[tpid] = 0
@@ -90,11 +90,11 @@ function SetupDuel(pid, tpid, spawn1, spawn2, face, face2, arena)
     SetPlayerAllianceStateBJ(p, p2, bj_ALLIANCE_UNALLIED)
     SetPlayerAllianceStateBJ(p2, p, bj_ALLIANCE_UNALLIED)
 
-    if hero_panel_on[pid * PLAYER_CAP + tpid] then
+    if IS_HERO_PANEL_ON[pid * PLAYER_CAP + tpid] then
         ShowHeroPanel(p, p2, true)
     end
 
-    if hero_panel_on[tpid * PLAYER_CAP + pid] then
+    if IS_HERO_PANEL_ON[tpid * PLAYER_CAP + pid] then
         ShowHeroPanel(p2, p, true)
     end
 
@@ -132,8 +132,8 @@ end
 ---@param arena integer
 function ArenaDeath(killed, killer, arena)
     local U    = User.first ---@type User 
-    local p    = GetOwningPlayer(killed) ---@type player 
-    local p2   = GetOwningPlayer(killer) ---@type player 
+    local p    = GetOwningPlayer(killed)
+    local p2   = GetOwningPlayer(killer)
     local pid  = GetPlayerId(p) + 1 ---@type integer 
     local tpid = GetPlayerId(p2) + 1 ---@type integer 
 
@@ -141,11 +141,11 @@ function ArenaDeath(killed, killer, arena)
         while U do
             SetPlayerAllianceStateBJ(U.player, p, bj_ALLIANCE_ALLIED_VISION)
             SetPlayerAllianceStateBJ(p, U.player, bj_ALLIANCE_ALLIED_VISION)
-            if hero_panel_on[pid * PLAYER_CAP + (tpid - 1)] then
+            if IS_HERO_PANEL_ON[pid * PLAYER_CAP + (tpid - 1)] then
                 ShowHeroPanel(p, p2, true)
             end
 
-            if hero_panel_on[tpid * PLAYER_CAP + (pid - 1)] then
+            if IS_HERO_PANEL_ON[tpid * PLAYER_CAP + (pid - 1)] then
                 ShowHeroPanel(p2, p, true)
             end
             U = U.next
@@ -155,11 +155,11 @@ function ArenaDeath(killed, killer, arena)
         UnitAddAbility(killer, FourCC('Avul'))
         SetPlayerAllianceStateBJ(p, p2, bj_ALLIANCE_ALLIED_VISION)
         SetPlayerAllianceStateBJ(p2, p, bj_ALLIANCE_ALLIED_VISION)
-        if hero_panel_on[pid * PLAYER_CAP + (tpid - 1)] then
+        if IS_HERO_PANEL_ON[pid * PLAYER_CAP + (tpid - 1)] then
             ShowHeroPanel(p, p2, true)
         end
 
-        if hero_panel_on[tpid * PLAYER_CAP + (pid - 1)] then
+        if IS_HERO_PANEL_ON[tpid * PLAYER_CAP + (pid - 1)] then
             ShowHeroPanel(p2, p, true)
         end
     end
@@ -231,11 +231,11 @@ function EnterPVP()
                     SetPlayerAllianceStateBJ(U.player, p, bj_ALLIANCE_UNALLIED)
                     SetPlayerAllianceStateBJ(p, U.player, bj_ALLIANCE_UNALLIED)
 
-                    if hero_panel_on[pid * PLAYER_CAP + (U.id - 1)] then
+                    if IS_HERO_PANEL_ON[pid * PLAYER_CAP + (U.id - 1)] then
                         ShowHeroPanel(p, U.player, true)
                     end
 
-                    if hero_panel_on[U.id * PLAYER_CAP + (pid - 1)] then
+                    if IS_HERO_PANEL_ON[U.id * PLAYER_CAP + (pid - 1)] then
                         ShowHeroPanel(U.player, p, true)
                     end
                     U = U.next
@@ -260,4 +260,4 @@ function EnterPVP()
     end
 end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

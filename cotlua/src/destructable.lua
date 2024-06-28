@@ -100,4 +100,4 @@ end
     TriggerRegisterDeathEvent(t, gg_dest_LTcr_9593)
 
     TriggerAddCondition(t, Condition(DestructableDeath))
-end, Debug.getLine())
+end, Debug and Debug.getLine())

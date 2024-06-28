@@ -30,7 +30,7 @@ OnInit.final("Bases", function(Require)
 
     function OnResearch()
         local u = GetTriggerUnit() ---@type unit 
-        local p = GetOwningPlayer(u) ---@type player 
+        local p = GetOwningPlayer(u) 
         local uid = GetUnitTypeId(u) ---@type integer 
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
@@ -52,7 +52,7 @@ OnInit.final("Bases", function(Require)
 
     ---@type fun(pt: PlayerTimer)
     function BaseDeath(pt)
-        local p = Player(pt.pid - 1) ---@type player 
+        local p = Player(pt.pid - 1) 
 
         if Profile[pt.pid].hero.base == 0 then
             PanCameraToTimedLocForPlayer(p, TownCenter, 0)
@@ -101,4 +101,4 @@ OnInit.final("Bases", function(Require)
 
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_CONSTRUCT_FINISH, OnBuild)
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_UPGRADE_FINISH, OnResearch)
-end, Debug.getLine())
+end, Debug and Debug.getLine())

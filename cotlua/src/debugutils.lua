@@ -698,10 +698,10 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
     --| Modify Game Start |--
     -------------------------
 
-    local originalMarkGameStarted = MarkGameStarted
     --Hook certain actions into the start of the game.
     MarkGameStarted = function()
-        originalMarkGameStarted()
+        bj_gameStarted=true
+        DestroyTimer(GetExpiredTimer())
         if settings.WARNING_FOR_UNDECLARED_GLOBALS then
             local existingIndex = getmetatable(_G).__index
             local isTable_yn = (type(existingIndex) == 'table')

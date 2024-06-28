@@ -98,7 +98,7 @@ OnInit.final("UnitTable", function(Require)
             attack = function(tbl, val)
                 rawset(tbl, "can_attack", val)
 
-                if not autoAttackDisabled[tbl.pid] then
+                if IS_AUTO_ATTACK_ON[tbl.pid] then
                     BlzSetUnitWeaponBooleanField(tbl.unit, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, val)
                 end
             end,
@@ -180,12 +180,6 @@ OnInit.final("UnitTable", function(Require)
 
     ---@type fun(u: unit)
     function UnitDeindex(u)
-        if DEV_ENABLED then
-            if EXTRA_DEBUG then
-                DisplayTimedTextToForce(FORCE_PLAYING, 30., "UNREG " .. GetUnitName(u))
-            end
-        end
-
         TableRemove(SummonGroup, u)
 
         --redundant?
@@ -237,19 +231,19 @@ OnInit.final("UnitTable", function(Require)
         end
     end
 
-    local function mystic_mana_shield(target, source, amount)
-        dmg = GetUnitState(target, UNIT_STATE_MANA) - damageCalc / 3.
+    local function mystic_mana_shield(target, source, amount, amount_after_red)
+        dmg = GetUnitState(target, UNIT_STATE_MANA) - amount_after_red / 3.
 
         if dmg >= 0. then
             UnitAddAbility(target, FourCC('A058'))
-            ArcingTextTag.create(RealToString(damageCalc / 3.), target, 1, 2, 170, 50, 220, 0)
+            ArcingTextTag.create(RealToString(amount_after_red / 3.), target, 1, 2, 170, 50, 220, 0)
         else
             UnitRemoveAbility(target, FourCC('A058'))
         end
 
         SetUnitState(target, UNIT_STATE_MANA, math.max(0., dmg))
 
-        amount = math.max(0., 0. - dmg * 3.)
+        amount.value = math.max(0., 0. - dmg * 3.)
     end
 
     ---@type fun(u: unit)
@@ -257,14 +251,6 @@ OnInit.final("UnitTable", function(Require)
         if u and not IsDummy(u) and GetUnitAbilityLevel(u, DETECT_LEAVE_ABILITY) == 0 then
             UnitAddAbility(u, DETECT_LEAVE_ABILITY)
             UnitMakeAbilityPermanent(u, true, DETECT_LEAVE_ABILITY)
-
-            TriggerRegisterUnitEvent(ACQUIRE_TRIGGER, u, EVENT_UNIT_ACQUIRED_TARGET)
-
-            if DEV_ENABLED then
-                if EXTRA_DEBUG then
-                    print("REG " .. GetUnitName(u))
-                end
-            end
 
             --unit one-time initialization here
             --register ability stats
@@ -300,7 +286,7 @@ OnInit.final("UnitTable", function(Require)
 
             --mystic mana shield
             if GetUnitAbilityLevel(u, FourCC('A062')) > 0 then
-                EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(u, mystic_mana_shield)
+                EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(u, mystic_mana_shield)
             end
         end
     end
@@ -315,4 +301,4 @@ OnInit.final("UnitTable", function(Require)
     local onEnter = CreateTrigger()
 
     TriggerRegisterEnterRegion(onEnter, WorldBounds.region, Filter(onIndex))
-end, Debug.getLine())
+end, Debug and Debug.getLine())

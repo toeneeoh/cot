@@ -266,4 +266,4 @@ do
     end
 end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

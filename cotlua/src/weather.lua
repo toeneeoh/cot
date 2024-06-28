@@ -6,7 +6,6 @@
 
 OnInit.global("Weather", function(Require)
     Require('Helper')
-    Require('TimerQueue')
     Require('Buffs')
 
     WeatherTimer = TimerQueue.create()
@@ -387,4 +386,4 @@ end
     TriggerRegisterLeaveRegion(onEnter, MAIN_MAP.region, Filter(WeatherFilter))
 
     DestroyGroup(ug)
-end, Debug.getLine())
+end, Debug and Debug.getLine())

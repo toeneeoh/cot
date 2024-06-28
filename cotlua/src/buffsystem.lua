@@ -295,4 +295,4 @@ OnInit.global("BuffSystem", function(Require)
             thistype.dispelAll(GetTriggerUnit())
         end)
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

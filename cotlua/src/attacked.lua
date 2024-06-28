@@ -21,12 +21,12 @@ OnInit.final("Attacked", function(Require)
         local targetX = GetUnitX(target) ---@type number 
         local targetY = GetUnitY(target) ---@type number 
 
-        --prevent team killing
+        -- prevent team killing
         if (pid <= PLAYER_CAP and tpid <= PLAYER_CAP and pid ~= tpid and IsUnitAlly(source, GetOwningPlayer(target))) then
             IssueImmediateOrder(source, "stop")
         end
 
-        --assassin blade spin
+        -- assassin blade spin
         if uid == HERO_ASSASSIN then
             if BLADESPIN.count[pid] >= BLADESPIN.times(pid) - 1 then
                 BLADESPIN.count[pid] = 0
@@ -35,7 +35,7 @@ OnInit.final("Attacked", function(Require)
             end
         end
 
-        --savior holy bash
+        -- savior holy bash
         if uid == HERO_SAVIOR and GetUnitAbilityLevel(source, HOLYBASH.id) > 0 and HOLYBASH.count[pid] == 9 then
             local pt = TimerList[pid]:get(LIGHTSEAL.id, source)
             local sfx
@@ -54,7 +54,7 @@ OnInit.final("Attacked", function(Require)
             TimerQueue:callDelayed(1.5, DestroyEffect, sfx)
         end
 
-        --dark summoner destroyer
+        -- dark summoner destroyer
         if uid == SUMMON_DESTROYER then
             local pt = TimerList[pid]:get('datk')
 
@@ -67,9 +67,9 @@ OnInit.final("Attacked", function(Require)
                 pt.tag = 'datk'
 
                 SetHeroAgi(source, 0, true)
-                if destroyerDevourStacks[pid] == 5 then
+                if Unit[source].devour_stacks == 5 then
                     SetHeroAgi(source, 400, true)
-                elseif destroyerDevourStacks[pid] >= 3 then
+                elseif Unit[source].devour_stacks >= 3 then
                     SetHeroAgi(source, 200, true)
                 end
 
@@ -81,4 +81,4 @@ OnInit.final("Attacked", function(Require)
     end
 
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ATTACKED, OnAttack)
-end, Debug.getLine())
+end, Debug and Debug.getLine())

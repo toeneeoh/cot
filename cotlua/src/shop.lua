@@ -9,7 +9,7 @@ OnInit.final("Shop", function(Require)
     Require('ShopComponent')
     Require('UnitEvent')
     Require('Users')
-    Require('PlayerData')
+    Require('Profile')
     Require('Variables')
 
     -- Credits:
@@ -221,7 +221,7 @@ OnInit.final("Shop", function(Require)
         local thistype = ShopItem
         local mt = { __index = ShopItem }
         thistype.trigger  = CreateTrigger()
-        thistype.player   = Player(bj_PLAYER_NEUTRAL_EXTRA) ---@type player 
+        thistype.player   = Player(bj_PLAYER_NEUTRAL_EXTRA)
         thistype.unit     = {} ---@type table
 
         ShopItem.itempool = __jarray(0)
@@ -647,7 +647,7 @@ OnInit.final("Shop", function(Require)
         end
 
         function thistype.onClicked()
-            local p = GetTriggerPlayer() ---@type player 
+            local p = GetTriggerPlayer()
             local frame = BlzGetTriggerFrame() ---@type framehandle 
             local self = table[(frame)][0] ---@type ShopSlot
 
@@ -976,13 +976,11 @@ OnInit.final("Shop", function(Require)
                         slot.button.tooltip:icon(component.icon)
                         slot.button:available(self.shop:has(component.id))
 
-                        if PlayerHasItemType(id + 1, component.id) then
-                            if PlayerCountItemType(id + 1, component.id) >= i:count(component.id) then
-                                slot.button:checked(true)
-                            else
-                                counter[component.id] = counter[component.id] + 1
-                                slot.button:checked(counter[component.id] <= PlayerCountItemType(id + 1, component.id))
-                            end
+                        local itm = GetItemFromPlayer(id + 1, component.id, counter[component.id] + 1)
+
+                        if itm then
+                            counter[component.id] = counter[component.id] + 1
+                            slot.button:checked(true and (not itm.nocraft))
                         else
                             slot.button:checked(false)
                         end
@@ -1174,7 +1172,7 @@ OnInit.final("Shop", function(Require)
 
         function thistype.onRightClick()
             local frame             = BlzGetTriggerFrame() ---@type framehandle 
-            local p        = GetTriggerPlayer() ---@type player 
+            local p        = GetTriggerPlayer()
             local self          = table[(frame)][0] ---@type Detail
             local i         = table[(frame)][1] ---@type integer 
             local j         = 0 ---@type integer 
@@ -1214,13 +1212,13 @@ OnInit.final("Shop", function(Require)
         end
 
         function thistype.onDoubleClick()
-            local frame             = BlzGetTriggerFrame() ---@type framehandle 
-            local p        = GetTriggerPlayer() ---@type player 
-            local self          = table[(frame)][0] ---@type Detail
+            local frame     = BlzGetTriggerFrame() ---@type framehandle 
+            local p         = GetTriggerPlayer()
+            local self      = table[(frame)][0] ---@type Detail
             local i         = table[(frame)][1] ---@type integer 
             local j         = 0 ---@type integer 
-            local id         = GetPlayerId(p) ---@type integer 
-            local found         = false ---@type boolean 
+            local id        = GetPlayerId(p) ---@type integer 
+            local found     = false ---@type boolean 
 
             if self then
                 if frame == self.main[id].button.frame then
@@ -1862,14 +1860,17 @@ OnInit.final("Shop", function(Require)
                         while not (j == componentCount or not canBuy) do
                                 component = ShopItem.get(i.component[j])
 
-                                if PlayerHasItemType(id + 1, component.id) and counter[component.id] < PlayerCountItemType(id + 1, component.id) then
-                                    --currency loop
-                                    for c = 0, CURRENCY_COUNT - 1 do
-                                        cost[c] = cost[c] - ItemPrices[component.id][c]
-                                    end
+                                local itm = GetItemFromPlayer(id + 1, component.id, counter[component.id] + 1)
+
+                                if itm then
                                     counter[component.id] = counter[component.id] + 1
+                                    canBuy = (not itm.nocraft)
                                 else
                                     canBuy = (self:has(component.id) and IsBuyable(component.id))
+                                    --currency loop
+                                    for c = 0, CURRENCY_COUNT - 1 do
+                                        cost[c] = cost[c] + ItemPrices[component.id][c]
+                                    end
                                 end
                             j = j + 1
                         end
@@ -1880,18 +1881,6 @@ OnInit.final("Shop", function(Require)
                         if GetCurrency(id + 1, c) < cost[c] then
                             hasMoney = false
                             break
-                        end
-                    end
-
-                    --special cases
-                    --demon prince heart
-                    if component ~= 0 then
-                        if component.id == FourCC('I04Q') then
-                            canBuy = HeartBlood[id + 1] >= 2000
-
-                            if canBuy and hasMoney then
-                                HeartBlood[id + 1] = 0
-                            end
                         end
                     end
 
@@ -2448,7 +2437,7 @@ OnInit.final("Shop", function(Require)
 
         function thistype.onClose()
             local self = table[(BlzGetTriggerFrame())][0] ---@type Shop
-            local p        = GetTriggerPlayer() ---@type player 
+            local p        = GetTriggerPlayer()
             local id         = GetPlayerId(p) ---@type integer 
 
             if self then
@@ -2489,7 +2478,7 @@ OnInit.final("Shop", function(Require)
             local self = table[GetUnitTypeId(GetTriggerUnit())][0] ---@type Shop
 
             if self then
-                local p = GetTriggerPlayer() ---@type player 
+                local p = GetTriggerPlayer()
                 local id = GetPlayerId(p) ---@type integer 
 
                 if GetLocalPlayer() == p then
@@ -2510,7 +2499,7 @@ OnInit.final("Shop", function(Require)
         end
 
         function thistype.onEsc()
-            local p = GetTriggerPlayer() ---@type player 
+            local p = GetTriggerPlayer()
             local id = GetPlayerId(p) ---@type integer 
 
             if table[GetUnitTypeId(thistype.current[id])] then
@@ -2526,7 +2515,7 @@ OnInit.final("Shop", function(Require)
             end
         end
 
-        local i         = 0 ---@type integer 
+        local i = 0 ---@type integer 
         local id
 
         thistype.success = CreateSound(SUCCESS_SOUND, false, false, false, 10, 10, "")
@@ -2567,4 +2556,4 @@ OnInit.final("Shop", function(Require)
         RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DESELECTED, thistype.onSelect)
     end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

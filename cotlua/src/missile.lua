@@ -199,6 +199,7 @@ do
     ---@field onPeriod function
     ---@field onHit function
     ---@field terminate function
+    ---@field pause function
     Missiles = setmetatable({}, {})
     local mt = getmetatable(Missiles)
     mt.__index = mt
@@ -928,4 +929,4 @@ do
     end
 end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

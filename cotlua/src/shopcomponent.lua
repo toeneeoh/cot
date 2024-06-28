@@ -593,4 +593,4 @@ OnInit.final("ShopComponent", function()
         TriggerAddAction(thistype.rightClicked, thistype.onRightClicked)
     end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

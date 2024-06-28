@@ -117,7 +117,7 @@ OnInit.final("Spells", function(Require)
                 local pattern = "(~?)(>?)([\\{\x25[])(\x25w-)=(.-)]"
                 orig = orig:gsub(pattern, function(defaultflag, colorflag, prefix, tag, content)
                     local color = (colorflag ~= ">" and true) or false
-                    local alt = altModifier[self.pid] or defaultflag == "~"
+                    local alt = IS_ALT_DOWN[self.pid] or defaultflag == "~"
 
                     if alt then
                         local v = self[tag]

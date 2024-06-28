@@ -5,9 +5,9 @@
 ]]
 
 OnInit.global("PathFinding", function(Require)
-    Require('Helper')
     Require('Pathing')
 
+    A_STAR_PATHING = false ---@type boolean 
     CoordinateQueue = {} ---@type PriorityQueue[]
     TurnQueue = {}
     local GRID = array2d()
@@ -138,4 +138,4 @@ OnInit.global("PathFinding", function(Require)
 
         return nil
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())

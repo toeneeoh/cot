@@ -102,7 +102,7 @@ end
 
 ---@param pid integer
 function DeathHandler(pid)
-    local p  = Player(pid - 1) ---@type player 
+    local p  = Player(pid - 1)
     local x  = GetUnitX(HeroGrave[pid]) ---@type number 
     local y  = GetUnitY(HeroGrave[pid]) ---@type number 
     local ug = CreateGroup()
@@ -113,9 +113,9 @@ function DeathHandler(pid)
     DungeonFail(pid)
 
     --colosseum
-    if InColo[pid] then
+    if IS_IN_COLO[pid] then
         ColoPlayerCount = ColoPlayerCount - 1
-        InColo[pid] = false
+        IS_IN_COLO[pid] = false
         Fleeing[pid] = false
         AwardGold(pid, ColoGoldWon / 1.5, true)
         ExperienceControl(pid)
@@ -124,9 +124,9 @@ function DeathHandler(pid)
         end
 
     --struggle
-    elseif InStruggle[pid] then
+    elseif IS_IN_STRUGGLE[pid] then
         Struggle_Pcount = Struggle_Pcount - 1
-        InStruggle[pid] = false
+        IS_IN_STRUGGLE[pid] = false
         Fleeing[pid] = false
         ExperienceControl(pid)
         AwardGold(pid, GoldWon_Struggle * 0.1, true)
@@ -144,7 +144,7 @@ end
 ---@type fun(pt: PlayerTimer)
 function HeroGraveExpire(pt)
     local pid = pt.pid
-    local p    = Player(pid - 1) ---@type player 
+    local p    = Player(pid - 1)
     local itm  = GetResurrectionItem(pid, false) ---@type Item?
     local heal = 0. ---@type number 
 
@@ -155,7 +155,7 @@ function HeroGraveExpire(pt)
         if ResurrectionRevival[pid] > 0 then --high priestess resurrection
             heal = RESURRECTION.restore(ResurrectionRevival[pid])
             RevivePlayer(pid, GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), heal, heal)
-        elseif ReincarnationRevival[pid] then --phoenix ranger resurrection
+        elseif REINCARNATION.enabled[pid] then
             RevivePlayer(pid, GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]), 100, 100)
             BlzStartUnitAbilityCooldown(Hero[pid], REINCARNATION.id, 300.)
         elseif itm then --reincarnation item
@@ -182,7 +182,7 @@ function HeroGraveExpire(pt)
         end
 
         --cleanup
-        ReincarnationRevival[pid] = false
+        REINCARNATION.enabled[pid] = false
         ResurrectionRevival[pid] = 0
         UnitRemoveAbility(HeroGrave[pid], FourCC('A042'))
         UnitRemoveAbility(HeroGrave[pid], FourCC('A044'))
@@ -216,11 +216,11 @@ function SpawnGrave(pid)
         UnitAddAbility(HeroGrave[pid], FourCC('A042'))
     end
 
-    if ReincarnationRevival[pid] then
+    if REINCARNATION.enabled[pid] then
         UnitAddAbility(HeroGrave[pid], FourCC('A044'))
     end
 
-    if itm or ReincarnationRevival[pid] then
+    if itm or REINCARNATION.enabled[pid] then
         HeroReviveIndicator[pid] = AddSpecialEffect("UI\\Feedback\\Target\\Target.mdx", GetUnitX(HeroGrave[pid]), GetUnitY(HeroGrave[pid]))
 
         if GetLocalPlayer() == Player(pid - 1) then
@@ -243,8 +243,8 @@ function SpawnGrave(pid)
     pt.tag = 'dead'
     pt.timer:callDelayed(12.5, HeroGraveExpire, pt)
 
-    if sniperstance[pid] then --Reset Tri-Rocket
-        sniperstance[pid] = false
+    if SNIPERSTANCE.enabled[pid] then --Reset Tri-Rocket
+        SNIPERSTANCE.enabled[pid] = false
         BlzSetUnitAbilityCooldown(Hero[pid], TRIROCKET.id, 0, 6.)
         BlzSetUnitAbilityCooldown(Hero[pid], TRIROCKET.id, 1, 6.)
         BlzSetUnitAbilityCooldown(Hero[pid], TRIROCKET.id, 2, 6.)
@@ -481,10 +481,6 @@ function OnDeath()
     local index        = IsBoss(unitType)
     local U            = User.first
 
-    if EXTRA_DEBUG then
-        print(GetObjectName(uid))
-    end
-
     --hero skills
     while U do
         --dark savior soul steal
@@ -651,8 +647,8 @@ function OnDeath()
 
         Profile[pid].hero.base = 0
         PlayerBase[pid] = nil
-        if destroyBaseFlag[pid] then
-            destroyBaseFlag[pid] = false
+        if IS_BASE_DESTROYED[pid] then
+            IS_BASE_DESTROYED[pid] = false
         else
             DisplayTextToPlayer(p, 0, 0, "|cffff0000You must build another base within 2 minutes or be defeated. If you are defeated you will lose your character and be unable to save. If you think you are unable to build another base for some reason, then save now.")
             local pt = TimerList[pid]:add()
@@ -738,7 +734,7 @@ function OnDeath()
 
         --phoenix ranger reincarnation
         if BlzGetUnitAbilityCooldownRemaining(killed, REINCARNATION.id) <= 0 and GetUnitAbilityLevel(killed, REINCARNATION.id) > 0 then
-            ReincarnationRevival[pid] = true
+            REINCARNATION.enabled[pid] = true
         end
 
         --high priestess self resurrection
@@ -775,28 +771,23 @@ function OnDeath()
 
     --boss handling
     elseif index ~= -1 and p == pboss and spawnflag then
-        --add up player boss damage
-        local damage = 0
         U = User.first
+        --print percent contribution
         while U do
-            damage = damage + BossDamage[#BossTable * index + U.id]
-            U = U.next
-        end
-
-        U = User.first
-        --print percentage contribution
-        while U do
-            if BossDamage[#BossTable * index + U.id] >= 1. then
-                DisplayTimedTextToForce(FORCE_PLAYING, 20., U.nameColored .. " contributed |cffffcc00" .. R2S(BossDamage[#BossTable * index + U.id] * 100. / math.max(damage * 1., 1.)) .. "\x25|r damage to " .. GetUnitName(killed) .. ".")
+            if BossTable[index].damage[U.id] > 1. then
+                local percent = BossTable[index].damage[U.id] / BossTable[index].total_damage * 100.
+                DisplayTimedTextToForce(FORCE_PLAYING, 20., U.nameColored .. " contributed |cffffcc00" .. (percent) .. "\x25|r damage to " .. GetUnitName(killed) .. ".")
             end
+            --reset player damage
+            BossTable[index].damage[U.id]:set()
             U = U.next
         end
 
         TimerQueue:callDelayed(6., RemoveUnit, killed)
         BossHandler(uid)
 
-        --reset boss damage recorded
-        BossDamage = __jarray(0)
+        --reset total damage
+        BossTable[index].total_damage:set()
 
         --key quest
         if unitType == BossTable[BOSS_ARKADEN].id and not CHAOS_MODE and IsUnitHidden(god_angel) then --arkaden
@@ -829,4 +820,4 @@ end
     TriggerRegisterUnitEvent(death, evilshopkeeper, EVENT_UNIT_DEATH)
 
     TriggerAddCondition(death, Condition(OnDeath))
-end, Debug.getLine())
+end, Debug and Debug.getLine())

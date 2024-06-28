@@ -30,6 +30,8 @@ OnInit.final("Dummy", function(Require)
     ---@field recycle function
     ---@field create function
     ---@field cast function
+    ---@field source unit
+    ---@field attack function
     Dummy = {} ---@type Dummy|Dummy[]
     do
         local thistype = Dummy
@@ -57,6 +59,7 @@ OnInit.final("Dummy", function(Require)
         function thistype:recycle()
             UnitRemoveAbility(self.unit, self.abil)
             self.abil = 0
+            self.source = nil
 
             SetUnitAnimation(self.unit, "stand")
             SetUnitPropWindow(self.unit, bj_DEGTORAD * 180.)
@@ -121,13 +124,23 @@ OnInit.final("Dummy", function(Require)
             end
 
             --reset attack cooldown
-            BlzSetUnitAttackCooldown(self.unit, 5., 0)
-            UnitSetBonus(self.unit, BONUS_ATTACK_SPEED, 0.)
+            BlzSetUnitAttackCooldown(self.unit, 0.01, 0)
+            UnitSetBonus(self.unit, BONUS_ATTACK_SPEED, 4.)
 
             SetUnitXBounded(self.unit, x)
             SetUnitYBounded(self.unit, y)
 
             return self
+        end
+
+        ---@type fun(self: Dummy, enemy: unit, source: unit, func: function)
+        function thistype:attack(enemy, source, func)
+            BlzSetUnitFacingEx(self.unit, bj_RADTODEG * Atan2(GetUnitY(enemy) - GetUnitY(self.unit), GetUnitX(enemy) - GetUnitX(self.unit)))
+            UnitDisableAbility(self.unit, FourCC('Amov'), true)
+            self.source = source or self.unit
+            SetUnitOwner(self.unit, GetOwningPlayer(source), false)
+            EVENT_DUMMY_ON_HIT:register_unit_action(source, func)
+            InstantAttack(self.unit, enemy)
         end
     end
 
@@ -198,7 +211,7 @@ OnInit.final("Dummy", function(Require)
         end
     end
 
-    local function DPS_ON_HIT(target, source, damageCalc, damageType)
+    local function DPS_ON_HIT(target, source, amount, amount_after_red, damage_type)
         local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
         if GetLocalPlayer() == Player(pid - 1) then
@@ -221,11 +234,11 @@ OnInit.final("Dummy", function(Require)
             TimerQueue:callPeriodically(1., function() return DPS_TOTAL <= 0 end, DPS_PEAK_UPDATE)
         end
 
-        DPS_LAST = damageCalc
+        DPS_LAST = amount_after_red
 
-        if damageType == PHYSICAL then
+        if damage_type == PHYSICAL then
             DPS_TOTAL_PHYSICAL:set(DPS_TOTAL_PHYSICAL + DPS_LAST)
-        elseif damageType == MAGIC then
+        elseif damage_type == MAGIC then
             DPS_TOTAL_MAGIC:set(DPS_TOTAL_MAGIC + DPS_LAST)
         end
         DPS_TOTAL:set(DPS_TOTAL + DPS_LAST)
@@ -233,10 +246,10 @@ OnInit.final("Dummy", function(Require)
         DPS_STORAGE:add_timed(DPS_LAST, 1., 0.)
         DPS_TIMER:reset()
         DPS_TIMER:callDelayed(7.5, DPS_RESET)
-        BlzSetEventDamage(0.00)
+        amount.value = 0.
         SetWidgetLife(target, BlzGetUnitMaxHP(target))
     end
 
     EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(PUNCHING_BAG, DPS_ON_HIT)
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

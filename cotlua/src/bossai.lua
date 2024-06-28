@@ -250,7 +250,7 @@ function ScreamOfDespair()
     if UnitAlive(BossTable[BOSS_ORSTED].unit) then
         local ug = CreateGroup()
 
-        SpellCast(BossTable[BOSS_ORSTED].unit, 0, 1.8, 5, 1.2)
+        CastSpell(BossTable[BOSS_ORSTED].unit, 0, 1.8, 5, 1.2)
         MakeGroupInRange(BOSS_ID, ug, GetUnitX(BossTable[BOSS_ORSTED].unit), GetUnitY(BossTable[BOSS_ORSTED].unit), 500., Condition(FilterEnemy))
         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\HowlOfTerror\\HowlCaster.mdl", BossTable[BOSS_ORSTED].unit, "origin"))
 
@@ -341,7 +341,7 @@ end
 ---@type fun(x: number, y: number)
 local function SatanFlameStrike(x, y)
     local dummy = Dummy.create(GetUnitX(BossTable[BOSS_SATAN].unit), GetUnitY(BossTable[BOSS_SATAN].unit), FourCC('A0DN'), 1)
-
+    dummy.source = BossTable[BOSS_SATAN].unit
     SetUnitOwner(dummy.unit, pboss, false)
     IssuePointOrder(dummy.unit, "flamestrike", x, y)
     EVENT_DUMMY_ON_HIT:register_unit_action(dummy.unit, satan_onhit)
@@ -528,7 +528,7 @@ function Fireball(pt)
         size = BlzGroupGetSize(ug)
 
         if size > 0 and BlzGetUnitAbilityCooldownRemaining(pt.source, FourCC('A02V')) <= 0 then
-            SpellCast(pt.source, FourCC('A02V'), 0.75, 5, 1.)
+            CastSpell(pt.source, FourCC('A02V'), 0.75, 5, 1.)
             local pt2 = TimerList[BOSS_ID]:add()
             pt2.target = BlzGroupUnitAt(ug, GetRandomInt(0, size - 1))
             pt2.angle = Atan2(GetUnitY(pt2.target) - y, GetUnitX(pt2.target) - x)
@@ -594,7 +594,7 @@ function FocusFire(pt)
                 MoveLightningEx(pt.lfx, false, x, y, BlzGetLocalUnitZ(pt.source) + GetUnitFlyHeight(pt.source) + 50., GetUnitX(pt.target), GetUnitY(pt.target), BlzGetUnitZ(pt.target) + 50.)
 
                 if BlzGetUnitAbilityCooldownRemaining(pt.source, FourCC('A02G')) <= 0. then
-                    SpellCast(pt.source, FourCC('A02G'), 5., 0, 1.)
+                    CastSpell(pt.source, FourCC('A02G'), 5., 0, 1.)
                 end
 
                 if pt.time >= 5 then
@@ -711,7 +711,7 @@ function BossSpellCasting(source, target)
         if target == BossTable[BOSS_HELLFIRE].unit and UnitAlive(BossTable[BOSS_HELLFIRE].unit) then
             --frost armor
             if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A02M')) <= 0 then
-                SpellCast(target, FourCC('A02M'), 1., 4, 1.)
+                CastSpell(target, FourCC('A02M'), 1., 4, 1.)
                 FrostArmorBuff:add(target, target):duration(10.)
             --chain lightning
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A00G')) <= 0 then
@@ -725,7 +725,7 @@ function BossSpellCasting(source, target)
         elseif target == BossTable[BOSS_VASHJ].unit and UnitAlive(BossTable[BOSS_VASHJ].unit) then
             --tornado storm
             if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A085')) <= 0 then
-                SpellCast(target, FourCC('A085'), 1.5, 5, 1.)
+                CastSpell(target, FourCC('A085'), 1.5, 5, 1.)
                 local dummy = CreateUnit(Player(PLAYER_BOSS), FourCC('n001'), GetUnitX(target), GetUnitY(target), 0.)
                 IssuePointOrder(dummy, "move", GetRandomReal(GetUnitX(target) - 250, GetUnitX(target) + 250), GetRandomReal(GetUnitY(target) - 250, GetUnitY(target) + 250))
                 TimerQueue:callDelayed(40., RemoveUnit, dummy)
@@ -741,7 +741,7 @@ function BossSpellCasting(source, target)
                 IssuePointOrder(BossTable[BOSS_TAUREN].unit, "carrionswarm", GetUnitX(source), GetUnitY(source))
             --war stomp
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A09J')) <= 0 and UnitDistance(source, target) < 300. then
-                SpellCast(target, FourCC('A09J'), 1., 4, 1.)
+                CastSpell(target, FourCC('A09J'), 1., 4, 1.)
                 pt = TimerList[BOSS_ID]:add()
                 pt.dmg = 4000.
                 pt.source = target
@@ -756,7 +756,7 @@ function BossSpellCasting(source, target)
             if UnitDistance(target, source) < 800. then
                 --mana drain
                 if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A01Z')) <= 0 then
-                    SpellCast(target, FourCC('A01Z'), 1.5, 4, 1.)
+                    CastSpell(target, FourCC('A01Z'), 1.5, 4, 1.)
                     MakeGroupInRange(BOSS_ID, ug, GetUnitX(target), GetUnitY(target), 800., Condition(FilterEnemy))
                     for u in each(ug) do
                         --vampire mana drain exception
@@ -775,7 +775,7 @@ function BossSpellCasting(source, target)
                     IssueImmediateOrder(BossTable[BOSS_DWARF].unit, "avatar")
                 --thunder clap
                 elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A0A2')) <= 0 then
-                    SpellCast(target, FourCC('A0A2'), 1., 4, 1.)
+                    CastSpell(target, FourCC('A0A2'), 1., 4, 1.)
                     pt = TimerList[BOSS_ID]:add()
                     pt.dmg = 8000.
                     pt.source = target
@@ -793,7 +793,7 @@ function BossSpellCasting(source, target)
                 BossTeleport(source, 1.5)
             --death strikes
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A088')) <= 0 then
-                SpellCast(target, FourCC('A088'), 0.7, 3, 1.)
+                CastSpell(target, FourCC('A088'), 0.7, 3, 1.)
                 MakeGroupInRange(BOSS_ID, ug, GetUnitX(target), GetUnitY(target), 1250., Condition(FilterEnemy))
                 FloatingTextUnit("Death Strikes", BossTable[BOSS_DEATH_KNIGHT].unit, 2., 60., 0, 12, 255, 255, 255, 0, true)
                 local count = 0
@@ -824,9 +824,9 @@ function BossSpellCasting(source, target)
             --frost nova
             if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A066')) <= 0. then
                 if GetUnitTypeId(target) == FourCC('E007') then
-                    SpellCast(target, FourCC('A066'), 1., 8, 1.)
+                    CastSpell(target, FourCC('A066'), 1., 8, 1.)
                 else
-                    SpellCast(target, FourCC('A066'), 1., 2, 1.)
+                    CastSpell(target, FourCC('A066'), 1., 2, 1.)
                 end
 
                 FloatingTextUnit("Frost Nova", target, 1.75, 100, 0, 12, 255, 255, 255, 0, true)
@@ -835,12 +835,12 @@ function BossSpellCasting(source, target)
 
             --raise skeletons
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A01H')) <= 0. and GetUnitAbilityLevel(target, FourCC('A01H')) > 0 then
-                SpellCast(target, FourCC('A01H'), 1.5, 8, 1.)
+                CastSpell(target, FourCC('A01H'), 1.5, 8, 1.)
 
                 for i = 0, 4 do
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl", GetUnitX(target) + 80. * Cos(bj_PI * i * 0.4), GetUnitY(target) + 80. * Sin(bj_PI * i * 0.4)))
                     bj_lastCreatedUnit = CreateUnit(Player(PLAYER_BOSS), FourCC('n00E'), GetUnitX(target) + 80. * Cos(bj_PI * i * 0.4), GetUnitY(target) + 80. * Sin(bj_PI * i * 0.4), GetUnitFacing(target))
-                    SpellCast(bj_lastCreatedUnit, 0, 1.5, 9, 1.)
+                    CastSpell(bj_lastCreatedUnit, 0, 1.5, 9, 1.)
                     UnitApplyTimedLife(bj_lastCreatedUnit, FourCC('BTLF'), 30.)
                 end
             end
@@ -850,7 +850,7 @@ function BossSpellCasting(source, target)
             --Love Holy Ward
             if UnitAlive(BossTable[BOSS_LOVE].unit) and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 then
                 if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A06T')) <= 0 then
-                    SpellCast(target, FourCC('A06T'), 0.5, 9, 1.5)
+                    CastSpell(target, FourCC('A06T'), 0.5, 9, 1.5)
                     local holyward = CreateUnit(pboss, FourCC('o009'), GetRandomReal(GetRectMinX(gg_rct_Crystal_Spawn) - 500, GetRectMaxX(gg_rct_Crystal_Spawn) + 500), GetRandomReal(GetRectMinY(gg_rct_Crystal_Spawn) - 600, GetRectMaxY(gg_rct_Crystal_Spawn) + 600), 0)
 
                     MakeGroupInRange(BOSS_ID, ug, GetUnitX(holyward), GetUnitY(holyward), 1250., Condition(FilterEnemy))
@@ -866,13 +866,13 @@ function BossSpellCasting(source, target)
             if target == BossTable[BOSS_KNOWLEDGE].unit and UnitAlive(target) and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 and not Unit[target].casting then
                 --ghost shroud
                 if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A0A8')) <= 0 then
-                    SpellCast(target, FourCC('A0A8'), 0.25, 8, 1.5)
+                    CastSpell(target, FourCC('A0A8'), 0.25, 8, 1.5)
                     Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A0A8'), 1):cast(pboss, "banish", target)
                     pt = TimerList[BOSS_ID]:add()
                     pt.timer:callPeriodically(1., nil, GhostShroud, pt)
                 --silence
                 elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A05B')) <= 0 then
-                    SpellCast(target, FourCC('A05B'), 1., 8, 1.5)
+                    CastSpell(target, FourCC('A05B'), 1., 8, 1.5)
 
                     MakeGroupInRange(BOSS_ID, ug, GetUnitX(source), GetUnitY(source), 1000., Condition(FilterEnemy))
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Other\\Silence\\SilenceAreaBirth.mdl", GetUnitX(source), GetUnitY(source)))
@@ -882,7 +882,7 @@ function BossSpellCasting(source, target)
                     end
                 --disarm
                 elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A05W')) <= 0 then
-                    SpellCast(target, FourCC('A05W'), 1., 8, 1.5)
+                    CastSpell(target, FourCC('A05W'), 1., 8, 1.5)
                     Disarm:add(target, source):duration(6.)
                 end
             end
@@ -957,11 +957,11 @@ function BossSpellCasting(source, target)
                 pt.dur = 8.
 
                 BlzSetUnitFacingEx(target, Atan2(pt.y - GetUnitY(target), pt.x - GetUnitX(target)) * bj_RADTODEG)
-                SpellCast(target, FourCC('A03W'), 1.5, 3, 1.2)
+                CastSpell(target, FourCC('A03W'), 1.5, 3, 1.2)
 
                 pt.timer:callDelayed(1., CloudOfDespair, pt)
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A04Q')) <= 0. and not Unit[target].casting and UnitDistance(source, target) <= 300. then
-                SpellCast(target, FourCC('A04Q'), 2., 1, 1.)
+                CastSpell(target, FourCC('A04Q'), 2., 1, 1.)
 
                 FloatingTextUnit("Scream of Despair", BossTable[BOSS_ORSTED].unit, 3, 100, 0, 13, 255, 255, 255, 0, true)
 
@@ -974,7 +974,7 @@ function BossSpellCasting(source, target)
             SetUnitAbilityLevel(BossTable[BOSS_SLAUGHTER_QUEEN].unit, FourCC('A040'), HARD_MODE + 1)
 
             if GetRandomInt(0, 99) < 13 and BlzGetUnitAbilityCooldownRemaining(BossTable[BOSS_SLAUGHTER_QUEEN].unit, FourCC('A040')) <= 0 then
-                SpellCast(target, FourCC('A040'), 0., -1, 1.)
+                CastSpell(target, FourCC('A040'), 0., -1, 1.)
                 FloatingTextUnit("Avatar", BossTable[BOSS_SLAUGHTER_QUEEN].unit, 3, 100, 0, 13, 255, 255, 255, 0, true)
                 TimerQueue:callDelayed(2., SlaughterAvatar)
             end
@@ -997,7 +997,7 @@ function BossSpellCasting(source, target)
 
                 pt.timer:callDelayed(0.5, DarkSoulAbility, pt)
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A02Q')) <= 0 then
-                SpellCast(target, FourCC('A02Q'), 2., 5, 1.)
+                CastSpell(target, FourCC('A02Q'), 2., 5, 1.)
                 pt = TimerList[BOSS_ID]:add()
                 pt.source = target
                 pt.dur = 4.
@@ -1015,10 +1015,10 @@ function BossSpellCasting(source, target)
         --Legion
         elseif target == BossTable[BOSS_LEGION].unit and UnitAlive(target) and not Unit[target].casting then
             if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A05I')) <= 0 and UnitDistance(source, target) > 250. then --shadow step
-                SpellCast(target, FourCC('A05I'), 0., 1, 1.)
+                CastSpell(target, FourCC('A05I'), 0., 1, 1.)
                 BossTeleport(source, 1.5)
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A08C')) <= 0 and TimerList[BOSS_ID]:has(FourCC('tpin')) == false and UnitDistance(source, target) < 800 then
-                SpellCast(target, FourCC('A08C'), 0.5, 12, 1.)
+                CastSpell(target, FourCC('A08C'), 0.5, 12, 1.)
                 TimerQueue:callDelayed(2, DestroyEffect, AddSpecialEffect("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageCaster.mdl", GetUnitX(BossTable[BOSS_LEGION].unit), GetUnitY(BossTable[BOSS_LEGION].unit)))
                 RemoveLocation(BossTable[BOSS_LEGION].loc)
                 BossTable[BOSS_LEGION].loc = Location(GetUnitX(source), GetUnitY(source))
@@ -1038,7 +1038,7 @@ function BossSpellCasting(source, target)
                     pt.timer:callDelayed(1.5, ThanatosAbility, pt)
                     FloatingTextUnit("Swift Hunt", target, 1, 70, 0, 10, 255, 255, 255, 0, true)
                 elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A02P')) <= 0 then
-                    SpellCast(target, FourCC('A02P'), 2., 12, 1.)
+                    CastSpell(target, FourCC('A02P'), 2., 12, 1.)
                     pt = TimerList[BOSS_ID]:add()
                     pt.x = GetUnitX(source)
                     pt.y = GetUnitY(source)
@@ -1067,13 +1067,13 @@ function BossSpellCasting(source, target)
                 pt.source = target
                 pt.dur = 5.
                 pt.spell = rand
-                SpellCast(target, FourCC('A07F'), 0., -1, 1.)
-                SpellCast(target, FourCC('A07Q'), 0., -1, 1.)
-                SpellCast(target, FourCC('A073'), 0., -1, 1.)
-                SpellCast(target, FourCC('A072'), 1.5, 4, 1.5)
+                CastSpell(target, FourCC('A07F'), 0., -1, 1.)
+                CastSpell(target, FourCC('A07Q'), 0., -1, 1.)
+                CastSpell(target, FourCC('A073'), 0., -1, 1.)
+                CastSpell(target, FourCC('A072'), 1.5, 4, 1.5)
                 pt.timer:callDelayed(0.5, ExistenceAbility, pt)
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A07X')) <= 0. then
-                SpellCast(target, FourCC('A07X'), 1.5, 4, 1.5)
+                CastSpell(target, FourCC('A07X'), 1.5, 4, 1.5)
                 FloatingTextUnit("Protected Existence", target, 3, 70, 0, 12, 100, 255, 100, 0, true)
                 ProtectedExistenceBuff:add(target, target):duration(10.)
             end
@@ -1081,7 +1081,7 @@ function BossSpellCasting(source, target)
         --Xallarath
         elseif target == BossTable[BOSS_XALLARATH].unit and UnitAlive(target) and not Unit[target].casting then
             if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A01I')) <= 0 and GetWidgetLife(target) <= BlzGetUnitMaxHP(target) * 0.5 then
-                SpellCast(target, FourCC('A01I'), 0., 3, 1.)
+                CastSpell(target, FourCC('A01I'), 0., 3, 1.)
                 FloatingTextUnit("Reinforcements", BossTable[BOSS_XALLARATH].unit, 1.75, 100, 0, 12, 255, 0, 0, 0, true)
                 pt = TimerList[BOSS_ID]:add()
                 pt.angle = GetUnitFacing(target)
@@ -1095,7 +1095,7 @@ function BossSpellCasting(source, target)
 
                 if BlzGroupGetSize(ug) > 0 then
                     PauseUnit(target, true)
-                    SpellCast(target, FourCC('A01J'), 2.5, 1, 1.)
+                    CastSpell(target, FourCC('A01J'), 2.5, 1, 1.)
                     FloatingTextUnit("Unstoppable Force", target, 1.75, 100, 0, 12, 255, 0, 0, 0, true)
                     local u = BlzGroupUnitAt(ug, GetRandomInt(0, BlzGroupGetSize(ug) - 1))
                     local dummy = Dummy.create(GetUnitX(u), GetUnitY(u), 0, 0, 4.).unit
@@ -1112,7 +1112,7 @@ function BossSpellCasting(source, target)
                     pt.timer:callDelayed(2.5, UnstoppableForce, pt)
                 end
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A02B')) <= 0. and GetWidgetLife(target) <= BlzGetUnitMaxHP(target) * 0.9 then
-                SpellCast(target, FourCC('A02B'), 0., 3, 1.)
+                CastSpell(target, FourCC('A02B'), 0., 3, 1.)
                 --archers
                 SpawnForgottenArcher(12349., -15307., 770.)
                 SpawnForgottenArcher(13500., -12300., 575.)
@@ -1136,7 +1136,7 @@ function BossSpellCasting(source, target)
                 pt.tag = "Astral Devastation"
                 FloatingTextUnit(pt.tag, pt.source, 3, 70, 0, 12, 255, 255, 255, 0, true)
                 pt.timer:callDelayed(pt.dur, AstralDevastation, pt)
-                SpellCast(target, FourCC('A01B'), pt.dur * 4, 4, 1.)
+                CastSpell(target, FourCC('A01B'), pt.dur * 4, 4, 1.)
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A00K')) <= 0 then
                 --adjust cooldown based on HP
                 BlzSetUnitAbilityCooldown(target, FourCC('A00K'), 0, 25. + R2I(GetWidgetLife(target) / BlzGetUnitMaxHP(target) * 25.))
@@ -1147,9 +1147,9 @@ function BossSpellCasting(source, target)
                 pt.tag = "Astral Annihilation"
                 FloatingTextUnit(pt.tag, pt.source, 3, 70, 0, 12, 255, 255, 255, 0, true)
                 pt.timer:callDelayed(pt.dur, AstralAnnihilation, pt)
-                SpellCast(target, FourCC('A00K'), pt.dur * 4, 4, 1.)
+                CastSpell(target, FourCC('A00K'), pt.dur * 4, 4, 1.)
             elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A01C')) <= 0 then
-                SpellCast(target, FourCC('A01C'), 1., 6, 1.)
+                CastSpell(target, FourCC('A01C'), 1., 6, 1.)
                 FloatingTextUnit("Astral Shield", BossTable[BOSS_AZAZOTH].unit, 3, 70, 0, 12, 255, 255, 255, 0, true)
                 AstralShieldBuff:add(BossTable[BOSS_AZAZOTH].unit, BossTable[BOSS_AZAZOTH].unit):duration(13.)
             end
@@ -1164,4 +1164,4 @@ end
     TriggerRegisterPlayerUnitEvent(t, pboss, EVENT_PLAYER_UNIT_SUMMON, nil)
     TriggerAddCondition(t, Filter(PositionLegionIllusions))
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

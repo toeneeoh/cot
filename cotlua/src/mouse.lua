@@ -2,8 +2,8 @@ OnInit.final("Mouse", function(Require)
     Require('Users')
     Require('Variables')
 
-    rightclickmovement = {} ---@type boolean[]
-    rightclickdown     = {} ---@type boolean[]
+    IS_M2_MOVEMENT     = {} ---@type boolean[]
+    IS_M2_DOWN         = {} ---@type boolean[]
     well               = {} ---@type unit[] 
     wellcount          = 0 ---@type integer 
     wellheal           = __jarray(0) ---@type integer[] 
@@ -16,7 +16,7 @@ OnInit.final("Mouse", function(Require)
 
 ---@type fun(pid: integer)
 function UnselectBP(pid)
-    local p        = Player(pid - 1) ---@type player 
+    local p = Player(pid - 1)
 
     if IsUnitSelected(Hero[pid], p) and IsUnitSelected(Backpack[pid], p) then
         if GetLocalPlayer() == p then
@@ -60,7 +60,7 @@ function MouseUp()
             end
         end
 
-        rightclickdown[pid] = false
+        IS_M2_DOWN[pid] = false
     end
 
     return false
@@ -68,14 +68,14 @@ end
 
 ---@return boolean
 function MouseDown()
-    local p   = GetTriggerPlayer() ---@type player 
+    local p   = GetTriggerPlayer()
     local pid = GetPlayerId(p) + 1 ---@type integer 
 
     clickCounter[pid] = clickCounter[pid] + 1
 
     --backpack ai
     if PlayerSelectedUnit[pid] == Backpack[pid] then
-        bpmoving[pid] = true
+        IS_BACKPACK_MOVING[pid] = true
         local pt = TimerList[pid]:get('bkpk')
 
         if not pt then
@@ -90,7 +90,7 @@ function MouseDown()
     end
 
     if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_RIGHT then
-        rightclickdown[pid] = true
+        IS_M2_DOWN[pid] = true
     end
 
     return false
@@ -98,7 +98,7 @@ end
 
 ---@return boolean
 function MoveMouse()
-    local p   = GetTriggerPlayer() ---@type player 
+    local p   = GetTriggerPlayer() 
     local pid = GetPlayerId(p) + 1 ---@type integer 
     local x   = BlzGetTriggerPlayerMouseX() ---@type number 
     local y   = BlzGetTriggerPlayerMouseY() ---@type number 
@@ -116,7 +116,7 @@ function MoveMouse()
             panCounter[pid] = panCounter[pid] + 1
         end
 
-        if rightclickmovement[pid] and rightclickdown[pid] and IsUnitSelected(Hero[pid], p) then
+        if IS_M2_MOVEMENT[pid] and IS_M2_DOWN[pid] and IsUnitSelected(Hero[pid], p) then
             if dist >= 3 then
                 local ug = CreateGroup()
                 GroupEnumUnitsInRange(ug, x, y, 15.0, Condition(ishostile))
@@ -142,7 +142,7 @@ end
 ---@return boolean
 function Select()
     local u   = GetTriggerUnit()
-    local p   = GetTriggerPlayer() ---@type player 
+    local p   = GetTriggerPlayer()
     local pid = GetPlayerId(p) + 1 ---@type integer 
 
     PlayerSelectedUnit[pid] = u
@@ -168,4 +168,4 @@ end
     TriggerAddCondition(move, Filter(MoveMouse))
     TriggerAddCondition(mousedown, Filter(MouseDown))
     TriggerAddCondition(mouseup, Filter(MouseUp))
-end, Debug.getLine())
+end, Debug and Debug.getLine())

@@ -8,9 +8,9 @@ OnInit.final("Currency", function(Require)
     Require('Users')
     Require('UI')
 
-    PlatConverter = {} ---@type boolean[]
-    ArcaConverter = {} ---@type boolean[]
-    ConverterBought = {} ---@type boolean[]
+    IS_CONVERTING_PLAT = {} ---@type boolean[]
+    IS_CONVERTING_ARC = {} ---@type boolean[]
+    IS_CONVERTER_PURCHASED = {} ---@type boolean[]
     ITEM_LOOKUP = {}
 
     --purchase auto converter
@@ -22,12 +22,12 @@ OnInit.final("Currency", function(Require)
         --converter
         if index == 0 then
             if GetCurrency(pid, PLATINUM) >= 2 and GetCurrency(pid, ARCADITE) >= 2 then
-                ConverterBought[pid] = true
+                IS_CONVERTER_PURCHASED[pid] = true
                 AddCurrency(pid, PLATINUM, -2)
                 AddCurrency(pid, ARCADITE, -2)
                 if GetLocalPlayer() == GetTriggerPlayer() then
-                    PLAT_CONVERT.tooltip:text("Convert gold to platinum automatically")
-                    ARCA_CONVERT.tooltip:text("Convert lumber to arcadite automatically")
+                    PLAT_CONVERT_FRAME.tooltip:text("Convert gold to platinum automatically")
+                    ARC_CONVERT_FRAME.tooltip:text("Convert lumber to arcadite automatically")
                 end
             else
                 DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "You cannot afford this!")
@@ -42,7 +42,7 @@ OnInit.final("Currency", function(Require)
     --map item currency exchange purchases to functions
 
     ITEM_LOOKUP[FourCC('I084')] = function(p, pid)
-        if not ConverterBought[pid] then
+        if not IS_CONVERTER_PURCHASED[pid] then
             local dw = DialogWindow.create(pid, "Purchase cost: |n|cffffffff2 |cffe3e2e2Platinum|r|nand |cffffffff2 |cff66FF66Arcadite|r", BuyConverter)
 
             dw:addButton("Purchase")
@@ -311,13 +311,13 @@ OnInit.final("Currency", function(Require)
 
     ---@return boolean
     function CurrencyConverter()
-        local p   = GetTriggerPlayer() ---@type player 
+        local p   = GetTriggerPlayer() 
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
         Currency[pid * CURRENCY_COUNT + GOLD] = GetPlayerState(p, PLAYER_STATE_RESOURCE_GOLD)
         Currency[pid * CURRENCY_COUNT + LUMBER] = GetPlayerState(p, PLAYER_STATE_RESOURCE_LUMBER)
 
-        if PlatConverter[pid] then
+        if IS_CONVERTING_PLAT[pid] then
             local plat = Currency[pid * CURRENCY_COUNT + GOLD] // 1000000
 
             if plat > 0 then
@@ -327,7 +327,7 @@ OnInit.final("Currency", function(Require)
             end
         end
 
-        if ArcaConverter[pid] then
+        if IS_CONVERTING_ARC[pid] then
             local arc = Currency[pid * CURRENCY_COUNT + LUMBER] // 1000000
 
             if arc > 0 then
@@ -351,4 +351,4 @@ OnInit.final("Currency", function(Require)
 
     TriggerAddCondition(convert, Filter(CurrencyConverter))
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())

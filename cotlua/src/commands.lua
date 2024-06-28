@@ -6,20 +6,21 @@
 
 OnInit.final("Commands", function(Require)
     Require('Users')
+    Require('Profile')
 
     VoteYay            = 0
     VoteNay            = 0
-    autoAttackDisabled = {} ---@type boolean[] 
-    fullItemStacking   = __jarray(true) ---@type boolean[] 
+    IS_AUTO_ATTACK_ON = {} ---@type boolean[] 
+    IS_ITEM_FULL_STACKING = __jarray(true) ---@type boolean[] 
     bossResMod         = 1.
-    destroyBaseFlag    = {} ---@type boolean[] 
+    IS_BASE_DESTROYED  = {} ---@type boolean[] 
     votekickPlayer     = 0
     votekickingPlayer  = 0
 
     VOTING_TYPE = 0
     I_VOTED     = {} ---@type boolean[] 
 
-    CMD_LIST = {
+    local CMD_LIST = {
         ["-commands"] = function(p, pid, args)
             DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffffcc00Commands are located in F9.|r")
         end,
@@ -37,7 +38,7 @@ OnInit.final("Commands", function(Require)
         end,
         ["-destroybase"] = function(p, pid, args)
             if PlayerBase[pid] ~= nil then
-                destroyBaseFlag[pid] = true
+                IS_BASE_DESTROYED[pid] = true
                 SetUnitExploded(PlayerBase[pid], true)
                 KillUnit(PlayerBase[pid])
             end
@@ -142,10 +143,10 @@ OnInit.final("Commands", function(Require)
                 local _, _, zoom, lock = args[2]:find("(\x25d+)\x25s.([lL])")
 
                 if zoom then
-                    CameraLock[pid] = (lock == "l") or CameraLock[pid]
+                    IS_CAMERA_LOCKED[pid] = (lock == "l") or IS_CAMERA_LOCKED[pid]
                     Zoom[pid] = MathClamp(tonumber(zoom), 100, 3000)
 
-                    if not selectingHero[pid] then
+                    if not SELECTING_HERO[pid] then
                         SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, zoom, 0)
                     end
                 end
@@ -156,21 +157,21 @@ OnInit.final("Commands", function(Require)
         end,
         ["-zml"] = function(p, pid, args, cmd)
             local _, _, lock = cmd:find("[lL]$")
-            CameraLock[pid] = (lock == "l") or CameraLock[pid]
+            IS_CAMERA_LOCKED[pid] = (lock == "l") or IS_CAMERA_LOCKED[pid]
             Zoom[pid] = 2500
 
-            if not selectingHero[pid] then
+            if not SELECTING_HERO[pid] then
                 SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, 2500, 0)
             end
         end,
         ["-lock"] = function(p, pid, args)
-            CameraLock[pid] = true
+            IS_CAMERA_LOCKED[pid] = true
         end,
         ["-unlock"] = function(p, pid, args)
-            CameraLock[pid] = false
+            IS_CAMERA_LOCKED[pid] = false
         end,
         ["-new"] = function(p, pid, args)
-            NewProfile(pid)
+            Profile.new(pid)
         end,
         ["-info"] = function(p, pid, args)
             local index = S2I(args[2]) or 1
@@ -196,10 +197,10 @@ OnInit.final("Commands", function(Require)
             end
         end,
         ["-restime"] = function(p, pid, args)
-            if TimerGetRemaining(rezretimer[pid]) <= 0.1 then
+            if TimerGetRemaining(RECHARGE_COOLDOWN[pid]) <= 0.1 then
                 DisplayTimedTextToPlayer(p, 0, 0, 20, "You can recharge.")
             else
-                DisplayTimedTextToPlayer(p, 0, 0, 20, (R2I(TimerGetRemaining(rezretimer[pid]))) .. " seconds until you can recharge again.")
+                DisplayTimedTextToPlayer(p, 0, 0, 20, (R2I(TimerGetRemaining(RECHARGE_COOLDOWN[pid]))) .. " seconds until you can recharge again.")
             end
         end,
         ["-autosave"] = function(p, pid, args)
@@ -208,9 +209,9 @@ OnInit.final("Commands", function(Require)
             end
         end,
         ["-cancel"] = function(p, pid, args)
-            if forceSaving[pid] then
-                forceSaving[pid] = false
-                IS_TELEPORTING[pid] = false
+            if IS_FORCE_SAVING[pid] then
+                IS_FORCE_SAVING[pid] = false
+                Unit[Hero[pid]].busy = false
                 PauseUnit(Hero[pid], false)
                 PauseUnit(Backpack[pid], false)
                 if (GetLocalPlayer() == p) then
@@ -255,15 +256,12 @@ OnInit.final("Commands", function(Require)
                 if Profile[pid]:getSlotsUsed() >= 30 then
                     DisplayTimedTextToPlayer(p, 0, 0, 30.0, "You cannot save more than 30 heroes!")
                 else
-                    MainRepick(pid)
+                    Profile[pid]:repick()
                 end
             end
         end,
-        ["-prestige"] = function(p, pid, args)
-            PrestigeInfo(p, args[2])
-        end,
         ["-quests"] = function(p, pid, args)
-            DisplayQuestProgress(p)
+            DisplayQuestProgress(pid)
         end,
         ["-hints"] = function(p, pid, args)
             if IsPlayerInForce(p, HINT_PLAYERS) then
@@ -303,38 +301,9 @@ OnInit.final("Commands", function(Require)
 
     CMD_LIST["-nohints"] = CMD_LIST["-hints"]
 
----@return boolean
-function NewProfileClick()
-    local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-    local dw    = DialogWindow[pid] ---@type DialogWindow 
-    local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
-
-    if index ~= -1 then
-        Profile[pid] = Profile.create(pid)
-        Profile[pid].new = true
-        SpawnWispSelector(pid)
-
-        dw:destroy()
-    end
-
-    return false
-end
-
----@param pid integer
-function NewProfile(pid)
-    if Profile[pid].new then
-        DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 30, "You already started a new profile!")
-    else
-        local dw = DialogWindow.create(pid, "Start a new profile?\n|cFFFF0000Any existing profile will be\noverwritten.|r", NewProfileClick) ---@type DialogWindow
-
-        dw:addButton("Yes")
-        dw:display()
-    end
-end
-
 ---@type fun(user: player, pid: integer)
 function ShowExpRate(user, pid)
-    if InColo[pid] then
+    if IS_IN_COLO[pid] then
         DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Experience Rate: |r" .. R2S(XP_Rate[pid]) .. "\x25")
     else
         DisplayTimedTextToPlayer(user,0,0, 30, "|cff808080Experience Rate: |r" .. R2S(XP_Rate[pid]) .. "\x25")
@@ -451,7 +420,7 @@ function FleeCommand(p)
     local pid = GetPlayerId(p) + 1 ---@type integer 
     local U = User.first ---@type User 
 
-    if InStruggle[pid] or InColo[pid] then
+    if IS_IN_STRUGGLE[pid] or IS_IN_COLO[pid] then
         Fleeing[pid] = true
         DisplayTimedTextToPlayer(p, 0, 0, 10, "You will escape once the current wave is complete.")
     elseif TableHas(GODS_GROUP, p) then
@@ -470,74 +439,15 @@ function FleeCommand(p)
                 SetPlayerAllianceStateBJ(U.player, Player(pid - 1), bj_ALLIANCE_ALLIED_VISION)
                 SetPlayerAllianceStateBJ(Player(pid - 1), U.player, bj_ALLIANCE_ALLIED_VISION)
 
-                if hero_panel_on[pid * PLAYER_CAP + U.id] then
+                if IS_HERO_PANEL_ON[pid * PLAYER_CAP + U.id] then
                     ShowHeroPanel(Player(pid - 1), U.player, true)
                 end
 
-                if hero_panel_on[U.id * PLAYER_CAP + pid] then
+                if IS_HERO_PANEL_ON[U.id * PLAYER_CAP + pid] then
                     ShowHeroPanel(U.player, Player(pid - 1), true)
                 end
             U = U.next
         end
-    end
-end
-
----@param p player
-function DisplayQuestProgress(p)
-    local i = 0 ---@type integer 
-    local flag = (CHAOS_MODE and 1) or 0
-    local index = KillQuest[flag][i]
-
-    while index ~= 0 do
-        local s = (KillQuest[index].count == KillQuest[index].goal and "|cff40ff40") or ""
-
-        DisplayTimedTextToPlayer(p, 0, 0, 10, KillQuest[index].name .. ": " .. s .. (KillQuest[index].count) .. "/" .. (KillQuest[index].goal) .. "|r |cffffcc01LVL " .. (KillQuest[index].min) .. "-" .. (KillQuest[index].max))
-        i = i + 1
-        index = KillQuest[flag][i]
-    end
-end
-
----@type fun(pid: integer)
-function MainRepick(pid)
-    --return if in hero selection or have not created a profile yet
-    if selectingHero[pid] or not Profile[pid] then
-        return
-    end
-
-    local p = Player(pid - 1)
-
-    --allow repicking after hardcore death
-    if HeroID[pid] ~= 0 then
-        if IsUnitPaused(Hero[pid]) or not UnitAlive(Hero[pid]) then
-            DisplayTextToPlayer(p, 0, 0, "You can't repick right now.")
-            return
-        elseif RectContainsUnit(gg_rct_Tavern, Hero[pid]) or RectContainsUnit(gg_rct_NoSin, Hero[pid]) or RectContainsUnit(gg_rct_Church, Hero[pid]) then
-            ShowHeroCircle(p, true)
-        else
-            DisplayTextToPlayer(p, 0, 0, "You can only repick in church, town or tavern.")
-            return
-        end
-    end
-
-    --close stat window
-    if GetLocalPlayer() == Player(pid - 1) then
-        BlzFrameSetVisible(STAT_WINDOW.frame, false)
-    end
-
-    Profile[pid].save_timer:reset()
-    PlayerCleanup(pid)
-    SpawnWispSelector(pid)
-end
-
----@param p player
----@param pid integer
-function PrestigeInfo(p, pid)
-    if not pid then
-        pid = GetPlayerId(p) + 1
-    end
-
-    if Hero[pid] == nil then
-        return
     end
 end
 
@@ -569,9 +479,9 @@ function myRoll(pid)
 end
 
 ---@type fun(): boolean
-function CustomCommands()
+local function CustomCommands()
     local cmd = GetEventPlayerChatString() ---@type string 
-    local p = GetTriggerPlayer() ---@type player 
+    local p = GetTriggerPlayer() 
     local pid = GetPlayerId(p) + 1 ---@type integer 
     local args = {}
 
@@ -606,4 +516,4 @@ end
     end
 
     TriggerAddCondition(commands, Condition(CustomCommands))
-end, Debug.getLine())
+end, Debug and Debug.getLine())
