@@ -27,14 +27,21 @@ OnInit.final("Events", function()
             return self
         end
 
+        local recurse = {}
+
         ---@type fun(self: EVENT, u: unit, ...)
         function thistype:trigger(u, ...)
-            --run any actions registered with this unit
-            local actions = self.unit_actions[u]
-            if actions then
-                for _, action in ipairs(actions) do
-                    action(u, ...)
+            --prevent actions from triggering the event for a unit again
+            if not recurse[u] then
+                recurse[u] = true
+                --run any actions registered with this unit
+                local actions = self.unit_actions[u]
+                if actions then
+                    for _, action in ipairs(actions) do
+                        action(u, ...)
+                    end
                 end
+                recurse[u] = nil
             end
         end
 
@@ -69,4 +76,4 @@ OnInit.final("Events", function()
     --event that is called when a unit's stat is changed (either from leveling, UnitTable, or UnitSetBonus)
     EVENT_STAT_CHANGE = EVENT.create() ---@type EVENT
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())
