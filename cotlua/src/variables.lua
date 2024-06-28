@@ -200,14 +200,15 @@ OnInit.global("Variables", function(Require)
 
     --not auto generated
     ITEM_TOOLTIP                       = 24
-    ITEM_TIER                          = 25
-    ITEM_TYPE                          = 26
-    ITEM_UPGRADE_MAX                   = 27
-    ITEM_LEVEL_REQUIREMENT             = 28
-    ITEM_LIMIT                         = 29
-    ITEM_COST                          = 30
-    ITEM_DISCOUNT                      = 31
-    ITEM_STACK                         = 32
+    ITEM_NOCRAFT                       = 25
+    ITEM_TIER                          = 26
+    ITEM_TYPE                          = 27
+    ITEM_UPGRADE_MAX                   = 28
+    ITEM_LEVEL_REQUIREMENT             = 29
+    ITEM_LIMIT                         = 30
+    ITEM_COST                          = 31
+    ITEM_DISCOUNT                      = 32
+    ITEM_STACK                         = 33
 
     CUSTOM_ITEM_OFFSET = FourCC('I000') ---@type integer 
     MAX_SAVED_ITEMS    = 8191 ---@type integer 
@@ -234,19 +235,20 @@ OnInit.global("Variables", function(Require)
     MAIN_MAP.centerX = (MAIN_MAP.minX + MAIN_MAP.maxX) / 2.00
     MAIN_MAP.centerY = (MAIN_MAP.minY + MAIN_MAP.maxY) / 2.00
 
-    ItemMagicRes      = __jarray(0) ---@type number[] 
-    ItemGoldRate      = __jarray(0) ---@type integer[] 
+    ItemMagicRes = __jarray(0) ---@type number[] 
+    ItemGoldRate = __jarray(0) ---@type integer[] 
 
-    bpmoving   = {} ---@type boolean[] 
+    SummonGroup = {} ---@type unit[]
+    IS_BACKPACK_MOVING = {} ---@type boolean[] 
     DAMAGE_TAG = {}
-    Fleeing = {} ---@type boolean[]
+    IS_FLEEING = {} ---@type boolean[]
     ArcTag     = "|cff66FF66Arcadite Lumber|r: " ---@type string 
     PlatTag    = "|cffccccccPlatinum Coins|r: " ---@type string 
     CrystalTag = "|cff6969FFCrystals: |r" ---@type string 
     Hardcore = {} ---@type boolean[]
     HARD_MODE = 0 ---@type integer 
-    pfoe = Player(PLAYER_NEUTRAL_AGGRESSIVE) ---@type player 
-    pboss = Player(PLAYER_BOSS) ---@type player 
+    pfoe = Player(PLAYER_NEUTRAL_AGGRESSIVE)
+    pboss = Player(PLAYER_BOSS)
     CHAOS_MODE = false ---@type boolean 
     CHAOS_LOADING = false ---@type boolean 
     DummyUnit = gg_unit_h05E_0717
@@ -275,21 +277,16 @@ OnInit.global("Variables", function(Require)
 
     Zoom = __jarray(0) ---@type integer[]
 
-    selectingHero = {} ---@type boolean[] 
+    SELECTING_HERO = {} ---@type boolean[] 
     forgottenTypes = __jarray(0) ---@type integer[] 
     forgottenCount         = 0 ---@type integer 
     forgotten_spawner      = nil ---@type unit 
-    hsdummy = {} ---@type unit[] 
-    hslook = __jarray(0) ---@type integer[] 
-    hsstat = __jarray(0) ---@type integer[] 
-    hssort = {} ---@type boolean[] 
-
     funnyList = {
         -894554765,
         -1291321931,
     }
 
-    altModifier = {} ---@type boolean[]
+    IS_ALT_DOWN = {} ---@type boolean[]
     charLight={} ---@type effect[] 
 
     RollBoard=nil ---@type leaderboard 
@@ -309,8 +306,8 @@ OnInit.global("Variables", function(Require)
     CustomLighting=__jarray(0) ---@type integer[] 
 
     MultiShot = {} ---@type boolean[] 
-    CameraLock = {} ---@type boolean[] 
-    forceSaving = {} ---@type boolean[] 
+    IS_CAMERA_LOCKED = {} ---@type boolean[] 
+    IS_FORCE_SAVING = {} ---@type boolean[] 
 
     BOOST=__jarray(1) ---@type number[] 
     LBOOST=__jarray(1) ---@type number[] 
@@ -318,8 +315,8 @@ OnInit.global("Variables", function(Require)
     TownCenter = Location(-250., 160.) ---@type location 
     ColosseumCenter = Location(21710., -4261.) ---@type location 
     StruggleCenter = Location(28030., 4361.) ---@type location 
-    InColo = {} ---@type boolean[] 
-    InStruggle = {} ---@type boolean[] 
+    IS_IN_COLO = {} ---@type boolean[] 
+    IS_IN_STRUGGLE = {} ---@type boolean[] 
     StruggleText = CreateTextTag() ---@type texttag 
     ColoText = CreateTextTag() ---@type texttag 
     ColoWaveCount = 0 ---@type integer 
@@ -373,6 +370,7 @@ OnInit.global("Variables", function(Require)
     DPS_FRAME_TEXTVALUE=nil ---@type framehandle 
 
     INVENTORYBACKDROP={} ---@type framehandle[] 
+    IS_HERO_PANEL_ON = {} ---@type boolean[] 
 
     LimitBreakBackdrop = nil  ---@type framehandle 
 
@@ -1764,7 +1762,7 @@ OnInit.global("Variables", function(Require)
             tag = "|cffffcc00Critical Damage Multiplier|r", type = 4, suffix = "\x25", syntax = "cd_percent",
             getter = function(u) return R2S(Unit[u].cd * 100.) end},
         [ITEM_BASE_ATTACK_SPEED] = {
-            tag = "|cff446600Base Attack Speed|r", type = 1, syntax = "bat",
+            tag = "|cff446600Base Attack Speed|r", type = 1, item_suffix = "\x25", syntax = "bat",
             getter = function(u) local as = 1 / BlzGetUnitAttackCooldown(u, 0) return R2S(as) .. " attacks per second" end},
         [ITEM_GOLD_GAIN]         = {
             tag = "|cffffff00Gold Find|r", type = 3, suffix = "\x25", syntax = "gold",
@@ -1772,9 +1770,11 @@ OnInit.global("Variables", function(Require)
         [ITEM_ABILITY]           = {
             type = 4, syntax = "abil"},
         [ITEM_ABILITY2]          = {
-            type = 4, syntax = "abil2"},
+            type = 4, syntax = "abiltwo"},
         [ITEM_TOOLTIP]           = {
             type = 4, syntax = ""},
+        [ITEM_NOCRAFT]           = {
+            type = 4, syntax = "nocraft"},
         [ITEM_TIER]              = {
             type = 4, syntax = "tier"},
         [ITEM_TYPE]              = {
@@ -1872,4 +1872,4 @@ OnInit.global("Variables", function(Require)
         ForceAddPlayer(FORCE_HINT, U.player)
         U = U.next
     end
-end, Debug.getLine())
+end, Debug and Debug.getLine())
