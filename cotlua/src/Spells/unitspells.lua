@@ -16,8 +16,8 @@ OnInit.final("UnitSpells", function(Require)
         if index ~= -1 then
             local id = pid * PLAYER_CAP + dw.data[index] ---@type integer 
 
-            hero_panel_on[id] = (not hero_panel_on[id])
-            ShowHeroPanel(GetTriggerPlayer(), Player(dw.data[index] - 1), hero_panel_on[id])
+            IS_HERO_PANEL_ON[id] = (not IS_HERO_PANEL_ON[id])
+            ShowHeroPanel(GetTriggerPlayer(), Player(dw.data[index] - 1), IS_HERO_PANEL_ON[id])
 
             dw:destroy()
         end
@@ -399,7 +399,7 @@ OnInit.final("UnitSpells", function(Require)
         end,
 
         [FourCC('A03V')] = function(caster, pid, _, itm) --Move Item (Hero)
-            if itm and not ItemsDisabled[pid] then
+            if itm and not IS_INVENTORY_DISABLED[pid] then
                 UnitRemoveItem(caster, itm)
                 UnitAddItem(Backpack[pid], itm)
             end
@@ -426,8 +426,8 @@ OnInit.final("UnitSpells", function(Require)
         end,
 
         [FourCC('A00B')] = function(_, pid) --Movement Toggle
-            rightclickmovement[pid] = not rightclickmovement[pid]
-            if rightclickmovement[pid] then
+            IS_M2_MOVEMENT[pid] = not IS_M2_MOVEMENT[pid]
+            if IS_M2_MOVEMENT[pid] then
                 DisplayTextToPlayer(Player(pid - 1), 0, 0, "Movement Toggle enabled.")
             else
                 DisplayTextToPlayer(Player(pid - 1), 0, 0, "Movement Toggle disabled.")
@@ -462,7 +462,7 @@ OnInit.final("UnitSpells", function(Require)
         end,
 
         [FourCC('A0DT')] = function(caster, pid, _, itm) --Move Item (Backpack)
-            if itm and not ItemsDisabled[pid] then
+            if itm and not IS_INVENTORY_DISABLED[pid] then
                 UnitRemoveItem(caster, itm)
                 UnitAddItem(Hero[pid], itm)
             end
@@ -519,7 +519,7 @@ OnInit.final("UnitSpells", function(Require)
                     time = time / ((self.ablev - 1) * 2) --60, 30, 20, 15
                 end
 
-                BorrowedLife[self.caster] = time
+                Unit[self.target].borrowed_life = time
             end
         end
     end
@@ -529,7 +529,8 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = DEVOUR_GOLEM
 
         function thistype:onCast()
-            if GetUnitTypeId(self.target) == SUMMON_HOUND and GetOwningPlayer(self.target) == p and golemDevourStacks[self.pid] < GetUnitAbilityLevel(Hero[self.pid], DEVOUR.id) + 1 then
+            local golem = Unit[self.caster]
+            if GetUnitTypeId(self.target) == SUMMON_HOUND and GetOwningPlayer(self.target) == p and golem.devour_stacks < GetUnitAbilityLevel(Hero[self.pid], DEVOUR.id) + 1 then
                 DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", self.target, "chest"))
                 SummonExpire(self.target)
 
@@ -546,34 +547,34 @@ OnInit.final("UnitSpells", function(Require)
                 missile:vision(400)
 
                 missile.onFinish = function()
-                    BorrowedLife[missile.source] = 0
-                    UnitAddBonus(missile.source, BONUS_HERO_STR, - R2I(Unit[missile.source].str * 0.1 * golemDevourStacks[self.pid]))
-                    if golemDevourStacks[self.pid] > 0 then
-                        Unit[missile.source].mr = Unit[missile.source].mr / (0.75 - golemDevourStacks[self.pid] * 0.1)
+                    golem.borrowed_life = 0
+                    UnitAddBonus(missile.source, BONUS_HERO_STR, - R2I(golem.str * 0.1 * golem.devour_stacks))
+                    if golem.devour_stacks > 0 then
+                        golem.mr = golem.mr / (0.75 - golem.devour_stacks * 0.1)
                     end
-                    golemDevourStacks[self.pid] = golemDevourStacks[self.pid] + 1
-                    BlzSetHeroProperName(missile.source, "Meat Golem (" .. (golemDevourStacks[self.pid]) .. ")")
-                    FloatingTextUnit(tostring(golemDevourStacks[self.pid]), missile.source, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
-                    UnitAddBonus(missile.source, BONUS_HERO_STR, R2I(Unit[missile.source].str * 0.1 * golemDevourStacks[self.pid]))
-                    SetUnitScale(missile.source, 1 + golemDevourStacks[self.pid] * 0.07, 1 + golemDevourStacks[self.pid] * 0.07, 1 + golemDevourStacks[self.pid] * 0.07)
+                    golem.devour_stacks = golem.devour_stacks + 1
+                    BlzSetHeroProperName(missile.source, "Meat Golem (" .. (golem.devour_stacks) .. ")")
+                    FloatingTextUnit(tostring(golem.devour_stacks), missile.source, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
+                    UnitAddBonus(missile.source, BONUS_HERO_STR, R2I(golem.str * 0.1 * golem.devour_stacks))
+                    SetUnitScale(missile.source, 1 + golem.devour_stacks * 0.07, 1 + golem.devour_stacks * 0.07, 1 + golem.devour_stacks * 0.07)
                     --magnetic
-                    if golemDevourStacks[self.pid] == 1 then
+                    if golem.devour_stacks == 1 then
                         UnitAddAbility(missile.source, BORROWEDLIFE.id)
-                    elseif golemDevourStacks[self.pid] == 2 then
+                    elseif golem.devour_stacks == 2 then
                         UnitAddAbility(missile.source, MAGNETIC_FORCE.id)
                     --thunder clap
-                    elseif golemDevourStacks[self.pid] == 3 then
+                    elseif golem.devour_stacks == 3 then
                         UnitAddAbility(missile.source, THUNDER_CLAP_GOLEM.id)
-                    elseif golemDevourStacks[self.pid] == 5 then
+                    elseif golem.devour_stacks == 5 then
                         UnitAddBonus(missile.source, BONUS_ARMOR, R2I(BlzGetUnitArmor(missile.source) * 0.25 + 0.5))
                     end
-                    if golemDevourStacks[self.pid] >= GetUnitAbilityLevel(Hero[self.pid], DEVOUR.id) + 1 then
+                    if golem.devour_stacks >= GetUnitAbilityLevel(Hero[self.pid], DEVOUR.id) + 1 then
                         UnitDisableAbility(missile.source, thistype.id, true)
                     end
-                    SetUnitAbilityLevel(missile.source, BORROWEDLIFE.id, golemDevourStacks[self.pid])
+                    SetUnitAbilityLevel(missile.source, BORROWEDLIFE.id, golem.devour_stacks)
 
                     --magic resist -(25-30) percent
-                    Unit[missile.source].mr = Unit[missile.source].mr * (0.75 - golemDevourStacks[self.pid] * 0.1)
+                    Unit[missile.source].mr = Unit[missile.source].mr * (0.75 - golem.devour_stacks * 0.1)
 
                     return true
                 end
@@ -588,7 +589,8 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = DEVOUR_DESTROYER
 
         function thistype:onCast()
-            if GetUnitTypeId(self.target) == SUMMON_HOUND and GetOwningPlayer(self.target) == p and destroyerDevourStacks[self.pid] < GetUnitAbilityLevel(Hero[self.pid], DEVOUR.id) + 1 then
+            local destroyer = Unit[self.caster]
+            if GetUnitTypeId(self.target) == SUMMON_HOUND and GetOwningPlayer(self.target) == p and destroyer.devour_stacks < GetUnitAbilityLevel(Hero[self.pid], DEVOUR.id) + 1 then
                 DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", self.target, "chest"))
                 SummonExpire(self.target)
 
@@ -605,31 +607,31 @@ OnInit.final("UnitSpells", function(Require)
                 missile:vision(400)
 
                 missile.onFinish = function()
-                    BorrowedLife[missile.source] = 0
-                    UnitAddBonus(missile.source, BONUS_HERO_INT, - R2I(GetHeroInt(missile.source, false) * 0.15 * destroyerDevourStacks[self.pid]))
-                    destroyerDevourStacks[self.pid] = destroyerDevourStacks[self.pid] + 1
-                    UnitAddBonus(missile.source, BONUS_HERO_INT, R2I(GetHeroInt(missile.source, false) * 0.15 * destroyerDevourStacks[self.pid]))
-                    BlzSetHeroProperName(missile.source, "Destroyer (" .. (destroyerDevourStacks[self.pid]) .. ")")
-                    FloatingTextUnit(tostring(destroyerDevourStacks[self.pid]), missile.source, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
-                    if destroyerDevourStacks[self.pid] == 1 then
+                    destroyer.borrowed_life = 0
+                    UnitAddBonus(missile.source, BONUS_HERO_INT, - R2I(GetHeroInt(missile.source, false) * 0.15 * destroyer.devour_stacks))
+                    destroyer.devour_stacks = destroyer.devour_stacks + 1
+                    UnitAddBonus(missile.source, BONUS_HERO_INT, R2I(GetHeroInt(missile.source, false) * 0.15 * destroyer.devour_stacks))
+                    BlzSetHeroProperName(missile.source, "Destroyer (" .. (destroyer.devour_stacks) .. ")")
+                    FloatingTextUnit(tostring(destroyer.devour_stacks), missile.source, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
+                    if destroyer.devour_stacks == 1 then
                         UnitAddAbility(missile.source, BORROWEDLIFE.id)
                         UnitAddAbility(missile.source, FourCC('A061')) --blink
-                    elseif destroyerDevourStacks[self.pid] == 2 then
+                    elseif destroyer.devour_stacks == 2 then
                         UnitAddAbility(missile.source, FourCC('A03B')) --crit
-                        Unit[missile.source].cc_flat = Unit[missile.source].cc_flat + 25
-                        Unit[missile.source].cd_flat = Unit[missile.source].cd_flat + 200
-                    elseif destroyerDevourStacks[self.pid] == 3 then
+                        destroyer.cc_flat = destroyer.cc_flat + 25
+                        destroyer.cd_flat = destroyer.cd_flat + 200
+                    elseif destroyer.devour_stacks == 3 then
                         SetHeroAgi(missile.source, 200, true)
-                    elseif destroyerDevourStacks[self.pid] == 4 then
+                    elseif destroyer.devour_stacks == 4 then
                         SetUnitAbilityLevel(missile.source, FourCC('A02D'), 2)
-                    elseif destroyerDevourStacks[self.pid] == 5 then
+                    elseif destroyer.devour_stacks == 5 then
                         SetHeroAgi(missile.source, 400, true)
                         UnitAddBonus(missile.source, BONUS_HERO_INT, R2I(GetHeroInt(missile.source, false) * 0.25))
                     end
-                    if destroyerDevourStacks[self.pid] >= GetUnitAbilityLevel(Hero[self.pid], DEVOUR.id) + 1 then
+                    if destroyer.devour_stacks >= GetUnitAbilityLevel(Hero[self.pid], DEVOUR.id) + 1 then
                         UnitDisableAbility(missile.source, thistype.id, true)
                     end
-                    SetUnitAbilityLevel(missile.source, BORROWEDLIFE.id, destroyerDevourStacks[self.pid])
+                    SetUnitAbilityLevel(missile.source, BORROWEDLIFE.id, destroyer.devour_stacks)
 
                     return true
                 end
