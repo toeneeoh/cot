@@ -116,7 +116,7 @@ function DeathHandler(pid)
     if IS_IN_COLO[pid] then
         ColoPlayerCount = ColoPlayerCount - 1
         IS_IN_COLO[pid] = false
-        Fleeing[pid] = false
+        IS_FLEEING[pid] = false
         AwardGold(pid, ColoGoldWon / 1.5, true)
         ExperienceControl(pid)
         if ColoPlayerCount == 0 then --clear colo
@@ -127,7 +127,7 @@ function DeathHandler(pid)
     elseif IS_IN_STRUGGLE[pid] then
         Struggle_Pcount = Struggle_Pcount - 1
         IS_IN_STRUGGLE[pid] = false
-        Fleeing[pid] = false
+        IS_FLEEING[pid] = false
         ExperienceControl(pid)
         AwardGold(pid, GoldWon_Struggle * 0.1, true)
         if Struggle_Pcount == 0 then --clear struggle

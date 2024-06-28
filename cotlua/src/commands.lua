@@ -421,7 +421,7 @@ function FleeCommand(p)
     local U = User.first ---@type User 
 
     if IS_IN_STRUGGLE[pid] or IS_IN_COLO[pid] then
-        Fleeing[pid] = true
+        IS_FLEEING[pid] = true
         DisplayTimedTextToPlayer(p, 0, 0, 10, "You will escape once the current wave is complete.")
     elseif TableHas(GODS_GROUP, p) then
         if DeadGods == 4 then
