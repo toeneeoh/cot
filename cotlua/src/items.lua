@@ -19,9 +19,9 @@ OnInit.final("Items", function(Require)
 
     hordequest        = false
     CHURCH_DONATION   = {} ---@type boolean[] 
-    rezretimer        = {} ---@type timer[] 
+    RECHARGE_COOLDOWN = {} ---@type timer[] 
     ITEM_DROP_FLAG    = {} ---@type boolean[] 
-    ItemsDisabled     = {} ---@type boolean[] 
+    IS_INVENTORY_DISABLED = {} ---@type boolean[] 
 
     ItemDrops = array2d(0)
     Rates     = __jarray(0)
@@ -101,6 +101,7 @@ OnInit.final("Items", function(Require)
     ---@field stack function
     ---@field equipped boolean
     ---@field spawn integer
+    ---@field nocraft boolean
     Item = {} ---@type Item|Item[]
     do
         local thistype = Item
@@ -154,25 +155,30 @@ OnInit.final("Items", function(Require)
 
             Item[itm] = self
 
-            --first time setup
+            -- first time setup
             if ItemData[self.id][ITEM_TOOLTIP] == 0 then
-                --if an item's description exists, use that for parsing (exception for default shops)
+                -- if an item's description exists, use that for parsing (exception for default shops)
                 ParseItemTooltip(self.obj, ((BlzGetItemDescription(self.obj):len()) > 1 and BlzGetItemDescription(self.obj)) or "")
             end
 
-            --determine if saveable (misc category yields 7 instead of ITEM_TYPE_MISCELLANEOUS 's value of 6)
+            -- determine if immediately useable in recipes
+            self.nocraft = ItemData[self.id][ITEM_NOCRAFT]
+
+            -- determine if saveable (ITEM_TYPE_MISCELLANEOUS yields 6 instead of proper value of 7)
             if (GetHandleId(GetItemType(self.obj)) == 7 or GetItemType(self.obj) == ITEM_TYPE_PERMANENT) and self.id > CUSTOM_ITEM_OFFSET then
                 SAVE_TABLE.KEY_ITEMS[self.id] = self.id - CUSTOM_ITEM_OFFSET
             end
 
+            -- handle item death
             TriggerRegisterDeathEvent(self.trig, self.obj)
             TriggerAddCondition(self.trig, thistype.eval)
 
+            -- timed life
             if expire then
                 TimerQueue:callDelayed(expire, thistype.expire, self)
             end
 
-            --randomize rolls
+            -- randomize rolls
             local count = 1
             for i = 1, ITEM_STAT_TOTAL do
                 if ItemData[self.id][i .. "range"] ~= 0 then
@@ -193,74 +199,57 @@ OnInit.final("Items", function(Require)
         end
 
         local backpack_allowed = {
-            [FourCC('A0E2')] = 1, --sea ward
-            [FourCC('A0D3')] = 1, --jewel of the horde
-            [FourCC('AIcd')] = 1, --command aura (warsong battle drums)
-            [FourCC('A03F')] = 1, --endurance aura (blood elf war drums)
-            [FourCC('A04I')] = 1, --drum of war
-            [FourCC('A03H')] = 1, --blood shield (vampiric aura)
-            [FourCC('A03G')] = 1, --blood horn (unholy aura)
-            [FourCC('Aarm')] = 1, --armor of the gods (devotion aura)
+            [FourCC('A0E2')] = 1, -- sea ward
+            [FourCC('A0D3')] = 1, -- jewel of the horde
+            [FourCC('AIcd')] = 1, -- command aura (warsong battle drums)
+            [FourCC('A03F')] = 1, -- endurance aura (blood elf war drums)
+            [FourCC('A04I')] = 1, -- drum of war aura
+            [FourCC('A03H')] = 1, -- blood shield (vampiric aura)
+            [FourCC('A03G')] = 1, -- blood horn (unholy aura)
+            [FourCC('Aarm')] = 1, -- armor of the gods (devotion aura)
         }
 
-            ---@type fun(itm: Item)
-        local function ItemAddSpellDelayed(itm)
+        ---@type fun(itm: Item)
+        local function ItemAddSpells(itm)
             for index = ITEM_ABILITY, ITEM_ABILITY2 do
-                --level restriction
-                if itm.level >= ItemData[itm.id][index .. "unlock"] then
-                    local abilid = ItemData[itm.id][index * ABILITY_OFFSET]
+                local abilid = ItemData[itm.id][index * ABILITY_OFFSET]
+                -- don't add ability if backpack is not allowed
+                if GetUnitTypeId(itm.holder) == BACKPACK and not backpack_allowed[abilid] then
+                    abilid = 0
+                end
+                -- ability exists and unlocked
+                if abilid ~= 0 and itm.level >= ItemData[itm.id][index .. "unlock"] then
+                    BlzItemAddAbility(itm.obj, abilid)
 
-                    --don't add ability if backpack is not allowed
-                    if GetUnitTypeId(itm.holder) == BACKPACK and not backpack_allowed[abilid] then
-                        abilid = 0
-                    end
-
-                    if abilid ~= 0 then --ability exists
-                        BlzItemAddAbility(itm.obj, abilid)
-
-                        if abilid == FourCC('Aarm') then --armor aura
-                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_ARMOR_BONUS_HAD1, 0, itm:getValue(index, 0))
-                        elseif abilid == FourCC('Abas') then --bash
-                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_CHANCE_TO_BASH, 0, itm:getValue(index, 0))
-                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_DURATION_NORMAL, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
-                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_DURATION_HERO, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
-                        elseif abilid == FourCC('A018') or abilid == FourCC('A01S') then --blink
-                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
-                        elseif abilid == FourCC('A00D') then --thanatos wings
-                            local tbl = ItemData[itm.id].sfx[itm:getValue(index, 0)]
-
-                            DestroyEffect(itm.sfx)
-                            itm.sfx = AddSpecialEffectTarget(tbl.path, itm.holder, tbl.attach)
-                        elseif abilid == FourCC('HPOT') then --healing potion
-                            BlzSetAbilityIntegerLevelField(BlzGetItemAbility(itm.obj, abilid), ABILITY_ILF_HIT_POINTS_GAINED_IHPG, 0, itm:getValue(index, 0))
-                        elseif abilid == FourCC('Areg') then --resurgence (chaos shield)
-                            TimerQueue:callDelayed(0.5, ChaosShieldRegen, itm)
-                        else --channel
-                            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), SPELL_FIELD[0], 0, itm:getValue(index, 0))
-
-                            for i = 0, SPELL_FIELD_TOTAL do
-                                local count = 1
-                                local value = ItemData[itm.id][index * ABILITY_OFFSET + count]
-
-                                if value ~= 0 then
-                                    BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, abilid), SPELL_FIELD[i], 0, value)
-                                    count = count + 1
+                    -- simple item spells
+                    if ITEM_EQUIP_SPELL[abilid] then
+                        ITEM_EQUIP_SPELL[abilid](itm, abilid, index)
+                    -- defined item spells
+                    elseif Spells[abilid] then
+                        -- if onequip returns true, dont allocate real fields
+                        if not Spells[abilid].onEquip(itm, abilid, index) then
+                            local ab = BlzGetItemAbility(itm.obj, abilid)
+                            BlzSetAbilityRealLevelField(ab, SPELL_FIELD[0], 0, itm:getValue(index, 0))
+                            for i = 1, SPELL_FIELD_TOTAL do
+                                local v = ItemData[itm.id][index * ABILITY_OFFSET + i]
+                                if v ~= 0 then
+                                    BlzSetAbilityRealLevelField(ab, SPELL_FIELD[i], 0, v)
                                 end
                             end
                         end
-
-                        IncUnitAbilityLevel(itm.holder, abilid)
-                        DecUnitAbilityLevel(itm.holder, abilid)
                     end
+
+                    IncUnitAbilityLevel(itm.holder, abilid)
+                    DecUnitAbilityLevel(itm.holder, abilid)
                 end
             end
         end
 
-        --Called on equip to stack with an existing item if possible and applicable
+        -- Called on equip to stack with an existing item if applicable
         ---@type fun(self: Item, pid: integer, limit: integer): boolean
         function thistype:stack(pid, limit)
             local offset = (self.holder == Backpack[pid] and 6) or 0
-            local range = (fullItemStacking[pid] == true and {0, MAX_INVENTORY_SLOTS - 1}) or {offset, offset + 5}
+            local range = (IS_ITEM_FULL_STACKING[pid] == true and {0, MAX_INVENTORY_SLOTS - 1}) or {offset, offset + 5}
 
             for i = range[1], range[2] do
                 local match = Profile[pid].hero.items[i]
@@ -284,15 +273,13 @@ OnInit.final("Items", function(Require)
             return false
         end
 
-        --Adjusts name in tooltip if an item is useable or not
+        -- Adjusts name in tooltip if an item is useable or not
         ---@type fun(self: Item, flag: boolean)
         function thistype:restrict(flag)
             if flag then
                 BlzSetItemName(self.obj, self:name() .. "\n|cffFFCC00You are too low level to use this item!|r")
             else
                 BlzSetItemName(self.obj, self:name())
-                --for backpack auras and useable abilities
-                ItemAddSpellDelayed(self)
             end
         end
 
@@ -325,26 +312,26 @@ OnInit.final("Items", function(Require)
             end
         end
 
-        ---@type fun(self: Item, STAT: integer, flag: integer):integer
+        ---@type fun(self: Item, STAT: integer, flag: integer): number
         function thistype:getValue(STAT, flag)
-            local unlockat = ItemData[self.id][STAT .. "unlock"] ---@type integer 
+            local unlockat = ItemData[self.id][STAT .. "unlock"] ---@type number 
 
             if self.level < unlockat then
                 return 0
             end
 
-            local flatPerLevel  = ItemData[self.id][STAT .. "fpl"] ---@type integer 
-            local flatPerRarity = ItemData[self.id][STAT .. "fpr"] ---@type integer 
-            local percent       = ItemData[self.id][STAT .. "percent"] ---@type integer 
-            local fixed         = ItemData[self.id][STAT .. "fixed"] ---@type integer 
+            local flatPerLevel  = ItemData[self.id][STAT .. "fpl"] ---@type number 
+            local flatPerRarity = ItemData[self.id][STAT .. "fpr"] ---@type number 
+            local percent       = ItemData[self.id][STAT .. "percent"] ---@type number 
+            local fixed         = ItemData[self.id][STAT .. "fixed"] ---@type number 
             local lower         = ItemData[self.id][STAT]  ---@type number 
             local upper         = ItemData[self.id][STAT .. "range"]  ---@type number 
             local hasVariance   = (upper ~= 0) ---@type boolean 
             local pmult         = (percent ~= 0 and percent * 0.01) or 1 ---@type number
 
             --calculate values after applying affixes
-            lower = lower + ((flatPerLevel * self.level + flatPerRarity * (IMaxBJ(self.level - 1, 0) // 4)) * pmult)
-            upper = upper + ((flatPerLevel * self.level + flatPerRarity * (IMaxBJ(self.level - 1, 0) // 4)) * pmult)
+            lower = lower + ((flatPerLevel * self.level + flatPerRarity * (math.max(self.level - 1, 0) // 4)) * pmult)
+            upper = upper + ((flatPerLevel * self.level + flatPerRarity * (math.max(self.level - 1, 0) // 4)) * pmult)
 
             --values are not fixed
             if fixed == 0 then
@@ -353,9 +340,9 @@ OnInit.final("Items", function(Require)
             end
 
             if flag == 1 then
-                return R2I(lower)
+                return (lower < 1 and lower) or math.floor(lower)
             elseif flag == 2 then
-                return R2I(upper)
+                return (upper < 1 and upper) or math.floor(upper)
             else
                 local final = 0
 
@@ -369,9 +356,9 @@ OnInit.final("Items", function(Require)
                         end
                     end
 
-                    final = R2I(lower + (upper - lower) * 0.015625 * (1 + self.quality[count]))
+                    final = lower + (upper - lower) * 0.015625 * (1 + self.quality[count])
                 else
-                    final = R2I(lower)
+                    final = lower
                 end
 
                 --round to nearest 10s
@@ -379,7 +366,55 @@ OnInit.final("Items", function(Require)
                     final = (final + 5) // 10 * 10
                 end
 
-                return final
+                return (final < 1 and final) or math.floor(final)
+            end
+        end
+
+        local function remove_item_ability(self, abilid)
+            if self and not self.holder or (GetUnitTypeId(self.holder) == BACKPACK and not backpack_allowed[abilid]) then
+                BlzItemRemoveAbility(self.obj, abilid)
+            end
+        end
+
+        local function apply_item_stats(self, mult)
+            local pid  = GetPlayerId(GetOwningPlayer(self.holder)) + 1 ---@type integer 
+            local hp   = GetWidgetLife(self.holder) ---@type number 
+            local mana = GetUnitState(self.holder, UNIT_STATE_MANA) ---@type number 
+            local mod  = ItemProfMod(self.id, pid) ---@type number 
+
+            UnitAddBonus(self.holder, BONUS_ARMOR, mult * R2I(mod * self:getValue(ITEM_ARMOR, 0)))
+            UnitAddBonus(self.holder, BONUS_DAMAGE, mult * R2I(mod * self:getValue(ITEM_DAMAGE, 0)))
+            UnitAddBonus(self.holder, BONUS_HERO_STR, mult * R2I(mod * self:getValue(ITEM_STRENGTH, 0)))
+            UnitAddBonus(self.holder, BONUS_HERO_AGI, mult * R2I(mod * self:getValue(ITEM_AGILITY, 0)))
+            UnitAddBonus(self.holder, BONUS_HERO_INT, mult * R2I(mod * self:getValue(ITEM_INTELLIGENCE, 0)))
+            BlzSetUnitMaxHP(self.holder, BlzGetUnitMaxHP(self.holder) + mult * R2I(mod * self:getValue(ITEM_HEALTH, 0)))
+            BlzSetUnitMaxMana(self.holder, BlzGetUnitMaxMana(self.holder) + mult * R2I(mod * self:getValue(ITEM_MANA, 0)))
+
+            SetWidgetLife(self.holder, math.max(1, hp))
+            SetUnitState(self.holder, UNIT_STATE_MANA, mana)
+
+            ItemGoldRate[pid] = ItemGoldRate[pid] + mult * self:getValue(ITEM_GOLD_GAIN, 0)
+            Unit[self.holder].spellboost = Unit[self.holder].spellboost + mult * self:getValue(ITEM_SPELLBOOST, 0) * 0.01
+            Unit[self.holder].ms_flat = Unit[self.holder].ms_flat + mult * self:getValue(ITEM_MOVESPEED, 0)
+            Unit[self.holder].regen = Unit[self.holder].regen + mult * self:getValue(ITEM_REGENERATION, 0)
+            Unit[self.holder].evasion = Unit[self.holder].evasion + mult * self:getValue(ITEM_EVASION, 0)
+            Unit[self.holder].cc_flat = Unit[self.holder].cc_flat + mult * self:getValue(ITEM_CRIT_CHANCE, 0)
+            Unit[self.holder].cd_flat = Unit[self.holder].cd_flat + mult * self:getValue(ITEM_CRIT_DAMAGE, 0)
+
+            -- percent
+            if mult < 0 then
+                Unit[self.holder].mr = Unit[self.holder].mr / (1 - self:getValue(ITEM_MAGIC_RESIST, 0) * 0.01)
+                Unit[self.holder].dr = Unit[self.holder].dr / (1 - self:getValue(ITEM_DAMAGE_RESIST, 0) * 0.01)
+                BlzSetUnitAttackCooldown(self.holder, BlzGetUnitAttackCooldown(self.holder, 0) * (1. + self:getValue(ITEM_BASE_ATTACK_SPEED, 0) * 0.01), 0)
+            else
+                Unit[self.holder].mr = Unit[self.holder].mr * (1 - self:getValue(ITEM_MAGIC_RESIST, 0) * 0.01)
+                Unit[self.holder].dr = Unit[self.holder].dr * (1 - self:getValue(ITEM_DAMAGE_RESIST, 0) * 0.01)
+                BlzSetUnitAttackCooldown(self.holder, BlzGetUnitAttackCooldown(self.holder, 0) / (1. + self:getValue(ITEM_BASE_ATTACK_SPEED, 0) * 0.01), 0)
+            end
+
+            -- shield
+            if ItemData[self.id][ITEM_TYPE] == 5 then
+                ShieldCount[pid] = ShieldCount[pid] + mult * 1
             end
         end
 
@@ -388,53 +423,27 @@ OnInit.final("Items", function(Require)
                 return
             end
 
-            local pid  = GetPlayerId(GetOwningPlayer(self.holder)) + 1 ---@type integer 
-            local hp   = GetWidgetLife(self.holder) ---@type number 
-            local mana = GetUnitState(self.holder, UNIT_STATE_MANA) ---@type number 
-            local mod  = ItemProfMod(self.id, pid) ---@type number 
+            local pid = GetPlayerId(GetOwningPlayer(self.holder)) + 1 ---@type integer 
+            local mod = ItemProfMod(self.id, pid) ---@type number 
 
-            --if item is stackable
+            -- if item is stackable
             local stack = self:getValue(ITEM_STACK, 0)
 
             if stack > 1 then
                 self:stack(pid, stack)
             end
 
-            --add item abilities after a delay (required for each equip)
-            TimerQueue:callDelayed(0., ItemAddSpellDelayed, self)
+            -- add item abilities after a delay (required for each equip)
+            TimerQueue:callDelayed(0., ItemAddSpells, self)
 
             if self.holder == Hero[pid] then --exclude backpack
                 self.equipped = true
 
-                UnitAddBonus(self.holder, BONUS_ARMOR, R2I(mod * self:getValue(ITEM_ARMOR, 0)))
-                UnitAddBonus(self.holder, BONUS_DAMAGE, R2I(mod * self:getValue(ITEM_DAMAGE, 0)))
-                UnitAddBonus(self.holder, BONUS_HERO_STR, R2I(mod * self:getValue(ITEM_STRENGTH, 0)))
-                UnitAddBonus(self.holder, BONUS_HERO_AGI, R2I(mod * self:getValue(ITEM_AGILITY, 0)))
-                UnitAddBonus(self.holder, BONUS_HERO_INT, R2I(mod * self:getValue(ITEM_INTELLIGENCE, 0)))
-                BlzSetUnitMaxHP(self.holder, BlzGetUnitMaxHP(self.holder) + R2I(mod * self:getValue(ITEM_HEALTH, 0)))
-                BlzSetUnitMaxMana(self.holder, BlzGetUnitMaxMana(self.holder) + R2I(mod * self:getValue(ITEM_MANA, 0)))
-                SetWidgetLife(self.holder, hp)
-                SetUnitState(self.holder, UNIT_STATE_MANA, mana)
-
-                ItemGoldRate[pid] = ItemGoldRate[pid] + self:getValue(ITEM_GOLD_GAIN, 0)
-                Unit[self.holder].spellboost = Unit[self.holder].spellboost + self:getValue(ITEM_SPELLBOOST, 0) * 0.01
-                Unit[self.holder].ms_flat = Unit[self.holder].ms_flat + self:getValue(ITEM_MOVESPEED, 0)
-                Unit[self.holder].regen = Unit[self.holder].regen + self:getValue(ITEM_REGENERATION, 0)
-                Unit[self.holder].evasion = Unit[self.holder].evasion + self:getValue(ITEM_EVASION, 0)
-                Unit[self.holder].mr = Unit[self.holder].mr * (1 - self:getValue(ITEM_MAGIC_RESIST, 0) * 0.01)
-                Unit[self.holder].dr = Unit[self.holder].dr * (1 - self:getValue(ITEM_DAMAGE_RESIST, 0) * 0.01)
-                Unit[self.holder].cc_flat = Unit[self.holder].cc_flat + self:getValue(ITEM_CRIT_CHANCE, 0)
-                Unit[self.holder].cd_flat = Unit[self.holder].cd_flat + self:getValue(ITEM_CRIT_DAMAGE, 0)
-                BlzSetUnitAttackCooldown(self.holder, BlzGetUnitAttackCooldown(self.holder, 0) / (1. + self:getValue(ITEM_BASE_ATTACK_SPEED, 0) * 0.01), 0)
-
-                --shield
-                if ItemData[self.id][ITEM_TYPE] == 5 then
-                    ShieldCount[pid] = ShieldCount[pid] + 1
-                end
+                apply_item_stats(self, 1)
 
                 --profiency warning
                 if GetUnitLevel(self.holder) < 15 and mod < 1 then
-                    DisplayTimedTextToPlayer(self.owner, 0, 0, 10, "You lack the proficiency (-pf) to use this item, it will only give 75\x25 of most stats.\n|cffFF0000You will stop getting this warning at level 15.|r")
+                    DisplayTimedTextToPlayer(self.owner, 0, 0, 10, "You lack the proficiency (-pf) to use this item, therefore it only gives 75\x25 of most stats.\n|cffFF0000You will stop getting this warning at level 15.|r")
                 end
             end
         end
@@ -444,62 +453,61 @@ OnInit.final("Items", function(Require)
                 return
             end
 
-            local pid  = GetPlayerId(GetOwningPlayer(self.holder)) + 1 ---@type integer 
-            local hp   = GetWidgetLife(self.holder) ---@type number 
-            local mana = GetUnitState(self.holder, UNIT_STATE_MANA) ---@type number 
-            local mod  = ItemProfMod(self.id, pid) ---@type number 
+            local pid = GetPlayerId(GetOwningPlayer(self.holder)) + 1 ---@type integer 
 
-            --don't remove abilities from consumables (otherwise they stop working properly)
-            if GetItemType(self.obj) ~= ITEM_TYPE_CHARGED then
-                for index = ITEM_ABILITY, ITEM_ABILITY2 do
-                    local abilid = ItemData[self.id][index * ABILITY_OFFSET]
-                    BlzItemRemoveAbility(self.obj, abilid)
+            for index = ITEM_ABILITY, ITEM_ABILITY2 do
+                local abilid = ItemData[self.id][index * ABILITY_OFFSET]
+                if abilid ~= 0 then
+                    -- trigger unequip event
+                    if Spells[abilid] and GetUnitAbilityLevel(self.holder, abilid) > 0 then
+                        Spells[abilid].onUnequip(self, abilid)
+                    end
+                    -- remove ability after cooldown expires
+                    TimerQueue:callDelayed(BlzGetUnitAbilityCooldownRemaining(self.holder, abilid), remove_item_ability, self, abilid)
                 end
             end
 
             if self.holder == Hero[pid] then --exclude backpack
                 self.equipped = false
 
-                UnitAddBonus(self.holder, BONUS_ARMOR, -R2I(mod * self:getValue(ITEM_ARMOR, 0)))
-                UnitAddBonus(self.holder, BONUS_DAMAGE, -R2I(mod * self:getValue(ITEM_DAMAGE, 0)))
-                UnitAddBonus(self.holder, BONUS_HERO_STR, -R2I(mod * self:getValue(ITEM_STRENGTH, 0)))
-                UnitAddBonus(self.holder, BONUS_HERO_AGI, -R2I(mod * self:getValue(ITEM_AGILITY, 0)))
-                UnitAddBonus(self.holder, BONUS_HERO_INT, -R2I(mod * self:getValue(ITEM_INTELLIGENCE, 0)))
-                BlzSetUnitMaxHP(self.holder, BlzGetUnitMaxHP(self.holder) - R2I(mod * self:getValue(ITEM_HEALTH, 0)))
-                BlzSetUnitMaxMana(self.holder, BlzGetUnitMaxMana(self.holder) - R2I(mod * self:getValue(ITEM_MANA, 0)))
-                SetWidgetLife(self.holder, math.max(hp, 1))
-                SetUnitState(self.holder, UNIT_STATE_MANA, mana)
-
-                ItemGoldRate[pid] = ItemGoldRate[pid] - self:getValue(ITEM_GOLD_GAIN, 0)
-                Unit[self.holder].spellboost = Unit[self.holder].spellboost - self:getValue(ITEM_SPELLBOOST, 0) * 0.01
-                Unit[self.holder].ms_flat = Unit[self.holder].ms_flat - self:getValue(ITEM_MOVESPEED, 0)
-                Unit[self.holder].regen = Unit[self.holder].regen - self:getValue(ITEM_REGENERATION, 0)
-                Unit[self.holder].evasion = Unit[self.holder].evasion - self:getValue(ITEM_EVASION, 0)
-                Unit[self.holder].mr = Unit[self.holder].mr / (1 - self:getValue(ITEM_MAGIC_RESIST, 0) * 0.01)
-                Unit[self.holder].dr = Unit[self.holder].dr / (1 - self:getValue(ITEM_DAMAGE_RESIST, 0) * 0.01)
-                Unit[self.holder].cc_flat = Unit[self.holder].cc_flat - self:getValue(ITEM_CRIT_CHANCE, 0)
-                Unit[self.holder].cd_flat = Unit[self.holder].cd_flat - self:getValue(ITEM_CRIT_DAMAGE, 0)
-                BlzSetUnitAttackCooldown(self.holder, BlzGetUnitAttackCooldown(self.holder, 0) * (1. + self:getValue(ITEM_BASE_ATTACK_SPEED, 0) * 0.01), 0)
-
-                --shield
-                if ItemData[self.id][ITEM_TYPE] == 5 then
-                    ShieldCount[pid] = ShieldCount[pid] - 1
-                end
-
-                --attached effect
-                DestroyEffect(self.sfx)
+                apply_item_stats(self, -1)
             end
+        end
+
+        ---@type fun(itm: Item, index: integer, value: integer): string
+        local function ParseItemAbilityTooltip(itm, index, value)
+            local data   = ItemData[itm.id][index * ABILITY_OFFSET .. "abil"] ---@type string 
+            local id     = ItemData[itm.id][index * ABILITY_OFFSET] ---@type integer 
+            local orig   = BlzGetAbilityExtendedTooltip(id, 0) ---@type string 
+            local count  = 1
+            local values = {} ---@type integer[] 
+
+            values[0] = value
+
+            --parse ability data into array
+            for v in data:gmatch("(\x25-?\x25d+)") do
+                values[count] = v
+                ItemData[itm.id][index * ABILITY_OFFSET + count] = v
+                count = count + 1
+            end
+
+            --parse ability tooltip and fill capture groups
+            orig = orig:gsub("\x25$(\x25d+)", function(tag)
+                return values[tonumber(tag) - 1] .. ""
+            end)
+
+            return orig
         end
 
         local parse_item_stat = {
             [ITEM_ABILITY] = function(self, index, value, lower, upper, valuestr, range)
-                local s = ParseItemAbilityTooltip(self, index, value, lower, upper)
+                local s = ParseItemAbilityTooltip(self, index, value)
 
                 return (s:len() > 0 and "|n" .. s) or ""
             end,
 
             default = function(self, index, value, lower, upper, valuestr, range, posneg)
-                local suffix = STAT_TAG[index].suffix or "|r"
+                local suffix = STAT_TAG[index].item_suffix or STAT_TAG[index].suffix or "|r"
 
                 if range ~= 0 then
                     return "|n + |cffffcc00" .. lower .. "-" .. upper .. suffix .. " " .. STAT_TAG[index].tag
@@ -518,7 +526,7 @@ OnInit.final("Items", function(Require)
 
             --first "header" lines: rarity, upg level, tier, type, req level
             if self.level > 0 then
-                norm_new = norm_new .. LEVEL_PREFIX[self.level]
+                norm_new = norm_new .. (LEVEL_PREFIX[self.level])
 
                 BlzSetItemSkin(self.obj, ITEM_MODEL[self.level])
 
@@ -565,7 +573,7 @@ OnInit.final("Items", function(Require)
                     if index == ITEM_ABILITY or index == ITEM_ABILITY2 then
                         norm_new = norm_new .. parse_item_stat[index](self, index, value, 0, 0)
                     else
-                        norm_new = norm_new .. "|n " .. posneg .. valuestr .. (STAT_TAG[index].suffix or "") .. " " .. STAT_TAG[index].tag
+                        norm_new = norm_new .. "|n " .. posneg .. valuestr .. (STAT_TAG[index].item_suffix or STAT_TAG[index].suffix or "") .. " " .. STAT_TAG[index].tag
                     end
                 end
             end
@@ -1377,36 +1385,20 @@ OnInit.final("Items", function(Require)
         setupRates(id, 9)
     end
 
-
----@type fun(itm: Item)
-function ChaosShieldRegen(itm)
-    if itm.equipped then
-        local hp = IMinBJ(5, R2I((BlzGetUnitMaxHP(itm.holder) - GetWidgetLife(itm.holder)) / BlzGetUnitMaxHP(itm.holder) * 100 / 15))
-
-        Unit[itm.holder].regen = Unit[itm.holder].regen - (itm.regen or 0)
-        itm.regen = BlzGetUnitMaxHP(itm.holder) * (0.0001 * itm:getValue(ITEM_ABILITY, 0)) * hp
-        Unit[itm.holder].regen = Unit[itm.holder].regen + itm.regen
-
-        TimerQueue:callDelayed(0.5, ChaosShieldRegen, itm)
-    end
-end
-
-
 ---@return boolean
 function RechargeItem()
     local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
     local dw    = DialogWindow[pid] ---@type DialogWindow 
     local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
-    local itm
 
     if index ~= -1 then
-        itm = GetResurrectionItem(pid, true) ---@type Item?
+        local itm = GetResurrectionItem(pid, true) ---@type Item?
 
         if itm then
             itm.charges = itm.charges + 1
 
             ChargeNetworth(Player(pid - 1), ItemData[itm.id][ITEM_COST] * 3, (Hardcore[pid] and 0.03) or 0.01, 0, "Recharged " .. GetItemName(itm.obj) .. " for")
-            TimerStart(rezretimer[pid], 180., false, nil)
+            TimerStart(RECHARGE_COOLDOWN[pid], 180., false, nil)
         end
 
         dw:destroy()
@@ -1457,7 +1449,7 @@ function OnDropUpdate(itm)
     itm.x = GetItemX(itm.obj)
     itm.y = GetItemY(itm.obj)
 
-    if itm.restricted and (IsItemOwned(itm.obj) == false) and (IsItemVisible(itm.obj) == true) then
+    if (IsItemOwned(itm.obj) == false) and (IsItemVisible(itm.obj) == true) then
         itm.restricted = false
     end
 end
@@ -1471,7 +1463,7 @@ function KillQuestHandler(pid, itemid)
     local goal          = KillQuest[index].goal ---@type integer 
     local playercount   = 0 ---@type integer 
     local U             = User.first ---@type User 
-    local p             = Player(pid - 1) ---@type player 
+    local p             = Player(pid - 1) 
     local avg           = R2I((max + min) * 0.5) ---@type integer 
     local x             = 0.
     local y             = 0.
@@ -1560,9 +1552,9 @@ function BackpackUpgrades()
         AddCurrency(dw.pid, PLATINUM, - (price // 1000000))
 
         if id == FourCC('I101') then
-            ablev = GetUnitAbilityLevel(Backpack[dw.pid], FourCC('A0FV'))
-            SetUnitAbilityLevel(Backpack[dw.pid], FourCC('A0FV'), ablev + 1)
-            SetUnitAbilityLevel(Backpack[dw.pid], FourCC('A02J'), ablev + 1)
+            ablev = GetUnitAbilityLevel(Backpack[dw.pid], TELEPORT_HOME.id)
+            SetUnitAbilityLevel(Backpack[dw.pid], TELEPORT_HOME.id, ablev + 1)
+            SetUnitAbilityLevel(Backpack[dw.pid], TELEPORT.id, ablev + 1)
             DisplayTimedTextToPlayer(Player(dw.pid - 1), 0, 0, 20, "You successfully upgraded to: Teleport [|cffffcc00Level " .. (ablev + 1) .. "|r]")
         elseif id == FourCC('I102') then
             ablev = GetUnitAbilityLevel(Backpack[dw.pid], FourCC('A0FK'))
@@ -1707,7 +1699,7 @@ end
 ---@return boolean
 function PickupFilter()
     local u    = GetTriggerUnit() ---@type unit 
-    local p    = GetOwningPlayer(u) ---@type player 
+    local p    = GetOwningPlayer(u) 
     local pid  = GetPlayerId(p) + 1 ---@type integer 
     local itm  = Item[GetManipulatedItem()] ---@type Item 
     local slot = GetItemSlot(itm, u)
@@ -1745,7 +1737,6 @@ function PickupFilter()
             if lvlreq > GetHeroLevel(Hero[pid]) + 20 then
                 ITEM_DROP_FLAG[pid] = true
                 DisplayTimedTextToPlayer(p, 0, 0, 15., "This item requires at least level |c00FF5555" .. (lvlreq - 20) .. "|r to pick up.")
-                itm.restricted = true
             elseif lvlreq > GetHeroLevel(Hero[pid]) then
                 itm.restricted = true
             end
@@ -1792,7 +1783,7 @@ end
 --event handler function for using items
 function onUse()
     local u   = GetTriggerUnit() ---@type unit 
-    local p   = GetOwningPlayer(u) ---@type player 
+    local p   = GetOwningPlayer(u) 
     local pid = GetPlayerId(p) + 1 ---@type integer 
     local itm = Item[GetManipulatedItem()] ---@type Item?
 
@@ -1828,7 +1819,7 @@ function onDrop()
     end
 
     if itm then
-        if not itm.restricted and u == Hero[pid] and not ITEM_DROP_FLAG[pid] then
+        if not ITEM_DROP_FLAG[pid] then
             itm:unequip()
         end
 
@@ -1844,7 +1835,7 @@ function onPickup()
     local itm = Item[GetManipulatedItem()] ---@type Item
     local itemid = (itm and GetItemTypeId(itm.obj)) or 0
     local itemtype = (itm and GetItemType(itm.obj)) or 0
-    local p = GetOwningPlayer(u) ---@type player 
+    local p = GetOwningPlayer(u) 
     local pid = GetPlayerId(p) + 1 ---@type integer 
     local i = 0 ---@type integer 
     local i2 = 0 ---@type integer 
@@ -2078,7 +2069,7 @@ function onPickup()
     elseif itemid == FourCC('I0JN') then --tome of retraining
         UnitAddItemById(Hero[pid], FourCC('Iret'))
     elseif itemid == FourCC('I101') or itemid == FourCC('I102') then --upgrade teleports & reveal
-        local lvl = (itemid == FourCC('I101') and GetUnitAbilityLevel(Backpack[pid], FourCC('A02J'))) or GetUnitAbilityLevel(Backpack[pid], FourCC('A0FK'))
+        local lvl = (itemid == FourCC('I101') and GetUnitAbilityLevel(Backpack[pid], TELEPORT.id)) or GetUnitAbilityLevel(Backpack[pid], FourCC('A0FK'))
 
         if lvl < 10 then --only 10 upgrades
             local dw ---@type DialogWindow
@@ -2164,8 +2155,8 @@ function onPickup()
 
         if it == nil then
             DisplayTimedTextToPlayer(p, 0, 0, 15, "You have no item to recharge!")
-        elseif TimerGetRemaining(rezretimer[pid]) > 1 then
-            DisplayTimedTextToPlayer(p, 0, 0,15, (R2I(TimerGetRemaining(rezretimer[pid]))) .. " seconds until you can recharge your " .. GetItemName(it.obj))
+        elseif TimerGetRemaining(RECHARGE_COOLDOWN[pid]) > 1 then
+            DisplayTimedTextToPlayer(p, 0, 0,15, (R2I(TimerGetRemaining(RECHARGE_COOLDOWN[pid]))) .. " seconds until you can recharge your " .. GetItemName(it.obj))
         else
             RechargeDialog(pid, it)
         end
@@ -2255,11 +2246,11 @@ function onPickup()
 
             if index == 1 then
                 --start colo solo
-                if not IS_TELEPORTING[pid] then
+                if not Unit[Hero[pid]].busy then
                     ColoPlayerCount = 1
                     Colosseum_Monster_Amount = 0
                     ColoWaveCount = 0
-                    InColo[pid] = true
+                    IS_IN_COLO[pid] = true
                     GroupClear(ColoWaveGroup)
                     MoveHeroLoc(pid, ColosseumCenter)
                     ExperienceControl(pid)
@@ -2302,10 +2293,10 @@ function onPickup()
                         if u == nil then break end
                         pid = GetPlayerId(GetOwningPlayer(u)) + 1
                         GroupRemoveUnit(ug, u)
-                        if u == Hero[pid] and not IS_TELEPORTING[pid] then
-                            InColo[pid] = true
+                        if u == Hero[pid] and not Unit[Hero[pid]].busy then
+                            IS_IN_COLO[pid] = true
                             ColoPlayerCount = ColoPlayerCount + 1
-                            Fleeing[pid] = false
+                            IS_FLEEING[pid] = false
                             MoveHeroLoc(pid, ColosseumCenter)
                             ExperienceControl(pid)
                             DisableItems(pid)
@@ -2352,10 +2343,10 @@ function onPickup()
                     if u == nil then break end
                     pid = GetPlayerId(GetOwningPlayer(u)) + 1
                     GroupRemoveUnit(ug, u)
-                    if u == Hero[pid] and not IS_TELEPORTING[pid] then
-                        InStruggle[pid] = true
+                    if u == Hero[pid] and not Unit[Hero[pid]].busy then
+                        IS_IN_STRUGGLE[pid] = true
                         Struggle_Pcount = Struggle_Pcount + 1
-                        Fleeing[pid] = false
+                        IS_FLEEING[pid] = false
                         DisableItems(pid)
                         MoveHeroLoc(pid, StruggleCenter)
                         CreateUnitAtLoc(GetOwningPlayer(u), FourCC('h065'), StruggleCenter, bj_UNIT_FACING)
@@ -2461,14 +2452,10 @@ function onPickup()
 
         dw:display()
     --item is present in inventory
-    elseif itm then
-        if not itm.restricted then
-            if not ITEM_DROP_FLAG[pid] then
-                itm:equip()
-                if GetLocalPlayer() == p then
-                    BlzFrameSetTexture(INVENTORYBACKDROP[GetEmptySlot(u)], SPRITE_RARITY[itm.level], 0, true)
-                end
-            end
+    elseif itm and not itm.restricted and not ITEM_DROP_FLAG[pid] then
+        itm:equip()
+        if GetLocalPlayer() == p then
+            BlzFrameSetTexture(INVENTORYBACKDROP[GetEmptySlot(u)], SPRITE_RARITY[itm.level], 0, true)
         end
     end
 
@@ -2483,7 +2470,7 @@ end
     local u        = User.first ---@type User 
 
     while u do
-        rezretimer[u.id] = CreateTimer()
+        RECHARGE_COOLDOWN[u.id] = CreateTimer()
         TriggerRegisterPlayerUnitEvent(onpickup, u.player, EVENT_PLAYER_UNIT_PICKUP_ITEM, nil)
         TriggerRegisterPlayerUnitEvent(ondrop, u.player, EVENT_PLAYER_UNIT_DROP_ITEM, nil)
         TriggerRegisterPlayerUnitEvent(useitem, u.player, EVENT_PLAYER_UNIT_USE_ITEM, nil)
@@ -2512,4 +2499,4 @@ end
     TriggerAddAction(useitem, onUse)
     TriggerAddAction(onbuy, onBuy)
     TriggerAddCondition(onsell, Condition(onSell))
-end, Debug.getLine())
+end, Debug and Debug.getLine())
