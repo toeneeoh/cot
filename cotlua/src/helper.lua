@@ -6,6 +6,7 @@
 
 OnInit.global("Helper", function(Require)
     Require('Variables')
+    Require('TimerQueue')
 
     ---@class CircularArrayList
     ---@field iterator function
@@ -123,15 +124,6 @@ function DEBUGMSG(...)
 end
 
 print = DEBUGMSG
-
----@return string
-function GetDamageTag()
-    local str = DAMAGE_TAG[#DAMAGE_TAG]
-
-    DAMAGE_TAG[#DAMAGE_TAG] = nil
-
-    return str
-end
 
 ---@type fun(source: unit, target: unit, dmg: number, attack_type: attacktype, damage_type: damagetype, tag: string|nil)
 function DamageTarget(source, target, dmg, attack_type, damage_type, tag)
@@ -911,6 +903,8 @@ function CreateBossEntry(index, loc, facing, id, name, level, items, crystal, le
         item = items,
         crystal = crystal,
         leash = leash,
+        total_damage = BigNum:new(),
+        damage = __jarray(BigNum:new()),
         revive = function(self) self.unit = CreateUnitAtLoc(pboss, self.id, self.loc, self.facing) end
     }
 
@@ -920,7 +914,7 @@ end
 ---@param u unit
 ---@return boolean
 function IsUnitStunned(u)
-    return (Stun:has(nil, u) or Freeze:has(nil, u) or KnockUp:has(nil, u) or GetUnitAbilityLevel(u, FourCC('BPSE')) > 0 or GetUnitAbilityLevel(u, FourCC('BSTN')) > 0 or IS_TELEPORTING[GetPlayerId(GetOwningPlayer(u)) + 1])
+    return (Stun:has(nil, u) or Freeze:has(nil, u) or KnockUp:has(nil, u) or GetUnitAbilityLevel(u, FourCC('BPSE')) > 0 or GetUnitAbilityLevel(u, FourCC('BSTN')) > 0)
 end
 
 ---@type fun(u: unit, id: integer, disable: boolean)
@@ -990,12 +984,12 @@ function HealthGradient(position, returnHex)
     end
 end
 
---maybe one day I will no longer use groups
----@type fun(tbl:table, val: any): boolean
+--Returns index if found otherwise false
+---@type fun(tbl:table, val: any): integer | boolean
 function TableHas(tbl, val)
     for i = 1, #tbl do
         if tbl[i] == val then
-            return true
+            return i
         end
     end
 
@@ -1322,24 +1316,18 @@ function ClearItems()
     end
 end
 
----@type fun(pt: PlayerTimer)
-function AttackDelay(pt)
-    BlzSetUnitWeaponBooleanField(pt.source, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, true)
-    IssueTargetOrderById(pt.source, 852173, pt.target)
-
-    pt:destroy()
+---@param source unit
+---@param target unit
+local function AttackDelay(source, target)
+    BlzSetUnitWeaponBooleanField(source, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, true)
+    IssueTargetOrderById(source, 852173, target)
 end
 
 ---@param source unit
 ---@param target unit
 function InstantAttack(source, target)
-    local pt = TimerList[0]:add()
-
-    pt.source = source
-    pt.target = target
-
     UnitAddAbility(source, FourCC('IATK'))
-    pt.timer:callDelayed(0.05, AttackDelay, pt)
+    TimerQueue:callDelayed(FPS_32, AttackDelay, source, target)
 end
 
 ---@param pid integer
@@ -1380,19 +1368,6 @@ end
 ---@return integer
 function MainStat(hero) --returns integer signifying primary attribute
     return BlzGetUnitIntegerField(hero, UNIT_IF_PRIMARY_ATTRIBUTE)
-end
-
----@param pid integer
----@param i integer
-function MainStatForm(pid, i)
-    RemoveUnit(hsdummy[pid])
-    if i == 1 then
-        hsdummy[pid] = CreateUnit(Player(pid - 1), FourCC('E001'), 30000, 30000, 0)
-    elseif i == 2 then
-        hsdummy[pid] = CreateUnit(Player(pid - 1), FourCC('E004'), 30000, 30000, 0)
-    elseif i == 3 then
-        hsdummy[pid] = CreateUnit(Player(pid - 1), FourCC('E01A'), 30000, 30000, 0)
-    end
 end
 
 ---@param r rect
@@ -1510,69 +1485,6 @@ function SetCameraBoundsRectForPlayerEx(p, r)
     end
 end
 
----@param pid integer
-function SpawnWispSelector(pid)
-    hslook[pid] = 0
-
-    MainStatForm(pid, MainStat(HeroCircle[0].unit))
-
-    BlzSetUnitSkin(hsdummy[pid], HeroCircle[0].skin)
-    BlzSetUnitName(hsdummy[pid], GetUnitName(HeroCircle[0].unit))
-    BlzSetHeroProperName(hsdummy[pid], GetHeroProperName(HeroCircle[0].unit))
-    --call BlzSetUnitIntegerField(hsdummy[pid], UNIT_IF_PRIMARY_ATTRIBUTE, BlzGetUnitIntegerField(HeroCircle[0].unit, UNIT_IF_PRIMARY_ATTRIBUTE))
-    BlzSetUnitWeaponIntegerField(hsdummy[pid], UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0, BlzGetUnitWeaponIntegerField(HeroCircle[0].unit, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0))
-    BlzSetUnitIntegerField(hsdummy[pid], UNIT_IF_DEFENSE_TYPE, BlzGetUnitIntegerField(HeroCircle[0].unit, UNIT_IF_DEFENSE_TYPE))
-    BlzSetUnitWeaponRealField(hsdummy[pid], UNIT_WEAPON_RF_ATTACK_BASE_COOLDOWN, 0, BlzGetUnitWeaponRealField(HeroCircle[0].unit, UNIT_WEAPON_RF_ATTACK_BASE_COOLDOWN, 0))
-    BlzSetUnitWeaponRealField(hsdummy[pid], UNIT_WEAPON_RF_ATTACK_RANGE, 1, BlzGetUnitWeaponRealField(HeroCircle[0].unit, UNIT_WEAPON_RF_ATTACK_RANGE, 0) - 100)
-    BlzSetUnitArmor(hsdummy[pid], BlzGetUnitArmor(HeroCircle[0].unit))
-
-    SetHeroStr(hsdummy[pid], GetHeroStr(HeroCircle[0].unit, true), true)
-    SetHeroAgi(hsdummy[pid], GetHeroAgi(HeroCircle[0].unit, true), true)
-    SetHeroInt(hsdummy[pid], GetHeroInt(HeroCircle[0].unit, true), true)
-
-    BlzSetUnitBaseDamage(hsdummy[pid], BlzGetUnitBaseDamage(HeroCircle[hslook[pid]].unit, 0), 0)
-    BlzSetUnitDiceNumber(hsdummy[pid], BlzGetUnitDiceNumber(HeroCircle[hslook[pid]].unit, 0), 0)
-    BlzSetUnitDiceSides(hsdummy[pid], BlzGetUnitDiceSides(HeroCircle[hslook[pid]].unit, 0), 0)
-
-    BlzSetUnitMaxHP(hsdummy[pid], BlzGetUnitMaxHP(HeroCircle[0].unit))
-    BlzSetUnitMaxMana(hsdummy[pid], BlzGetUnitMaxMana(HeroCircle[0].unit))
-    SetWidgetLife(hsdummy[pid], BlzGetUnitMaxHP(hsdummy[pid]))
-
-    UnitAddAbility(hsdummy[pid], HeroCircle[0].select)
-    UnitAddAbility(hsdummy[pid], HeroCircle[0].passive)
-
-    UnitAddAbility(hsdummy[pid], FourCC('A0JI'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JQ'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JR'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JS'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JT'))
-    UnitAddAbility(hsdummy[pid], FourCC('A0JU'))
-    UnitAddAbility(hsdummy[pid], FourCC('Aeth'))
-    SetUnitPathing(hsdummy[pid], false)
-    UnitRemoveAbility(hsdummy[pid], FourCC('Amov'))
-    BlzUnitHideAbility(hsdummy[pid], FourCC('Aatk'), true)
-    SetCamera(pid, gg_rct_Tavern)
-
-    if (GetLocalPlayer() == Player(pid - 1)) then
-        EnablePreSelect(false, false)
-        EnableSelect(false, false)
-        --ClearSelection()
-        SelectUnit(hsdummy[pid], true)
-        SetDayNightModels("Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx","Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx")
-        SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 500, 0)
-        SetCameraField(CAMERA_FIELD_ANGLE_OF_ATTACK, 340, 0)
-        SetCameraField(CAMERA_FIELD_FIELD_OF_VIEW, 60, 0)
-        SetCameraField(CAMERA_FIELD_ZOFFSET, 200, 0)
-        SetCameraField(CAMERA_FIELD_ROTATION, GetUnitFacing(HeroCircle[hslook[pid]].unit) + 180, 0)
-        SetCameraTargetController(gg_unit_h00T_0511, 0, 0, false)
-    end
-
-    Backpack[pid] = nil
-    selectingHero[pid] = true
-    SetCurrency(pid, GOLD, 75)
-    SetCurrency(pid, LUMBER, 30)
-end
-
 ---@type fun(u: unit)
 function ResetPathing(u)
     SetUnitPathing(u, true)
@@ -1604,15 +1516,18 @@ function GetLine(line, contents)
 end
 
 ---@param pid integer
-function SetSaveSlot(pid)
-    for i = 0, MAX_SLOTS do
-        if Profile[pid].phtl[i] == 0 then
-            Profile[pid].currentSlot = i
-            return
-        end
-    end
+function DisplayQuestProgress(pid)
+    local i = 0 ---@type integer 
+    local flag = (CHAOS_MODE and 1) or 0
+    local index = KillQuest[flag][i]
 
-    Profile[pid].currentSlot = -1
+    while index ~= 0 do
+        local s = (KillQuest[index].count == KillQuest[index].goal and "|cff40ff40") or ""
+
+        DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, KillQuest[index].name .. ": " .. s .. (KillQuest[index].count) .. "/" .. (KillQuest[index].goal) .. "|r |cffffcc01LVL " .. (KillQuest[index].min) .. "-" .. (KillQuest[index].max))
+        i = i + 1
+        index = KillQuest[flag][i]
+    end
 end
 
 ---@return boolean
@@ -1643,108 +1558,6 @@ function GetProfilePath(pid)
     return MAP_NAME .. "\\" .. User[pid - 1].name .. "\\profile.pld"
 end
 
----@return boolean
-function LoadMenu()
-    local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-    local dw    = DialogWindow[pid]
-    local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
-
-    --new character button
-    if GetClickedButton() == dw.MenuButton[2] then
-        SetSaveSlot(pid)
-
-        if Profile[pid]:getSlotsUsed() >= 30 then
-            DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 30.0, "You cannot save more than 30 heroes!")
-            dw.Page = -1
-            dw:display()
-        else
-            if not selectingHero[pid] then
-                DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 30.0, "Select a |c006969ffhero|r using the left and right arrow keys.")
-                newcharacter[pid] = true
-                SpawnWispSelector(pid)
-            end
-
-            dw:destroy()
-        end
-    --load / delete button
-    elseif GetClickedButton() == dw.MenuButton[3] then
-        --stay at the same page
-        if dw.Page > -1 then
-            dw.Page = dw.Page - 1
-        end
-
-        if deleteMode[pid] then
-            deleteMode[pid] = false
-            dw.MenuButtonName[3] = "|cffff0000Delete Character"
-            dw.title = "|cffffffffLOAD"
-            dw:display()
-        else
-            deleteMode[pid] = true
-            dw.MenuButtonName[3] = "|cffffffffLoad Character"
-            dw.title = "|cffff0000DELETE"
-            dw:display()
-        end
-    --character slot
-    elseif index ~= -1 then
-        Profile[pid].currentSlot = dw.data[index]
-        dw:destroy()
-
-        if deleteMode[pid] then
-            --confirm delete character
-            dw = DialogWindow.create(pid, "Are you sure?|nAny prestige bonuses from this character will be lost!", ConfirmDeleteCharacter)
-            dw:addButton("|cffff0000DELETE")
-            dw:display()
-        else
-            --load character
-            DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, "Loading |c006969ffhero|r from selected slot...")
-            local path = GetCharacterPath(pid, Profile[pid].currentSlot)
-
-            if GetLocalPlayer() == GetTriggerPlayer() then
-                BlzSendSyncData(SYNC_PREFIX, GetLine(1, FileIO.Load(path)))
-            end
-        end
-    end
-
-    return false
-end
-
----@param pid integer
-function DisplayHeroSelectionDialog(pid)
-    local dw = DialogWindow.create(pid, "|cffffffffLOAD", LoadMenu)
-
-    deleteMode[pid] = false
-
-    for i = 0, MAX_SLOTS do
-        local hardcore = 0
-        local prestige = 0
-        local id = 0
-        local herolevel = 0
-
-        if Profile[pid].phtl[i] > 0 then --slot is not empty
-            local name = "|cffffcc00"
-            hardcore = Profile[pid].phtl[i] & 0x1
-            prestige = (Profile[pid].phtl[i] & 0x6) >> 1
-            id = (Profile[pid].phtl[i] & 0x1F8) >> 3
-            herolevel = (Profile[pid].phtl[i] & 0x7FE00) >> 9
-
-            if prestige > 0 then
-                name = name .. "[PRSTG] "
-            end
-            name = name .. GetObjectName(SAVE_UNIT_TYPE[id]) .. " [" .. (herolevel) .. "] "
-            if hardcore > 0 then
-                name = name .. "[HC]"
-            end
-
-            dw.data[dw.ButtonCount] = i
-            dw:addButton(name)
-        end
-    end
-
-    dw:addMenuButton("|cffffffffNew Character")
-    dw:addMenuButton("|cffff0000Delete Character")
-
-    dw:display()
-end
 
 ---@param arena integer
 function ResetArena(arena)
@@ -1885,9 +1698,9 @@ function PlayerCleanup(pid)
         end
     end
 
-    if InColo[pid] then
+    if IS_IN_COLO[pid] then
         ColoPlayerCount = ColoPlayerCount - 1
-        InColo[pid] = false
+        IS_IN_COLO[pid] = false
 
         if ColoPlayerCount == 0 then
             ClearColo()
@@ -1896,16 +1709,16 @@ function PlayerCleanup(pid)
 
     ResetArena(GetArena(pid)) --reset pvp
 
-    if InStruggle[pid] then
+    if IS_IN_STRUGGLE[pid] then
         Struggle_Pcount = Struggle_Pcount - 1
-        InStruggle[pid] = false
+        IS_IN_STRUGGLE[pid] = false
 
         if Struggle_Pcount == 0 then
             ClearStruggle()
         end
     end
 
-    autoAttackDisabled[pid] = false
+    IS_AUTO_ATTACK_ON[pid] = true
     PlayerSelectedUnit[pid] = nil
     Profile[pid].hero:wipeData()
 
@@ -1919,24 +1732,23 @@ function PlayerCleanup(pid)
     TableRemove(HERO_GROUP, Hero[pid])
     RemovePlayerUnits(pid)
 
-    BLOODBANK.bank[pid] = 0
+    BLOODBANK.set(pid, 0)
 
     Hero[pid] = nil
     HeroID[pid] = 0
     Backpack[pid] = nil
-    ConverterBought[pid] = false
-    ArcaConverter[pid] = false
-    PlatConverter[pid] = false
+    IS_CONVERTER_PURCHASED[pid] = false
+    IS_CONVERTING_ARC[pid] = false
+    IS_CONVERTING_PLAT[pid] = false
     SetCurrency(pid, GOLD, 0)
     SetCurrency(pid, LUMBER, 0)
     SetCurrency(pid, PLATINUM, 0)
     SetCurrency(pid, ARCADITE, 0)
     SetCurrency(pid, CRYSTAL, 0)
     ItemGoldRate[pid] = 0
-    HeartBlood[pid] = 0
-    BardSong[pid] = 0
+    BARD_SONG[pid] = 0
     hardcoreClicked[pid] = false
-    CameraLock[pid] = false
+    IS_CAMERA_LOCKED[pid] = false
     meatgolem[pid] = nil
     destroyer[pid] = nil
     hounds[pid * 10] = nil
@@ -1946,17 +1758,15 @@ function PlayerCleanup(pid)
     hounds[pid * 10 + 4] = nil
     hounds[pid * 10 + 5] = nil
     CustomLighting[pid] = 1 --default
-    PhantomSlashing[pid] = false
-    BodyOfFireCharges[pid] = 5 --default
     limitBreak[pid] = 0
     limitBreakPoints[pid] = 0
-    Fleeing[pid] = false
+    IS_FLEEING[pid] = false
 
     if GetLocalPlayer() == p then
-        PLAT_CONVERT.tooltip:text("Must purchase a converter to use!")
-        ARCA_CONVERT.tooltip:text("Must purchase a converter to use!")
-        PLAT_CONVERT:enabled(false)
-        ARCA_CONVERT:enabled(false)
+        PLAT_CONVERT_FRAME.tooltip:text("Must purchase a converter to use!")
+        ARC_CONVERT_FRAME.tooltip:text("Must purchase a converter to use!")
+        PLAT_CONVERT_FRAME:enabled(false)
+        ARC_CONVERT_FRAME:enabled(false)
         BlzFrameSetVisible(DPS_FRAME, false)
         BlzFrameSetVisible(LimitBreakBackdrop, false)
         BlzSetAbilityIcon(PARRY.id, "ReplaceableTextures\\CommandButtons\\BTNReflex.blp")
@@ -1983,12 +1793,12 @@ function PlayerCleanup(pid)
     SetPlayerTechResearched(p, FourCC('R016'), 1)
     SetPlayerTechResearched(p, FourCC('R017'), 1)
 
-    sniperstance[pid] = false
+    SNIPERSTANCE.enabled[pid] = false
     Hardcore[pid] = false
     ArenaQueue[pid] = 0
 
-    newcharacter[pid] = true
-    SetSaveSlot(pid) --repicking sets you to an empty save slot
+    Profile[pid].new_char = true
+    Profile[pid]:get_empty_slot()
 
     tempplayer = p
     EnumItemsInRect(bj_mapInitialPlayableArea, nil, ItemRepickRemove)
@@ -2098,7 +1908,7 @@ function RefreshHeroes()
                         local b = InspireBuff:get(nil, target)
                         b:strongest(math.max(b.ablev, GetUnitAbilityLevel(Hero[U.id], INSPIRE.id)))
                     end
-                    if BardSong[U.id] == SONG_WAR then
+                    if BARD_SONG[U.id] == SONG_WAR then
                         SongOfWarBuff:add(Hero[U.id], target)
                         SongOfWarBuff:refresh(Hero[U.id], target, 2.)
                     end
@@ -2118,7 +1928,7 @@ function RefreshHeroes()
                         EmpyreanSongBuff:add(Hero[U.id], target):duration(2.)
                     end
                 elseif IsUnitAlly(target, Player(U.id - 1)) == false and UnitIsSleeping(target) == false then
-                    if BardSong[U.id] == SONG_FATIGUE then
+                    if BARD_SONG[U.id] == SONG_FATIGUE then
                         SongOfFatigueSlow:add(Hero[U.id], target):duration(2.)
                     elseif masterElement[U.id] == ELEMENTICE.value then
                         IceElementSlow:add(Hero[U.id], target):duration(2.)
@@ -2289,7 +2099,7 @@ function MoveExpire(pt)
     pt.dur = pt.dur - 1
 
     if pt.dur <= 0 then
-        bpmoving[pt.pid] = false
+        IS_BACKPACK_MOVING[pt.pid] = false
         pt:destroy()
     else
         pt.timer:callDelayed(1., MoveExpire, pt)
@@ -2316,7 +2126,7 @@ function RealToString(value)
     local e = ""
     local s = ""
 
-    if type(value) == "table" then
+    if BigNum.isbn(value) then
         local len = value:len_digits()
         if len >= 10 then
             s = tostring(value):sub(1, len - 3)
@@ -2358,7 +2168,7 @@ end
 ---@param pid integer
 ---@param itm Item
 function ItemInfo(pid, itm)
-    local p      = Player(pid - 1) ---@type player 
+    local p      = Player(pid - 1)
     local s      = GetObjectName(itm.id) ---@type string 
     local cost   = itm:getValue(ITEM_COST, 0) ---@type integer 
     local maxlvl = ItemData[itm.id][ITEM_UPGRADE_MAX] ---@type integer 
@@ -2385,11 +2195,11 @@ function ItemInfo(pid, itm)
         DisplayTimedTextToPlayer(p, 0, 0, 15., "|cffbbbbbbProficiency|r: " .. RealToString(ItemProfMod(itm.id, pid) * 100) .. "\x25")
     end
 
-    for i = 1, ITEM_STAT_TOTAL do
+    for i = 1, ITEM_STAT_TOTAL - 2 do --ignore abilities
         if ItemData[itm.id][i] ~= 0 and STAT_TAG[i] then
-            s = STAT_TAG[i].suffix or ""
+            s = STAT_TAG[i].item_suffix or STAT_TAG[i].suffix or ""
 
-            DisplayTimedTextToPlayer(p, 0, 0, 15., STAT_TAG[i].tag .. ": " .. RealToString(itm:getValue(i, 0)) .. s)
+            DisplayTimedTextToPlayer(p, 0, 0, 15., (STAT_TAG[i].tag or "") .. ": " .. RealToString(itm:getValue(i, 0)) .. s)
         end
     end
 
@@ -2558,11 +2368,18 @@ function IsItemLimited(itm)
     return false
 end
 
----@type fun(pid: integer, id: integer): Item | nil
-function GetItemFromPlayer(pid, id)
+--optional third argument for the nth item found
+---@type fun(pid: integer, id: integer, count: integer?): Item | nil
+function GetItemFromPlayer(pid, id, count)
+    count = count or 1
+
     for i = 0, MAX_INVENTORY_SLOTS - 1 do
         if Profile[pid].hero.items[i] and Profile[pid].hero.items[i].id == id then
-            return Profile[pid].hero.items[i]
+            if count <= 1 then
+                return Profile[pid].hero.items[i]
+            else
+                count = count - 1
+            end
         end
     end
 
@@ -2655,28 +2472,28 @@ end
 
 ---@param pid integer
 function ToggleAutoAttack(pid)
-    if autoAttackDisabled[pid] then
-        autoAttackDisabled[pid] = false
+    if IS_AUTO_ATTACK_ON[pid] then
+        IS_AUTO_ATTACK_ON[pid] = false
+        DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "Toggled Auto Attacking off.")
+        BlzSetUnitWeaponBooleanField(Hero[pid], UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
+    else
+        IS_AUTO_ATTACK_ON[pid] = true
         DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "Toggled Auto Attacking on.")
         if Unit[Hero[pid]].can_attack then
             BlzSetUnitWeaponBooleanField(Hero[pid], UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, true)
         end
-    else
-        autoAttackDisabled[pid] = true
-        DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "Toggled Auto Attacking off.")
-        BlzSetUnitWeaponBooleanField(Hero[pid], UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
     end
 end
 
 ---@param pid integer
 function ToggleItemStacking(pid)
-    if fullItemStacking[pid] then
+    if IS_ITEM_FULL_STACKING[pid] then
         DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "Toggled Full Inventory Stacking off.")
     else
         DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "Toggled Full Inventory Stacking on")
     end
 
-    fullItemStacking[pid] = not fullItemStacking[pid]
+    IS_ITEM_FULL_STACKING[pid] = not IS_ITEM_FULL_STACKING[pid]
 end
 
 function SpawnOrcs()
@@ -2781,35 +2598,6 @@ function GetAbilityField(u, id, index)
     return BlzGetAbilityRealLevelField(BlzGetUnitAbility(u, id), SPELL_FIELD[index], 0)
 end
 
----@type fun(itm: Item, index: integer, value: integer, lower: integer, upper: integer): string
-function ParseItemAbilityTooltip(itm, index, value, lower, upper)
-    local data   = ItemData[itm.id][index * ABILITY_OFFSET .. "abil"] ---@type string 
-    local id     = ItemData[itm.id][index * ABILITY_OFFSET] ---@type integer 
-    local orig   = BlzGetAbilityExtendedTooltip(id, 0) ---@type string 
-    local count  = 1
-    local values = {} ---@type integer[] 
-
-    values[0] = value
-
-    --parse ability data into array
-    for w in data:gmatch("(\x25-?\x25d+)") do
-        values[count] = S2I(w)
-        ItemData[itm.id][index * ABILITY_OFFSET + count] = values[count]
-        count = count + 1
-    end
-
-    --parse ability tooltip and fill capture groups
-    orig = orig:gsub("\x25$(\x25d+)", function(tag)
-        if upper > 0 then
-            return lower .. "-" .. upper
-        else
-            return values[S2I(tag) - 1] .. ""
-        end
-    end)
-
-    return orig
-end
-
 ---@type fun(itm: item, s: string)
 function ParseItemTooltip(itm, s)
     local orig = s ~= "" and s or BlzGetItemExtendedTooltip(itm)
@@ -2828,8 +2616,7 @@ function ParseItemTooltip(itm, s)
     orig = orig:gsub("(\x25b[])", function(contents)
         contents = contents:sub(2, -2) ---@type string
 
-        --get index and value
-        local tag, suffix, value = contents:match("(\x25a+)([ \x25*])(\x25-?\x25d+)")
+        local tag, suffix, value = contents:match("(\x25a+)([ \x25*])(\x25-?\x25d+\x25.?\x25d*)")
         local index
         for i, v in ipairs(STAT_TAG) do
             if v.syntax == tag then
@@ -2840,28 +2627,31 @@ function ParseItemTooltip(itm, s)
 
         if index then
 
-            --assign value
-            ItemData[itemid][index] = S2I(value)
-            --fixed toggle
+            -- assign value
+            ItemData[itemid][index] = tonumber(value)
+            -- fixed toggle
             ItemData[itemid][index .. "fixed"] = (suffix == "*") and 1 or 0
 
-            --process ability data if available
+            -- process ability data if available
             contents = contents:gsub("(#.*)", function(capture)
                 local data = capture:sub(7, #capture)
 
                 ItemData[itemid][index * ABILITY_OFFSET] = FourCC(capture:sub(2, 5))
                 ItemData[itemid][index * ABILITY_OFFSET .. "abil"] = data
 
-                --place sfx data into table
+                -- read sfx data
                 for entry in data:gmatch("(\x25S+)") do
                     local args = {}
 
-                    --parse [sfx|level|attach|path] entries
-                    for arg in entry:gmatch("([^|]+)") do
+                    -- parse [sfx,level,attach,path] entries
+                    for arg in entry:gmatch("([^,]+)") do
                         args[#args + 1] = arg
                     end
 
                     if #args == 4 then
+                        -- replace underscores with spaces in attachment point
+                        args[3]:gsub("_", " ")
+
                         local tbl = ItemData[itemid].sfx
 
                         if type(tbl) ~= "table" then
@@ -2880,29 +2670,29 @@ function ParseItemTooltip(itm, s)
                 return ""
             end)
 
-            --process affixes
-            local affix = "([|=>\x25@])(\x25-?\x25d*)"
+            -- process affixes
+            local affix = "([|=>\x25@])(\x25-?\x25d+\x25.?\x25d*)"
             local start = contents:find(affix)
 
             if start then
                 contents = contents:sub(start)
                 contents = contents:gsub(affix, function(prefix, capture)
 
-                    --value range
+                    -- value range
                     if prefix == "|" then
-                        ItemData[itemid][index .. "range"] = S2I(capture)
-                    --flat per level
+                        ItemData[itemid][index .. "range"] = tonumber(capture)
+                    -- flat per level
                     elseif prefix == "=" then
-                        ItemData[itemid][index .. "fpl"] = S2I(capture)
-                    --flat per rarity
+                        ItemData[itemid][index .. "fpl"] = tonumber(capture)
+                    -- flat per rarity
                     elseif prefix == ">" then
-                        ItemData[itemid][index .. "fpr"] = S2I(capture)
-                    --percent effectiveness
+                        ItemData[itemid][index .. "fpr"] = tonumber(capture)
+                    -- percent effectiveness
                     elseif prefix == "\x25" then
-                        ItemData[itemid][index .. "percent"] = S2I(capture)
-                    --unlock at
+                        ItemData[itemid][index .. "percent"] = tonumber(capture)
+                    -- unlock at
                     elseif prefix == "@" then
-                        ItemData[itemid][index .. "unlock"] = S2I(capture)
+                        ItemData[itemid][index .. "unlock"] = tonumber(capture)
                     end
                 end)
             end
@@ -2910,49 +2700,8 @@ function ParseItemTooltip(itm, s)
     end)
 end
 
---[[parses brackets
-    [] = normal boost
-    {] = low boost
-    \] = no boost
-    > = no color
-    ~ = only shows calculated value
-]]
----@type fun(spell: Spell):string
-function GetSpellTooltip(spell)
-    local orig = SpellTooltips[spell.id][spell.ablev]
-    local calc = {} ---@type number[]
-
-    for i, v in ipairs(spell.values) do
-        calc[i] = (type(v) == "number" and v) or (type(v) == "function" and v(spell.pid)) or (type(v) == "table" and v[spell.pid]) or 0
-    end
-
-    if #calc > 0 then
-        local pattern = "(~?)(>?)([\\{\x25[]+)(.-)]"
-        local count = 0
-        orig = orig:gsub(pattern, function(defaultflag, colorflag, prefix, content)
-            local color = (colorflag ~= ">" and true) or false
-            local alt = altModifier[spell.pid] or defaultflag == "~"
-            count = count + 1
-
-            if alt then
-                if prefix == "[" then
-                    return HL(RealToString(calc[count] * (1. + Unit[Hero[spell.pid]].spellboost - 0.2)) .. " - " .. RealToString(calc[count] * (1. + Unit[Hero[spell.pid]].spellboost + 0.2)), color)
-                elseif prefix == "{" then
-                    return HL(RealToString(calc[count] * LBOOST[spell.pid]), color)
-                elseif prefix == "\\" or prefix == "~" then
-                    return HL(RealToString(calc[count]), color)
-                end
-            else
-                return content
-            end
-        end)
-    end
-
-    return orig
-end
-
 ---@type fun(u: unit, id: integer, dur: number, anim: integer, timescale: number)
-function SpellCast(u, id, dur, anim, timescale)
+function CastSpell(u, id, dur, anim, timescale)
     BlzStartUnitAbilityCooldown(u, id, BlzGetUnitAbilityCooldown(u, id, GetUnitAbilityLevel(u, id) - 1))
     DelayAnimation(BOSS_ID, u, dur, 0, 1., true)
     if anim ~= -1 then
@@ -2965,22 +2714,20 @@ end
 
 ---@param pid integer
 function UpdateSpellTooltips(pid)
-    local i = 0 ---@type integer 
-    local abil = BlzGetUnitAbilityByIndex(Hero[pid], i) ---@type ability 
+    local i = 0
+    local abil = BlzGetUnitAbilityByIndex(Hero[pid], i)
 
     while abil do
         local sid = BlzGetAbilityId(abil)
 
-        if Spells[sid] and GetUnitAbilityLevel(Hero[pid], sid) > 0 then
-            local mySpell = Spells[sid]:create(pid) ---@type Spell
-            local tooltip = GetSpellTooltip(mySpell)
+        if Spells[sid] then
+            local mySpell = Spells[sid]:create(pid, sid) ---@type Spell
+            local tooltip = mySpell:get_tooltip()
 
             if GetLocalPlayer() == Player(pid - 1) then
                 BlzSetAbilityExtendedTooltip(sid, tooltip, mySpell.ablev - 1)
                 BlzSetAbilityActivatedExtendedTooltip(sid, tooltip, mySpell.ablev - 1)
             end
-
-            mySpell:destroy()
         end
 
         i = i + 1
@@ -3051,9 +2798,9 @@ function ExperienceControl(pid)
         xpRate = 0
     end
 
-    if InColo[pid] then
+    if IS_IN_COLO[pid] then
         xpRate = xpRate * Colosseum_XP[pid] * (0.6 + 0.4 * ColoPlayerCount)
-    elseif InStruggle[pid] then
+    elseif IS_IN_STRUGGLE[pid] then
         xpRate = xpRate * .3
     end
 
@@ -3134,21 +2881,24 @@ end
 
 ---@type fun(source: unit, target: unit, hp: number, tag: string|nil)
 function HP(source, target, hp, tag)
-    hp = hp * Unit[target].healamp
+    --attack count based units cannot be healed
+    if Unit[target].attackCount == 0 then
+        hp = hp * Unit[target].healamp
 
-    local text = RealToString(hp)
+        local text = RealToString(hp)
 
-    --undying rage heal delay
-    if UndyingRageBuff:has(target, target) then
-        UndyingRageBuff:get(target, target):addRegen(hp)
-    else
-        SetUnitState(target, UNIT_STATE_LIFE, GetUnitState(target, UNIT_STATE_LIFE) + hp)
-        if R2I(hp) ~= 0 then
-            FloatingTextUnit(text, target, 2, 50, 0, 10, 125, 255, 125, 0, true)
+        --undying rage heal delay
+        if UndyingRageBuff:has(target, target) then
+            UndyingRageBuff:get(target, target):addRegen(hp)
+        else
+            SetUnitState(target, UNIT_STATE_LIFE, GetUnitState(target, UNIT_STATE_LIFE) + hp)
+            if R2I(hp) ~= 0 then
+                FloatingTextUnit(text, target, 2, 50, 0, 10, 125, 255, 125, 0, true)
+            end
         end
-    end
 
-    LogDamage(source, target, "|cff7dff7d" .. text .. "|r", true, tag)
+        LogDamage(source, target, "|cff7dff7d" .. text .. "|r", true, tag)
+    end
 end
 
 ---@type fun(source: unit, mp: number)
@@ -3205,7 +2955,7 @@ end
 
 ---@param pid integer
 function EnableItems(pid)
-    ItemsDisabled[pid] = false
+    IS_INVENTORY_DISABLED[pid] = false
 
     BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(Hero[pid], FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, 1)
     BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(Backpack[pid], FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, 1)
@@ -3213,7 +2963,7 @@ end
 
 ---@param pid integer
 function DisableItems(pid)
-    ItemsDisabled[pid] = true
+    IS_INVENTORY_DISABLED[pid] = true
     BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(Hero[pid], FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, 0)
     BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(Backpack[pid], FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, 0)
 end
@@ -3424,7 +3174,7 @@ function SummonExpire(u)
 
     TimerList[pid]:stopAllTimers(u)
 
-    BorrowedLife[u] = 0
+    Unit[u].borrowed_life = 0
 
     if IsUnitHidden(u) == false then --important
         if uid == SUMMON_DESTROYER or uid == SUMMON_HOUND or uid == SUMMON_GOLEM then
@@ -3457,25 +3207,6 @@ function RequiredXP(level)
     return base
 end
 
-
----@type fun(pt: PlayerTimer)
-function SummonDurationXPBar(pt)
-    local lev = GetHeroLevel(pt.target) ---@type integer 
-
-    if BorrowedLife[pt.target] <= 0 then
-        pt.dur = pt.dur - 0.5
-    else
-        BorrowedLife[pt.target] = math.max(0, BorrowedLife[pt.target] - 0.5)
-    end
-
-    if pt.dur <= 0 then
-        SummonExpire(pt.target)
-    else
-        UnitStripHeroLevel(pt.target, 1)
-        SetHeroXP(pt.target, R2I(RequiredXP(lev) + ((lev + 1) * pt.dur * 100. / pt.time) - 100), false)
-    end
-end
-
 ---@param p player
 function CleanupSummons(p)
     for i = 1, #SummonGroup do
@@ -3488,7 +3219,7 @@ end
 
 ---@param pid integer
 function RecallSummons(pid)
-    local p = Player(pid - 1) ---@type player 
+    local p = Player(pid - 1) 
     local x = GetUnitX(Hero[pid]) + 200 * Cos(bj_DEGTORAD * GetUnitFacing(Hero[pid])) ---@type number 
     local y = GetUnitY(Hero[pid]) + 200 * Sin(bj_DEGTORAD * GetUnitFacing(Hero[pid])) ---@type number 
 
@@ -3664,9 +3395,9 @@ function AdvanceColo()
     local U = User.first
 
     while U do
-            if Fleeing[U.id] and InColo[U.id] then
-                Fleeing[U.id] = false
-                InColo[U.id] = false
+            if IS_FLEEING[U.id] and IS_IN_COLO[U.id] then
+                IS_FLEEING[U.id] = false
+                IS_IN_COLO[U.id] = false
                 ColoPlayerCount = ColoPlayerCount - 1
                 EnableItems(U.id)
                 AwardGold(U.id, ColoGoldWon, true)
@@ -3698,8 +3429,8 @@ function AdvanceColo()
             ColoGoldWon= R2I(ColoGoldWon * 1.2)
 
             while U do
-                if InColo[U.id] then
-                    InColo[U.id] = false
+                if IS_IN_COLO[U.id] then
+                    IS_IN_COLO[U.id] = false
                     ColoPlayerCount = ColoPlayerCount - 1
                     DisplayTimedTextToPlayer(U.player,0,0, 10, "You have successfully cleared the Colosseum and received a 20\x25 gold bonus.")
                     EnableItems(U.id)
@@ -3765,9 +3496,9 @@ function AdvanceStruggle(flag)
     end
 
     while U do
-        if Fleeing[U.id] and InStruggle[U.id] then
-            Fleeing[U.id] = false
-            InStruggle[U.id] = false
+        if IS_FLEEING[U.id] and IS_IN_STRUGGLE[U.id] then
+            IS_FLEEING[U.id] = false
+            IS_IN_STRUGGLE[U.id] = false
             Struggle_Pcount = Struggle_Pcount - 1
             EnableItems(U.id)
             MoveHeroLoc(U.id, TownCenter)
@@ -3799,8 +3530,8 @@ function AdvanceStruggle(flag)
             U = User.first
 
             while U do
-                if InStruggle[U.id] then
-                    InStruggle[U.id] = false
+                if IS_IN_STRUGGLE[U.id] then
+                    IS_IN_STRUGGLE[U.id] = false
                     Struggle_Pcount = Struggle_Pcount - 1
                     DisplayTextToPlayer(U.player, 0, 0, "50\x25 bonus gold for victory!")
                     MoveHeroLoc(U.id, TownCenter)
@@ -3830,6 +3561,7 @@ function AdvanceStruggle(flag)
     end
 end
 
+-- TODO: rewrite this monstrosity
 ---@param itid1 integer
 ---@param req1 integer
 ---@param itid2 integer
@@ -3854,7 +3586,7 @@ function Recipe(itid1, req1, itid2, req2, itid3, req3, itid4, req4, itid5, req5,
     local itemsNeeded   =__jarray(0) ---@type integer[] 
     local itemsHeld     =__jarray(0) ---@type integer[] 
     local itemType      =__jarray(0) ---@type integer[] 
-    local owner         = GetOwningPlayer(creatingunit) ---@type player 
+    local owner         = GetOwningPlayer(creatingunit)
     local pid           = GetPlayerId(owner) + 1 ---@type integer 
     local fail          = false ---@type boolean 
     local levelreq      = 0 ---@type integer 
@@ -3882,10 +3614,8 @@ function Recipe(itid1, req1, itid2, req2, itid3, req3, itid4, req4, itid5, req5,
         for j = 0, 5 do
             if creatingunit == ASHEN_VAT then --vat
                 itm = UnitItemInSlot(creatingunit, j)
-                if GetItemTypeId(itm) == FourCC('I04Q') then --demon golem fist heart
-                    if HeartBlood[itm] < 2000 then
-                        itemsHeld[i] = itemsHeld[i] - 1
-                    end
+                if Item[itm].nocraft then
+                    itemsHeld[i] = itemsHeld[i] - 1
                 end
                 if GetItemTypeId(itm) == itemType[i] then
                     origcount[itm] = origcount[itm] + 1
@@ -4085,28 +3815,8 @@ end
 
 ---@param pid integer
 function UpdateItemTooltips(pid)
-    local s  = "" ---@type string 
-    local s2 = "" ---@type string 
-
-    --heart of the demon prince
-    if UnitHasItemType(Hero[pid], FourCC('I04Q')) then
-        local itm = Item[GetItemFromUnit(Hero[pid], FourCC('I04Q'))]
-
-        if HeartBlood[pid] >= 2000 then
-            s = "|c0000ff40"
-        end
-
-        s2 = "\n|cffff5050Chaotic Quest|r\n|c00ff0000Level Requirement: |r190\n\n|cff0099ffBlood Accumulated:|r (" .. s .. (IMinBJ(2000, HeartBlood[pid])) .. "/2000|r)\n\n|cff808080Deal or take damage to fill the heart with blood (Level 170+ enemies).\n|cffff0000WARNING! This item does not save!"
-
-        itm.tooltip = s2
-        itm.alt_tooltip = s2
-
-        BlzSetItemDescription(itm.obj, itm.tooltip)
-        BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
-    end
-
     --update 6 visible item slot tooltips
-    local modifier = altModifier[pid]
+    local modifier = IS_ALT_DOWN[pid]
 
     if Profile[pid] and GetLocalPlayer() == Player(pid - 1) then
         for i = 0, 5 do
@@ -4237,63 +3947,9 @@ function Taunt(hero, pid, aoe, bossaggro, allythreat, herothreat)
     DestroyGroup(allyGroup)
 end
 
----@return boolean
-local function ProximityFilter()
-    local u = GetFilterUnit()
-
-    return not IsDummy(u) and
-    GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
-    GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP
-end
-
----@type fun(source: unit, target: unit, dist: number):unit
-function AcquireProximity(source, target, dist)
-    local ug    = CreateGroup()
-    local x     = GetUnitX(source) ---@type number 
-    local y     = GetUnitY(source) ---@type number 
-    local index = -1
-
-    GroupEnumUnitsInRange(ug, x, y, dist, Filter(ProximityFilter))
-
-    for i, prox in ieach(ug) do
-        --dont acquire the same target
-        if SquareRoot(Pow(x - GetUnitX(prox), 2) + Pow(y - GetUnitY(prox), 2)) < dist and Unit[source].target ~= target then
-            dist = SquareRoot(Pow(x - GetUnitX(prox), 2) + Pow(y - GetUnitY(prox), 2))
-            index = i
-        end
-    end
-
-    if index ~= -1 then
-        target = BlzGroupUnitAt(ug, index)
-    end
-
-    DestroyGroup(ug)
-    return target
-end
-
----@type fun(pt: PlayerTimer)
-function RunDropAggro(pt)
-    local ug = CreateGroup()
-
-    MakeGroupInRange(pt.pid, ug, GetUnitX(pt.source), GetUnitY(pt.source), 800., Condition(FilterEnemy))
-
-    for target in each(ug) do
-        if Unit[target].target == pt.source then
-            local prox = AcquireProximity(target, pt.source, 800.)
-            IssueTargetOrder(target, "smart", prox)
-            Unit[target].target = prox
-            break
-        end
-    end
-
-    pt:destroy()
-
-    DestroyGroup(ug)
-end
-
 ---@type fun(pid: integer, x: number, y: number, percenthp: number, percentmana: number)
 function RevivePlayer(pid, x, y, percenthp, percentmana)
-    local p = Player(pid - 1) ---@type player 
+    local p = Player(pid - 1) 
 
     ReviveHero(Hero[pid], x, y, true)
     SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]) * percenthp)
@@ -4380,4 +4036,4 @@ function UpdateManaCosts(pid)
     end
 end
 
-end, Debug.getLine())
+end, Debug and Debug.getLine())
