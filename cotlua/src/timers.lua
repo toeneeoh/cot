@@ -23,504 +23,502 @@ OnInit.final("Timers", function(Require)
     HERO_GROUP     = {}
     WANDER_TIMER   = TimerQueue.create()
 
-function DisplayHint()
-    local rand = GetRandomInt(2, #HINT_TOOLTIP) ---@type integer 
+    function DisplayHint()
+        local rand = GetRandomInt(2, #HINT_TOOLTIP) ---@type integer 
 
-    if LAST_HINT < 2 then
-        LAST_HINT = LAST_HINT + 1
-    else
-        LAST_HINT = rand
+        if LAST_HINT < 2 then
+            LAST_HINT = LAST_HINT + 1
+        else
+            LAST_HINT = rand
+        end
+
+        DisplayTimedTextToForce(FORCE_HINT, 15, HINT_TOOLTIP[LAST_HINT])
+        if rand ~= LAST_HINT then
+            LAST_HINT = rand
+        else
+            LAST_HINT = LAST_HINT + 1
+        end
+        if LAST_HINT > #HINT_TOOLTIP then
+            LAST_HINT = 1
+        end
     end
 
-    DisplayTimedTextToForce(FORCE_HINT, 15, HINT_TOOLTIP[LAST_HINT])
-    if rand ~= LAST_HINT then
-        LAST_HINT = rand
-    else
-        LAST_HINT = LAST_HINT + 1
-    end
-    if LAST_HINT > #HINT_TOOLTIP then
-        LAST_HINT = 1
-    end
-end
+    ---@type fun(pt: PlayerTimer)
+    function ReturnBoss(pt)
+        if UnitAlive(BossTable[pt.id].unit) and not CHAOS_LOADING then
+            if IsUnitInRangeLoc(BossTable[pt.id].unit, BossTable[pt.id].loc, 100.) then
+                pt:destroy()
+                Unit[BossTable[pt.id].unit].overmovespeed = nil
+                SetUnitPathing(BossTable[pt.id].unit, true)
+                UnitRemoveAbility(BossTable[pt.id].unit, FourCC('Amrf'))
+                SetUnitTurnSpeed(BossTable[pt.id].unit, GetUnitDefaultTurnSpeed(BossTable[pt.id].unit))
+            else
+                IssuePointOrder(BossTable[pt.id].unit, "move", GetLocationX(BossTable[pt.id].loc), GetLocationY(BossTable[pt.id].loc))
+                Buff.dispelAll(BossTable[pt.id].unit)
+            end
 
----@type fun(i: integer)
-function BossBonusLinger(i)
-    if CHAOS_LOADING == false and UnitAlive(BossTable[i].unit) then
-        local numplayers = 0
+            pt.timer:callDelayed(0.25, ReturnBoss, pt)
+        else
+            pt:destroy()
+        end
+    end
 
-        for _, hero in ipairs(HERO_GROUP) do
-            if IsUnitInRange(hero, BossTable[i].unit, NEARBY_BOSS_RANGE) then
-                numplayers = numplayers + 1
+    local function Periodic()
+
+        --camera lock
+        do
+            local pid = GetPlayerId(GetLocalPlayer()) + 1
+
+            if IS_CAMERA_LOCKED[pid] and not SELECTING_HERO[pid] then
+                SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, Zoom[pid], 0)
             end
         end
 
-        BossNearbyPlayers[i] = numplayers
-    end
-end
+        --player loop
+        local u = User.first ---@type User 
+        local x, y
 
----@type fun(pt: PlayerTimer)
-function ReturnBoss(pt)
-    if UnitAlive(BossTable[pt.id].unit) and not CHAOS_LOADING then
-        if IsUnitInRangeLoc(BossTable[pt.id].unit, BossTable[pt.id].loc, 100.) then
-            pt:destroy()
-            Unit[BossTable[pt.id].unit].overmovespeed = nil
-            SetUnitPathing(BossTable[pt.id].unit, true)
-            UnitRemoveAbility(BossTable[pt.id].unit, FourCC('Amrf'))
-            SetUnitTurnSpeed(BossTable[pt.id].unit, GetUnitDefaultTurnSpeed(BossTable[pt.id].unit))
-        else
-            IssuePointOrder(BossTable[pt.id].unit, "move", GetLocationX(BossTable[pt.id].loc), GetLocationY(BossTable[pt.id].loc))
-            Buff.dispelAll(BossTable[pt.id].unit)
-        end
+        while u do
+            local pid = u.id
 
-        pt.timer:callDelayed(0.25, ReturnBoss, pt)
-    else
-        pt:destroy()
-    end
-end
+            if HeroID[pid] > 0 then
 
-function Periodic()
-
-    --camera lock
-    do
-        local pid = GetPlayerId(GetLocalPlayer()) + 1
-
-        if CameraLock[pid] and not selectingHero[pid] then
-            SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, Zoom[pid], 0)
-        end
-    end
-
-    --player loop
-    local u = User.first ---@type User 
-    local x, y
-
-    while u do
-        local pid = u.id
-
-        if HeroID[pid] > 0 then
-
-            --backpack move
-            if not IS_TELEPORTING[pid] then
+                --backpack move
                 x = GetUnitX(Hero[pid]) + 50 * Cos((GetUnitFacing(Hero[pid]) - 45) * bj_DEGTORAD)
                 y = GetUnitY(Hero[pid]) + 50 * Sin((GetUnitFacing(Hero[pid]) - 45) * bj_DEGTORAD)
                 if IsUnitInRange(Hero[pid], Backpack[pid], 1000.) == false then
                     SetUnitXBounded(Backpack[pid], x)
                     SetUnitYBounded(Backpack[pid], y)
                     BlzUnitClearOrders(Backpack[pid], false)
-                elseif not bpmoving[pid] or IsUnitInRange(Hero[pid], Backpack[pid], 800.) == false then
+                elseif not IS_BACKPACK_MOVING[pid] or IsUnitInRange(Hero[pid], Backpack[pid], 800.) == false then
                     if IsUnitInRange(Hero[pid], Backpack[pid], 50.) == false then
                         IssuePointOrderById(Backpack[pid], ORDER_ID_MOVE, x, y)
                     end
                 end
             end
+
+            u = u.next
+        end
+    end
+
+    function CreateWell()
+        local heal = 50 ---@type integer 
+        local x    = 0 ---@type number 
+        local y    = 0 ---@type number 
+        local r ---@type rect 
+        local rand = GetRandomInt(1, 14) ---@type integer 
+
+        if rand == 14 then
+            rand = 15 --exclude elder dragon
         end
 
-        u = u.next
-    end
-end
+        if wellcount < 7 then
+            r = SelectGroupedRegion(rand)
 
-function CreateWell()
-    local heal = 50 ---@type integer 
-    local x    = 0 ---@type number 
-    local y    = 0 ---@type number 
-    local r ---@type rect 
-    local rand = GetRandomInt(1, 14) ---@type integer 
-
-    if rand == 14 then
-        rand = 15 --exclude elder dragon
-    end
-
-    if wellcount < 7 then
-        r = SelectGroupedRegion(rand)
-
-        wellcount = wellcount + 1
-        repeat
-            x = GetRandomReal(GetRectMinX(r), GetRectMaxX(r))
-            y = GetRandomReal(GetRectMinY(r), GetRectMaxY(r))
-        until IsTerrainWalkable(x, y)
-        --TODO rework into sfx? use ui for tooltip?
-        well[wellcount] = Dummy.create(x, y, 0, 0, 0).unit
-        BlzSetUnitFacingEx(well[wellcount], 270)
-        UnitRemoveAbility(well[wellcount], FourCC('Aloc'))
-        ShowUnit(well[wellcount], false)
-        ShowUnit(well[wellcount], true)
-        if GetRandomInt(0, 2) < 2 then
-            BlzSetUnitSkin(well[wellcount], FourCC('h04W'))
-            BlzSetUnitName(well[wellcount], "Health Well")
-        else
-            BlzSetUnitSkin(well[wellcount], FourCC('h05H'))
-            BlzSetUnitName(well[wellcount], "Mana Well")
-            heal = heal + 100 --mana
+            wellcount = wellcount + 1
+            repeat
+                x = GetRandomReal(GetRectMinX(r), GetRectMaxX(r))
+                y = GetRandomReal(GetRectMinY(r), GetRectMaxY(r))
+            until IsTerrainWalkable(x, y)
+            --TODO rework into sfx? use ui for tooltip?
+            well[wellcount] = Dummy.create(x, y, 0, 0, 0).unit
+            BlzSetUnitFacingEx(well[wellcount], 270)
+            UnitRemoveAbility(well[wellcount], FourCC('Aloc'))
+            ShowUnit(well[wellcount], false)
+            ShowUnit(well[wellcount], true)
+            if GetRandomInt(0, 2) < 2 then
+                BlzSetUnitSkin(well[wellcount], FourCC('h04W'))
+                BlzSetUnitName(well[wellcount], "Health Well")
+            else
+                BlzSetUnitSkin(well[wellcount], FourCC('h05H'))
+                BlzSetUnitName(well[wellcount], "Mana Well")
+                heal = heal + 100 --mana
+            end
+            SetUnitScale(well[wellcount], 0.5, 0.5, 0.5)
+            wellheal[wellcount] = heal
         end
-        SetUnitScale(well[wellcount], 0.5, 0.5, 0.5)
-        wellheal[wellcount] = heal
     end
-end
 
-function SpawnStruggleUnits()
-    local end_ = R2I(Struggle_Wave_SR[Struggle_WaveN]) ---@type integer 
-    local rand = GetRandomInt(1,4) ---@type integer 
-    local u ---@type unit 
+    function SpawnStruggleUnits()
+        local end_ = R2I(Struggle_Wave_SR[Struggle_WaveN]) ---@type integer 
+        local rand = GetRandomInt(1,4) ---@type integer 
+        local u ---@type unit 
 
-    if Struggle_Pcount > 0 and Struggle_WaveU[Struggle_WaveN] > 0 then
-        for i = 0, end_ do
-            if Struggle_WaveUCN > 0 then
-                if BlzGroupGetSize(StruggleWaveGroup) < 70 then
-                    Struggle_WaveUCN = Struggle_WaveUCN - 1
-                    u = CreateUnit(pboss, Struggle_WaveU[Struggle_WaveN], GetRectCenterX(gg_rct_Infinite_Struggle), GetRectCenterY(gg_rct_Infinite_Struggle), bj_UNIT_FACING)
-                    SetUnitXBounded(u, GetRandomReal(GetRectMinX(Struggle_SpawnR[rand]), GetRectMaxX(Struggle_SpawnR[rand])))
-                    SetUnitYBounded(u, GetRandomReal(GetRectMinY(Struggle_SpawnR[rand]), GetRectMaxY(Struggle_SpawnR[rand])))
-                    GroupAddUnit(StruggleWaveGroup, u)
-                    SetUnitCreepGuard(u, false)
-                    SetUnitAcquireRange(u, 3000.)
+        if Struggle_Pcount > 0 and Struggle_WaveU[Struggle_WaveN] > 0 then
+            for i = 0, end_ do
+                if Struggle_WaveUCN > 0 then
+                    if BlzGroupGetSize(StruggleWaveGroup) < 70 then
+                        Struggle_WaveUCN = Struggle_WaveUCN - 1
+                        u = CreateUnit(pboss, Struggle_WaveU[Struggle_WaveN], GetRectCenterX(gg_rct_Infinite_Struggle), GetRectCenterY(gg_rct_Infinite_Struggle), bj_UNIT_FACING)
+                        SetUnitXBounded(u, GetRandomReal(GetRectMinX(Struggle_SpawnR[rand]), GetRectMaxX(Struggle_SpawnR[rand])))
+                        SetUnitYBounded(u, GetRandomReal(GetRectMinY(Struggle_SpawnR[rand]), GetRectMaxY(Struggle_SpawnR[rand])))
+                        GroupAddUnit(StruggleWaveGroup, u)
+                        SetUnitCreepGuard(u, false)
+                        SetUnitAcquireRange(u, 3000.)
+                    end
                 end
             end
+            TimerQueue:callDelayed(3., SpawnStruggleUnits)
         end
-        TimerQueue:callDelayed(3., SpawnStruggleUnits)
     end
-end
 
-function ColosseumXPDecrease()
-    local u = User.first ---@type User 
+    local function ColosseumXPDecrease()
+        local u = User.first ---@type User 
 
-    while u do
-        if HeroID[u.id] ~= 0 then
-            if InColo[u.id] and Colosseum_XP[u.id] > 0.05 then
-                Colosseum_XP[u.id] = Colosseum_XP[u.id] - 0.005
+        while u do
+            if HeroID[u.id] ~= 0 then
+                if IS_IN_COLO[u.id] and Colosseum_XP[u.id] > 0.05 then
+                    Colosseum_XP[u.id] = Colosseum_XP[u.id] - 0.005
+                end
+                if Colosseum_XP[u.id] < 0.05 then
+                    Colosseum_XP[u.id] = 0.05
+                end
+                ExperienceControl(u.id)
             end
-            if Colosseum_XP[u.id] < 0.05 then
-                Colosseum_XP[u.id] = 0.05
-            end
-            ExperienceControl(u.id)
+            u = u.next
         end
-        u = u.next
-    end
-end
-
-function WanderingGuys()
-    local x ---@type number 
-    local y ---@type number 
-    local x2 ---@type number 
-    local y2 ---@type number 
-    local count = 0 ---@type integer 
-    local id    = (CHAOS_MODE and BOSS_LEGION) or BOSS_DEATH_KNIGHT
-
-    if CHAOS_LOADING then
-        return
     end
 
-    --dk / legion
-    if GetUnitTypeId(BossTable[id].unit) ~= 0 and UnitAlive(BossTable[id].unit) then
-        repeat
-            x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
-            y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
-            x2 = GetUnitX(BossTable[id].unit)
-            y2 = GetUnitY(BossTable[id].unit)
-            count = count + 1
+    local function WanderingGuys()
+        local x ---@type number 
+        local y ---@type number 
+        local x2 ---@type number 
+        local y2 ---@type number 
+        local count = 0 ---@type integer 
+        local id    = (CHAOS_MODE and BOSS_LEGION) or BOSS_DEATH_KNIGHT
 
-        until LineContainsRect(x2, y2, x, y, -4000, -3000, 4000, 5000) == false and IsTerrainWalkable(x, y) and DistanceCoords(x, y, x2, y2) > 2500.
+        if CHAOS_LOADING then
+            return
+        end
 
-        IssuePointOrder(BossTable[id].unit, "patrol", x, y)
-    end
+        --dk / legion
+        if GetUnitTypeId(BossTable[id].unit) ~= 0 and UnitAlive(BossTable[id].unit) then
+            repeat
+                x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
+                y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
+                x2 = GetUnitX(BossTable[id].unit)
+                y2 = GetUnitY(BossTable[id].unit)
+                count = count + 1
 
-    if UnitAlive(townpaladin) then
-        if not TimerList[0]:has('pala') or (DistanceCoords(GetUnitX(townpaladin), GetUnitY(townpaladin), GetRectCenterX(gg_rct_Town_Boundry), GetRectCenterY(gg_rct_Town_Boundry)) > 3000.) then
+            until LineContainsRect(x2, y2, x, y, -4000, -3000, 4000, 5000) == false and IsTerrainWalkable(x, y) and DistanceCoords(x, y, x2, y2) > 2500.
+
+            IssuePointOrder(BossTable[id].unit, "patrol", x, y)
+        end
+
+        if UnitAlive(townpaladin) then
+            if not TimerList[0]:has('pala') or (DistanceCoords(GetUnitX(townpaladin), GetUnitY(townpaladin), GetRectCenterX(gg_rct_Town_Boundry), GetRectCenterY(gg_rct_Town_Boundry)) > 3000.) then
+                x = GetRandomReal(GetRectMinX(gg_rct_Town_Boundry) + 500, GetRectMaxX(gg_rct_Town_Boundry) - 500)
+                y = GetRandomReal(GetRectMinY(gg_rct_Town_Boundry) + 500, GetRectMaxY(gg_rct_Town_Boundry) - 500)
+
+                IssuePointOrder(townpaladin, "move", x, y)
+            end
+        end
+
+        if UnitAlive(udg_SPONSOR) then
             x = GetRandomReal(GetRectMinX(gg_rct_Town_Boundry) + 500, GetRectMaxX(gg_rct_Town_Boundry) - 500)
             y = GetRandomReal(GetRectMinY(gg_rct_Town_Boundry) + 500, GetRectMaxY(gg_rct_Town_Boundry) - 500)
 
-            IssuePointOrder(townpaladin, "move", x, y)
+            IssuePointOrder(udg_SPONSOR, "move", x, y)
         end
     end
 
-    if UnitAlive(udg_SPONSOR) then
-        x = GetRandomReal(GetRectMinX(gg_rct_Town_Boundry) + 500, GetRectMaxX(gg_rct_Town_Boundry) - 500)
-        y = GetRandomReal(GetRectMinY(gg_rct_Town_Boundry) + 500, GetRectMaxY(gg_rct_Town_Boundry) - 500)
+    function OneMinute()
+        local id = GetPlayerId(GetLocalPlayer()) + 1
 
-        IssuePointOrder(udg_SPONSOR, "move", x, y)
-    end
-end
+        if HeroID[id] > 0 then
+            Profile[id].hero.time = Profile[id].hero.time + 1
 
-function OneMinute()
-    local id = GetPlayerId(GetLocalPlayer()) + 1
-
-    if HeroID[id] > 0 then
-        Profile[id].hero.time = Profile[id].hero.time + 1
-
-        --colosseum xp decrease
-        if not InColo[id] and Colosseum_XP[id] < 1.30 then
-            if Colosseum_XP[id] < 0.75 then
-                Colosseum_XP[id] = Colosseum_XP[id] + 0.02
-            else
-                Colosseum_XP[id] = Colosseum_XP[id] + 0.01
-            end
-            if Colosseum_XP[id] > 1.30 then
-                Colosseum_XP[id] = 1.30
-            end
-            ExperienceControl(id)
-        end
-    end
-end
-
----@type fun(): string
-function GenerateAFKString()
-    local alphanumeric = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    local str = ""
-
-    for _ = 1, 4 do
-        local index = GetRandomInt(1, #alphanumeric)
-        str = str .. alphanumeric:sub(index, index)
-    end
-
-    return str
-end
-
-function AFKClock()
-    local u = User.first ---@type User 
-
-    AFK_TEXT = GenerateAFKString()
-    BlzFrameSetText(AFK_FRAME, "Type -" .. AFK_TEXT)
-
-    while u do
-        local pid = u.id
-
-        if HeroID[pid] > 0 then
-            if afkTextVisible[pid] then
-                afkTextVisible[pid] = false
-                if GetLocalPlayer() == Player(pid - 1) then
-                    BlzFrameSetVisible(AFK_FRAME_BG, false)
+            --colosseum xp decrease
+            if not IS_IN_COLO[id] and Colosseum_XP[id] < 1.30 then
+                if Colosseum_XP[id] < 0.75 then
+                    Colosseum_XP[id] = Colosseum_XP[id] + 0.02
+                else
+                    Colosseum_XP[id] = Colosseum_XP[id] + 0.01
                 end
-                PanCameraToTimedLocForPlayer(u.player, TownCenter, 0)
-                DisplayTextToForce(FORCE_PLAYING, u.nameColored .. " was removed for being AFK.")
-                DisplayTextToPlayer(u.player, 0, 0, "You have lost the game. All of your structures and units will be removed from the game, however you may stay and watch or leave as you choose.")
-                PlayerCleanup(pid)
-            elseif panCounter[pid] < 50 or moveCounter[pid] < 5000 or clickCounter[pid] < 200 then
-                afkTextVisible[pid] = true
-                if GetLocalPlayer() == Player(pid - 1) then
-                    BlzFrameSetVisible(AFK_FRAME_BG, true)
+                if Colosseum_XP[id] > 1.30 then
+                    Colosseum_XP[id] = 1.30
                 end
-                SoundHandler("Sound\\Interface\\SecretFound.wav", false, Player(pid - 1), nil)
+                ExperienceControl(id)
             end
         end
-
-        moveCounter[pid] = 0
-        panCounter[pid] = 0
-        clickCounter[pid] = 0
-
-        u = u.next
-    end
-end
-
-local fountain_filter = Filter(function()
-    local id = GetUnitTypeId(GetFilterUnit())
-
-    return (id ~= BACKPACK)
-end)
-
-function OneSecond()
-    local hp = 0.
-    local mp = 0.
-
-    TIME = TIME + 1
-
-    --clock frame
-    BlzFrameSetText(CLOCK_FRAME_TEXT, IntegerToTime(TIME))
-
-    --set space bar camera to town
-    SetCameraQuickPositionLoc(TownCenter)
-
-    --fountain regeneration
-    local ug = CreateGroup()
-    GroupEnumUnitsInRange(ug, -260., 350., 600., fountain_filter)
-
-    for target in each(ug) do
-        hp = GetWidgetLife(target)
-        mp = GetUnitState(target, UNIT_STATE_MANA)
-
-        if hp < BlzGetUnitMaxHP(target) * 0.99 then
-            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAuraTarget.mdl", target, "origin"))
-            SetWidgetLife(target, hp + BlzGetUnitMaxHP(target))
-        end
-
-        if mp < BlzGetUnitMaxMana(target) * 0.99 and GetUnitTypeId(target) ~= HERO_VAMPIRE then
-            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIma\\AImaTarget.mdl", target, "origin"))
-            SetUnitState(target, UNIT_STATE_MANA, GetUnitState(target, UNIT_STATE_MANA) + BlzGetUnitMaxMana(target))
-        end
     end
 
-    --boss regeneration / player scaling / reset
-    for i = BOSS_OFFSET, #BossTable do
-        if CHAOS_LOADING == false and UnitAlive(BossTable[i].unit) then
+    ---@type fun(): string
+    local function GenerateAFKString()
+        local alphanumeric = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        local str = ""
 
-            --zeppelin kill
-            if CHAOS_MODE and IsUnitInRangeLoc(BossTable[i].unit, BossTable[i].loc, 1500.) then
-                GroupEnumUnitsInRange(ug, GetUnitX(BossTable[i].unit), GetUnitY(BossTable[i].unit), 900., Condition(iszeppelin))
+        for _ = 1, 4 do
+            local index = GetRandomInt(1, #alphanumeric)
+            str = str .. alphanumeric:sub(index, index)
+        end
 
-                for target in each(ug) do
-                    ExpireUnit(target)
-                end
-                if BlzGroupGetSize(ug) > 0 then
-                    DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(BossTable[i].unit), GetUnitY(BossTable[i].unit)))
-                    SetUnitAnimation(BossTable[i].unit, "attack slam")
-                end
-            end
+        return str
+    end
 
-            --death knight / legion exception
-            if BossTable[i].id ~= FourCC('H04R') and BossTable[i].id ~= FourCC('H040') then
-                if IsUnitInRangeLoc(BossTable[i].unit, BossTable[i].loc, BossTable[i].leash) == false and GetUnitAbilityLevel(BossTable[i].unit, FourCC('Amrf')) == 0 then
-                    hp = Unit[BossTable[i].unit].str * 25. * 0.16
-                    if GetUnitAbilityLevel(BossTable[i].unit, FourCC('Asan')) > 0 then
-                        hp = hp * 0.5
+    function AFKClock()
+        local u = User.first ---@type User 
+
+        AFK_TEXT = GenerateAFKString()
+        BlzFrameSetText(AFK_FRAME, "Type -" .. AFK_TEXT)
+
+        while u do
+            local pid = u.id
+
+            if HeroID[pid] > 0 then
+                if afkTextVisible[pid] then
+                    afkTextVisible[pid] = false
+                    if GetLocalPlayer() == Player(pid - 1) then
+                        BlzFrameSetVisible(AFK_FRAME_BG, false)
                     end
-                    Unit[BossTable[i].unit].regen = hp
-                    Unit[BossTable[i].unit].overmovespeed = 750
-                    UnitAddAbility(BossTable[i].unit, FourCC('Amrf'))
-                    SetUnitPathing(BossTable[i].unit, false)
-                    SetUnitTurnSpeed(BossTable[i].unit, 1.)
-                    local pt = TimerList[BOSS_ID]:add()
-                    pt.id = i
-                    pt.timer:callDelayed(0.25, ReturnBoss, pt)
+                    PanCameraToTimedLocForPlayer(u.player, TownCenter, 0)
+                    DisplayTextToForce(FORCE_PLAYING, u.nameColored .. " was removed for being AFK.")
+                    DisplayTextToPlayer(u.player, 0, 0, "You have lost the game. All of your structures and units will be removed from the game, however you may stay and watch or leave as you choose.")
+                    PlayerCleanup(pid)
+                elseif panCounter[pid] < 50 or moveCounter[pid] < 5000 or clickCounter[pid] < 200 then
+                    afkTextVisible[pid] = true
+                    if GetLocalPlayer() == Player(pid - 1) then
+                        BlzFrameSetVisible(AFK_FRAME_BG, true)
+                    end
+                    SoundHandler("Sound\\Interface\\SecretFound.wav", false, Player(pid - 1), nil)
                 end
             end
 
-            --determine number of nearby heroes
+            moveCounter[pid] = 0
+            panCounter[pid] = 0
+            clickCounter[pid] = 0
+
+            u = u.next
+        end
+    end
+
+    local fountain_filter = Filter(function()
+        local id = GetUnitTypeId(GetFilterUnit())
+
+        return (id ~= BACKPACK)
+    end)
+
+    ---@type fun(i: integer)
+    local function BossBonusLinger(i)
+        if CHAOS_LOADING == false and UnitAlive(BossTable[i].unit) then
             local numplayers = 0
+
             for _, hero in ipairs(HERO_GROUP) do
                 if IsUnitInRange(hero, BossTable[i].unit, NEARBY_BOSS_RANGE) then
                     numplayers = numplayers + 1
                 end
             end
 
-            BossNearbyPlayers[i] = IMaxBJ(BossNearbyPlayers[i], numplayers)
+            BossNearbyPlayers[i] = numplayers
+        end
+    end
 
-            if numplayers < BossNearbyPlayers[i] then
-                TimerQueue:callDelayed(5., BossBonusLinger, i)
+    local function OneSecond()
+        local hp = 0.
+        local mp = 0.
+
+        TIME = TIME + 1
+
+        --clock frame
+        BlzFrameSetText(CLOCK_FRAME_TEXT, IntegerToTime(TIME))
+
+        --set space bar camera to town
+        SetCameraQuickPositionLoc(TownCenter)
+
+        --fountain regeneration
+        local ug = CreateGroup()
+        GroupEnumUnitsInRange(ug, -260., 350., 600., fountain_filter)
+
+        for target in each(ug) do
+            hp = GetWidgetLife(target)
+            mp = GetUnitState(target, UNIT_STATE_MANA)
+
+            if hp < BlzGetUnitMaxHP(target) * 0.99 then
+                DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAuraTarget.mdl", target, "origin"))
+                SetWidgetLife(target, hp + BlzGetUnitMaxHP(target))
             end
 
-            hp = Unit[BossTable[i].unit].str * 25
-
-            --calculate hp regeneration
-            if GetWidgetLife(BossTable[i].unit) <= hp * 0.15 then -- 15 percent hp double regen
-                hp = hp * 2
+            if mp < BlzGetUnitMaxMana(target) * 0.99 and GetUnitTypeId(target) ~= HERO_VAMPIRE then
+                DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIma\\AImaTarget.mdl", target, "origin"))
+                SetUnitState(target, UNIT_STATE_MANA, GetUnitState(target, UNIT_STATE_MANA) + BlzGetUnitMaxMana(target))
             end
+        end
 
-            if CHAOS_MODE then
-                hp = hp * (0.0001 + 0.0004 * BossNearbyPlayers[i]) --0.04 percent per player
-            else
-                hp = hp * 0.002 * BossNearbyPlayers[i] --0.2 percent
-            end
+        --boss regeneration / player scaling / reset
+        for i = BOSS_OFFSET, #BossTable do
+            if CHAOS_LOADING == false and UnitAlive(BossTable[i].unit) then
 
-            if numplayers == 0 then --out of combat?
-                hp = Unit[BossTable[i].unit].str * 25. * 0.02 --2 percent
-            else --bonus damage and health
+                --zeppelin kill
+                if CHAOS_MODE and IsUnitInRangeLoc(BossTable[i].unit, BossTable[i].loc, 1500.) then
+                    GroupEnumUnitsInRange(ug, GetUnitX(BossTable[i].unit), GetUnitY(BossTable[i].unit), 900., Condition(iszeppelin))
+
+                    for target in each(ug) do
+                        ExpireUnit(target)
+                    end
+                    if BlzGroupGetSize(ug) > 0 then
+                        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(BossTable[i].unit), GetUnitY(BossTable[i].unit)))
+                        SetUnitAnimation(BossTable[i].unit, "attack slam")
+                    end
+                end
+
+                --death knight / legion exception
+                if BossTable[i].id ~= FourCC('H04R') and BossTable[i].id ~= FourCC('H040') then
+                    if IsUnitInRangeLoc(BossTable[i].unit, BossTable[i].loc, BossTable[i].leash) == false and GetUnitAbilityLevel(BossTable[i].unit, FourCC('Amrf')) == 0 then
+                        hp = Unit[BossTable[i].unit].str * 25. * 0.16
+                        if GetUnitAbilityLevel(BossTable[i].unit, FourCC('Asan')) > 0 then
+                            hp = hp * 0.5
+                        end
+                        Unit[BossTable[i].unit].regen = hp
+                        Unit[BossTable[i].unit].overmovespeed = 750
+                        UnitAddAbility(BossTable[i].unit, FourCC('Amrf'))
+                        SetUnitPathing(BossTable[i].unit, false)
+                        SetUnitTurnSpeed(BossTable[i].unit, 1.)
+                        local pt = TimerList[BOSS_ID]:add()
+                        pt.id = i
+                        pt.timer:callDelayed(0.25, ReturnBoss, pt)
+                    end
+                end
+
+                --determine number of nearby heroes
+                local numplayers = 0
+                for _, hero in ipairs(HERO_GROUP) do
+                    if IsUnitInRange(hero, BossTable[i].unit, NEARBY_BOSS_RANGE) then
+                        numplayers = numplayers + 1
+                    end
+                end
+
+                BossNearbyPlayers[i] = IMaxBJ(BossNearbyPlayers[i], numplayers)
+
+                if numplayers < BossNearbyPlayers[i] then
+                    TimerQueue:callDelayed(5., BossBonusLinger, i)
+                end
+
+                hp = Unit[BossTable[i].unit].str * 25
+
+                --calculate hp regeneration
+                if GetWidgetLife(BossTable[i].unit) <= hp * 0.15 then -- 15 percent hp double regen
+                    hp = hp * 2
+                end
+
                 if CHAOS_MODE then
-                    UnitSetBonus(BossTable[i].unit, BONUS_DAMAGE, R2I(BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 0.2 * (BossNearbyPlayers[i] - 1)))
-                    UnitSetBonus(BossTable[i].unit, BONUS_HERO_STR, R2I(Unit[BossTable[i].unit].str * 0.2 * (BossNearbyPlayers[i] - 1)))
+                    hp = hp * (0.0001 + 0.0004 * BossNearbyPlayers[i]) --0.04 percent per player
+                else
+                    hp = hp * 0.002 * BossNearbyPlayers[i] --0.2 percent
+                end
+
+                if numplayers == 0 then --out of combat?
+                    hp = Unit[BossTable[i].unit].str * 25. * 0.02 --2 percent
+                else --bonus damage and health
+                    if CHAOS_MODE then
+                        UnitSetBonus(BossTable[i].unit, BONUS_DAMAGE, R2I(BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 0.2 * (BossNearbyPlayers[i] - 1)))
+                        UnitSetBonus(BossTable[i].unit, BONUS_HERO_STR, R2I(Unit[BossTable[i].unit].str * 0.2 * (BossNearbyPlayers[i] - 1)))
+                    end
+                end
+
+                --sanctified ground debuff
+                if SanctifiedGroundDebuff:has(nil, BossTable[i].unit) then
+                    hp = hp * 0.5
+                end
+
+                --non-returning hp regeneration
+                if GetUnitAbilityLevel(BossTable[i].unit, FourCC('Amrf')) == 0 then
+                    Unit[BossTable[i].unit].regen = hp
                 end
             end
-
-            --sanctified ground debuff
-            if SanctifiedGroundDebuff:has(nil, BossTable[i].unit) then
-                hp = hp * 0.5
-            end
-
-            --non-returning hp regeneration
-            if GetUnitAbilityLevel(BossTable[i].unit, FourCC('Amrf')) == 0 then
-                Unit[BossTable[i].unit].regen = hp
-            end
         end
-    end
 
-    --summon regeneration
-    for _, target in ipairs(SummonGroup) do
-        if UnitAlive(target) and GetUnitAbilityLevel(target, FourCC('A06Q')) > 0 then
-            if GetUnitTypeId(target) == SUMMON_DESTROYER then
-                Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q')))
-            elseif GetUnitTypeId(target) == SUMMON_HOUND and GetUnitAbilityLevel(target, FourCC('A06Q')) > 9 then
-                Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q')))
-            else
-                Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.00025 * GetUnitAbilityLevel(target, FourCC('A06Q')))
-            end
-        end
-    end
-
-    --Undespawn Units
-    for i = 1, #despawnGroup do
-        local creep = despawnGroup[i]
-
-        if creep ~= nil then
-            GroupEnumUnitsInRange(ug, GetUnitX(creep), GetUnitY(creep), 800., Condition(FilterDespawn))
-            if BlzGroupGetSize(ug) == 0 then
-                TimerQueue:callDelayed(0.9, Undespawn, creep)
-                despawnGroup[i] = despawnGroup[#despawnGroup]
-                despawnGroup[#despawnGroup] = nil
-                i = i - 1
-            end
-        end
-    end
-
-    --add & remove players in dungeon queue
-    if QUEUE_DUNGEON > 0 then
-        local p = User.first
-        local mb = MULTIBOARD.QUEUE
-
-        while p do
-            if IsUnitInRangeXY(Hero[p.id], QUEUE_X, QUEUE_Y, 750.) and UnitAlive(Hero[p.id]) and not IS_TELEPORTING[p.id] then
-                if TableHas(QUEUE_GROUP, p.player) == false and GetHeroLevel(Hero[p.id]) >= QUEUE_LEVEL then
-                    QUEUE_GROUP[#QUEUE_GROUP + 1] = p.player
-                    mb:addRows(1)
-                    mb:get(mb.rowCount, 1).text = {0.02, 0, 0.09, 0.011}
-                    mb:get(mb.rowCount, 2).icon = {0.26, 0, 0.011, 0.011}
-                    mb.available[p.id] = true
-                    mb:display(p.id)
-                end
-            elseif TableHas(QUEUE_GROUP, p.player) then
-                TableRemove(QUEUE_GROUP, p.player)
-                QUEUE_READY[p.id] = false
-                mb:delRows(1)
-                mb.available[p.id] = false
-                MULTIBOARD.MAIN:display(p.id)
-
-                if #QUEUE_GROUP <= 0 then
-                    QUEUE_DUNGEON = 0
+        --summon regeneration
+        for _, target in ipairs(SummonGroup) do
+            if UnitAlive(target) and GetUnitAbilityLevel(target, FourCC('A06Q')) > 0 then
+                if GetUnitTypeId(target) == SUMMON_DESTROYER then
+                    Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q')))
+                elseif GetUnitTypeId(target) == SUMMON_HOUND and GetUnitAbilityLevel(target, FourCC('A06Q')) > 9 then
+                    Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q')))
+                else
+                    Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.00025 * GetUnitAbilityLevel(target, FourCC('A06Q')))
                 end
             end
-
-            p = p.next
         end
 
-        --Refresh dungeon queue multiboard
-        if #QUEUE_GROUP == 0 then
-            QUEUE_DUNGEON = 0
+        --Undespawn Units
+        for i = 1, #despawnGroup do
+            local creep = despawnGroup[i]
+
+            if creep ~= nil then
+                GroupEnumUnitsInRange(ug, GetUnitX(creep), GetUnitY(creep), 800., Condition(FilterDespawn))
+                if BlzGroupGetSize(ug) == 0 then
+                    TimerQueue:callDelayed(0.9, Undespawn, creep)
+                    despawnGroup[i] = despawnGroup[#despawnGroup]
+                    despawnGroup[#despawnGroup] = nil
+                    i = i - 1
+                end
+            end
         end
+
+        --add & remove players in dungeon queue
+        if QUEUE_DUNGEON > 0 then
+            local p = User.first
+            local mb = MULTIBOARD.QUEUE
+
+            while p do
+                if IsUnitInRangeXY(Hero[p.id], QUEUE_X, QUEUE_Y, 750.) and UnitAlive(Hero[p.id]) and not Unit[Hero[p.id]].busy then
+                    if TableHas(QUEUE_GROUP, p.player) == false and GetHeroLevel(Hero[p.id]) >= QUEUE_LEVEL then
+                        QUEUE_GROUP[#QUEUE_GROUP + 1] = p.player
+                        mb:addRows(1)
+                        mb:get(mb.rowCount, 1).text = {0.02, 0, 0.09, 0.011}
+                        mb:get(mb.rowCount, 2).icon = {0.26, 0, 0.011, 0.011}
+                        mb.available[p.id] = true
+                        mb:display(p.id)
+                    end
+                elseif TableHas(QUEUE_GROUP, p.player) then
+                    TableRemove(QUEUE_GROUP, p.player)
+                    QUEUE_READY[p.id] = false
+                    mb:delRows(1)
+                    mb.available[p.id] = false
+                    MULTIBOARD.MAIN:display(p.id)
+
+                    if #QUEUE_GROUP <= 0 then
+                        QUEUE_DUNGEON = 0
+                    end
+                end
+
+                p = p.next
+            end
+
+            --Refresh dungeon queue multiboard
+            if #QUEUE_GROUP == 0 then
+                QUEUE_DUNGEON = 0
+            end
+        end
+
+        --refresh multiboard bodies
+        RefreshMB()
+
+        --refresh auras, mana costs, etc.
+        RefreshHeroes()
+
+        DestroyGroup(ug)
     end
 
-    --refresh multiboard bodies
-    RefreshMB()
+    local function Tick()
+        local u = GetMainSelectedUnit() ---@type unit 
 
-    --refresh auras, mana costs, etc.
-    RefreshHeroes()
+        --rarity item borders
+        for i = 0, 5 do
+            local itm = Item[UnitItemInSlot(u, i)]
 
-    DestroyGroup(ug)
-end
+            if itm then
+                BlzFrameSetTexture(INVENTORYBACKDROP[i], (SPRITE_RARITY[itm.level]), 0, true)
+            end
 
-function Tick()
-    local u = GetMainSelectedUnit() ---@type unit 
-
-    --rarity item borders
-    for i = 0, 5 do
-        local itm = Item[UnitItemInSlot(u, i)]
-
-        if itm then
-            BlzFrameSetTexture(INVENTORYBACKDROP[i], SPRITE_RARITY[itm.level], 0, true)
+            BlzFrameSetVisible(INVENTORYBACKDROP[i], (itm and true) or false)
         end
 
-        BlzFrameSetVisible(INVENTORYBACKDROP[i], (itm and true) or false)
+        BlzFrameSetVisible(PUNCHING_BAG_UI, u == PUNCHING_BAG)
+
+        --frame to hide health
+        BlzFrameSetVisible(HIDE_HEALTH_FRAME, (u and Unit[u].noregen))
     end
-
-    BlzFrameSetVisible(PUNCHING_BAG_UI, u == PUNCHING_BAG)
-
-    --frame to hide health
-    BlzFrameSetVisible(HIDE_HEALTH_FRAME, (u and Unit[u].noregen))
-end
 
     TimerQueue:callPeriodically(FPS_64, nil, Tick)
     TimerQueue:callPeriodically(0.35, nil, Periodic)
@@ -533,4 +531,4 @@ end
     TimerQueue:callPeriodically(1800., nil, AFKClock)
 
     WANDER_TIMER:callDelayed(2040. - (User.AmountPlaying * 240), ShadowStepExpire)
-end, Debug.getLine())
+end, Debug and Debug.getLine())
