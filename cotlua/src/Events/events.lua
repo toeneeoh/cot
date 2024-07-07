@@ -18,7 +18,7 @@ OnInit.final("Events", function()
         local unit_actions_mt = { __mode = 'k' } --make keys weak for when units are removed
         local event_mt = { __index = thistype }
 
-        ---@type fun(): EVENT
+        ---@return EVENT
         function thistype.create()
             local self = setmetatable({
                 unit_actions = setmetatable({}, unit_actions_mt),
@@ -73,7 +73,24 @@ OnInit.final("Events", function()
         end
     end
 
-    --event that is called when a unit's stat is changed (either from leveling, UnitTable, or UnitSetBonus)
+    -- event that is called when a unit's stat is changed (either from leveling, UnitTable, or UnitSetBonus)
     EVENT_STAT_CHANGE = EVENT.create() ---@type EVENT
+
+    -- damage specific events
+    EVENT_DUMMY_ON_HIT               = EVENT.create() ---@type EVENT
+    EVENT_ON_HIT_EVADE               = EVENT.create() ---@type EVENT
+    EVENT_ON_HIT                     = EVENT.create() ---@type EVENT
+    EVENT_ON_HIT_MULTIPLIER          = EVENT.create() ---@type EVENT
+    EVENT_ON_HIT_AFTER_REDUCTIONS    = EVENT.create() ---@type EVENT
+    EVENT_ON_HIT_FINAL               = EVENT.create() ---@type EVENT
+    EVENT_ON_STRUCK                  = EVENT.create() ---@type EVENT
+    EVENT_ON_STRUCK_MULTIPLIER       = EVENT.create() ---@type EVENT
+    EVENT_ON_STRUCK_AFTER_REDUCTIONS = EVENT.create() ---@type EVENT
+    EVENT_ON_STRUCK_FINAL            = EVENT.create() ---@type EVENT
+    EVENT_ON_FATAL_DAMAGE            = EVENT.create() ---@type EVENT
+
+    -- death events
+    EVENT_ON_DEATH    = EVENT.create()
+    EVENT_GRAVE_DEATH = EVENT.create()
 
 end, Debug and Debug.getLine())
