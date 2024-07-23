@@ -1,8 +1,8 @@
 --[[
     unittable.lua
 
-    A library that defines the Unit interface that registers newly
-    created units for OO purposes.
+    A library that defines a Unit interface that indexes newly
+    created units.
 ]]
 
 OnInit.final("UnitTable", function(Require)
@@ -50,8 +50,21 @@ OnInit.final("UnitTable", function(Require)
             __mode = 'k'
         })
 
-        --dot method operators
-        local operators = {
+        --dot method get operators
+        local get_operators = {
+            str = function(tbl)
+                return GetHeroStr(tbl.unit, false)
+            end,
+            agi = function(tbl)
+                return GetHeroAgi(tbl.unit, false)
+            end,
+            int = function(tbl)
+                return GetHeroInt(tbl.unit, false)
+            end,
+        }
+
+        --dot method set operators
+        local set_operators = {
             str = function(tbl, val)
                 UnitSetBonus(tbl.unit, BONUS_HERO_BASE_STR, val)
             end,
@@ -98,7 +111,7 @@ OnInit.final("UnitTable", function(Require)
             attack = function(tbl, val)
                 rawset(tbl, "can_attack", val)
 
-                if IS_AUTO_ATTACK_ON[tbl.pid] then
+                if not IS_AUTO_ATTACK_OFF[tbl.pid] then
                     BlzSetUnitWeaponBooleanField(tbl.unit, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, val)
                 end
             end,
@@ -112,12 +125,16 @@ OnInit.final("UnitTable", function(Require)
 
         local mt = {
                 __index = function(tbl, key)
-                    return (rawget(thistype, key) or rawget(tbl.proxy, key))
+                    if get_operators[key] then
+                        return get_operators[key](tbl)
+                    else
+                        return (rawget(thistype, key) or rawget(tbl.proxy, key))
+                    end
                 end,
                 __newindex = function(tbl, key, val)
                     rawset(tbl.proxy, key, val)
-                    if operators[key] then
-                        operators[key](tbl, val)
+                    if set_operators[key] then
+                        set_operators[key](tbl, val)
                     end
 
                     --update life regeneration
@@ -125,7 +142,7 @@ OnInit.final("UnitTable", function(Require)
                 end,
             }
 
-        ---@type fun(u: unit):Unit
+        ---@type fun(u: unit): Unit
         function thistype.create(u)
             local self = {}
 
@@ -136,9 +153,6 @@ OnInit.final("UnitTable", function(Require)
             self.can_attack = true
             self.threat = __jarray(0)
             self.proxy = { --used for __newindex behavior
-                str = GetHeroStr(u, false),
-                agi = GetHeroAgi(u, false),
-                int = GetHeroInt(u, false),
                 evasion = 0,
                 dr = 1., --resists
                 mr = 1.,
@@ -187,107 +201,25 @@ OnInit.final("UnitTable", function(Require)
         Unit[u] = nil
     end
 
-    --TODO move this
-    local function ursa_frost_nova(target, source)
-        IssueTargetOrder(target, "frostnova", source)
-    end
-
-    local function forgotten_one_tentacle(target, source)
-        if GetRandomInt(1, 5) == 1 then
-            IssueImmediateOrder(target, "waterelemental")
-        end
-    end
-
-    local function legion_reality_rip(source, target)
-        local dmg = (IsUnitIllusion(source) and BlzGetUnitMaxHP(target) * 0.0025) or BlzGetUnitMaxHP(target) * 0.005
-        DamageTarget(source, target, dmg, ATTACK_TYPE_NORMAL, MAGIC, "Reality Rip")
-    end
-
-    local function death_knight_decay(source, target)
-        if GetRandomInt(0, 99) < 20 then
-            DamageTarget(source, target, 2500., ATTACK_TYPE_NORMAL, MAGIC, "Decay")
-            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Undead\\AnimateDead\\AnimateDeadTarget.mdl", target, "origin"))
-        end
-    end
-
-    local function hate_spell_reflect(target, source, amount)
-        if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A00S')) <= 0 and amount.value > 10000. then
-            local angle = Atan2(GetUnitY(source) - GetUnitY(target), GetUnitX(source) - GetUnitX(target))
-            local sfx = AddSpecialEffect("war3mapImported\\BoneArmorCasterTC.mdx", GetUnitX(target) + 75. * Cos(angle), GetUnitY(target) + 75. * Sin(angle))
-
-            BlzSetSpecialEffectZ(sfx, BlzGetUnitZ(target) + 80.)
-            BlzSetSpecialEffectColorByPlayer(sfx, Player(0))
-            BlzSetSpecialEffectYaw(sfx, angle)
-            BlzSetSpecialEffectScale(sfx, 0.9)
-            BlzSetSpecialEffectTimeScale(sfx, 3.)
-
-            DestroyEffect(sfx)
-
-            BlzStartUnitAbilityCooldown(target, FourCC('A00S'), 5.)
-            --call DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Human\\ManaShield\\ManaShieldCaster.mdl", target, "origin"))
-            DamageTarget(target, source, math.min(amount.value, 2500), ATTACK_TYPE_NORMAL, MAGIC, "Spell Reflect")
-
-            amount.value = math.max(0, amount.value - 20000)
-        end
-    end
-
-    local function mystic_mana_shield(target, source, amount, amount_after_red)
-        dmg = GetUnitState(target, UNIT_STATE_MANA) - amount_after_red / 3.
-
-        if dmg >= 0. then
-            UnitAddAbility(target, FourCC('A058'))
-            ArcingTextTag.create(RealToString(amount_after_red / 3.), target, 1, 2, 170, 50, 220, 0)
-        else
-            UnitRemoveAbility(target, FourCC('A058'))
-        end
-
-        SetUnitState(target, UNIT_STATE_MANA, math.max(0., dmg))
-
-        amount.value = math.max(0., 0. - dmg * 3.)
-    end
-
     ---@type fun(u: unit)
     function UnitIndex(u)
         if u and not IsDummy(u) and GetUnitAbilityLevel(u, DETECT_LEAVE_ABILITY) == 0 then
+            -- first time setup for abilities
+            local index = 0
+            local abil = BlzGetUnitAbilityByIndex(u, index)
+
+            while abil do
+                local id = BlzGetAbilityId(abil)
+                if Spells[id] then
+                    Spells[id]:setup(u)
+                end
+
+                index = index + 1
+                abil = BlzGetUnitAbilityByIndex(u, index)
+            end
+
             UnitAddAbility(u, DETECT_LEAVE_ABILITY)
             UnitMakeAbilityPermanent(u, true, DETECT_LEAVE_ABILITY)
-
-            --unit one-time initialization here
-            --register ability stats
-            --30% magic resist
-            if GetUnitAbilityLevel(u, FourCC('A04A')) > 0 then
-                Unit[u].mr = Unit[u].mr * 0.7
-            end
-
-            --ursa elder frost nova
-            if GetUnitTypeId(u) == FourCC('nfpe') then
-                EVENT_ON_STRUCK:register_unit_action(u, ursa_frost_nova)
-            end
-
-            --forgotten one tentacle
-            if GetUnitTypeId(u) == FourCC('n08M') then
-                EVENT_ON_STRUCK:register_unit_action(u, forgotten_one_tentacle)
-            end
-
-            --legion reality rip
-            if GetUnitAbilityLevel(u, FourCC('A06M')) > 0 then
-                EVENT_ON_HIT_NO_EVADE:register_unit_action(u, legion_reality_rip)
-            end
-
-            --death knight decay
-            if GetUnitAbilityLevel(u, FourCC('A08N')) > 0 then
-                EVENT_ON_HIT_NO_EVADE:register_unit_action(u, death_knight_decay)
-            end
-
-            --spell reflect (boss_hate) (before reductions)
-            if GetUnitAbilityLevel(u, FourCC('A00S')) > 0 then
-                EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(u, hate_spell_reflect)
-            end
-
-            --mystic mana shield
-            if GetUnitAbilityLevel(u, FourCC('A062')) > 0 then
-                EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(u, mystic_mana_shield)
-            end
         end
     end
 
