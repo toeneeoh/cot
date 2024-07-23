@@ -640,7 +640,7 @@ OnInit.global("Profile", function(Require)
             for i = 0, MAX_INVENTORY_SLOTS - 1 do
                 if self.items[i] then
                     if isImportantItem(self.items[i].obj) then
-                        Item.create(CreateItemLoc(self.items[i].id, TownCenter))
+                        CreateItem(self.items[i].id, GetLocationX(TOWN_CENTER), GetLocationY(TOWN_CENTER))
                     end
                     self.items[i]:destroy()
                     self.items[i] = nil
@@ -668,7 +668,7 @@ OnInit.global("Profile", function(Require)
     ---@type fun(pid: integer, load: boolean)
     function CharacterSetup(pid, load)
         local myHero = Profile[pid].hero ---@type HeroData 
-        local p = Player(pid - 1) 
+        local p = Player(pid - 1)
 
         if load then
             Hero[pid] = CreateUnit(p, SAVE_UNIT_TYPE[myHero.id], GetRectCenterX(gg_rct_ChurchSpawn), GetRectCenterY(gg_rct_ChurchSpawn), 270.)
@@ -696,55 +696,30 @@ OnInit.global("Profile", function(Require)
             SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]))
             SetUnitState(Hero[pid], UNIT_STATE_MANA, BlzGetUnitMaxMana(Hero[pid]))
         else
-            --new characters can save immediately
+            -- new characters can save immediately
             CANNOT_LOAD[pid] = true
-            --set hero values here?
         end
 
-        --hero proficiencies / inner resistances
+        -- hero proficiencies / inner resistances
         Unit[Hero[pid]].mr = HeroStats[HeroID[pid]].magic_resist
         Unit[Hero[pid]].pr = HeroStats[HeroID[pid]].phys_resist
         Unit[Hero[pid]].pm = HeroStats[HeroID[pid]].phys_damage
         Unit[Hero[pid]].cc_flat = HeroStats[HeroID[pid]].crit_chance
         Unit[Hero[pid]].cd_flat = HeroStats[HeroID[pid]].crit_damage
 
-        if HeroID[pid] == HERO_ARCANIST then
-            EVENT_ON_HIT:register_unit_action(Hero[pid], CONTROLTIME.onHit)
-            UnitRemoveAbility(Hero[pid], ARCANECOMETS.id)
-        elseif HeroID[pid] == HERO_MARKSMAN then
-            FLAMINGBETTY.charges[pid] = 2 --default
-        elseif HeroID[pid] == HERO_ROYAL_GUARDIAN then
-            BlzUnitHideAbility(Hero[pid], FourCC('A06K'), true)
-        elseif HeroID[pid] == HERO_OBLIVION_GUARD then
-            BODYOFFIRE.charges[pid] = 5 --default
-
-            if GetLocalPlayer() == Player(pid - 1) then
-                BlzSetAbilityIcon(BODYOFFIRE.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (BODYOFFIRE.charges[pid]) .. ".blp")
-            end
-        elseif HeroID[pid] == HERO_ASSASSIN then
-            EVENT_ON_HIT:register_unit_action(Hero[pid], BLADESPIN.onHit)
-            UnitRemoveAbility(Hero[pid], BLADESPIN.id)
-        elseif HeroID[pid] == HERO_MASTER_ROGUE then
-            Unit[Hero[pid]].cc_percent = 1.2
-            INSTANTDEATH.apply(Hero[pid], pid)
-        elseif HeroID[pid] == HERO_VAMPIRE then
-            EVENT_ON_HIT:register_unit_action(Hero[pid], BLOODBANK.onHit)
-            EVENT_STAT_CHANGE:register_unit_action(Hero[pid], BLOODBANK.refresh)
-        end
-
         HERO_GROUP[#HERO_GROUP + 1] = Hero[pid]
         SetPrestigeEffects(pid)
         Colosseum_XP[pid] = 1.00
 
-        --grave
+        -- grave
         HeroGrave[pid] = CreateUnit(p, GRAVE, 30000, 30000, 270)
         SuspendHeroXP(HeroGrave[pid], true)
         ShowUnit(HeroGrave[pid], false)
 
-        --backpack
+        -- backpack
         Backpack[pid] = CreateUnit(p, BACKPACK, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 0)
 
-        --show backpack hero panel only for player
+        -- show backpack hero panel only for player
         if GetLocalPlayer() == p then
             EnablePreSelect(true, true)
             EnableSelect(true, true)
@@ -772,7 +747,7 @@ OnInit.global("Profile", function(Require)
         UnitAddAbility(Backpack[pid], FourCC('A0DT'))
         UnitAddAbility(Backpack[pid], FourCC('A05N'))
 
-        --prevent actions disappearing on meta
+        -- prevent actions disappearing on meta
         UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A03C'))
         UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A03V'))
         UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A0L0'))
@@ -792,9 +767,9 @@ OnInit.global("Profile", function(Require)
         SetUnitAbilityLevel(Backpack[pid], TELEPORT.id, IMaxBJ(1, myHero.teleport))
         SetUnitAbilityLevel(Backpack[pid], FourCC('A0FK'), IMaxBJ(1, myHero.reveal))
 
-        --load items
+        -- load items
         if load then
-            --load saved bp skin
+            -- load saved bp skin
             if CosmeticTable[User[p].name][myHero.skin] > 0 then
                 Profile[pid]:skin(myHero.skin)
             end
@@ -812,7 +787,7 @@ OnInit.global("Profile", function(Require)
             end
         end
 
-        --heal to max
+        -- heal to max
         SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]))
         SetUnitState(Hero[pid], UNIT_STATE_MANA, (HeroID[pid] ~= HERO_VAMPIRE and BlzGetUnitMaxMana(Hero[pid])) or 0)
     end
