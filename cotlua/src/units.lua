@@ -2,850 +2,16 @@
     units.lua
 
     A library that spawns units and does any necessary setup related to units.
-    Sets up shops, bosses, NPCs, enemy data, etc.
+    Sets up creeps, bosses, NPCs, etc.
 ]]
 
 OnInit.final("Units", function(Require)
     Require('Shop')
     Require('Items')
-    Require('HeroSpells')
-    Require('Events')
+    Require('Damage')
 
-    BossTable           = {} ---@type table[]
-    BossNearbyPlayers   = __jarray(0) ---@type integer[] 
-    REGION_GAP          = 25 ---@type integer 
-    --group Sins = CreateGroup()
-
-    local function ShopSetup()
-        local sword ---@type integer 
-        local heavy ---@type integer 
-        local dagger ---@type integer 
-        local bow ---@type integer 
-        local staff ---@type integer 
-        local plate ---@type integer 
-        local fullplate ---@type integer 
-        local leather ---@type integer 
-        local cloth ---@type integer 
-        local Shield ---@type integer 
-        local misc ---@type integer 
-        local sets ---@type integer 
-        local id         = FourCC('n02C')  ---@type integer --town smith
-        local id2         = FourCC('n09D')  ---@type integer --reclusive blacksmith
-        local id3         = FourCC('n01F')  ---@type integer --evil shopkeeper
-
-        --TODO setup prices beforehand
-        ItemPrices[FourCC('I02B')][GOLD] = 20000
-        ItemPrices[FourCC('I02C')][GOLD] = 20000
-        ItemPrices[FourCC('I0EY')][GOLD] = 20000
-        ItemPrices[FourCC('I074')][GOLD] = 20000
-        ItemPrices[FourCC('I03U')][GOLD] = 20000
-        ItemPrices[FourCC('I07F')][GOLD] = 20000
-        ItemPrices[FourCC('I03P')][GOLD] = 20000
-        ItemPrices[FourCC('I0F9')][GOLD] = 20000
-        ItemPrices[FourCC('I079')][GOLD] = 20000
-        ItemPrices[FourCC('I0FC')][GOLD] = 20000
-        ItemPrices[FourCC('I00A')][GOLD] = 80000
-        ItemPrices[FourCC('I0JR')][GOLD] = 100000
-        ItemPrices[FourCC('I0JR')][LUMBER] = 100000
-        ItemPrices[FourCC('I08K')][GOLD] = 100000
-        ItemPrices[FourCC('I08K')][LUMBER] = 100000
-        ItemPrices[FourCC('I0F4')][GOLD] = 100000
-        ItemPrices[FourCC('I0F4')][LUMBER] = 100000
-        ItemPrices[FourCC('I0F5')][GOLD] = 100000
-        ItemPrices[FourCC('I0F5')][LUMBER] = 100000
-        ItemPrices[FourCC('I012')][GOLD] = 150000
-        ItemPrices[FourCC('I012')][LUMBER] = 150000
-        ItemPrices[FourCC('I04J')][GOLD] = 400000
-        ItemPrices[FourCC('I04J')][LUMBER] = 200000
-
-        CreateShop(id, 1000., 0.5)
-        CreateShop(id2, 1000., 0.5)
-        evilshop = CreateShop(id3, 1000., 0.5)
-
-        sword = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNThoriumMelee.blp", "Sword")
-        heavy = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNImprovedStrengthOfTheMoon.tga", "Heavy")
-        dagger = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNDaggerOfEscape.blp", "Dagger")
-        bow = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNScoutsBow.blp", "Bow")
-        staff = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNWitchDoctorAdept.blp", "Staff")
-        plate = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNAdvancedMoonArmor.blp", "Plate")
-        fullplate = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNArmorGolem.blp", "Fullplate")
-        leather = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNLeatherUpgradeOne.blp", "Leather")
-        cloth = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNMantleOfIntelligence.blp", "Cloth")
-        Shield = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNHumanArmorUpTwo.blp", "Shield")
-        misc = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNCrystalBall.blp", "Miscellaneous")
-        sets = ShopAddCategory(id, "ReplaceableTextures\\CommandButtons\\BTNManaShield.blp", "Sets")
-        --reclusive blacksmith
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNThoriumMelee.blp", "Sword")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNImprovedStrengthOfTheMoon.tga", "Heavy")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNDaggerOfEscape.blp", "Dagger")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNScoutsBow.blp", "Bow")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNWitchDoctorAdept.blp", "Staff")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNAdvancedMoonArmor.blp", "Plate")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNArmorGolem.blp", "Fullplate")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNLeatherUpgradeOne.blp", "Leather")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNMantleOfIntelligence.blp", "Cloth")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNHumanArmorUpTwo.blp", "Shield")
-        ShopAddCategory(id2, "ReplaceableTextures\\CommandButtons\\BTNCrystalBall.blp", "Miscellaneous")
-        --evil shopkeeper
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNThoriumMelee.blp", "Sword")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNImprovedStrengthOfTheMoon.tga", "Heavy")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNDaggerOfEscape.blp", "Dagger")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNScoutsBow.blp", "Bow")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNWitchDoctorAdept.blp", "Staff")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNAdvancedMoonArmor.blp", "Plate")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNArmorGolem.blp", "Fullplate")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNLeatherUpgradeOne.blp", "Leather")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNMantleOfIntelligence.blp", "Cloth")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNHumanArmorUpTwo.blp", "Shield")
-        ShopAddCategory(id3, "ReplaceableTextures\\CommandButtons\\BTNCrystalBall.blp", "Miscellaneous")
-
-        --ursa components
-        ShopAddItem(id, FourCC('I06T'), sword)
-        ShopAddItem(id, FourCC('I034'), heavy)
-        ShopAddItem(id, FourCC('I0FG'), dagger)
-        ShopAddItem(id, FourCC('I06R'), bow)
-        ShopAddItem(id, FourCC('I0FT'), staff)
-        ShopAddItem(id, FourCC('I035'), plate)
-        ShopAddItem(id, FourCC('I0FQ'), fullplate)
-        ShopAddItem(id, FourCC('I0FO'), leather)
-        ShopAddItem(id, FourCC('I07O'), cloth)
-
-        --ursa sets
-        --sword
-        ItemPrices[FourCC('I0H5')][GOLD] = 2000
-        ShopAddItem(id, FourCC('I0H5'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0H5'), "I06T I06T I06T I035 I035 I034")
-        --heavy
-        ItemPrices[FourCC('I0H6')][GOLD] = 2000
-        ShopAddItem(id, FourCC('I0H6'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0H6'), "I0FQ I0FQ I0FQ I034 I034 I035")
-        --dagger
-        ItemPrices[FourCC('I0H7')][GOLD] = 2000
-        ShopAddItem(id, FourCC('I0H7'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0H7'), "I0FG I0FG I0FG I0FO I0FO I0FO")
-        --bow
-        ItemPrices[FourCC('I0H8')][GOLD] = 2000
-        ShopAddItem(id, FourCC('I0H8'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0H8'), "I06R I06R I06R I0FO I0FO I0FO")
-        --staff
-        ItemPrices[FourCC('I0H9')][GOLD] = 2000
-        ShopAddItem(id, FourCC('I0H9'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0H9'), "I0FT I0FT I0FT I07O I07O I07O")
-
-        --ogre components
-        ShopAddItem(id, FourCC('I08B'), sword)
-        ShopAddItem(id, FourCC('I08I'), heavy)
-        ShopAddItem(id, FourCC('I08F'), dagger)
-        ShopAddItem(id, FourCC('I08E'), bow)
-        ShopAddItem(id, FourCC('I0FE'), staff)
-        ShopAddItem(id, FourCC('I0FD'), plate)
-        ShopAddItem(id, FourCC('I08R'), fullplate)
-        ShopAddItem(id, FourCC('I07Y'), leather)
-        ShopAddItem(id, FourCC('I07W'), cloth)
-
-        --ogre sets
-        --sword
-        ItemPrices[FourCC('I0HA')][GOLD] = 8000
-        ShopAddItem(id, FourCC('I0HA'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0HA'), "I08B I08B I08B I0FD I0FD I08I")
-        --heavy
-        ItemPrices[FourCC('I0HB')][GOLD] = 8000
-        ShopAddItem(id, FourCC('I0HB'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0HB'), "I08R I08R I08R I08I I08I I0FD")
-        --dagger
-        ItemPrices[FourCC('I0HC')][GOLD] = 8000
-        ShopAddItem(id, FourCC('I0HC'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0HC'), "I08F I08F I08F I07Y I07Y I07Y")
-        --bow
-        ItemPrices[FourCC('I0HD')][GOLD] = 8000
-        ShopAddItem(id, FourCC('I0HD'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0HD'), "I08E I08E I08E I07Y I07Y I07Y")
-        --staff
-        ItemPrices[FourCC('I0HE')][GOLD] = 8000
-        ShopAddItem(id, FourCC('I0HE'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0HE'), "I0FE I0FE I0FE I07W I07W I07W")
-
-        --unbroken components
-        ShopAddItem(id, FourCC('I02E'), sword)
-        ShopAddItem(id, FourCC('I023'), heavy)
-        ShopAddItem(id, FourCC('I011'), dagger)
-        ShopAddItem(id, FourCC('I00S'), bow)
-        ShopAddItem(id, FourCC('I00Z'), staff)
-        ShopAddItem(id, FourCC('I01W'), plate)
-        ShopAddItem(id, FourCC('I0FS'), fullplate)
-        ShopAddItem(id, FourCC('I0FY'), leather)
-        ShopAddItem(id, FourCC('I0FR'), cloth)
-
-        --unbroken sets
-        --sword
-        ItemPrices[FourCC('I0HF')][GOLD] = 32000
-        ShopAddItem(id, FourCC('I0HF'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0HF'), "I02E I02E I02E I01W I01W I023")
-        --heavy
-        ItemPrices[FourCC('I0HG')][GOLD] = 32000
-        ShopAddItem(id, FourCC('I0HG'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0HG'), "I0FS I0FS I0FS I023 I023 I01W")
-        --dagger
-        ItemPrices[FourCC('I0HH')][GOLD] = 32000
-        ShopAddItem(id, FourCC('I0HH'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0HH'), "I011 I011 I011 I0FY I0FY I0FY")
-        --bow
-        ItemPrices[FourCC('I0HI')][GOLD] = 32000
-        ShopAddItem(id, FourCC('I0HI'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0HI'), "I00S I00S I00S I0FY I0FY I0FY")
-        --staff
-        ItemPrices[FourCC('I0HJ')][GOLD] = 32000
-        ShopAddItem(id, FourCC('I0HJ'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0HJ'), "I00Z I00Z I00Z I0FR I0FR I0FR")
-
-        --magnataur components
-        ShopAddItem(id, FourCC('I06J'), sword)
-        ShopAddItem(id, FourCC('I06I'), heavy)
-        ShopAddItem(id, FourCC('I06L'), dagger)
-        ShopAddItem(id, FourCC('I06K'), bow)
-        ShopAddItem(id, FourCC('I07H'), staff)
-        ShopAddItem(id, FourCC('I01Q'), plate)
-        ShopAddItem(id, FourCC('I01N'), fullplate)
-        ShopAddItem(id, FourCC('I019'), leather)
-        ShopAddItem(id, FourCC('I015'), cloth)
-
-        --magnataur sets
-        --sword
-        ItemPrices[FourCC('I0HK')][GOLD] = 100000
-        ShopAddItem(id, FourCC('I0HK'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0HK'), "I06J I06J I06J I01Q I01Q I06I")
-        --heavy
-        ItemPrices[FourCC('I0HL')][GOLD] = 100000
-        ShopAddItem(id, FourCC('I0HL'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0HL'), "I01N I01N I01N I06I I06I I01Q")
-        --dagger
-        ItemPrices[FourCC('I0HM')][GOLD] = 100000
-        ShopAddItem(id, FourCC('I0HM'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0HM'), "I06L I06L I06L I019 I019 I019")
-        --bow
-        ItemPrices[FourCC('I0HN')][GOLD] = 100000
-        ShopAddItem(id, FourCC('I0HN'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0HN'), "I06K I06K I06K I019 I019 I019")
-        --staff
-        ItemPrices[FourCC('I0HO')][GOLD] = 100000
-        ShopAddItem(id, FourCC('I0HO'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0HO'), "I07H I07H I07H I015 I015 I015")
-
-        --devourer components
-        ShopAddItem(id, FourCC('I009'), sword)
-        ShopAddItem(id, FourCC('I006'), heavy)
-        ShopAddItem(id, FourCC('I00W'), dagger)
-        ShopAddItem(id, FourCC('I02W'), bow)
-        ShopAddItem(id, FourCC('I02V'), staff)
-        ShopAddItem(id, FourCC('I013'), plate)
-        ShopAddItem(id, FourCC('I017'), fullplate)
-        ShopAddItem(id, FourCC('I01P'), leather)
-        ShopAddItem(id, FourCC('I02I'), cloth)
-
-        --devourer sets
-        --sword
-        ItemPrices[FourCC('I04R')][GOLD] = 200000
-        ShopAddItem(id, FourCC('I04R'), sets + sword + plate)
-        ItemAddComponents(FourCC('I04R'), "I009 I009 I009 I013 I013 I017")
-        --heavy
-        ItemPrices[FourCC('I04K')][GOLD] = 200000
-        ShopAddItem(id, FourCC('I04K'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I04K'), "I006 I006 I006 I017 I017 I013")
-        --dagger
-        ItemPrices[FourCC('I047')][GOLD] = 200000
-        ShopAddItem(id, FourCC('I047'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I047'), "I00W I00W I00W I01P I01P I01P")
-        --bow
-        ItemPrices[FourCC('I02J')][GOLD] = 200000
-        ShopAddItem(id, FourCC('I02J'), sets + bow + leather)
-        ItemAddComponents(FourCC('I02J'), "I02W I02W I02W I01P I01P I01P")
-        --staff
-        ItemPrices[FourCC('I04P')][GOLD] = 200000
-        ShopAddItem(id, FourCC('I04P'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I04P'), "I02V I02V I02V I02I I02I I02I")
-
-        --shopkeeper components
-        ShopAddItem(id3, FourCC('I02B'), sword)
-        ShopAddItem(id3, FourCC('I02C'), plate)
-        ShopAddItem(id3, FourCC('I0EY'), bow)
-        ShopAddItem(id3, FourCC('I074'), dagger)
-        ShopAddItem(id3, FourCC('I03U'), staff)
-        ShopAddItem(id3, FourCC('I07F'), cloth)
-        ShopAddItem(id3, FourCC('I03P'), heavy)
-        ShopAddItem(id3, FourCC('I0F9'), misc)
-        ShopAddItem(id3, FourCC('I079'), heavy)
-        ShopAddItem(id3, FourCC('I0FC'), heavy)
-        ShopAddItem(id3, FourCC('I00A'), misc)
-
-        --godslayer set
-        ShopAddItem(id, FourCC('I0JR'), sets + plate)
-        ItemAddComponents(FourCC('I0JR'), "I02B I02C I02O")
-
-        --dwarven set
-        ShopAddItem(id, FourCC('I08K'), sets + fullplate)
-        ItemAddComponents(FourCC('I08K'), "I079 I0FC I07B")
-
-        --dragoon set
-        ShopAddItem(id, FourCC('I0F4'), sets + leather)
-        ItemAddComponents(FourCC('I0F4'), "I0EY I074 I04N I0EX")
-
-        --forgotten mystic set
-        ShopAddItem(id, FourCC('I0F5'), sets + cloth)
-        ItemAddComponents(FourCC('I0F5'), "I03U I07F I0F3")
-
-        --paladin set
-        ShopAddItem(id, FourCC('I012'), sets + Shield)
-        ItemAddComponents(FourCC('I012'), "I03P I0FX I0C0 I0F9")
-
-        --aura of gods
-        ShopAddItem(id, FourCC('I04J'), sets + misc)
-        ItemAddComponents(FourCC('I04J'), "I00A I030 I04I I031 I02Z")
-
-        --demon components
-        ShopAddItem(id, FourCC('I06S'), sword)
-        ShopAddItem(id, FourCC('I04T'), heavy)
-        ShopAddItem(id, FourCC('I06U'), dagger)
-        ShopAddItem(id, FourCC('I06O'), bow)
-        ShopAddItem(id, FourCC('I06Q'), staff)
-        ShopAddItem(id, FourCC('I073'), plate)
-        ShopAddItem(id, FourCC('I075'), fullplate)
-        ShopAddItem(id, FourCC('I06Z'), leather)
-        ShopAddItem(id, FourCC('I06W'), cloth)
-
-        --demon sets
-        --sword
-        ItemPrices[FourCC('I0CK')][GOLD] = 250000
-        ItemPrices[FourCC('I0CK')][LUMBER] = 125000
-        ShopAddItem(id, FourCC('I0CK'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0CK'), "I06S I06S I06S I073 I073 I04T")
-        --heavy
-        ItemPrices[FourCC('I0BN')][GOLD] = 250000
-        ItemPrices[FourCC('I0BN')][LUMBER] = 125000
-        ShopAddItem(id, FourCC('I0BN'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0BN'), "I075 I075 I075 I04T I04T I073")
-        --dagger
-        ItemPrices[FourCC('I0BO')][GOLD] = 250000
-        ItemPrices[FourCC('I0BO')][LUMBER] = 125000
-        ShopAddItem(id, FourCC('I0BO'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0BO'), "I06U I06U I06U I06Z I06Z I06Z")
-        --bow
-        ItemPrices[FourCC('I0CU')][GOLD] = 250000
-        ItemPrices[FourCC('I0CU')][LUMBER] = 125000
-        ShopAddItem(id, FourCC('I0CU'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0CU'), "I06O I06O I06O I06Z I06Z I06Z")
-        --staff
-        ItemPrices[FourCC('I0CT')][GOLD] = 250000
-        ItemPrices[FourCC('I0CT')][LUMBER] = 125000
-        ShopAddItem(id, FourCC('I0CT'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0CT'), "I06Q I06Q I06Q I06W I06W I06W")
-
-        --horror components
-        ShopAddItem(id, FourCC('I07M'), sword)
-        ShopAddItem(id, FourCC('I07A'), heavy)
-        ShopAddItem(id, FourCC('I07L'), dagger)
-        ShopAddItem(id, FourCC('I07P'), bow)
-        ShopAddItem(id, FourCC('I077'), staff)
-        ShopAddItem(id, FourCC('I07E'), plate)
-        ShopAddItem(id, FourCC('I07I'), fullplate)
-        ShopAddItem(id, FourCC('I07G'), leather)
-        ShopAddItem(id, FourCC('I07C'), cloth)
-        ShopAddItem(id, FourCC('I07K'), misc)
-        ShopAddItem(id, FourCC('I05D'), Shield)
-
-        --horror sets
-        --sword
-        ItemPrices[FourCC('I0CV')][GOLD] = 500000
-        ItemPrices[FourCC('I0CV')][LUMBER] = 250000
-        ShopAddItem(id, FourCC('I0CV'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0CV'), "I07M I07M I07M I07E I07E I07A I07A")
-        --heavy
-        ItemPrices[FourCC('I0C2')][GOLD] = 500000
-        ItemPrices[FourCC('I0C2')][LUMBER] = 250000
-        ShopAddItem(id, FourCC('I0C2'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0C2'), "I07I I07I I07I I07A I07A I07E I05D")
-        --dagger
-        ItemPrices[FourCC('I0C1')][GOLD] = 500000
-        ItemPrices[FourCC('I0C1')][LUMBER] = 250000
-        ShopAddItem(id, FourCC('I0C1'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0C1'), "I07L I07L I07L I07G I07G I07G I07K")
-        --bow
-        ItemPrices[FourCC('I0CW')][GOLD] = 500000
-        ItemPrices[FourCC('I0CW')][LUMBER] = 250000
-        ShopAddItem(id, FourCC('I0CW'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0CW'), "I07P I07P I07P I07G I07G I07G I07K")
-        --staff
-        ItemPrices[FourCC('I0CX')][GOLD] = 500000
-        ItemPrices[FourCC('I0CX')][LUMBER] = 250000
-        ShopAddItem(id, FourCC('I0CX'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0CX'), "I077 I077 I077 I07C I07C I07C I07K")
-
-        --despair components
-        ShopAddItem(id, FourCC('I07V'), sword)
-        ShopAddItem(id, FourCC('I07X'), heavy)
-        ShopAddItem(id, FourCC('I07Z'), dagger)
-        ShopAddItem(id, FourCC('I07R'), bow)
-        ShopAddItem(id, FourCC('I07T'), staff)
-        ShopAddItem(id, FourCC('I087'), plate)
-        ShopAddItem(id, FourCC('I089'), fullplate)
-        ShopAddItem(id, FourCC('I083'), leather)
-        ShopAddItem(id, FourCC('I081'), cloth)
-        ShopAddItem(id, FourCC('I05P'), misc)
-
-        --despair sets
-        --sword
-        ItemPrices[FourCC('I0CY')][GOLD] = 500000
-        ItemPrices[FourCC('I0CY')][PLATINUM] = 1
-        ItemPrices[FourCC('I0CY')][LUMBER] = 750000
-        ItemPrices[FourCC('I0CY')][CRYSTAL] = 1
-        ShopAddItem(id, FourCC('I0CY'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0CY'), "I07V I07V I07V I087 I087 I07X")
-        --heavy
-        ItemPrices[FourCC('I0BQ')][GOLD] = 500000
-        ItemPrices[FourCC('I0BQ')][PLATINUM] = 1
-        ItemPrices[FourCC('I0BQ')][LUMBER] = 750000
-        ItemPrices[FourCC('I0BQ')][CRYSTAL] = 1
-        ShopAddItem(id, FourCC('I0BQ'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0BQ'), "I089 I089 I089 I07X I07X I087")
-        --dagger
-        ItemPrices[FourCC('I0BP')][GOLD] = 500000
-        ItemPrices[FourCC('I0BP')][PLATINUM] = 1
-        ItemPrices[FourCC('I0BP')][LUMBER] = 750000
-        ItemPrices[FourCC('I0BP')][CRYSTAL] = 1
-        ShopAddItem(id, FourCC('I0BP'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0BP'), "I07Z I07Z I07Z I083 I083 I083")
-        --bow
-        ItemPrices[FourCC('I0CZ')][GOLD] = 500000
-        ItemPrices[FourCC('I0CZ')][PLATINUM] = 1
-        ItemPrices[FourCC('I0CZ')][LUMBER] = 750000
-        ItemPrices[FourCC('I0CZ')][CRYSTAL] = 1
-        ShopAddItem(id, FourCC('I0CZ'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0CZ'), "I07R I07R I07R I083 I083 I083")
-        --staff
-        ItemPrices[FourCC('I0D3')][GOLD] = 500000
-        ItemPrices[FourCC('I0D3')][PLATINUM] = 1
-        ItemPrices[FourCC('I0D3')][LUMBER] = 750000
-        ItemPrices[FourCC('I0D3')][CRYSTAL] = 1
-        ShopAddItem(id, FourCC('I0D3'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0D3'), "I07T I07T I07T I081 I081 I081")
-
-        --abyssal components
-        ShopAddItem(id, FourCC('I06A'), sword)
-        ShopAddItem(id, FourCC('I06D'), heavy)
-        ShopAddItem(id, FourCC('I06B'), dagger)
-        ShopAddItem(id, FourCC('I06C'), bow)
-        ShopAddItem(id, FourCC('I09N'), staff)
-        ShopAddItem(id, FourCC('I09X'), plate)
-        ShopAddItem(id, FourCC('I0A0'), fullplate)
-        ShopAddItem(id, FourCC('I0A2'), leather)
-        ShopAddItem(id, FourCC('I0A5'), cloth)
-
-        --abyssal sets
-        --sword
-        ItemPrices[FourCC('I0C9')][PLATINUM] = 3
-        ItemPrices[FourCC('I0C9')][ARCADITE] = 1
-        ItemPrices[FourCC('I0C9')][LUMBER] = 500000
-        ItemPrices[FourCC('I0C9')][CRYSTAL] = 2
-        ShopAddItem(id, FourCC('I0C9'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0C9'), "I06A I06A I06A I09X I09X I06D")
-        --heavy
-        ItemPrices[FourCC('I0C8')][PLATINUM] = 3
-        ItemPrices[FourCC('I0C8')][ARCADITE] = 1
-        ItemPrices[FourCC('I0C8')][LUMBER] = 500000
-        ItemPrices[FourCC('I0C8')][CRYSTAL] = 2
-        ShopAddItem(id, FourCC('I0C8'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0C8'), "I0A0 I0A0 I0A0 I06D I06D I09X")
-        --dagger
-        ItemPrices[FourCC('I0C7')][PLATINUM] = 3
-        ItemPrices[FourCC('I0C7')][ARCADITE] = 1
-        ItemPrices[FourCC('I0C7')][LUMBER] = 500000
-        ItemPrices[FourCC('I0C7')][CRYSTAL] = 2
-        ShopAddItem(id, FourCC('I0C7'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0C7'), "I06B I06B I06B I0A2 I0A2 I0A2")
-        --bow
-        ItemPrices[FourCC('I0C6')][PLATINUM] = 3
-        ItemPrices[FourCC('I0C6')][ARCADITE] = 1
-        ItemPrices[FourCC('I0C6')][LUMBER] = 500000
-        ItemPrices[FourCC('I0C6')][CRYSTAL] = 2
-        ShopAddItem(id, FourCC('I0C6'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0C6'), "I06C I06C I06C I0A2 I0A2 I0A2")
-        --staff
-        ItemPrices[FourCC('I0C5')][PLATINUM] = 3
-        ItemPrices[FourCC('I0C5')][ARCADITE] = 1
-        ItemPrices[FourCC('I0C5')][LUMBER] = 500000
-        ItemPrices[FourCC('I0C5')][CRYSTAL] = 2
-        ShopAddItem(id, FourCC('I0C5'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0C5'), "I09N I09N I09N I0A5 I0A5 I0A5")
-
-        --void components
-        ShopAddItem(id, FourCC('I08C'), sword)
-        ShopAddItem(id, FourCC('I08D'), heavy)
-        ShopAddItem(id, FourCC('I08J'), dagger)
-        ShopAddItem(id, FourCC('I08H'), bow)
-        ShopAddItem(id, FourCC('I08G'), staff)
-        ShopAddItem(id, FourCC('I08S'), plate)
-        ShopAddItem(id, FourCC('I08U'), fullplate)
-        ShopAddItem(id, FourCC('I08O'), leather)
-        ShopAddItem(id, FourCC('I08M'), cloth)
-        ShopAddItem(id, FourCC('I055'), misc)
-        ShopAddItem(id, FourCC('I04Y'), misc)
-        ShopAddItem(id, FourCC('I08N'), misc)
-        ShopAddItem(id, FourCC('I04W'), Shield)
-
-        --void sets
-        --sword
-        ItemPrices[FourCC('I0D7')][PLATINUM] = 6
-        ItemPrices[FourCC('I0D7')][ARCADITE] = 3
-        ItemPrices[FourCC('I0D7')][CRYSTAL] = 3
-        ShopAddItem(id, FourCC('I0D7'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0D7'), "I08C I08C I08C I08S I08S I08D I055")
-        --heavy
-        ItemPrices[FourCC('I0C4')][PLATINUM] = 6
-        ItemPrices[FourCC('I0C4')][ARCADITE] = 3
-        ItemPrices[FourCC('I0C4')][CRYSTAL] = 3
-        ShopAddItem(id, FourCC('I0C4'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0C4'), "I08U I08U I08U I08D I08D I08S I04W")
-        --dagger
-        ItemPrices[FourCC('I0C3')][PLATINUM] = 6
-        ItemPrices[FourCC('I0C3')][ARCADITE] = 3
-        ItemPrices[FourCC('I0C3')][CRYSTAL] = 3
-        ShopAddItem(id, FourCC('I0C3'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0C3'), "I08J I08J I08J I08O I08O I08O I055")
-        --bow
-        ItemPrices[FourCC('I0D5')][PLATINUM] = 6
-        ItemPrices[FourCC('I0D5')][ARCADITE] = 3
-        ItemPrices[FourCC('I0D5')][CRYSTAL] = 3
-        ShopAddItem(id, FourCC('I0D5'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0D5'), "I08H I08H I08H I08O I08O I08O I055")
-        --staff
-        ItemPrices[FourCC('I0D6')][PLATINUM] = 6
-        ItemPrices[FourCC('I0D6')][ARCADITE] = 3
-        ItemPrices[FourCC('I0D6')][CRYSTAL] = 3
-        ShopAddItem(id, FourCC('I0D6'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0D6'), "I08G I08G I08G I08M I08M I08M I04Y")
-
-        --nightmare components
-        ShopAddItem(id, FourCC('I09P'), sword)
-        ShopAddItem(id, FourCC('I09V'), heavy)
-        ShopAddItem(id, FourCC('I09R'), dagger)
-        ShopAddItem(id, FourCC('I09S'), bow)
-        ShopAddItem(id, FourCC('I09T'), staff)
-        ShopAddItem(id, FourCC('I0A7'), plate)
-        ShopAddItem(id, FourCC('I0A9'), fullplate)
-        ShopAddItem(id, FourCC('I0AC'), leather)
-        ShopAddItem(id, FourCC('I0AB'), cloth)
-
-        --nightmare sets
-        --sword
-        ItemPrices[FourCC('I0CB')][PLATINUM] = 10
-        ItemPrices[FourCC('I0CB')][ARCADITE] = 6
-        ItemPrices[FourCC('I0CB')][CRYSTAL] = 6
-        ShopAddItem(id, FourCC('I0CB'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0CB'), "I09P I09P I09P I09P I0A7 I0A7 I09V")
-        --heavy
-        ItemPrices[FourCC('I0CA')][PLATINUM] = 10
-        ItemPrices[FourCC('I0CA')][ARCADITE] = 6
-        ItemPrices[FourCC('I0CA')][CRYSTAL] = 6
-        ShopAddItem(id, FourCC('I0CA'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0CA'), "I0A9 I0A9 I0A9 I09V I09V I09V I0A7")
-        --dagger
-        ItemPrices[FourCC('I0CD')][PLATINUM] = 10
-        ItemPrices[FourCC('I0CD')][ARCADITE] = 6
-        ItemPrices[FourCC('I0CD')][CRYSTAL] = 6
-        ShopAddItem(id, FourCC('I0CD'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0CD'), "I09R I09R I09R I09R I0AC I0AC I0AC")
-        --bow
-        ItemPrices[FourCC('I0CE')][PLATINUM] = 10
-        ItemPrices[FourCC('I0CE')][ARCADITE] = 6
-        ItemPrices[FourCC('I0CE')][CRYSTAL] = 6
-        ShopAddItem(id, FourCC('I0CE'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0CE'), "I09S I09S I09S I09S I0AC I0AC I0AC")
-        --staff
-        ItemPrices[FourCC('I0CF')][PLATINUM] = 10
-        ItemPrices[FourCC('I0CF')][ARCADITE] = 6
-        ItemPrices[FourCC('I0CF')][CRYSTAL] = 6
-        ShopAddItem(id, FourCC('I0CF'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0CF'), "I09T I09T I09T I09T I0AB I0AB I0AB")
-
-        --hell components
-        ShopAddItem(id, FourCC('I05G'), sword)
-        ShopAddItem(id, FourCC('I08W'), heavy)
-        ShopAddItem(id, FourCC('I08Z'), dagger)
-        ShopAddItem(id, FourCC('I091'), bow)
-        ShopAddItem(id, FourCC('I093'), staff)
-        ShopAddItem(id, FourCC('I097'), plate)
-        ShopAddItem(id, FourCC('I098'), leather)
-        ShopAddItem(id, FourCC('I05H'), fullplate)
-        ShopAddItem(id, FourCC('I095'), cloth)
-        ShopAddItem(id, FourCC('I05I'), misc)
-
-        --hell sets
-        --sword
-        ItemPrices[FourCC('I0D8')][PLATINUM] = 15
-        ItemPrices[FourCC('I0D8')][ARCADITE] = 10
-        ItemPrices[FourCC('I0D8')][CRYSTAL] = 10
-        ShopAddItem(id, FourCC('I0D8'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0D8'), "I05G I05G I05G I097 I097 I08W I05I")
-        --heavy
-        ItemPrices[FourCC('I0BW')][PLATINUM] = 15
-        ItemPrices[FourCC('I0BW')][ARCADITE] = 10
-        ItemPrices[FourCC('I0BW')][CRYSTAL] = 10
-        ShopAddItem(id, FourCC('I0BW'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0BW'), "I05H I05H I05H I08W I08W I08W I097")
-        --dagger
-        ItemPrices[FourCC('I0BU')][PLATINUM] = 15
-        ItemPrices[FourCC('I0BU')][ARCADITE] = 10
-        ItemPrices[FourCC('I0BU')][CRYSTAL] = 10
-        ShopAddItem(id, FourCC('I0BU'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0BU'), "I08Z I08Z I08Z I098 I098 I098 I05I")
-        --bow
-        ItemPrices[FourCC('I0DK')][PLATINUM] = 15
-        ItemPrices[FourCC('I0DK')][ARCADITE] = 10
-        ItemPrices[FourCC('I0DK')][CRYSTAL] = 10
-        ShopAddItem(id, FourCC('I0DK'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0DK'), "I091 I091 I091 I098 I098 I098 I05I")
-        --staff
-        ItemPrices[FourCC('I0DJ')][PLATINUM] = 15
-        ItemPrices[FourCC('I0DJ')][ARCADITE] = 10
-        ItemPrices[FourCC('I0DJ')][CRYSTAL] = 10
-        ShopAddItem(id, FourCC('I0DJ'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0DJ'), "I093 I093 I093 I093 I095 I095 I095")
-
-        --existence components
-        ShopAddItem(id, FourCC('I09K'), sword)
-        ShopAddItem(id, FourCC('I09M'), heavy)
-        ShopAddItem(id, FourCC('I09I'), dagger)
-        ShopAddItem(id, FourCC('I09G'), bow)
-        ShopAddItem(id, FourCC('I09E'), staff)
-        ShopAddItem(id, FourCC('I09U'), plate)
-        ShopAddItem(id, FourCC('I09W'), fullplate)
-        ShopAddItem(id, FourCC('I09Q'), leather)
-        ShopAddItem(id, FourCC('I09O'), cloth)
-
-        --existence sets
-        --sword
-        ItemPrices[FourCC('I0DX')][PLATINUM] = 25
-        ItemPrices[FourCC('I0DX')][ARCADITE] = 15
-        ItemPrices[FourCC('I0DX')][CRYSTAL] = 15
-        ShopAddItem(id, FourCC('I0DX'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0DX'), "I09K I09K I09K I09K I09U I09U I09M")
-        --heavy
-        ItemPrices[FourCC('I0BT')][PLATINUM] = 25
-        ItemPrices[FourCC('I0BT')][ARCADITE] = 15
-        ItemPrices[FourCC('I0BT')][CRYSTAL] = 15
-        ShopAddItem(id, FourCC('I0BT'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0BT'), "I09W I09W I09W I09M I09M I09M I09U")
-        --dagger
-        ItemPrices[FourCC('I0BR')][PLATINUM] = 25
-        ItemPrices[FourCC('I0BR')][ARCADITE] = 15
-        ItemPrices[FourCC('I0BR')][CRYSTAL] = 15
-        ShopAddItem(id, FourCC('I0BR'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0BR'), "I09I I09I I09I I09I I09Q I09Q I09Q")
-        --bow
-        ItemPrices[FourCC('I0DL')][PLATINUM] = 25
-        ItemPrices[FourCC('I0DL')][ARCADITE] = 15
-        ItemPrices[FourCC('I0DL')][CRYSTAL] = 15
-        ShopAddItem(id, FourCC('I0DL'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0DL'), "I09G I09G I09G I09G I09Q I09Q I09Q")
-        --staff
-        ItemPrices[FourCC('I0DY')][PLATINUM] = 25
-        ItemPrices[FourCC('I0DY')][ARCADITE] = 15
-        ItemPrices[FourCC('I0DY')][CRYSTAL] = 15
-        ShopAddItem(id, FourCC('I0DY'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0DY'), "I09E I09E I09E I09E I09O I09O I09O")
-
-        --astral components
-        ShopAddItem(id, FourCC('I0A3'), sword)
-        ShopAddItem(id, FourCC('I0A6'), heavy)
-        ShopAddItem(id, FourCC('I0A1'), dagger)
-        ShopAddItem(id, FourCC('I0A4'), bow)
-        ShopAddItem(id, FourCC('I09Z'), staff)
-        ShopAddItem(id, FourCC('I0AL'), plate)
-        ShopAddItem(id, FourCC('I0AN'), fullplate)
-        ShopAddItem(id, FourCC('I0AA'), leather)
-        ShopAddItem(id, FourCC('I0A8'), cloth)
-
-        --astral sets
-        --sword
-        ItemPrices[FourCC('I0E0')][PLATINUM] = 45
-        ItemPrices[FourCC('I0E0')][ARCADITE] = 30
-        ItemPrices[FourCC('I0E0')][CRYSTAL] = 30
-        ShopAddItem(id, FourCC('I0E0'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0E0'), "I0A3 I0A3 I0A3 I0A3 I0AL I0AL I0A6")
-        --heavy
-        ItemPrices[FourCC('I0BM')][PLATINUM] = 45
-        ItemPrices[FourCC('I0BM')][ARCADITE] = 30
-        ItemPrices[FourCC('I0BM')][CRYSTAL] = 30
-        ShopAddItem(id, FourCC('I0BM'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0BM'), "I0AN I0AN I0AN I0A6 I0A6 I0A6 I0AL")
-        --dagger
-        ItemPrices[FourCC('I0DZ')][PLATINUM] = 45
-        ItemPrices[FourCC('I0DZ')][ARCADITE] = 30
-        ItemPrices[FourCC('I0DZ')][CRYSTAL] = 30
-        ShopAddItem(id, FourCC('I0DZ'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0DZ'), "I0A1 I0A1 I0A1 I0A1 I0AA I0AA I0AA")
-        --bow
-        ItemPrices[FourCC('I059')][PLATINUM] = 45
-        ItemPrices[FourCC('I059')][ARCADITE] = 30
-        ItemPrices[FourCC('I059')][CRYSTAL] = 30
-        ShopAddItem(id, FourCC('I059'), sets + bow + leather)
-        ItemAddComponents(FourCC('I059'), "I0A4 I0A4 I0A4 I0A4 I0AA I0AA I0AA")
-        --staff
-        ItemPrices[FourCC('I0E1')][PLATINUM] = 45
-        ItemPrices[FourCC('I0E1')][ARCADITE] = 30
-        ItemPrices[FourCC('I0E1')][CRYSTAL] = 30
-        ShopAddItem(id, FourCC('I0E1'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0E1'), "I09Z I09Z I09Z I09Z I0A8 I0A8 I0A8")
-
-        --dimensional components
-        ShopAddItem(id, FourCC('I0AO'), sword)
-        ShopAddItem(id, FourCC('I0AQ'), heavy)
-        ShopAddItem(id, FourCC('I0AT'), dagger)
-        ShopAddItem(id, FourCC('I0AR'), bow)
-        ShopAddItem(id, FourCC('I0AW'), staff)
-        ShopAddItem(id, FourCC('I0AY'), plate)
-        ShopAddItem(id, FourCC('I0B0'), fullplate)
-        ShopAddItem(id, FourCC('I0B2'), leather)
-        ShopAddItem(id, FourCC('I0B3'), cloth)
-
-        --dimensional sets
-        --sword
-        ItemPrices[FourCC('I0CG')][PLATINUM] = 80
-        ItemPrices[FourCC('I0CG')][ARCADITE] = 55
-        ItemPrices[FourCC('I0CG')][CRYSTAL] = 55
-        ShopAddItem(id, FourCC('I0CG'), sets + sword + plate)
-        ItemAddComponents(FourCC('I0CG'), "I0AO I0AO I0AO I0AO I0AY I0AY I0AQ")
-        --heavy
-        ItemPrices[FourCC('I0FH')][PLATINUM] = 80
-        ItemPrices[FourCC('I0FH')][ARCADITE] = 55
-        ItemPrices[FourCC('I0FH')][CRYSTAL] = 55
-        ShopAddItem(id, FourCC('I0FH'), sets + heavy + fullplate)
-        ItemAddComponents(FourCC('I0FH'), "I0B0 I0B0 I0B0 I0AQ I0AQ I0AQ I0AY")
-        --dagger
-        ItemPrices[FourCC('I0CI')][PLATINUM] = 80
-        ItemPrices[FourCC('I0CI')][ARCADITE] = 55
-        ItemPrices[FourCC('I0CI')][CRYSTAL] = 55
-        ShopAddItem(id, FourCC('I0CI'), sets + dagger + leather)
-        ItemAddComponents(FourCC('I0CI'), "I0AT I0AT I0AT I0AT I0B2 I0B2 I0B2")
-        --bow
-        ItemPrices[FourCC('I0FI')][PLATINUM] = 80
-        ItemPrices[FourCC('I0FI')][ARCADITE] = 55
-        ItemPrices[FourCC('I0FI')][CRYSTAL] = 55
-        ShopAddItem(id, FourCC('I0FI'), sets + bow + leather)
-        ItemAddComponents(FourCC('I0FI'), "I0AR I0AR I0AR I0AR I0B2 I0B2 I0B2")
-        --staff
-        ItemPrices[FourCC('I0FZ')][PLATINUM] = 80
-        ItemPrices[FourCC('I0FZ')][ARCADITE] = 55
-        ItemPrices[FourCC('I0FZ')][CRYSTAL] = 55
-        ShopAddItem(id, FourCC('I0FZ'), sets + staff + cloth)
-        ItemAddComponents(FourCC('I0FZ'), "I0AW I0AW I0AW I0AW I0B3 I0B3 I0B3")
-        --cheese shield
-        --call ShopAddItem(id2, FourCC('I01Y'), misc)
-        ItemPrices[FourCC('I038')][GOLD] = 100
-        ShopAddItem(id2, FourCC('I038'), misc)
-        ItemAddComponents(FourCC('I038'), "I01Y")
-
-        --hydra weapons
-        ItemPrices[FourCC('I02N')][GOLD] = 5000
-        ItemPrices[FourCC('I072')][GOLD] = 5000
-        ItemPrices[FourCC('I06Y')][GOLD] = 5000
-        ItemPrices[FourCC('I070')][GOLD] = 5000
-        ItemPrices[FourCC('I071')][GOLD] = 5000
-        ShopAddItem(id2, FourCC('I02N'), sword)
-        ShopAddItem(id2, FourCC('I072'), heavy)
-        ShopAddItem(id2, FourCC('I06Y'), dagger)
-        ShopAddItem(id2, FourCC('I070'), bow)
-        ShopAddItem(id2, FourCC('I071'), staff)
-
-        ItemAddComponents(FourCC('I02N'), "I07N")
-        ItemAddComponents(FourCC('I072'), "I07N")
-        ItemAddComponents(FourCC('I06Y'), "I07N")
-        ItemAddComponents(FourCC('I070'), "I07N")
-        ItemAddComponents(FourCC('I071'), "I07N")
-
-        --iron golem fist
-        --call ShopAddItem(id2, FourCC('I02Q'), misc)
-
-        ItemPrices[FourCC('I046')][GOLD] = 75000
-        ShopAddItem(id2, FourCC('I046'), misc)
-        ItemAddComponents(FourCC('I046'), "I02Q I02Q I02Q I02Q I02Q I02Q")
-
-        --dragon armor
-        ItemPrices[FourCC('I048')][GOLD] = 10000
-        ItemPrices[FourCC('I02U')][GOLD] = 10000
-        ItemPrices[FourCC('I064')][GOLD] = 10000
-        ItemPrices[FourCC('I02P')][GOLD] = 10000
-        ShopAddItem(id2, FourCC('I048'), plate)
-        ShopAddItem(id2, FourCC('I02U'), fullplate)
-        ShopAddItem(id2, FourCC('I064'), leather)
-        ShopAddItem(id2, FourCC('I02P'), cloth)
-
-        ItemAddComponents(FourCC('I048'), "I05Z I05Z I056")
-        ItemAddComponents(FourCC('I02U'), "I05Z I05Z I056")
-        ItemAddComponents(FourCC('I064'), "I05Z I05Z I056")
-        ItemAddComponents(FourCC('I02P'), "I05Z I05Z I056")
-
-        --dragon weapons
-        ItemPrices[FourCC('I033')][GOLD] = 10000
-        ItemPrices[FourCC('I0BZ')][GOLD] = 10000
-        ItemPrices[FourCC('I02S')][GOLD] = 10000
-        ItemPrices[FourCC('I032')][GOLD] = 10000
-        ItemPrices[FourCC('I065')][GOLD] = 10000
-        ShopAddItem(id2, FourCC('I033'), sword)
-        ShopAddItem(id2, FourCC('I0BZ'), heavy)
-        ShopAddItem(id2, FourCC('I02S'), dagger)
-        ShopAddItem(id2, FourCC('I032'), bow)
-        ShopAddItem(id2, FourCC('I065'), staff)
-
-        ItemAddComponents(FourCC('I033'), "I04X I04X I056")
-        ItemAddComponents(FourCC('I0BZ'), "I04X I04X I056")
-        ItemAddComponents(FourCC('I02S'), "I04X I04X I056")
-        ItemAddComponents(FourCC('I032'), "I04X I04X I056")
-        ItemAddComponents(FourCC('I065'), "I04X I04X I056")
-
-        --bloody armor
-        --call ShopAddItem(id2, FourCC('I04Q'), plate)
-
-        ItemPrices[FourCC('I0N4')][CRYSTAL] = 1
-        ItemPrices[FourCC('I00X')][CRYSTAL] = 1
-        ItemPrices[FourCC('I0N5')][CRYSTAL] = 1
-        ItemPrices[FourCC('I0N6')][CRYSTAL] = 1
-        ShopAddItem(id2, FourCC('I0N4'), plate)
-        ShopAddItem(id2, FourCC('I00X'), fullplate)
-        ShopAddItem(id2, FourCC('I0N5'), leather)
-        ShopAddItem(id2, FourCC('I0N6'), cloth)
-
-        ItemAddComponents(FourCC('I0N4'), "I04Q")
-        ItemAddComponents(FourCC('I00X'), "I04Q")
-        ItemAddComponents(FourCC('I0N5'), "I04Q")
-        ItemAddComponents(FourCC('I0N6'), "I04Q")
-
-        --bloody weapons
-        ItemPrices[FourCC('I03F')][CRYSTAL] = 1
-        ItemPrices[FourCC('I04S')][CRYSTAL] = 1
-        ItemPrices[FourCC('I020')][CRYSTAL] = 1
-        ItemPrices[FourCC('I016')][CRYSTAL] = 1
-        ItemPrices[FourCC('I0AK')][CRYSTAL] = 1
-        ShopAddItem(id2, FourCC('I03F'), sword)
-        ShopAddItem(id2, FourCC('I04S'), heavy)
-        ShopAddItem(id2, FourCC('I020'), dagger)
-        ShopAddItem(id2, FourCC('I016'), bow)
-        ShopAddItem(id2, FourCC('I0AK'), staff)
-
-        ItemAddComponents(FourCC('I03F'), "I04Q")
-        ItemAddComponents(FourCC('I04S'), "I04Q")
-        ItemAddComponents(FourCC('I020'), "I04Q")
-        ItemAddComponents(FourCC('I016'), "I04Q")
-        ItemAddComponents(FourCC('I0AK'), "I04Q")
-
-        --chaotic necklace
-        --call ShopAddItem(id2, FourCC('I04Z'), misc)
-
-        ItemPrices[FourCC('I050')][PLATINUM] = 10
-        ItemPrices[FourCC('I050')][CRYSTAL] = 10
-        ShopAddItem(id2, FourCC('I050'), misc)
-        ItemAddComponents(FourCC('I050'), "I04Z I04Z I04Z I04Z I04Z I04Z")
-    end
-
+    BossTable         = {} ---@type table[]
+    BossNearbyPlayers = __jarray(0) ---@type integer[] 
     --ice troll trapper
     local id = FourCC('nitt')
     UnitData[id].count = 18
@@ -1131,12 +297,6 @@ OnInit.final("Units", function(Require)
     god_angel = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n0A1'), -1841., -14858., 325.)
     ShowUnit(god_angel, false)
 
-    PUNCHING_BAG = CreateUnit(Player(PLAYER_NEUTRAL_AGGRESSIVE), FourCC('h02D'), GetRectCenterX(gg_rct_Punching_Bag), GetRectCenterY(gg_rct_Punching_Bag), 0.)
-
-    --quest marker effect
-    TalkToMe13 = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl",god_angel,"overhead")
-    TalkToMe20 = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl",gg_unit_n02Q_0382,"overhead")
-
     --zeknen
     zeknen = CreateUnit(pboss, FourCC('O01A'), -1886., -27549., 225.)
     SetHeroLevel(zeknen, 150, false)
@@ -1163,14 +323,12 @@ OnInit.final("Units", function(Require)
                 local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
                 if pt then
-                    pt.dur = 30.
+                    pt.dur = 25.
                 else
-                    if not TimerList[0]:has('pala') then
-                        PaladinEnrage(true)
-                    end
+                    PaladinEnrage(true)
 
                     pt = TimerList[0]:add()
-                    pt.dur = 30.
+                    pt.dur = 25.
                     pt.source = source
                     pt.tag = 'pala'
                     pt.pid = pid
@@ -1187,7 +345,7 @@ OnInit.final("Units", function(Require)
             end
         end
     end
-    EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(townpaladin, paladin_on_hit)
+    EVENT_ON_STRUCK_FINAL:register_unit_action(townpaladin, paladin_on_hit)
 
     --prechaos trainer
     prechaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 26205., 252., 270.)
@@ -1368,115 +526,115 @@ OnInit.final("Units", function(Require)
 
     --hero circle
     HeroCircle[0] = {
-        unit = gg_unit_H02A_0568, --oblivion guard
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_OBLIVION_GUARD, 30000., 30000., 0.), --oblivion guard
         skin = HERO_OBLIVION_GUARD,
         select = FourCC('A07S'),
         passive = FourCC('A0HQ')
     }
     HeroCircle[1] = {
-        unit = gg_unit_H03N_0612, --bloodzerker
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_BLOODZERKER, 30000., 30000., 0.), --bloodzerker
         skin = HERO_BLOODZERKER,
         select = FourCC('A07T'),
         passive = FourCC('A06N')
     }
     HeroCircle[2] = {
-        unit = gg_unit_H04Z_0604, --royal guardian
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_ROYAL_GUARDIAN, 30000., 30000., 0.), --royal guardian
         skin = HERO_ROYAL_GUARDIAN,
         select = FourCC('A07U'),
         passive = FourCC('A0I5')
     }
     HeroCircle[3] = {
-        unit = gg_unit_H012_0605, --warrior
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_WARRIOR, 30000., 30000., 0.), --warrior
         skin = HERO_WARRIOR,
         select = FourCC('A07V'),
         passive = FourCC('A0IE')
     }
     HeroCircle[4] = {
-        unit = gg_unit_U003_0081, --vampire
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_VAMPIRE, 30000., 30000., 0.), --vampire
         skin = HERO_VAMPIRE,
         select = FourCC('A029'),
         passive = FourCC('A05E')
     }
     HeroCircle[5] = {
-        unit = gg_unit_H01N_0606, --savior
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_SAVIOR, 30000., 30000., 0.), --savior
         skin = HERO_SAVIOR,
         select = FourCC('A07W'),
         passive = FourCC('A0HW')
     }
     HeroCircle[6] = {
-        unit = gg_unit_H01S_0607, --dark savior
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_DARK_SAVIOR, 30000., 30000., 0.), --dark savior
         skin = HERO_DARK_SAVIOR,
         select = FourCC('A07Z'),
         passive = FourCC('A0DL')
     }
     HeroCircle[7] = {
-        unit = gg_unit_H05B_0608, --Crusader
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_CRUSADER, 30000., 30000., 0.), --Crusader
         skin = HERO_CRUSADER,
         select = FourCC('A080'),
         passive = FourCC('A0I4')
     }
     HeroCircle[8] = {
-        unit = gg_unit_H029_0617, --arcanist
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_ARCANIST, 30000., 30000., 0.), --arcanist
         skin = HERO_ARCANIST,
         select = FourCC('A081'),
         passive = FourCC('A0EY')
     }
     HeroCircle[9] = {
-        unit = gg_unit_O02S_0615, --dark summoner
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_DARK_SUMMONER, 30000., 30000., 0.), --dark summoner
         skin = HERO_DARK_SUMMONER,
         select = FourCC('A082'),
         passive = FourCC('A0I0')
     }
     HeroCircle[10] = {
-        unit = gg_unit_H00R_0610, --bard
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_BARD, 30000., 30000., 0.), --bard
         skin = HERO_BARD,
         select = FourCC('A084'),
         passive = FourCC('A0HV')
     }
     HeroCircle[11] = {
-        unit = gg_unit_E00G_0616, --hydromancer
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_HYDROMANCER, 30000., 30000., 0.), --hydromancer
         skin = HERO_HYDROMANCER,
         select = FourCC('A086'),
         passive = FourCC('A0EC')
     }
     HeroCircle[12] = {
-        unit = gg_unit_E012_0613, --high priestess
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_HIGH_PRIEST, 30000., 30000., 0.), --high priestess
         skin = HERO_HIGH_PRIEST,
         select = FourCC('A087'),
         passive = FourCC('A0I2')
     }
     HeroCircle[13] = {
-        unit = gg_unit_E00W_0614, --elementalist
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_ELEMENTALIST, 30000., 30000., 0.), --elementalist
         skin = HERO_ELEMENTALIST,
         select = FourCC('A089'),
         passive = FourCC('A0I3')
     }
     HeroCircle[14] = {
-        unit = gg_unit_E002_0585, --assassin
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_ASSASSIN, 30000., 30000., 0.), --assassin
         skin = HERO_ASSASSIN,
         select = FourCC('A07J'),
         passive = FourCC('A01N')
     }
     HeroCircle[15] = {
-        unit = gg_unit_O03J_0609, --thunder blade
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_THUNDERBLADE, 30000., 30000., 0.), --thunder blade
         skin = HERO_THUNDERBLADE,
         select = FourCC('A01P'),
         passive = FourCC('A039')
     }
     HeroCircle[16] = {
-        unit = gg_unit_E015_0586, --master rogue
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_MASTER_ROGUE, 30000., 30000., 0.), --master rogue
         skin = HERO_MASTER_ROGUE,
         select = FourCC('A07L'),
         passive = FourCC('A0I1')
     }
     HeroCircle[17] = {
-        unit = gg_unit_E008_0587, --elite marksman
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_MARKSMAN, 30000., 30000., 0.), --elite marksman
         skin = HERO_MARKSMAN,
         select = FourCC('A07M'),
         passive = FourCC('A070')
     }
     HeroCircle[18] = {
-        unit = gg_unit_E00X_0611, --phoenix ranger
+        unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_PHOENIX_RANGER, 30000., 30000., 0.), --phoenix ranger
         skin = HERO_PHOENIX_RANGER,
         select = FourCC('A07N'),
         passive = FourCC('A0I6')
@@ -1489,32 +647,12 @@ OnInit.final("Units", function(Require)
             SetUnitPosition(HeroCircle[i].unit, 21643. + 475. * Cos(angle), 3447. + 475. * Sin(angle))
             SetUnitFacingTimed(HeroCircle[i].unit, bj_RADTODEG * Atan2(3447. - GetUnitY(HeroCircle[i].unit), 21643. - GetUnitX(HeroCircle[i].unit)), 0)
 
-            local j = 0
-            --store innate spell tooltip strings
-            local abil = BlzGetUnitAbilityByIndex(HeroCircle[i].unit, j)
-            while abil do
-                local sid = BlzGetAbilityId(abil)
-
-                if Spells[sid] then
-                    for ablev = 1, BlzGetAbilityIntegerField(abil, ABILITY_IF_LEVELS) do
-                        SpellTooltips[sid][ablev] = BlzGetAbilityStringLevelField(abil, ABILITY_SLF_TOOLTIP_NORMAL_EXTENDED, ablev - 1)
-                    end
-                end
-
-                j = j + 1
-                abil = BlzGetUnitAbilityByIndex(HeroCircle[i].unit, j)
-            end
-
             UnitAddAbility(HeroCircle[i].unit, FourCC('Aloc'))
         end
     end
 
     --spawn prechaos enemies
     SpawnCreeps(0)
-
-    --shops
-    ShopSetup()
-    ShopkeeperMove()
 
     --ashen vat
     ASHEN_VAT = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h05J'), 20485., -20227., 270.)
