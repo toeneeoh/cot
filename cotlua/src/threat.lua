@@ -6,6 +6,9 @@
 
 OnInit.final("Threat", function(Require)
     Require("WorldBounds")
+    Require("Damage")
+
+    local CALL_FOR_HELP_RANGE = 800.
 
     ACQUIRE_TRIGGER = CreateTrigger()
     Threat = array2d(0)
@@ -68,27 +71,19 @@ OnInit.final("Threat", function(Require)
     ---@return boolean
     local function onAcquire()
         local target = GetEventTargetUnit() ---@type unit 
-        local attacker = GetTriggerUnit() ---@type unit 
-        local pid = GetPlayerId(GetOwningPlayer(attacker)) + 1
+        local source = GetTriggerUnit() ---@type unit 
 
-        if IsDummy(attacker) then
-            BlzSetUnitWeaponBooleanField(attacker, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
-        elseif GetPlayerController(Player(pid - 1)) ~= MAP_CONTROL_USER then
-            Unit[attacker].target = AcquireProximity(attacker, target, 800.)
-            TimerQueue:callDelayed(FPS_32, SwitchAggro, attacker, target)
-        elseif Unit[attacker] then
-            Unit[attacker].target = target
+        EVENT_ON_AGGRO:trigger(source, target)
 
-            if Unit[attacker].movespeed > MOVESPEED.MAX then
-                BlzSetUnitFacingEx(attacker, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(attacker), GetUnitX(target) - GetUnitX(attacker)))
-            end
+        if Unit[source] then
+            Unit[source].target = target
         end
 
         return false
     end
 
-    local function onStruck(target, source, amount_after_red, damage_type)
-        --call for help
+    local function enemy_aggro(target, source, amount, amount_after_red, damage_type)
+        -- call for help
         local pid = GetPlayerId(GetOwningPlayer(source)) + 1
         local ug = CreateGroup()
         MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), CALL_FOR_HELP_RANGE, Condition(FilterEnemy))
@@ -101,35 +96,6 @@ OnInit.final("Threat", function(Require)
         end
 
         DestroyGroup(ug)
-
-        --stop the reset timer on damage
-        TimerList[pid]:stopAllTimers('aggr')
-
-        local index = IsBoss(target)
-
-        if index ~= -1 and IsUnitIllusion(target) == false then
-            --boss spell casting
-            BossSpellCasting(source, target)
-
-            if damage_type == PHYSICAL then --only physical because magic procs are too inconsistent 
-
-                local threat = Threat[target][source]
-
-                if threat < THREAT_CAP then --prevent multiple occurences
-                    threat = threat + IMaxBJ(1, 100 - R2I(UnitDistance(target, source) * 0.12)) --~40 as melee, ~250 at 700 range
-                    Threat[target][source] = threat
-
-                    --switch target
-                    if threat >= THREAT_CAP and Unit[target].target ~= source and Threat[target].switching == 0 then
-                        ChangeAggro(target, source)
-                    end
-                end
-            end
-
-            --keep track of boss damage
-            BossTable[index].damage[pid] = BossTable[index].damage[pid] + amount_after_red
-            BossTable[index].total_damage = BossTable[index].total_damage + amount_after_red
-        end
     end
 
     local function threat_init()
@@ -138,7 +104,7 @@ OnInit.final("Threat", function(Require)
         TriggerRegisterUnitEvent(ACQUIRE_TRIGGER, u, EVENT_UNIT_ACQUIRED_TARGET)
 
         if IsEnemy(GetPlayerId(GetOwningPlayer(u)) + 1) then
-            EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(u, onStruck)
+            EVENT_ON_STRUCK_FINAL:register_unit_action(u, enemy_aggro)
         end
 
         return false
