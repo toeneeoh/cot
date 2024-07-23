@@ -12,10 +12,10 @@ OnInit.global("Variables", function(Require)
     SAVE_LOAD_VERSION   = 1
     TIME                = 0
 
+    DUMMY_UNIT                         = gg_unit_h05E_0717
     PLAYER_CAP                         = 6
     MAX_LEVEL                          = 400
     LEECH_CONSTANT                     = 50
-    CALL_FOR_HELP_RANGE                = 800.
     NEARBY_BOSS_RANGE                  = 2500.
     BOSS_RESPAWN_TIME                  = 600
     MIN_LIFE                           = 0.406
@@ -251,7 +251,6 @@ OnInit.global("Variables", function(Require)
     pboss = Player(PLAYER_BOSS)
     CHAOS_MODE = false ---@type boolean 
     CHAOS_LOADING = false ---@type boolean 
-    DummyUnit = gg_unit_h05E_0717
 
     --tables
     infoString=__jarray("") ---@type string[] 
@@ -260,11 +259,9 @@ OnInit.global("Variables", function(Require)
     XP_Rate=__jarray(0) ---@type number[]
     player_fog = {} ---@type boolean[]
 
-    SpellTooltips = array2d("") ---@type string[][] 
     KillQuest = array2d(0) ---@type table
     ItemData = array2d(0) ---@type table
     UnitData = array2d(0) ---@type table
-    ItemPrices = array2d(0) ---@type table
     CosmeticTable = array2d(0) ---@type table
     HeroCircle = {}
 
@@ -312,7 +309,7 @@ OnInit.global("Variables", function(Require)
     BOOST=__jarray(1) ---@type number[] 
     LBOOST=__jarray(1) ---@type number[] 
 
-    TownCenter = Location(-250., 160.) ---@type location 
+    TOWN_CENTER = Location(-250., 160.) ---@type location 
     ColosseumCenter = Location(21710., -4261.) ---@type location 
     StruggleCenter = Location(28030., 4361.) ---@type location 
     IS_IN_COLO = {} ---@type boolean[] 
@@ -337,65 +334,15 @@ OnInit.global("Variables", function(Require)
 
     GodsEnterFlag         = false ---@type boolean 
     GodsRepeatFlag         = false ---@type boolean 
-    power_crystal      = nil ---@type unit 
-    god_portal      = nil ---@type unit 
     DeadGods         = 4 ---@type integer 
     BANISH_FLAG         = false ---@type boolean 
     GODS_GROUP = {} ---@type player[]
 
     afkTextVisible = {} ---@type boolean[] 
     hardcoreClicked = {} ---@type boolean[] 
-    votingSelectYes = CreateTrigger()
-    votingSelectNo = CreateTrigger()
-    hardcoreSelectYes = CreateTrigger()
-    hardcoreSelectNo = CreateTrigger()
     AFK_TEXT = ""
-    hardcoreBG=nil ---@type framehandle 
-    hardcoreButtonFrame=nil ---@type framehandle 
-    hardcoreButtonFrame2=nil ---@type framehandle 
-    hardcoreButtonIcon=nil ---@type framehandle 
-    hardcoreButtonIcon2=nil ---@type framehandle 
-    votingBG=nil ---@type framehandle 
-    votingButtonFrame=nil ---@type framehandle 
-    votingButtonFrame2=nil ---@type framehandle 
-    votingButtonIconNo=nil ---@type framehandle 
-    votingButtonIconYes=nil ---@type framehandle 
-    menuButton=nil ---@type framehandle 
-    chatButton=nil ---@type framehandle 
-    questButton=nil ---@type framehandle 
-    allyButton=nil ---@type framehandle 
-    upperbuttonBar=nil ---@type framehandle 
-    DPS_FRAME=nil ---@type framehandle 
-    DPS_FRAME_TITLE=nil ---@type framehandle 
-    DPS_FRAME_TEXTVALUE=nil ---@type framehandle 
 
-    INVENTORYBACKDROP={} ---@type framehandle[] 
     IS_HERO_PANEL_ON = {} ---@type boolean[] 
-
-    LimitBreakBackdrop = nil  ---@type framehandle 
-
-    --prestige talent window frames
-    TalentMainFrame             = nil  ---@type framehandle 
-    TreeLeft             = nil  ---@type framehandle 
-    TreeMiddle             = nil  ---@type framehandle 
-    TreeRight             = nil  ---@type framehandle 
-    ConfirmTalentsButton             = nil  ---@type framehandle 
-    CancelTalentsButton             = nil  ---@type framehandle 
-    CloseTalentViewButton             = nil  ---@type framehandle 
-    TreeBackgroundLeft             = nil  ---@type framehandle 
-    TitleBackgroundLeft             = nil  ---@type framehandle 
-    TreeBackgroundMiddle             = nil  ---@type framehandle 
-    TitleBackgroundMiddle             = nil  ---@type framehandle 
-    TreeBackgroundRight             = nil  ---@type framehandle 
-    TitleBackgroundRight             = nil  ---@type framehandle 
-    TitleLeft             = nil  ---@type framehandle 
-    TitleMiddle             = nil  ---@type framehandle 
-    TitleRight             = nil  ---@type framehandle 
-
-    TitleBackgroundStatus             = nil  ---@type framehandle 
-    TreeStatus             = nil  ---@type framehandle 
-    StatusPoints             = nil  ---@type framehandle 
-    TitleStatus             = nil  ---@type framehandle 
 
     Struggle_Pcount = 0
     Struggle_WaveN = 0
@@ -1703,43 +1650,43 @@ OnInit.global("Variables", function(Require)
             breakdown = function(u)
                 local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
                 local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
-                local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. R2S((1. - chaos_reduc) * 100) .. "\x25" or "")
+                local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. string.format("\x25.3f", (1. - chaos_reduc) * 100) .. "\x25" or "")
 
-                return "|cffffcc00Base Reduction:|r " .. R2S(100. - (HeroStats[GetUnitTypeId(u)].phys_resist) * 100.)  .. "\x25" ..
-                "\n|cffffcc00Spell/Item Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].pr) * 100. / HeroStats[GetUnitTypeId(u)].phys_resist)  .. "\x25" ..
-                "\n|cffffcc00Armor Reduction:|r " .. R2S(((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u))) * 100.)  .. "\x25" ..
+                return "|cffffcc00Base Reduction:|r " .. string.format("\x25.3f", 100. - (HeroStats[GetUnitTypeId(u)].phys_resist) * 100.)  .. "\x25" ..
+                "\n|cffffcc00Spell/Item Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].pr) * 100. / HeroStats[GetUnitTypeId(u)].phys_resist)  .. "\x25" ..
+                "\n|cffffcc00Armor Reduction:|r " .. string.format("\x25.3f", ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u))) * 100.)  .. "\x25" ..
                 chaos ..
-                "\n|cffffcc00Total Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))) * chaos_reduc) .. "\x25"
+                "\n|cffffcc00Total Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))) * chaos_reduc) .. "\x25"
             end,
             getter = function(u)
                 local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
                 local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
 
-                return R2S((Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))) * chaos_reduc)
+                return string.format("\x25.3f", (Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))) * chaos_reduc)
             end},
         [ITEM_MAGIC_RESIST]      = {
             tag = "|cff8000ffMagic Resist|r", alternate = "|cff8000ffMagical Taken|r", type = 1, suffix = "\x25", syntax = "mr",
             breakdown = function(u)
                 local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
                 local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
-                local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. R2S((1. - chaos_reduc) * 100) .. "\x25" or "")
+                local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. string.format("\x25.3f", (1. - chaos_reduc) * 100) .. "\x25" or "")
 
-                return "|cffffcc00Base Reduction:|r " .. R2S(100. - (HeroStats[GetUnitTypeId(u)].magic_resist) * 100.)  .. "\x25" ..
-                "\n|cffffcc00Spell/Item Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].mr) * 100. / HeroStats[GetUnitTypeId(u)].magic_resist)  .. "\x25" ..
+                return "|cffffcc00Base Reduction:|r " .. string.format("\x25.3f", 100. - (HeroStats[GetUnitTypeId(u)].magic_resist) * 100.)  .. "\x25" ..
+                "\n|cffffcc00Spell/Item Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].mr) * 100. / HeroStats[GetUnitTypeId(u)].magic_resist)  .. "\x25" ..
                 chaos ..
-                "\n|cffffcc00Total Reduction:|r " .. R2S(100. - (Unit[u].dr * Unit[u].mr) * 100. * chaos_reduc) .. "\x25"
+                "\n|cffffcc00Total Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].mr) * 100. * chaos_reduc) .. "\x25"
             end,
             getter = function(u)
                 local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
                 local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
 
-                return R2S((Unit[u].dr * Unit[u].mr) * 100. * chaos_reduc) end},
+                return string.format("\x25.3f", (Unit[u].dr * Unit[u].mr) * 100. * chaos_reduc) end},
         [ITEM_DAMAGE_MULT]       = {
             tag = "|cffff8040Physical Dealt|r", type = 1, suffix = "\x25", syntax = "dm",
-            getter = function(u) return R2S((Unit[u].dm * Unit[u].pm) * 100.) end},
+            getter = function(u) return string.format("\x25.3f", (Unit[u].dm * Unit[u].pm) * 100.) end},
         [ITEM_MAGIC_MULT]        = {
             tag = "|cff8000ffMagic Dealt|r", type = 1, suffix = "\x25", syntax = "mm",
-            getter = function(u) return R2S((Unit[u].dm * Unit[u].mm) * 100.) end},
+            getter = function(u) return string.format("\x25.3f", (Unit[u].dm * Unit[u].mm) * 100.) end},
         [ITEM_MOVESPEED]         = {
             tag = "|cff888888Movespeed|r", type = 2, syntax = "ms",
             getter = function(u) return RealToString(Unit[u].movespeed) end},
@@ -1748,22 +1695,22 @@ OnInit.global("Variables", function(Require)
             getter = function(u) return math.min(100, (Unit[u].evasion)) end},
         [ITEM_SPELLBOOST]        = {
             tag = "|cff80ffffSpellboost|r", type = 1, suffix = "\x25", syntax = "spellboost",
-            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(Unit[u].spellboost * 100.) end},
+            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return string.format("\x25.3f", Unit[u].spellboost * 100.) end},
         [ITEM_CRIT_CHANCE]       = {
             tag = "|cffffcc00Critical Chance|r", type = 1, suffix = "\x25", syntax = "cc",
-            getter = function(u) return R2S(Unit[u].cc) end},
+            getter = function(u) return string.format("\x25.2f", Unit[u].cc) end},
         [ITEM_CRIT_DAMAGE]       = {
             tag = "|cffffcc00Critical Damage|r", type = 1, suffix = "\x25", syntax = "cd",
-            getter = function(u) return R2S(Unit[u].cd) end},
+            getter = function(u) return string.format("\x25.2f", Unit[u].cd) end},
         [ITEM_CRIT_CHANCE_MULT]  = {
             tag = "|cffffcc00Critical Chance Multiplier|r", type = 4, suffix = "\x25", syntax = "cc_percent",
-            getter = function(u) return R2S(Unit[u].cc) end},
+            getter = function(u) return string.format("\x25.2f", Unit[u].cc) end},
         [ITEM_CRIT_DAMAGE_MULT]  = {
             tag = "|cffffcc00Critical Damage Multiplier|r", type = 4, suffix = "\x25", syntax = "cd_percent",
-            getter = function(u) return R2S(Unit[u].cd * 100.) end},
+            getter = function(u) return string.format("\x25.2f", Unit[u].cd * 100.) end},
         [ITEM_BASE_ATTACK_SPEED] = {
             tag = "|cff446600Base Attack Speed|r", type = 1, item_suffix = "\x25", syntax = "bat",
-            getter = function(u) local as = 1 / BlzGetUnitAttackCooldown(u, 0) return R2S(as) .. " attacks per second" end},
+            getter = function(u) local as = 1 / BlzGetUnitAttackCooldown(u, 0) return string.format("\x25.2f", as) .. " attacks per second" end},
         [ITEM_GOLD_GAIN]         = {
             tag = "|cffffff00Gold Find|r", type = 3, suffix = "\x25", syntax = "gold",
             getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return ItemGoldRate[pid] end},
@@ -1793,13 +1740,13 @@ OnInit.global("Variables", function(Require)
             type = 4, syntax = "stack"},
         [ITEM_STACK + 1]     = {
             tag = "|cff446600Total Attack Speed|r", type = 1,
-            getter = function(u) local as = (1 / BlzGetUnitAttackCooldown(u, 0)) * (1 + math.min(GetHeroAgi(u, true), 400) * 0.01) return R2S(as) .. " attacks per second" end},
+            getter = function(u) local as = (1 / BlzGetUnitAttackCooldown(u, 0)) * (1 + math.min(GetHeroAgi(u, true), 400) * 0.01) return string.format("\x25.2f", as) .. " attacks per second" end},
         [ITEM_STACK + 2]     = {
             tag = "|cff808080Experience Rate|r", type = 3,
-            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(XP_Rate[pid]) end},
+            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return string.format("\x25.2f", XP_Rate[pid]) end},
         [ITEM_STACK + 3]     = {
             tag = "|cff808080Colosseum XP Rate|r", type = 3, suffix = "\x25",
-            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return R2S(Colosseum_XP[pid] * 100.) end},
+            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return string.format("\x25.2f", Colosseum_XP[pid] * 100.) end},
         [ITEM_STACK + 4]     = {
             tag = "|cff808000Hero Time Played|r", type = 3,
             getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
