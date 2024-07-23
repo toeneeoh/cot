@@ -37,8 +37,8 @@ OnInit.final("Events", function()
                 --run any actions registered with this unit
                 local actions = self.unit_actions[u]
                 if actions then
-                    for _, action in ipairs(actions) do
-                        action(u, ...)
+                    for i = 1, #actions do
+                        actions[i](u, ...)
                     end
                 end
                 recurse[u] = nil
@@ -92,5 +92,8 @@ OnInit.final("Events", function()
     -- death events
     EVENT_ON_DEATH    = EVENT.create()
     EVENT_GRAVE_DEATH = EVENT.create()
+
+    -- on aggro
+    EVENT_ON_AGGRO = EVENT.create()
 
 end, Debug and Debug.getLine())
