@@ -247,7 +247,8 @@ OnInit.final("Multiboard", function(Require)
         end
 
         --define multiboard frames
-        MB.frame = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
+        MB.frame = BlzCreateFrameByType("FRAME", "", BlzGetFrameByName("ConsoleUIBackdrop", 0), "", 0)
+        --MB.frame = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
         MB.main = BlzCreateFrame("ListBoxWar3", MB.frame, 0, 0)
         BlzFrameSetSize(MB.main, ROW_WIDTH, ROW_HEIGHT)
         BlzFrameSetAbsPoint(MB.main, FRAMEPOINT_TOPRIGHT, 0.925, 0.6)
@@ -352,7 +353,7 @@ OnInit.final("Multiboard", function(Require)
         end
 
         ---@type fun(a: integer, b: integer): boolean
-        function CompareFlags(entry, player)
+        local function compare_flags(entry, player)
             local compare = (entry & player)
             local damageFlag = compare & (FLAG_DEALT + FLAG_TAKEN)
             local playerFlag = compare & ~(FLAG_DEALT + FLAG_TAKEN)
@@ -370,7 +371,7 @@ OnInit.final("Multiboard", function(Require)
             BlzFrameSetText(frame, " ")
 
             for entry in DAMAGE_LOG:iterator() do
-                if CompareFlags(entry.flags, flags) and GetLocalPlayer() == Player(pid - 1) then
+                if compare_flags(entry.flags, flags) and GetLocalPlayer() == Player(pid - 1) then
                     BlzFrameAddText(frame, entry.text)
                 end
             end
@@ -398,7 +399,7 @@ OnInit.final("Multiboard", function(Require)
 
             DAMAGE_LOG:add(data)
 
-            if CompareFlags(flags, DAMAGE_LOG_FLAGS[GetPlayerId(GetLocalPlayer()) + 1]) then
+            if compare_flags(flags, DAMAGE_LOG_FLAGS[GetPlayerId(GetLocalPlayer()) + 1]) then
                 BlzFrameAddText(MULTIBOARD.DAMAGE:get(2, 1).frame, log)
             end
         end
