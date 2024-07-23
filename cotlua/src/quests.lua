@@ -19,14 +19,14 @@ OnInit.final("Quests", function(Require)
     Devourer_Quest          = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Medean Devourer", "Many species of creatures were mutated during the Great War to be used as weapons, but none as feared as the Devourer. The Great Medean Devourer was known for its resiliance to the cold and could easily multiply to overwhelm enemys. Its body is coated in acid that is highly corrosive to anything but its thick carapace and its venom is lethal even to divine beings. No sightings of these creatures are reported in Medea in decades.", "ReplaceableTextures\\CommandButtons\\BTNArachnathid.tga")
     Mountain_King_Quest     = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Last Dwarf", "The great warrior Omni is the last known living dwarf in Medea. He fought in the Great War long ago, against the oppression of the Goddesses, and was presumed dead until recently, when the Savior discovered he was kept alive by and turned into a mindless puppet at the service of the Goddesses.", "ReplaceableTextures\\CommandButtons\\BTNHeroMountainKing.tga")
     Evil_Shopkeeper_Quest_1 = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Evil Shopkeeper", "The greedy Evil Shopkeeper finally has a bounty on his head! After mercilessly selling stolen n' smuggled items at outrageous prices and double-crossing everyone that simply crossed his path he has finally got the people angry enough to want him dead. Kill him, and put his evil deeds to and end. But be warned! He is tricky.", "ReplaceableTextures\\CommandButtons\\BTNAcolyte.tga")
-    Key_Quest               = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Goddesses' Keys", "A strange temple of water lays to the south of town with a odd spirit and runes that seem to hide something. You read on the walls the strange writing and murals begin to speak to you about sealing away the great powers. Three words come up to your mind immediately: Devotion, Valor and Redemption.", "ReplaceableTextures\\CommandButtons\\BTNShade.tga")
+    Key_Quest               = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Goddesses' Keys", "An angel looking figure stops you in your tracks after you defeated the god slayer, telling you to bring him three keys before he opens up a portal to the gods. One key is hidden in a cave, one is earned by protecting town, and one is held by a troll.", "ReplaceableTextures\\CommandButtons\\BTNShade.tga")
     Mink_Quest              = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Dragoon, Mink", "Mink is once again plaguing the land (and the IT) with her horendous luck.  Seek revenge for the Poor IT and free him of his headache.", "ReplaceableTextures\\CommandButtons\\BTNSylvanusWindrunner.tga")
     Icetroll_Quest          = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Ice Troll Cheiftan", "Da's Dingo!  The Ice trolls are begining to get pissed for all the coments on their troll accent and now want to scalp anything that moves.  Defeat them and prove to them it is indeed a jamacian accent!", "ReplaceableTextures\\CommandButtons\\BTNHeadHunterBerserker.tga")
     Iron_Golem_Fist_Quest   = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Blacksmith's Ore", "A blacksmith has asked that you bring 6 Iron Golem Ores to him. He seeks to create a weapon before his old age finally forces him to retire. He has agreed that you can keep the Item he creates with the Ores.", "ReplaceableTextures\\CommandButtons\\BTNDeathPact.blp")
     Defeat_The_Horde_Quest  = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Horde", "The Horde has spread and began to grow in numbers by the second.  They lie in wait, patiently waiting unitl their number are enough to take over the land.  Defeat them before they can organize a full scale attack and desimate the nations of your comrades.", "ReplaceableTextures\\CommandButtons\\BTNThrall.tga")
     Evil_Shopkeeper_Quest_2 = CreateQuestBJ(bj_QUESTTYPE_OPT_UNDISCOVERED, "The Omega P's Pick", "The Leaders of Team P must be stopped, destroy them and bring back both thier picks as proof to recive the ultimate pick of the Team P hordes.", "ReplaceableTextures\\CommandButtons\\BTNPeon.tga")
 
-    GODS_QUEST_MAKRER = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl", god_angel, "overhead")
+    GODS_QUEST_MARKER = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl", god_angel, "overhead")
 
     -- the horde
     do
@@ -43,11 +43,7 @@ OnInit.final("Quests", function(Require)
 
                 if BlzGroupGetSize(ug) == 0 and UnitAlive(kroresh) and GetUnitAbilityLevel(kroresh, FourCC('Avul')) > 0 then
                     UnitRemoveAbility(kroresh, FourCC('Avul'))
-                    if RectContainsUnit(MAIN_MAP.rect, kroresh) == false then
-                        SetUnitPosition(kroresh, 14500., -15180.)
-                        BlzSetUnitFacingEx(kroresh, 135.)
-                        PingMinimap(14500., -15180., 3)
-                    end
+                    PingMinimap(14500., -15180., 3)
                     SetCinematicScene(GetUnitTypeId(kroresh), GetPlayerColor(pboss), "Kroresh Foretooth", "You dare slaughter my men? Damn you!", 5, 4)
                 end
 
@@ -56,12 +52,12 @@ OnInit.final("Quests", function(Require)
         end
 
         local function spawn_orcs()
-            if IsQuestCompleted(Defeat_The_Horde_Quest) == false then
+            if IsQuestCompleted(Defeat_The_Horde_Quest) == false and not CHAOS_MODE then
                 local ug = CreateGroup()
 
                 GroupEnumUnitsOfPlayer(ug, pboss, Filter(isOrc))
 
-                if BlzGroupGetSize(ug) > 0 and BlzGroupGetSize(ug) < 36 and not CHAOS_MODE then
+                if GetUnitAbilityLevel(kroresh, FourCC('Avul')) > 0 and BlzGroupGetSize(ug) < 32 then
                     --bottom side
                     local u = CreateUnit(pboss, FourCC('o01I'), 12687, -15414, 45)
                     IssuePointOrder(u, "patrol", 668, -2146)
@@ -110,7 +106,8 @@ OnInit.final("Quests", function(Require)
                     PingMinimap(15645, -12309, 4)
 
                     --orc setup
-                    SetUnitPosition(kroresh, 14665, -15352)
+                    SetUnitPosition(kroresh, 14500, -15200)
+                    BlzSetUnitFacingEx(kroresh, 135.)
                     UnitAddAbility(kroresh, FourCC('Avul'))
 
                     spawn_orcs()
