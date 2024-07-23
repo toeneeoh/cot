@@ -17,11 +17,10 @@ OnInit.final("Timers", function(Require)
     Require('BossAI')
     Require('MapSetup')
     Require('Buffs')
-    Require('Multiboard')
-    Require('UI')
+    Require('Frames')
 
-    HERO_GROUP     = {}
-    WANDER_TIMER   = TimerQueue.create()
+    HERO_GROUP   = {}
+    WANDER_TIMER = TimerQueue.create()
 
     function DisplayHint()
         local rand = GetRandomInt(2, #HINT_TOOLTIP) ---@type integer 
@@ -81,7 +80,7 @@ OnInit.final("Timers", function(Require)
         while u do
             local pid = u.id
 
-            if HeroID[pid] > 0 then
+            if Backpack[pid] then
 
                 --backpack move
                 x = GetUnitX(Hero[pid]) + 50 * Cos((GetUnitFacing(Hero[pid]) - 45) * bj_DEGTORAD)
@@ -271,7 +270,7 @@ OnInit.final("Timers", function(Require)
                     if GetLocalPlayer() == Player(pid - 1) then
                         BlzFrameSetVisible(AFK_FRAME_BG, false)
                     end
-                    PanCameraToTimedLocForPlayer(u.player, TownCenter, 0)
+                    PanCameraToTimedLocForPlayer(u.player, TOWN_CENTER, 0)
                     DisplayTextToForce(FORCE_PLAYING, u.nameColored .. " was removed for being AFK.")
                     DisplayTextToPlayer(u.player, 0, 0, "You have lost the game. All of your structures and units will be removed from the game, however you may stay and watch or leave as you choose.")
                     PlayerCleanup(pid)
@@ -303,8 +302,8 @@ OnInit.final("Timers", function(Require)
         if CHAOS_LOADING == false and UnitAlive(BossTable[i].unit) then
             local numplayers = 0
 
-            for _, hero in ipairs(HERO_GROUP) do
-                if IsUnitInRange(hero, BossTable[i].unit, NEARBY_BOSS_RANGE) then
+            for j = 1, #HERO_GROUP do
+                if IsUnitInRange(HERO_GROUP[j], BossTable[i].unit, NEARBY_BOSS_RANGE) then
                     numplayers = numplayers + 1
                 end
             end
@@ -323,7 +322,7 @@ OnInit.final("Timers", function(Require)
         BlzFrameSetText(CLOCK_FRAME_TEXT, IntegerToTime(TIME))
 
         --set space bar camera to town
-        SetCameraQuickPositionLoc(TownCenter)
+        SetCameraQuickPositionLoc(TOWN_CENTER)
 
         --fountain regeneration
         local ug = CreateGroup()
@@ -381,13 +380,13 @@ OnInit.final("Timers", function(Require)
 
                 --determine number of nearby heroes
                 local numplayers = 0
-                for _, hero in ipairs(HERO_GROUP) do
-                    if IsUnitInRange(hero, BossTable[i].unit, NEARBY_BOSS_RANGE) then
+                for j = 1, #HERO_GROUP do
+                    if IsUnitInRange(HERO_GROUP[j], BossTable[i].unit, NEARBY_BOSS_RANGE) then
                         numplayers = numplayers + 1
                     end
                 end
 
-                BossNearbyPlayers[i] = IMaxBJ(BossNearbyPlayers[i], numplayers)
+                BossNearbyPlayers[i] = math.max(BossNearbyPlayers[i], numplayers)
 
                 if numplayers < BossNearbyPlayers[i] then
                     TimerQueue:callDelayed(5., BossBonusLinger, i)
@@ -428,14 +427,16 @@ OnInit.final("Timers", function(Require)
         end
 
         --summon regeneration
-        for _, target in ipairs(SummonGroup) do
-            if UnitAlive(target) and GetUnitAbilityLevel(target, FourCC('A06Q')) > 0 then
-                if GetUnitTypeId(target) == SUMMON_DESTROYER then
-                    Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q')))
-                elseif GetUnitTypeId(target) == SUMMON_HOUND and GetUnitAbilityLevel(target, FourCC('A06Q')) > 9 then
-                    Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.0005 * GetUnitAbilityLevel(target, FourCC('A06Q')))
+        for i = 1, #SummonGroup do
+            local summon = SummonGroup[i]
+
+            if UnitAlive(summon) and GetUnitAbilityLevel(summon, FourCC('A06Q')) > 0 then
+                if GetUnitTypeId(summon) == SUMMON_DESTROYER then
+                    Unit[summon].regen = BlzGetUnitMaxHP(summon) * (0.02 + 0.0005 * GetUnitAbilityLevel(summon, FourCC('A06Q')))
+                elseif GetUnitTypeId(summon) == SUMMON_HOUND and GetUnitAbilityLevel(summon, FourCC('A06Q')) > 9 then
+                    Unit[summon].regen = BlzGetUnitMaxHP(summon) * (0.02 + 0.0005 * GetUnitAbilityLevel(summon, FourCC('A06Q')))
                 else
-                    Unit[target].regen = BlzGetUnitMaxHP(target) * (0.02 + 0.00025 * GetUnitAbilityLevel(target, FourCC('A06Q')))
+                    Unit[summon].regen = BlzGetUnitMaxHP(summon) * (0.02 + 0.00025 * GetUnitAbilityLevel(summon, FourCC('A06Q')))
                 end
             end
         end
@@ -455,69 +456,36 @@ OnInit.final("Timers", function(Require)
             end
         end
 
-        --add & remove players in dungeon queue
-        if QUEUE_DUNGEON > 0 then
-            local p = User.first
-            local mb = MULTIBOARD.QUEUE
-
-            while p do
-                if IsUnitInRangeXY(Hero[p.id], QUEUE_X, QUEUE_Y, 750.) and UnitAlive(Hero[p.id]) and not Unit[Hero[p.id]].busy then
-                    if TableHas(QUEUE_GROUP, p.player) == false and GetHeroLevel(Hero[p.id]) >= QUEUE_LEVEL then
-                        QUEUE_GROUP[#QUEUE_GROUP + 1] = p.player
-                        mb:addRows(1)
-                        mb:get(mb.rowCount, 1).text = {0.02, 0, 0.09, 0.011}
-                        mb:get(mb.rowCount, 2).icon = {0.26, 0, 0.011, 0.011}
-                        mb.available[p.id] = true
-                        mb:display(p.id)
-                    end
-                elseif TableHas(QUEUE_GROUP, p.player) then
-                    TableRemove(QUEUE_GROUP, p.player)
-                    QUEUE_READY[p.id] = false
-                    mb:delRows(1)
-                    mb.available[p.id] = false
-                    MULTIBOARD.MAIN:display(p.id)
-
-                    if #QUEUE_GROUP <= 0 then
-                        QUEUE_DUNGEON = 0
-                    end
-                end
-
-                p = p.next
-            end
-
-            --Refresh dungeon queue multiboard
-            if #QUEUE_GROUP == 0 then
-                QUEUE_DUNGEON = 0
-            end
-        end
-
-        --refresh multiboard bodies
-        RefreshMB()
-
         --refresh auras, mana costs, etc.
         RefreshHeroes()
 
         DestroyGroup(ug)
     end
 
-    local function Tick()
-        local u = GetMainSelectedUnit() ---@type unit 
+    -- localizing here is great
+    local framesetvisible = BlzFrameSetVisible
+    local framesettexture = BlzFrameSetTexture
+    local getmainselectedunit = GetMainSelectedUnit
+    local unititeminslot = UnitItemInSlot
 
-        --rarity item borders
+    local function Tick()
+        local u = getmainselectedunit() ---@type unit 
+
+        -- rarity item borders
         for i = 0, 5 do
-            local itm = Item[UnitItemInSlot(u, i)]
+            local itm = Item[unititeminslot(u, i)]
 
             if itm then
-                BlzFrameSetTexture(INVENTORYBACKDROP[i], (SPRITE_RARITY[itm.level]), 0, true)
+                framesettexture(INVENTORYBACKDROP[i], (SPRITE_RARITY[itm.level]), 0, true)
             end
 
-            BlzFrameSetVisible(INVENTORYBACKDROP[i], (itm and true) or false)
+            framesetvisible(INVENTORYBACKDROP[i], (itm and true) or false)
         end
 
-        BlzFrameSetVisible(PUNCHING_BAG_UI, u == PUNCHING_BAG)
+        framesetvisible(PUNCHING_BAG_UI, u == PUNCHING_BAG)
 
-        --frame to hide health
-        BlzFrameSetVisible(HIDE_HEALTH_FRAME, (u and Unit[u].noregen))
+        -- frame to hide health
+        framesetvisible(HIDE_HEALTH_FRAME, (u and Unit[u].noregen))
     end
 
     TimerQueue:callPeriodically(FPS_64, nil, Tick)
