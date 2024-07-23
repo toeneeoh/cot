@@ -6,20 +6,20 @@
 
 OnInit.final("Currency", function(Require)
     Require('Users')
-    Require('UI')
+    Require('Frames')
+    Require('Items')
 
     IS_CONVERTING_PLAT = {} ---@type boolean[]
     IS_CONVERTING_ARC = {} ---@type boolean[]
     IS_CONVERTER_PURCHASED = {} ---@type boolean[]
-    ITEM_LOOKUP = {}
 
-    --purchase auto converter
+    -- purchase auto converter
     local function BuyConverter()
         local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
         local dw    = DialogWindow[pid]
         local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
 
-        --converter
+        -- converter
         if index == 0 then
             if GetCurrency(pid, PLATINUM) >= 2 and GetCurrency(pid, ARCADITE) >= 2 then
                 IS_CONVERTER_PURCHASED[pid] = true
@@ -39,8 +39,7 @@ OnInit.final("Currency", function(Require)
         return false
     end
 
-    --map item currency exchange purchases to functions
-
+    -- map item currency exchange purchases to functions
     ITEM_LOOKUP[FourCC('I084')] = function(p, pid)
         if not IS_CONVERTER_PURCHASED[pid] then
             local dw = DialogWindow.create(pid, "Purchase cost: |n|cffffffff2 |cffe3e2e2Platinum|r|nand |cffffffff2 |cff66FF66Arcadite|r", BuyConverter)
@@ -51,7 +50,7 @@ OnInit.final("Currency", function(Require)
         end
     end
 
-    --crystal to gold & platinum
+    -- crystal to gold & platinum
     ITEM_LOOKUP[FourCC('I0ME')] = function(p, pid)
         if GetCurrency(pid, CRYSTAL) >= 1 then
             AddCurrency(pid, CRYSTAL, -1)
@@ -158,7 +157,7 @@ OnInit.final("Currency", function(Require)
         if GetCurrency(pid, LUMBER) >= 25000 then
             AddCurrency(pid, GOLD, 25000)
             AddCurrency(pid, LUMBER, -25000)
-            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", u, "origin"))
+            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", Hero[pid], "origin"))
         else
             DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 25,000 lumber to buy this.")
         end
@@ -168,7 +167,7 @@ OnInit.final("Currency", function(Require)
         if GetCurrency(pid, GOLD) >= 32000 then
             AddCurrency(pid, LUMBER, 25000)
             AddCurrency(pid, GOLD, -32000)
-            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", u, "origin"))
+            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", Hero[pid], "origin"))
         else
             DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 32,000 gold to buy this.")
         end

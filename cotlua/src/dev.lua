@@ -13,7 +13,6 @@ OnInit.final("Dev", function(Require)
 
     EXTRA_DEBUG    = false ---@type boolean 
     DEBUG_HERO     = false ---@type boolean 
-    MS_OVERRIDE    = false
     BUDDHA_MODE    = {} ---@type boolean[] 
     nocd           = {} ---@type boolean[] 
     nocost         = {} ---@type boolean[] 
@@ -191,7 +190,7 @@ modifiers:
                 RemoveUnit(Hero[id])
                 RemoveUnit(HeroGrave[id])
 
-                Hero[id] = CreateUnitAtLoc(Player(id - 1), type, TownCenter, 0)
+                Hero[id] = CreateUnitAtLoc(Player(id - 1), type, TOWN_CENTER, 0)
                 HeroID[id] = GetUnitTypeId(Hero[id])
                 Profile[id] = Profile.create(id)
                 EventSetup(id)
@@ -203,8 +202,7 @@ modifiers:
         end,
         ["enterchaos"] = function(p, pid, args)
             OpenGodsPortal()
-            power_crystal = CreateUnitAtLoc(pfoe, FourCC('h04S'), Location(30000, -30000), bj_UNIT_FACING)
-            UnitApplyTimedLife(power_crystal, FourCC('BTLF'), 1.)
+            BeginChaos()
         end,
         ["settime"] = function(p, pid, args)
             Profile[pid].hero.time = S2I(args[2])
@@ -390,7 +388,7 @@ modifiers:
             local U = User.first
             while U do
                 if GetLocalPlayer() == U.player then
-                    BlzFrameSetVisible(votingBG, true)
+                    BlzFrameSetVisible(VOTING_BACKDROP, true)
                 end
                 U = U.next
             end
@@ -414,9 +412,6 @@ modifiers:
         end,
         ["debughero"] = function(p, pid, args)
             DEBUG_HERO = not DEBUG_HERO
-        end,
-        ["msoverride"] = function(p, pid, args)
-            MS_OVERRIDE = not MS_OVERRIDE
         end,
         ["astar"] = function(p, pid, args)
             A_STAR_PATHING = not A_STAR_PATHING
@@ -460,13 +455,13 @@ modifiers:
         ["skills"] = function(p, pid, args)
             print(BlzGetAbilityStringLevelField(BlzGetUnitAbilityByIndex(Hero[pid], S2I(args[2])), ABILITY_SLF_TOOLTIP_NORMAL, 0))
             print(BlzGetAbilityStringField(BlzGetUnitAbilityByIndex(Hero[pid], S2I(args[2])), ABILITY_SF_NAME))
-            print(IntToFourCC(BlzGetAbilityId(BlzGetUnitAbilityByIndex(Hero[pid], S2I(args[2])))))
+            print(string.pack(">I4", BlzGetAbilityId(BlzGetUnitAbilityByIndex(Hero[pid], S2I(args[2])))))
         end,
         ["encode"] = function(p, pid, args)
             print(Encode(S2I(args[2])))
         end,
         ["makeitem"] = function(p, pid, args)
-            Item.create(CreateItem(FourCC('I0OX'), 0, 0))
+            CreateItem(FourCC('I0OX'), 0, 0)
         end,
         ["FourCC"] = function(p, pid, args)
             print(FourCC(args[2]))
@@ -575,14 +570,21 @@ modifiers:
             print(i - 0x100000)
         end,
         ["gc"] = function()
+            ---@diagnostic disable-next-line: undefined-global
             print(GC)
         end,
 
         ["benchmark"] = function(p, pid, args)
             iterations = (args[2] and S2I(args[2])) or 1000
 
-            --local time = benchmark(test_local, iterations)
-            --print(string.format("Function time: %.4f seconds", time))
+            local s = os.clock()
+            for _ = 1, iterations do
+                --
+            end
+            local e = os.clock()
+
+            local time = e - s
+            print(string.format("Function time: %.4f seconds", time))
         end,
 
         ["go"] = function(p, pid, args)
@@ -596,7 +598,7 @@ modifiers:
                     Selection(pid, id)
                     StartGame(pid)
                     if (GetLocalPlayer() == p) then
-                        BlzFrameSetVisible(hardcoreBG, false)
+                        BlzFrameSetVisible(HARDCORE_BACKDROP, false)
                     end
                     break
                 end
@@ -679,35 +681,6 @@ modifiers:
             i = i + 1
         end
 
-        --spell setup
-        local spell   = CreateTrigger()
-        local cast    = CreateTrigger()
-        local finish  = CreateTrigger()
-        local learn   = CreateTrigger()
-        local channel = CreateTrigger()
-        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[0], false) --pr setup
-        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[1], false)
-        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[2], false)
-        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[3], false)
-        SetPlayerAbilityAvailable(Player(pid - 1), prMulti[4], false)
-        SetPlayerAbilityAvailable(Player(pid - 1), FourCC('A0AP'), false)
-        SetPlayerAbilityAvailable(Player(pid - 1), SONG_HARMONY, false)  --bard setup
-        SetPlayerAbilityAvailable(Player(pid - 1), SONG_PEACE, false)
-        SetPlayerAbilityAvailable(Player(pid - 1), SONG_WAR, false)
-        SetPlayerAbilityAvailable(Player(pid - 1), SONG_FATIGUE, false)
-
-        TriggerRegisterUnitEvent(spell, Hero[pid], EVENT_UNIT_SPELL_EFFECT)
-        TriggerRegisterUnitEvent(cast, Hero[pid], EVENT_UNIT_SPELL_CAST)
-        TriggerRegisterUnitEvent(finish, Hero[pid], EVENT_UNIT_SPELL_CHANNEL)
-        TriggerRegisterUnitEvent(learn, Hero[pid], EVENT_UNIT_SPELL_FINISH)
-        TriggerRegisterUnitEvent(channel, Hero[pid], EVENT_UNIT_HERO_SKILL)
-
-        TriggerAddAction(spell, SpellEffect)
-        TriggerAddAction(cast, SpellCast)
-        TriggerAddAction(finish, SpellFinish)
-        TriggerAddCondition(learn, Filter(SpellLearn))
-        TriggerAddCondition(channel, Filter(SpellChannel))
-
         --death setup
         local death = CreateTrigger()
         TriggerRegisterUnitEvent(death, Hero[pid], EVENT_UNIT_DEATH)
@@ -760,7 +733,7 @@ modifiers:
         --I000 to I0zz (3844~ items)
         for i = 0, 19018 do
             if GetObjectName(CUSTOM_ITEM_OFFSET + i) ~= "Default string" then
-                itm = CreateItem(CUSTOM_ITEM_OFFSET + i, 30000., 30000.)
+                itm = OldCreateItem(CUSTOM_ITEM_OFFSET + i, 30000., 30000.)
                 if GetItemType(itm) ~= ITEM_TYPE_POWERUP and GetItemType(itm) ~= ITEM_TYPE_CAMPAIGN then
                     SEARCHABLE[i] = true
                 end
@@ -804,7 +777,7 @@ modifiers:
         local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
 
         if index ~= -1 then
-            local itm = Item.create(CreateItem(dw.data[index], 30000., 30000.))
+            local itm = CreateItem(dw.data[index], 30000., 30000.)
             itm:lvl(IMaxBJ(0, ItemData[itm.id][ITEM_UPGRADE_MAX] - ITEM_MAX_LEVEL_VARIANCE))
             UnitAddItem(Hero[pid], itm.obj)
 
@@ -822,12 +795,13 @@ modifiers:
         local name     = "" ---@type string 
         local count    = 0 ---@type integer 
         local dw = DialogWindow.create(pid, "", SearchPage)
+        local pack = string.pack
 
         --searchable items
         --I000 to I0zz (3844~ items)
         for i = 0, 19018 do
             id = CUSTOM_ITEM_OFFSET + i
-            itemCode = IntToFourCC(id)
+            itemCode = pack(">I4", id)
             name = GetObjectName(id)
             if name ~= "" and SEARCHABLE[i] then
                 if string.find(name:lower(), search:lower()) then
@@ -930,4 +904,5 @@ modifiers:
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, newOnOrder)
 
     TriggerAddAction(devcmd, DevCommands)
+
 end, Debug and Debug.getLine())

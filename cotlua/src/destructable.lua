@@ -52,13 +52,13 @@ local DTable = {
     [gg_dest_DTlv_3776] = function(d) DoBridge(gg_dest_DTs2_1495, d) end,
     [gg_dest_DTlv_4001] = function(d) DoBridge(gg_dest_DTs2_1073, d) end,
     --easter egg
-    [gg_dest_LTcr_9593] = function(d) Item.create(CreateItem(FourCC('Ipow'), GetDestructableX(d), GetDestructableY(d))) end,
-    [gg_dest_LTbs_4010] = function(d) Item.create(CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d)), 600.) end,
-    [gg_dest_LTbs_4009] = function(d) Item.create(CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d)), 600.) end,
-    [gg_dest_LTcr_4012] = function(d) Item.create(CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d)), 600.) end,
-    [gg_dest_LTba_9594] = function(d) Item.create(CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d)), 600.) end,
-    [gg_dest_LTbs_4008] = function(d) Item.create(CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d)), 600.) end,
-    [gg_dest_B007_3861] = function(d) Item.create(CreateItem(FourCC('I042'), GetWidgetX(d), GetWidgetY(d))) end,
+    [gg_dest_LTcr_9593] = function(d) CreateItem(FourCC('Ipow'), GetDestructableX(d), GetDestructableY(d)) end,
+    [gg_dest_LTbs_4010] = function(d) CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d), 600.) end,
+    [gg_dest_LTbs_4009] = function(d) CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d), 600.) end,
+    [gg_dest_LTcr_4012] = function(d) CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d), 600.) end,
+    [gg_dest_LTba_9594] = function(d) CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d), 600.) end,
+    [gg_dest_LTbs_4008] = function(d) CreateItem(DropTable:pickItem(69), GetWidgetX(d), GetWidgetY(d), 600.) end,
+    [gg_dest_B007_3861] = function(d) CreateItem(FourCC('I042'), GetWidgetX(d), GetWidgetY(d)) end,
 }
 
 function DestructableDeath()

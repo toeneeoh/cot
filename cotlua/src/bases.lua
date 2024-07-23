@@ -55,7 +55,7 @@ OnInit.final("Bases", function(Require)
         local p = Player(pt.pid - 1) 
 
         if Profile[pt.pid].hero.base == 0 then
-            PanCameraToTimedLocForPlayer(p, TownCenter, 0)
+            PanCameraToTimedLocForPlayer(p, TOWN_CENTER, 0)
             DisplayTextToForce(FORCE_PLAYING, User[pt.pid - 1].nameColored .. " was defeated by losing their base.")
             DisplayTimedTextToPlayer(p, 0, 0, 240., "You have lost the game. All of your structures and units have been removed from the game, however you may -repick to begin a new character in a new character save slot.")
             PlayerCleanup(pt.pid)
