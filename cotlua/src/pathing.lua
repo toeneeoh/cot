@@ -12,7 +12,7 @@ OnInit.global("Pathing", function()
     TERRAIN_X = 0.
     TERRAIN_Y = 0.
 
-    local MAX_RANGE     = 10.
+    local MAX_RANGE     = 100.
     local Find          = Rect(0., 0., 128., 128.)
     local HiddenItems   = {}
 
@@ -57,12 +57,12 @@ function IsTerrainWalkable(x, y)
 
     SetItemPosition(PATH_ITEM, 30000., 30000.)
 
-    for i, v in ipairs(HiddenItems) do
-        SetItemVisible(v, true)
+    for i = 1, #HiddenItems do
+        SetItemVisible(HiddenItems[i], true)
         HiddenItems[i] = nil
     end
 
-    return (TERRAIN_X - x) ^ 2 + (TERRAIN_Y - y) ^ 2 <= MAX_RANGE ^ 2 and not IsTerrainPathable(x, y, PATHING_TYPE_WALKABILITY)
+    return (TERRAIN_X - x) ^ 2 + (TERRAIN_Y - y) ^ 2 <= MAX_RANGE and not IsTerrainPathable(x, y, PATHING_TYPE_WALKABILITY)
 end
 
 end, Debug and Debug.getLine())
