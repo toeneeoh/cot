@@ -2,6 +2,7 @@ OnInit.final("HeroSelect", function(Require)
     Require('Users')
     Require('Variables')
     Require('Spells')
+    Require('Frames')
 
     local SELECT_DUMMY   = {} ---@type unit[] 
     local SELECT_VIEWING = __jarray(0) ---@type integer[] 
@@ -145,7 +146,7 @@ OnInit.final("HeroSelect", function(Require)
         if GetLocalPlayer() == GetTriggerPlayer() then
             BlzFrameSetEnable(BlzGetTriggerFrame(), false)
             BlzFrameSetEnable(BlzGetTriggerFrame(), true)
-            BlzFrameSetVisible(hardcoreBG, false)
+            BlzFrameSetVisible(HARDCORE_BACKDROP, false)
         end
     end
 
@@ -156,7 +157,7 @@ OnInit.final("HeroSelect", function(Require)
         if GetLocalPlayer() == GetTriggerPlayer() then
             BlzFrameSetEnable(BlzGetTriggerFrame(), false)
             BlzFrameSetEnable(BlzGetTriggerFrame(), true)
-            BlzFrameSetVisible(hardcoreBG, false)
+            BlzFrameSetVisible(HARDCORE_BACKDROP, false)
         end
     end
 
@@ -176,7 +177,7 @@ OnInit.final("HeroSelect", function(Require)
 
         if (GetLocalPlayer() == p) then
             ClearTextMessages()
-            BlzFrameSetVisible(hardcoreBG, true)
+            BlzFrameSetVisible(HARDCORE_BACKDROP, true)
         end
     end
 
@@ -278,6 +279,17 @@ OnInit.final("HeroSelect", function(Require)
         BlzTriggerRegisterPlayerKeyEvent(arrow, u.player, OSKEY_RIGHT, 0, true)
         u = u.next
     end
+
+    local hardcoreSelectYes = CreateTrigger()
+    local hardcoreSelectNo = CreateTrigger()
+
+    TriggerAddCondition(hardcoreSelectYes, Condition(HardcoreMenu))
+    TriggerAddAction(hardcoreSelectYes, HardcoreYes)
+    BlzTriggerRegisterFrameEvent(hardcoreSelectYes, HARDCORE_BUTTON_FRAME, FRAMEEVENT_CONTROL_CLICK)
+
+    TriggerAddCondition(hardcoreSelectNo, Condition(HardcoreMenu))
+    TriggerAddAction(hardcoreSelectNo, HardcoreNo)
+    BlzTriggerRegisterFrameEvent(hardcoreSelectNo, HARDCORE_BUTTON_FRAME2, FRAMEEVENT_CONTROL_CLICK)
 
     TriggerAddCondition(arrow, Condition(IsSelecting))
 end, Debug and Debug.getLine())
