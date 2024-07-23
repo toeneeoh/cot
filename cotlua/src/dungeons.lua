@@ -6,144 +6,233 @@
 
 OnInit.final("Dungeons", function(Require)
     Require('Variables')
+    Require('Units')
+    Require('Items')
+    Require('Death')
+    Require('Button')
 
-    DungeonTable  = {} ---@type table 
-
-    QUEUE_DUNGEON = 0 ---@type integer 
+    QUEUE_DUNGEON = false
     QUEUE_GROUP   = {} ---@type player[]
-    QUEUE_X       = 0. ---@type number 
-    QUEUE_Y       = 0. ---@type number 
-    QUEUE_LEVEL   = 0 ---@type integer 
     QUEUE_READY   = {} ---@type boolean[] 
 
-    NAGA_FLOOR         = 0 ---@type integer 
-    NAGA_TIMER         = nil ---@type TimerFrame 
-    NAGA_ENEMIES       = {}
-    nagatp             = nil ---@type unit 
-    nagachest          = nil ---@type unit 
-    nagaboss           = nil ---@type unit 
-    nagawaterstrikecd  = false ---@type boolean 
+    ---@class Dungeon
+    ---@field started boolean
+    ---@field name string
+    ---@field players integer[]
+    ---@field chest unit
+    ---@field enemies unit[]
+    ---@field creepDeath function
+    ---@field define function
+    ---@field endDungeon function
+    ---@field entrance_x number
+    ---@field entrance_y number
+    ---@field exit_x number
+    ---@field exit_y number
+    ---@field timer TimerFrame
+    Dungeon = {}
+    do
+        local thistype = Dungeon
+        local mt = { __index = thistype }
 
-    NAGA_GROUP      = {} ---@type integer[]
-    AZAZOTH_GROUP   = {} ---@type player[]
+        local function onBuy(p, pid, u, itm)
+            thistype[itm.id]:queue(pid)
+        end
 
-    DUNGEON_AZAZOTH = FourCC('I08T') ---@type integer 
-    DUNGEON_NAGA    = FourCC('I0JU') ---@type integer 
+        ---@param id integer
+        ---@return Dungeon
+        function thistype.define(id)
+            local self = {
+                id = FourCC(id),
+                players = {},
+                enemies = {},
+                floor = 0,
+            }
 
-    DUNGEONS = {
-        DUNGEON_AZAZOTH,
-        DUNGEON_NAGA,
-    }
+            setmetatable(self, mt)
 
-    DungeonTable[DUNGEON_AZAZOTH] = {}
-    DungeonTable[DUNGEON_AZAZOTH].level = 360
-    DungeonTable[DUNGEON_AZAZOTH].queue = 0
-    DungeonTable[DUNGEON_AZAZOTH].playercount = 0
-    DungeonTable[DUNGEON_AZAZOTH].group = AZAZOTH_GROUP
-    DungeonTable[DUNGEON_AZAZOTH].name = "Azazoth's Lair"
-    DungeonTable[DUNGEON_AZAZOTH].queueloc = Location(-1408., -15246.)
-    DungeonTable[DUNGEON_AZAZOTH].entrance = Location(-2036., -28236.)
+            -- setup item onbuy event
+            ITEM_LOOKUP[self.id] = onBuy
+            thistype[self.id] = self
 
-    DungeonTable[DUNGEON_NAGA] = {}
-    DungeonTable[DUNGEON_NAGA].level = 400
-    DungeonTable[DUNGEON_NAGA].queue = 0
-    DungeonTable[DUNGEON_NAGA].playercount = 0
-    DungeonTable[DUNGEON_NAGA].group = NAGA_GROUP
-    DungeonTable[DUNGEON_NAGA].name = "Naga Dungeon"
-    DungeonTable[DUNGEON_NAGA].queueloc = Location(-12363., -1185.)
-    DungeonTable[DUNGEON_NAGA].entrance = Location(-20000., -4600.)
+            return self
+        end
 
-    --if a dungeon is failed
-    function DungeonFail(pid)
-        local p = Player(pid - 1)
+        ---@type fun(id: integer, x: number, y: number, facing: number, dmgr: integer, g: table):unit
+        function thistype:createUnit(id, x, y, facing)
+            local u = CreateUnit(pfoe, id, x, y, facing)
+            self.enemies[#self.enemies + 1] = u
 
-        --azazoth reset
-        if TableHas(AZAZOTH_GROUP, p) then
-            TableRemove(AZAZOTH_GROUP, p)
-
-            DisplayTimedTextToPlayer(p, 0, 0, 20.00, "|c00ff3333Azazoth: Mortal weakling, begone! Your flesh is not even worth annihilation.")
-
-            if #AZAZOTH_GROUP == 0 then
-                Buff.dispelAll(BossTable[BOSS_AZAZOTH].unit)
-                SetUnitLifePercentBJ(BossTable[BOSS_AZAZOTH].unit, 100)
-                SetUnitManaPercentBJ(BossTable[BOSS_AZAZOTH].unit, 100)
-                SetUnitPosition(BossTable[BOSS_AZAZOTH].unit, GetRectCenterX(gg_rct_Azazoth_Boss_Spawn), GetRectCenterY(gg_rct_Azazoth_Boss_Spawn))
-                BlzSetUnitFacingEx(BossTable[BOSS_AZAZOTH].unit, 90.00)
+            if self.creepDeath then
+                EVENT_ON_DEATH:register_unit_action(u, self.creepDeath)
             end
 
-        --naga dungeon
-        elseif TableHas(NAGA_GROUP, pid) then
-            TableRemove(NAGA_GROUP, pid)
+            return u
+        end
 
-            if #NAGA_GROUP <= 0 then
-                NAGA_TIMER:destroy()
-                NAGA_ENEMIES = {}
+        function thistype:destroy()
+            self.floor = 0
+            self.started = false
+
+            if self.timer then
+                self.timer:destroy()
+            end
+
+            if self.exit_timer then
+                self.exit_timer:destroy()
+            end
+
+            if self.chest then
+                RemoveUnit(self.chest)
+            end
+
+            for i = 1, #self.enemies do
+                RemoveUnit(self.enemies[i])
+                self.enemies[i] = nil
             end
         end
-    end
 
-    --actions after a dungeon is finished
-    function DungeonComplete(id)
-        StartSound(bj_questCompletedSound)
+        -- dungeon end ui
+        function thistype:endDungeon()
 
-        --clear dungeon group
-        DungeonTable[id].group = {}
+            -- reenable items for players
+            for i = 1, #self.players do
+                local pid = self.players[i]
+                DisableItems(pid, false)
+            end
 
-        if id == DUNGEON_AZAZOTH then
+            -- timer runs out, dungeon closes
+            local function close()
+                for i = 1, #self.players do
+                    local pid = self.players[i]
+                    DisableBackpackTeleports(pid, false)
+                    MoveHero(pid, self.exit_x, self.exit_y)
+                    self.players[i] = nil
+                end
 
-        elseif id == DUNGEON_NAGA then
-            nagachest = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h002'), -22141, -10500, 0)
-            DisplayTextToTable(NAGA_GROUP, "You have vanquished the Ancient Nagas!")
-            if NAGA_TIMER then --time restriction
-                NAGA_TIMER:destroy()
-                Item.create(CreateItem(FourCC('I0NN'), x, y)) --token
-                if DungeonTable[DUNGEON_NAGA].playercount > 3 and GetRandomInt(0, 99) < 50 then
-                    Item.create(CreateItem(FourCC('I0NN'), x, y))
+                self:destroy()
+            end
+            self.exit_timer = TimerFrame.create("Dungeon closing in: ", 120., close, self.players)
+
+            -- player presses EXIT
+            local exit = function()
+                local p = GetTriggerPlayer()
+                local pid = GetPlayerId(p) + 1
+
+                TableRemove(self.players, pid)
+                DisableBackpackTeleports(pid, false)
+                MoveHero(pid, self.exit_x, self.exit_y)
+
+                if GetLocalPlayer() == p then
+                    BlzFrameSetVisible(self.exit_timer.minimize, false)
+                end
+
+                if #self.players == 0 then
+                    self:destroy()
                 end
             end
-            for _, pid in ipairs(NAGA_GROUP) do
-                local XP = R2I(Experience_Table[500] / 700. * XP_Rate[pid])
-                AwardXP(pid, XP)
-                EnableItems(pid)
+            FrameAddButton(self.exit_timer.frame, "war3mapImported\\ExitButton.blp", 0.03, 0.015, FRAMEPOINT_TOP, FRAMEPOINT_TOP, 0., 0.015, exit)
+        end
+
+        local function start(self)
+            for i = 1, #QUEUE_GROUP do
+                MoveHero(QUEUE_GROUP[i], self.entrance_x, self.entrance_y)
+                self.players[#self.players + 1] = QUEUE_GROUP[i]
+                DisableItems(QUEUE_GROUP[i], true)
+                DisableBackpackTeleports(QUEUE_GROUP[i], true)
+
+                MULTIBOARD.QUEUE:delRows(1)
+                MULTIBOARD.QUEUE.available[QUEUE_GROUP[i]] = false
+                MULTIBOARD.MAIN:display(QUEUE_GROUP[i])
+
+                if self.playerDeath then
+                    EVENT_GRAVE_DEATH:register_unit_action(Hero[QUEUE_GROUP[i]], self.playerDeath)
+                end
+
+                QUEUE_READY[QUEUE_GROUP[i]] = false
+                QUEUE_GROUP[i] = nil
+            end
+
+            QUEUE_DUNGEON = false
+
+            self:onStart()
+        end
+
+        local function ready_check()
+            for _, v in ipairs(QUEUE_GROUP) do
+                if not QUEUE_READY[v] then
+                    return false
+                end
+            end
+
+            return true
+        end
+
+        -- add & remove players to dungeon queue
+        local function queue_check(self)
+            if not self.started then
+                local U = User.first
+                local mb = MULTIBOARD.QUEUE
+
+                while U do
+                    if IsUnitInRangeXY(Hero[U.id], self.queue_x, self.queue_y, 750.) and UnitAlive(Hero[U.id]) and not Unit[Hero[U.id]].busy then
+                        if TableHas(QUEUE_GROUP, U.id) == false and GetHeroLevel(Hero[U.id]) >= self.level then
+                            QUEUE_GROUP[#QUEUE_GROUP + 1] = U.id
+                            mb:addRows(1)
+                            mb:get(mb.rowCount, 1).text = {0.02, 0, 0.09, 0.011}
+                            mb:get(mb.rowCount, 2).icon = {0.26, 0, 0.011, 0.011}
+                            mb.available[U.id] = true
+                            mb:display(U.id)
+                        end
+                    elseif TableHas(QUEUE_GROUP, U.id) then
+                        TableRemove(QUEUE_GROUP, U.id)
+                        QUEUE_READY[U.id] = false
+                        mb:delRows(1)
+                        mb.available[U.id] = false
+                        MULTIBOARD.MAIN:display(U.id)
+                    end
+
+                    U = U.next
+                end
+
+                if #QUEUE_GROUP == 0 then
+                    QUEUE_DUNGEON = false
+                else
+                    TimerQueue:callDelayed(1., queue_check, self)
+                end
             end
         end
 
-        --display end UI
-    end
-
-    function NagaWaygate()
-        local ug = CreateGroup()
-
-        GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon_Reward, Condition(ischar))
-
-        if BlzGroupGetSize(ug) == 0 then
-            TimerQueue:callDelayed(2.5, RemoveUnit, nagachest)
-            if NAGA_FLOOR == 1 then
-                BlackMask(NAGA_GROUP, 2, 2)
-                DungeonMove(NAGA_GROUP, -20000, -4600, 2)
-                TimerQueue:callDelayed(2., RemoveUnit, nagatp)
-                NagaSpawnFloor(NAGA_FLOOR + 1)
-            elseif NAGA_FLOOR == 2 then
-                BlackMask(NAGA_GROUP, 2, 2)
-                DungeonMove(NAGA_GROUP, -24192, -10500, 2)
-                TimerQueue:callDelayed(2., RemoveUnit, nagatp)
-                NagaSpawnFloor(NAGA_FLOOR + 1)
+        ---@param pid integer
+        function thistype:queue(pid)
+            if self.started then
+                DisplayTextToPlayer(Player(pid - 1), 0, 0, "This dungeon is already in progress!")
+            else
+                if not QUEUE_DUNGEON then
+                    QUEUE_DUNGEON = self
+                    MULTIBOARD.QUEUE.title = self.name
+                    queue_check(self)
+                elseif QUEUE_DUNGEON == self then
+                    if ready_check() then
+                        self.started = true
+                        BlackMask(QUEUE_GROUP, 2, 2)
+                        TimerQueue:callDelayed(2., start, self)
+                    else
+                        DisplayTextToTable(QUEUE_GROUP, "Not all players are ready to start the dungeon!")
+                    end
+                else
+                    DisplayTextToPlayer(Player(pid - 1), 0, 0, "Please wait while another dungeon is queueing!")
+                end
             end
         end
 
-        DestroyGroup(ug)
-    end
+        -- stubs
 
-    ---@type fun(id: integer, x: number, y: number, facing: number, dmgr: integer, g: table):unit
-    function DungeonCreateUnit(id, x, y, facing, dmgr, g)
-        local u = CreateUnit(pfoe, id, x, y, facing)
-        g[#g + 1] = u
-        Unit[u].dr = (1 - dmgr * 0.1)
-        return u
+        -- called when dungeon begins
+        function thistype:onStart() end
     end
 
     ---@type fun(tbl: table, x: number, y: number)
-    local function DungeonMoveExpire(tbl, x, y)
+    local function dungeon_move_expire(tbl, x, y)
         for _, pid in ipairs(tbl) do
             pid = (type(pid) == "userdata" and GetPlayerId(pid) + 1) or pid
             MoveHero(pid, x, y)
@@ -151,388 +240,209 @@ OnInit.final("Dungeons", function(Require)
     end
 
     ---@type fun(tbl: table, x: number, y:number, delay: number)
-    function DungeonMove(tbl, x, y, delay)
-        TimerQueue:callDelayed(delay, DungeonMoveExpire, tbl, x, y)
+    local function dungeon_move(tbl, x, y, delay)
+        TimerQueue:callDelayed(delay, dungeon_move_expire, tbl, x, y)
     end
 
-    --naga dungeon
+    DUNGEON_AZAZOTH = Dungeon.define('I08T')
+    do
+        local thistype = DUNGEON_AZAZOTH
 
-    ---@type fun(killed: unit)
-    function AdvanceNagaDungeon(killed)
-        TableRemove(NAGA_ENEMIES, killed)
+        thistype.level = 360
+        thistype.name = "Azazoth's Lair"
+        thistype.queue_x = -1408.
+        thistype.queue_y = -15246.
+        thistype.entrance_x = -2036.
+        thistype.entrance_y = -28236.
+        thistype.exit_x = -250.
+        thistype.exit_y = 60.
 
-        if #NAGA_ENEMIES <= 0 then
-            if NAGA_FLOOR < 3 then
-                nagachest = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h002'), -23000, -3750, 270)
-                nagatp = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n00O'), -21894, -4667, 270)
-                MovePlayers(NAGA_GROUP, -24000, -4700)
-                WaygateSetDestination(nagatp, -27637, -7440)
-                WaygateActivate(nagatp, true)
-            end
-        end
-    end
+        thistype.playerDeath = function(u)
+            local pid = GetPlayerId(GetOwningPlayer(u)) + 1
+            TableRemove(thistype.players, pid)
 
-    function NagaReward()
-        local pcount  = DungeonTable[DUNGEON_NAGA].playercount ---@type integer 
-        local plat    = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
-        local arc     = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
-        local crystal = GetRandomInt(12, 15) + pcount * 3 ---@type integer 
-
-        DisplayTimedTextToTable(NAGA_GROUP, 7.5, "|cffffcc00You have been rewarded:|r \n|cffe3e2e2" .. (plat) .. " Platinum|r \n|cff66FF66" .. (arc) .. " Arcadite|r \n|cff6969FF" .. (crystal) .. " Crystals|r")
-
-        for _, p in ipairs(NAGA_GROUP) do
-            local pid = GetPlayerId(p) + 1
-            AddCurrency(pid, PLATINUM, plat)
-            AddCurrency(pid, ARCADITE, arc)
-            AddCurrency(pid, CRYSTAL, crystal)
-            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", GetUnitX(Hero[pid]), GetUnitY(Hero[pid])))
-        end
-    end
-
-    ---@param floor integer
-    function NagaSpawnFloor(floor)
-        local pcount = DungeonTable[DUNGEON_NAGA].playercount ---@type integer 
-
-        NAGA_FLOOR = floor
-
-        if NAGA_FLOOR == 1 then
-            DungeonCreateUnit(FourCC('n01L'), -20607, -3733, 335, pcount, NAGA_ENEMIES)
-            DungeonCreateUnit(FourCC('n01L'), -22973, -2513, 0, pcount, NAGA_ENEMIES)
-            DungeonCreateUnit(FourCC('n01L'), -25340, -4218, 45, pcount, NAGA_ENEMIES)
-            DungeonCreateUnit(FourCC('n01L'), -24980, -6070, 335, pcount, NAGA_ENEMIES)
-            DungeonCreateUnit(FourCC('n01L'), -23087, -6656, 0, pcount, NAGA_ENEMIES)
-            DungeonCreateUnit(FourCC('n01L'), -20567, -5402, 45, pcount, NAGA_ENEMIES)
-        elseif NAGA_FLOOR == 2 then
-            UnitAddBonus(DungeonCreateUnit(FourCC('n005'), -20607, -3733, 335, pcount, NAGA_ENEMIES), BONUS_DAMAGE, 200000 * pcount)
-            UnitAddBonus(DungeonCreateUnit(FourCC('n005'), -22973, -2513, 0, pcount, NAGA_ENEMIES), BONUS_DAMAGE, 200000 * pcount)
-            UnitAddBonus(DungeonCreateUnit(FourCC('n005'), -25340, -4218, 45, pcount, NAGA_ENEMIES), BONUS_DAMAGE, 200000 * pcount)
-            UnitAddBonus(DungeonCreateUnit(FourCC('n005'), -24980, -6070, 335, pcount, NAGA_ENEMIES), BONUS_DAMAGE, 200000 * pcount)
-            UnitAddBonus(DungeonCreateUnit(FourCC('n005'), -23087, -6656, 0, pcount, NAGA_ENEMIES), BONUS_DAMAGE, 200000 * pcount)
-            UnitAddBonus(DungeonCreateUnit(FourCC('n005'), -20567, -5402, 45, pcount, NAGA_ENEMIES), BONUS_DAMAGE, 200000 * pcount)
-        elseif NAGA_FLOOR == 3 then
-            nagaboss = DungeonCreateUnit(FourCC('O006'), -20828, -10500, 180, pcount, NAGA_ENEMIES)
-            AddSpecialEffectTarget("LightYellow30.mdl", nagaboss, "origin")
-            SetHeroLevel(nagaboss, 500, false)
-        end
-    end
-
-    ---@type fun(source: unit, dmg: number, x: number, y: number, aoe: number, filter: boolexpr)
-    function NagaTridentStrike(source, dmg, x, y, aoe, filter)
-        local ug = CreateGroup()
-
-        GroupEnumUnitsInRange(ug, x, y, aoe, filter)
-
-        for target in each(ug) do
-            DamageTarget(source, target, dmg, ATTACK_TYPE_NORMAL, MAGIC, "Trident Strike")
-        end
-
-        DestroyGroup(ug)
-    end
-
-    ---@type fun(amount: number, source: unit, target: unit, damage_type: damagetype): number
-    function DungeonOnDamage(amount, source, target, damage_type)
-        local uid = GetUnitTypeId(source) ---@type integer 
-        local tuid = GetUnitTypeId(target) ---@type integer 
-
-        --target
-        if tuid == FourCC('n01L') then --naga defender
-            if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A04K')) == 0 and GetUnitLifePercent(target) < 90. then
-                IssueImmediateOrder(target, "berserk")
-            elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A04R')) == 0 and GetUnitLifePercent(target) < 80. then
-                IssueImmediateOrder(target, "battleroar")
+            if UnitAlive(thistype.boss) then
+                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 20.00, "|c00ff3333Azazoth: Mortal weakling, begone! Your flesh is not even worth annihilation.")
             end
 
-            if damage_type == PHYSICAL and GetUnitAbilityLevel(target, FourCC('B04S')) > 0 then
-                DamageTarget(target, source, BlzGetUnitMaxHP(source) * 0.4, ATTACK_TYPE_NORMAL, MAGIC)
-            end
-        elseif tuid == FourCC('n005') then --naga elite
-            if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A04V')) == 0 and GetUnitLifePercent(target) < 90. then
-                IssueImmediateOrder(target, "battleroar")
-            elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A04W')) == 0 and GetUnitLifePercent(target) < 80. then
-                IssueImmediateOrder(target, "berserk")
-            end
-        elseif tuid == FourCC('O006') then --naga boss
-            if nagawaterstrikecd == false then
-                nagawaterstrikecd = true
-                TimerQueue:callDelayed(5., NagaWaterStrike)
-            elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A05C')) == 0 and GetUnitLifePercent(target) < 90. then
-                IssueImmediateOrder(target, "berserk")
-            elseif BlzGetUnitAbilityCooldownRemaining(target, FourCC('A05K')) == 0 and GetUnitLifePercent(target) < 80. then
-                IssueImmediateOrder(target, "battleroar")
-            end
-        elseif tuid == FourCC('u002') then --beetle
-            if damage_type == MAGIC then
-                amount = 0.00
-            end
-        end
-
-        --source
-        if uid == FourCC('n01L') then --naga defender
-            if damage_type == PHYSICAL then
-                amount = 0.00
-
-                if not Unit[source].hits then
-                    Unit[source].hits = 0
-                end
-
-                Unit[source].hits = Unit[source].hits + 1
-                FloatingTextUnit(tostring(Unit[source].hits), target, 1.5, 50, 150., 14.5, 255, 255, 255, 0, true)
-
-                if Unit[source].target ~= target then
-                    Unit[source].hits = 1
-                elseif Unit[source].hits > 2 then
-                    NagaTridentStrike(source, BlzGetUnitMaxHP(target) * 0.7, GetUnitX(target), GetUnitY(target), 120., Condition(isplayerunit))
-                    DestroyEffect(AddSpecialEffectTarget("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", target, "origin"))
-                    Unit[source].hits = 0
-                end
-
-                Unit[source].target = target
-            end
-        elseif uid == FourCC('n005') then --naga elite
-
-        elseif uid == FourCC('u002') then --beetle
-            Stun:add(source, target):duration(8.)
-            KillUnit(source)
-        elseif uid == FourCC('h003') then --naga water strike
-            amount = 0.00
-            if UnitAlive(nagaboss) then
-                DamageTarget(nagaboss, target, BlzGetUnitMaxHP(target) * 0.075, ATTACK_TYPE_NORMAL, MAGIC, "Water Strike")
-            end
-            RemoveUnit(source)
-        end
-
-        return amount
-    end
-
-    local function spirit_call_on_hit(source, target)
-        DamageTarget(source, target, BlzGetUnitMaxHP(target) * 0.1, ATTACK_TYPE_NORMAL, MAGIC, "Spirit Call")
-        SpiritCallSlow:add(source, target):duration(5.)
-    end
-
-    ---@type fun(time: integer)
-    function SpiritCallPeriodic(time)
-        local ug  = CreateGroup()
-        local ug2 = CreateGroup()
-
-        time = time - 1
-
-        GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon_Boss, Condition(isspirit))
-
-        if time >= 0 then
-            for source in each(ug) do
-                if GetRandomInt(0, 99) < 25 then
-                    GroupEnumUnitsInRect(ug2, gg_rct_Naga_Dungeon_Boss, Condition(isplayerunit))
-                    local u = BlzGroupUnitAt(ug2, GetRandomInt(0, BlzGroupGetSize(ug2) - 1))
-                    IssuePointOrder(source, "move", GetUnitX(u) + GetRandomInt(-150, 150), GetUnitY(u) + GetRandomInt(-150, 150))
-                end
-                GroupEnumUnitsInRange(ug2, GetUnitX(source), GetUnitY(source), 300., Condition(isplayerunit))
-                for enemy in each(ug2) do
-                    local dummy = Dummy.create(GetUnitX(source), GetUnitY(source), FourCC('A09R'), 1)
-                    dummy:attack(enemy, source, spirit_call_on_hit)
-                end
-            end
-            TimerQueue:callDelayed(1., SpiritCallPeriodic, time)
-        else
-            for source in each(ug) do
-                SetUnitVertexColor(source, 100, 255, 100, 255)
-                SetUnitScale(source, 1, 1, 1)
-                IssuePointOrder(source, "move", GetRandomReal(GetRectMinX(gg_rct_Naga_Dungeon_Boss_Vision), GetRectMaxX(gg_rct_Naga_Dungeon_Boss_Vision)), GetRandomReal(GetRectMinY(gg_rct_Naga_Dungeon_Boss_Vision), GetRectMaxY(gg_rct_Naga_Dungeon_Boss_Vision)))
-            end
-        end
-
-        DestroyGroup(ug)
-        DestroyGroup(ug2)
-    end
-
-    function SpiritCall()
-        local ug = CreateGroup()
-
-        GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon_Boss, Condition(isspirit))
-
-        for target in each(ug) do
-            SetUnitVertexColor(target, 255, 25, 25, 255)
-            SetUnitScale(target, 1.25, 1.25, 1.25)
-        end
-
-        TimerQueue:callDelayed(1., SpiritCallPeriodic, 15)
-
-        DestroyGroup(ug)
-    end
-
-    ---@type fun(x: number, y: number)
-    function CollapseExpire(x, y)
-        local ug = CreateGroup()
-
-        GroupEnumUnitsInRange(ug, x, y, 500., Condition(isplayerunit))
-        DestroyEffect(AddSpecialEffect("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", x + 150, y + 150))
-        DestroyEffect(AddSpecialEffect("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", x - 150, y - 150))
-        DestroyEffect(AddSpecialEffect("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", x + 150, y - 150))
-        DestroyEffect(AddSpecialEffect("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", x - 150, y + 150))
-
-        for target in each(ug) do
-            DamageTarget(nagaboss, target, BlzGetUnitMaxHP(target) * GetRandomReal(0.75, 1), ATTACK_TYPE_NORMAL, MAGIC, "Collapse")
-        end
-
-        DestroyGroup(ug)
-    end
-
-    function NagaCollapse()
-        local dummy ---@type unit 
-
-        for _ = 0, 9 do
-            dummy = Dummy.create(GetRandomReal(GetRectMinX(gg_rct_Naga_Dungeon_Boss), GetRectMaxX(gg_rct_Naga_Dungeon_Boss)), GetRandomReal(GetRectMinY(gg_rct_Naga_Dungeon_Boss), GetRectMaxY(gg_rct_Naga_Dungeon_Boss)), 0, 0, 4.).unit
-            BlzSetUnitFacingEx(dummy, 270.)
-            BlzSetUnitSkin(dummy, FourCC('e01F'))
-            SetUnitScale(dummy, 10., 10., 10.)
-            SetUnitVertexColor(dummy, 0, 255, 255, 255)
-            TimerQueue:callDelayed(3., CollapseExpire, GetUnitX(dummy), GetUnitY(dummy))
-        end
-    end
-
-    function NagaWaterStrike()
-        if UnitAlive(nagaboss) then
-            local ug = CreateGroup()
-
-            MakeGroupInRect(FOE_ID, ug, gg_rct_Naga_Dungeon_Boss, Condition(FilterEnemy))
-
-            for target in each(ug) do
-                local dummy = CreateUnit(pfoe, FourCC('h003'), GetUnitX(nagaboss), GetUnitY(nagaboss), 0)
-                IssueTargetOrder(dummy, "smart", target)
+            if #thistype.players <= 0 then
+                thistype:destroy()
+                Buff.dispelAll(thistype.boss)
+                SetUnitLifePercentBJ(thistype.boss, 100)
+                SetUnitManaPercentBJ(thistype.boss, 100)
+                SetUnitPosition(thistype.boss, GetRectCenterX(gg_rct_Azazoth_Boss_Spawn), GetRectCenterY(gg_rct_Azazoth_Boss_Spawn))
+                BlzSetUnitFacingEx(thistype.boss, 90.00)
             end
 
-            DestroyGroup(ug)
-        else
-            nagawaterstrikecd = false
-        end
-    end
-
-    ---@type fun(caster: unit, time: integer)
-    function NagaMiasmaDamage(caster, time)
-        time = time - 1
-
-        if time > 0 then
-            local ug = CreateGroup()
-
-            GroupEnumUnitsInRect(ug, gg_rct_Naga_Dungeon, Condition(isplayerunit))
-
-            for target in each(ug) do
-                if ModuloInteger(time, 2) == 0 then
-                    TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Units\\Undead\\PlagueCloud\\PlagueCloudtarget.mdl", target, "overhead"))
-                end
-                DamageTarget(caster, target, 25000 + BlzGetUnitMaxHP(target) * 0.03, ATTACK_TYPE_NORMAL, MAGIC, "Miasma")
-            end
-            TimerQueue:callDelayed(0.5, NagaMiasmaDamage, caster, time)
-
-            DestroyGroup(ug)
-        end
-    end
-
-    ---@type fun(source: unit, target: unit)
-    function SwarmBeetle(source, target)
-    PauseUnit(source, false)
-    UnitRemoveAbility(source, FourCC('Avul'))
-    IssueTargetOrder(source, "attack", target)
-    UnitApplyTimedLife(source, FourCC('BTLF'), 6.5)
-    TimerQueue:callDelayed(5., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Other\\Parasite\\ParasiteTarget.mdl", source, "overhead"))
-    end
-
-    ---@type fun(source: unit)
-    function ApplyNagaAtkSpeed(source)
-        if UnitAlive(source) then
-            NagaEliteAtkSpeed:add(source, source):duration(4.)
-        end
-    end
-
-    ---@type fun(source: unit)
-    function ApplyNagaThorns(source)
-        if UnitAlive(source) then
-            NagaThorns:add(source, source):duration(6.5)
-        end
-    end
-
-    local function NAGA_TIMER_END()
-        DisplayTextToTable(NAGA_GROUP, "Prestige token will no longer drop.")
-    end
-
-    --end naga dungeon
-
-    function DungeonStarter()
-        local U = User.first ---@type User 
-        local dungeon = DungeonTable[QUEUE_DUNGEON]
-
-        while U do
-            if TableHas(QUEUE_GROUP, U.player) and QUEUE_READY[U.id] then
-                MoveHeroLoc(U.id, dungeon.entrance)
-                dungeon.group[#dungeon.group + 1] = U.player
-                dungeon.playercount = dungeon.playercount + 1
-
-                --TODO should dungeon disable item dropping?
-                DisableItems(U.id)
-
-                TableRemove(QUEUE_GROUP, U.player)
-
-                --minimize queue multiboard if currently viewing
-                if MULTIBOARD.bodies[MULTIBOARD.lookingAt[U.id]] == MULTIBOARD.QUEUE then
-                    MULTIBOARD.minimize(U.id)
-                end
-            end
-
-            QUEUE_READY[U.id] = false
-            U = U.next
+            EVENT_GRAVE_DEATH:unregister_unit_action(u, thistype.playerDeath)
         end
 
-        if QUEUE_DUNGEON == DUNGEON_NAGA then
-            NagaSpawnFloor(1)
+        local function onComplete()
+            StartSound(bj_questCompletedSound)
+            RemoveItemFromStock(god_portal, FourCC('I08T'))
 
-            NAGA_TIMER = TimerFrame.create("Prestige Token available:", 1800, NAGA_TIMER_END, NAGA_GROUP)
+            thistype:endDungeon()
         end
 
-        QUEUE_DUNGEON = 0
-        QUEUE_LEVEL = 0
-    end
-
-    ---@param id integer
-    function ReadyCheck(id)
-        local U      = User.first ---@type User 
-        local allReady         = true ---@type boolean 
-
-        while U do
-            if not QUEUE_READY[U.id] and TableHas(QUEUE_GROUP, U.player) then
-                allReady = false
-            end
-            U = U.next
-        end
-
-        if allReady then
-            BlackMask(QUEUE_GROUP, 2, 2)
-
-            DungeonTable[id].playercount = 0
-
-            TimerQueue:callDelayed(2., DungeonStarter)
-        else
-            DisplayTextToTable(QUEUE_GROUP, "Not all players are ready to start the dungeon!")
-        end
-    end
-
-    ---@param pid integer
-    ---@param id integer
-    function QueueDungeon(pid, id)
-        if #DungeonTable[id].group > 0 then
-            DisplayTextToPlayer(Player(pid - 1), 0, 0, "This dungeon is already in progress!")
-        else
-            if QUEUE_DUNGEON == 0 then
-                QUEUE_X = GetLocationX(DungeonTable[id].queueloc)
-                QUEUE_Y = GetLocationY(DungeonTable[id].queueloc)
-                QUEUE_LEVEL = DungeonTable[id].level
-                QUEUE_DUNGEON = id
-
-                QUEUE_GROUP = {}
-                MULTIBOARD.QUEUE.title = DungeonTable[id].name
-            elseif QUEUE_DUNGEON == id then
-                ReadyCheck(id)
+        local function unpause_boss(go)
+            if not go then
+                DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", thistype.boss, "origin"))
+                TimerQueue:callDelayed(2., unpause_boss, true)
             else
-                DisplayTextToPlayer(Player(pid - 1), 0, 0, "Please wait while another dungeon is queueing!")
+                PauseUnit(thistype.boss, false)
+                SetUnitTimeScale(thistype.boss, 1.)
             end
+        end
+
+        function thistype:onStart()
+            thistype.boss = BossTable[BOSS_AZAZOTH].unit
+            PauseUnit(thistype.boss, true)
+            SetUnitTimeScale(thistype.boss, 0.)
+            TimerQueue:callDelayed(5., unpause_boss, false)
+
+            EVENT_ON_DEATH:register_unit_action(BossTable[BOSS_AZAZOTH].unit, onComplete)
+        end
+    end
+
+    DUNGEON_NAGA = Dungeon.define('I0JU')
+    do
+        local thistype = DUNGEON_NAGA
+        thistype.level = 400
+        thistype.name = "Naga Dungeon"
+        thistype.queue_x = -12363.
+        thistype.queue_y = -1185.
+        thistype.entrance_x = -20000.
+        thistype.entrance_y = -4600.
+        thistype.exit_x = -250.
+        thistype.exit_y = 60.
+        thistype.chest = nil
+
+        thistype.playerDeath = function(u)
+            local pid = GetPlayerId(GetOwningPlayer(u)) + 1
+            TableRemove(thistype.players, pid)
+
+            if #thistype.players <= 0 then
+                thistype:destroy()
+            end
+
+            EVENT_GRAVE_DEATH:unregister_unit_action(u, thistype.playerDeath)
+        end
+
+        local function onComplete()
+            StartSound(bj_questCompletedSound)
+
+            thistype.chest = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h002'), -22141, -10500, 0)
+            DisplayTextToTable(thistype.players, "You have vanquished the Ancient Nagas!")
+            if thistype.timer then
+                thistype.timer:destroy()
+            end
+            --[[for _, pid in ipairs(thistype.players) do
+                local XP = R2I(Experience_Table[300] * XP_Rate[pid])
+                AwardXP(pid, XP)
+            end]]
+
+            thistype:endDungeon()
+        end
+
+        ---@type fun(killed: unit)
+        local function creepDeath(killed)
+            TableRemove(thistype.enemies, killed)
+
+            if #thistype.enemies <= 0 and thistype.floor < 3 then
+                thistype.chest = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h002'), -23000, -3750, 270)
+                MovePlayers(thistype.players, -24000, -4700)
+            end
+        end
+
+        local create_unit = function(...)
+            local u = thistype:createUnit(...)
+            EVENT_ON_DEATH:register_unit_action(u, creepDeath)
+            Unit[u].dr = (1 - #thistype.players * 0.1)
+            return u
+        end
+
+        local enemy_types = {
+            FourCC('n01L'),
+            FourCC('n005'),
+            FourCC('O006'),
+        }
+
+        local function spawn_floor()
+            local pcount = #thistype.players
+
+            thistype.floor = thistype.floor + 1
+            local type = enemy_types[thistype.floor]
+
+            if thistype.floor == 1 then
+                create_unit(type, -20607, -3733, 335)
+                create_unit(type, -22973, -2513, 0)
+                create_unit(type, -25340, -4218, 45)
+                create_unit(type, -24980, -6070, 335)
+                create_unit(type, -23087, -6656, 0)
+                create_unit(type, -20567, -5402, 45)
+            elseif thistype.floor == 2 then
+                UnitAddBonus(create_unit(type, -20607, -3733, 335), BONUS_DAMAGE, 200000 * pcount)
+                UnitAddBonus(create_unit(type, -22973, -2513, 0), BONUS_DAMAGE, 200000 * pcount)
+                UnitAddBonus(create_unit(type, -25340, -4218, 45), BONUS_DAMAGE, 200000 * pcount)
+                UnitAddBonus(create_unit(type, -24980, -6070, 335), BONUS_DAMAGE, 200000 * pcount)
+                UnitAddBonus(create_unit(type, -23087, -6656, 0), BONUS_DAMAGE, 200000 * pcount)
+                UnitAddBonus(create_unit(type, -20567, -5402, 45), BONUS_DAMAGE, 200000 * pcount)
+            elseif thistype.floor == 3 then
+                thistype.boss = create_unit(type, -20828, -10500, 180)
+                AddSpecialEffectTarget("LightYellow30.mdl", thistype.boss, "origin")
+                SetHeroLevel(thistype.boss, 500, false)
+                EVENT_ON_DEATH:register_unit_action(thistype.boss, onComplete)
+            end
+        end
+
+        ON_BUY_LOOKUP[FourCC('I0NM')] = function(u, p, pid, itm)
+            TimerQueue:callDelayed(2.5, RemoveUnit, u)
+            DestroyEffect(AddSpecialEffectTarget("UI\\Feedback\\GoldCredit\\GoldCredit.mdl", u, "origin"))
+            Fade(u, 2., true)
+
+            if thistype.floor == 1 then
+                BlackMask(thistype.players, 2, 2)
+                dungeon_move(thistype.players, -20000, -4600, 2)
+                spawn_floor()
+            elseif thistype.floor == 2 then
+                BlackMask(thistype.players, 2, 2)
+                dungeon_move(thistype.players, -24192, -10500, 2)
+                spawn_floor()
+            elseif thistype.floor == 3 then
+                if thistype.token_flag then
+                    CreateItem(FourCC('I0NN'), GetUnitX(u), GetUnitY(u)) --token
+                    if #thistype.players > 3 and math.random(0, 99) < 50 then
+                        CreateItem(FourCC('I0NN'), GetUnitX(u), GetUnitY(u))
+                    end
+                end
+            end
+
+            local pcount  = #thistype.players ---@type integer 
+            local plat    = math.random(12, 15) + pcount * 3 ---@type integer 
+            local arc     = math.random(12, 15) + pcount * 3 ---@type integer 
+            local crystal = math.random(12, 15) + pcount * 3 ---@type integer 
+
+            DisplayTimedTextToTable(thistype.players, 7.5, "|cffffcc00You have been rewarded:|r \n|cffe3e2e2" .. (plat) .. " Platinum|r \n|cff66FF66" .. (arc) .. " Arcadite|r \n|cff6969FF" .. (crystal) .. " Crystals|r")
+
+            for _, v in ipairs(thistype.players) do
+                AddCurrency(v, PLATINUM, plat)
+                AddCurrency(v, ARCADITE, arc)
+                AddCurrency(v, CRYSTAL, crystal)
+                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", GetUnitX(Hero[v]), GetUnitY(Hero[v])))
+            end
+        end
+
+        local function timer_expire()
+            thistype.token_flag = false
+            thistype.timer = nil
+            DisplayTextToTable(thistype.players, "Prestige token will no longer drop.")
+        end
+
+        function thistype:onStart()
+            spawn_floor()
+
+            self.token_flag = true
+            self.timer = TimerFrame.create("Prestige Token available:", 1800, timer_expire, self.players)
         end
     end
 end, Debug and Debug.getLine())
