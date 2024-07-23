@@ -52,8 +52,8 @@ function SetupDuel(pid, tpid, spawn1, spawn2, face, face2, arena)
     local y  = GetRectCenterY(spawn1) ---@type number 
     local x2 = GetRectCenterX(spawn2) ---@type number 
     local y2 = GetRectCenterY(spawn2) ---@type number 
-    local p  = GetOwningPlayer(a)
-    local p2 = GetOwningPlayer(b)
+    local p  = Player(pid - 1)
+    local p2 = Player(tpid - 1)
 
     ArenaQueue[pid] = 0
     ArenaQueue[tpid] = 0
@@ -98,8 +98,8 @@ function SetupDuel(pid, tpid, spawn1, spawn2, face, face2, arena)
         ShowHeroPanel(p2, p, true)
     end
 
-    PauseUnit(a, true)
-    PauseUnit(b, true)
+    PauseUnit(Hero[pid], true)
+    PauseUnit(Hero[tpid], true)
 
     TimerQueue:callDelayed(1., DuelCountdown, pid, tpid, 3)
 end
@@ -111,7 +111,7 @@ function ArenaCleanup(arena, killed)
         local pid = GetPlayerId(GetOwningPlayer(killed)) + 1
         TableRemove(Arena[arena], pid)
         SetUnitAnimation(killed, "stand")
-        MoveHeroLoc(pid, TownCenter)
+        MoveHeroLoc(pid, TOWN_CENTER)
         SetWidgetLife(killed, BlzGetUnitMaxHP(killed))
         ArenaQueue[pid] = 0
         TimerQueue:callDelayed(2., ArenaUnpause, pid)
@@ -119,7 +119,7 @@ function ArenaCleanup(arena, killed)
         for _, pid in ipairs(Arena[arena]) do
             SetUnitAnimation(Hero[pid], "stand")
             SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]))
-            MoveHeroLoc(pid, TownCenter)
+            MoveHeroLoc(pid, TOWN_CENTER)
             ArenaQueue[pid] = 0
             TimerQueue:callDelayed(2., ArenaUnpause, pid)
         end
