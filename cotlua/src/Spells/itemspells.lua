@@ -7,32 +7,41 @@
 OnInit.final("ItemSpells", function(Require)
     Require("Spells")
 
-    ITEM_EQUIP_SPELL = {
-        [FourCC('Aarm')] = function(itm, id, index) -- armor aura
-            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_ARMOR_BONUS_HAD1, 0, itm:getValue(index, 0))
-        end,
+    local ARMOR_OF_THE_GODS = Spell.define('Aarm')
+    do
+        local thistype = ARMOR_OF_THE_GODS
 
-        [FourCC('Abas')] = function(itm, id, index) -- bash
+        function thistype.onEquip(itm, id, index)
+            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_ARMOR_BONUS_HAD1, 0, itm:getValue(index, 0))
+        end
+    end
+
+    local BASH = Spell.define('Abas')
+    do
+        local thistype = BASH
+
+        function thistype.onEquip(itm, id, index)
             BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_CHANCE_TO_BASH, 0, itm:getValue(index, 0))
             BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_DURATION_NORMAL, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
             BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_DURATION_HERO, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
-        end,
+        end
+    end
 
-        [FourCC('A018')] = function(itm, id, index) -- blink
-            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
-        end,
+    local HEALING_POTION = Spell.define('HPOT')
+    do
+        local thistype = HEALING_POTION
 
-        [FourCC('HPOT')] = function(itm, id, index) -- healing potion
+        function thistype.onEquip(itm, id, index)
             BlzSetAbilityIntegerLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_ILF_HIT_POINTS_GAINED_IHPG, 0, itm:getValue(index, 0))
-        end,
-    }
+        end
+    end
 
     local SHIELD_BLOCK = Spell.define('Zs00', 'Zs01', 'Zs02', 'Zs03', 'Zs04', 'Zs05', 'Zs06')
     do
         local thistype = SHIELD_BLOCK
         local shield_variations = {}
 
-        -- iterate over shared definitions
+        -- iterate over definitions
         for _, v in ipairs(thistype.shared) do
             shield_variations[v] = function(target, source, amount, damage_type)
                 if damage_type == PHYSICAL and math.random(0, 99) < GetAbilityField(target, v, 0) then
@@ -41,12 +50,12 @@ OnInit.final("ItemSpells", function(Require)
             end
         end
 
-        function thistype.onUnequip(itm, id, abilid)
-            EVENT_ON_STRUCK_MULTIPLIER:unregister_unit_action(itm.holder, shield_variations[abilid])
+        function thistype.onUnequip(itm, id, index)
+            EVENT_ON_STRUCK_MULTIPLIER:unregister_unit_action(itm.holder, shield_variations[id])
         end
 
-        function thistype.onEquip(itm, id, abilid)
-            EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(itm.holder, shield_variations[abilid])
+        function thistype.onEquip(itm, id, index)
+            EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(itm.holder, shield_variations[id])
         end
     end
 
@@ -101,6 +110,27 @@ OnInit.final("ItemSpells", function(Require)
                 pt.dur = 5.
                 pt.source = self.caster
                 pt.timer:callDelayed(0.05, periodic, pt)
+            else
+                DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 15., "You do not have the proficiency to use this spell!")
+            end
+        end
+    end
+
+    local AZAZOTH_STOMP = Spell.define('A0B5')
+    do
+        local thistype = AZAZOTH_STOMP
+
+        function thistype:onCast()
+            if HasProficiency(self.pid, PROF_HEAVY) then
+                local ug = CreateGroup()
+                MakeGroupInRange(self.pid, ug, self.x, self.y, 550.00, Condition(FilterEnemy))
+
+                for target in each(ug) do
+                    AzazothHammerStomp:add(self.caster, target):duration(15.)
+                    DamageTarget(self.caster, target, 15.00 * GetHeroStr(self.caster, true) * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                end
+
+                DestroyGroup(ug)
             else
                 DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 15., "You do not have the proficiency to use this spell!")
             end
@@ -238,7 +268,7 @@ OnInit.final("ItemSpells", function(Require)
             end
         end
 
-        function thistype.onUnequip(itm, index)
+        function thistype.onUnequip(itm, id, index)
             DestroyEffect(itm.sfx)
         end
 
@@ -249,9 +279,56 @@ OnInit.final("ItemSpells", function(Require)
         end
     end
 
+    local SHORT_BLINK = Spell.define('A03D', 'A061')
+    do
+        local thistype = SHORT_BLINK
+
+        function thistype.preCast(pid, tpid, caster, target, x, y, targetX, targetY)
+            local r = GetRectFromCoords(x, y)
+            local r2 = GetRectFromCoords(targetX, targetY)
+
+            if r ~= r2 then
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
+                DisplayTextToPlayer(Player(pid - 1), 0, 0, "You can't blink there.")
+            end
+        end
+    end
+
+    local GOD_BLINK = Spell.define('A018')
+    do
+        local thistype = GOD_BLINK
+
+        function thistype.preCast(pid, tpid, caster, target, x, y, targetX, targetY)
+            local r = GetRectFromCoords(x, y)
+            local r2 = GetRectFromCoords(targetX, targetY)
+
+            if CHAOS_MODE then
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
+                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 20.00, "With the Gods dead, these items no longer have the ability to move around the map with free will. Their powers are dead, however their innate fighting powers are left unscathed.")
+            elseif r ~= r2 then
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
+                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 5., "You can't blink there.")
+            end
+        end
+
+        function thistype.onEquip(itm, id, index)
+            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
+        end
+    end
+
     THANATOS_BOOTS = Spell.define('A01S')
     do
         local thistype = THANATOS_BOOTS
+
+        function thistype.preCast(pid, tpid, caster, target, x, y, targetX, targetY)
+            local r = GetRectFromCoords(x, y)
+            local r2 = GetRectFromCoords(targetX, targetY)
+
+            if r ~= r2 then
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
+                DisplayTextToPlayer(Player(pid - 1), 0, 0, "You can't blink there.")
+            end
+        end
 
         function thistype.onUnequip(itm, id, index)
             DestroyEffect(itm.sfx)
@@ -267,6 +344,134 @@ OnInit.final("ItemSpells", function(Require)
             BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
 
             return true
+        end
+    end
+
+    local PALADIN_BOOK = Spell.define('A083')
+    do
+        local thistype = PALADIN_BOOK
+
+        function thistype:onCast()
+            local heal = 3 * GetHeroInt(self.caster, true) * BOOST[self.pid]
+            if GetUnitTypeId(self.target) == BACKPACK then
+                HP(self.caster, Hero[self.tpid], heal, thistype.tag)
+            else
+                HP(self.caster, self.target, heal, thistype.tag)
+            end
+        end
+    end
+
+    local INSTILL_FEAR = Spell.define('A02A')
+    do
+        local thistype = INSTILL_FEAR
+
+        function thistype:onCast()
+
+            if HasProficiency(self.pid, PROF_DAGGER) then
+                local missile = Missiles:create(self.x + 50. * Cos(self.angle), self.y + 50. * Sin(self.angle), 70., 0, 0, 70.) ---@type Missiles
+                missile:model("Abilities\\Spells\\NightElf\\shadowstrike\\ShadowStrikeMissile.mdl")
+                missile:scale(1.1)
+                missile:speed(1400)
+                missile.source = self.caster
+                missile.target = self.target
+                missile.owner = Player(self.pid - 1)
+                missile:vision(400)
+
+                missile.onFinish = function()
+                    -- apply debuff
+                    InstillFearDebuff:add(missile.source, missile.target):duration(7.)
+
+                    return true
+                end
+
+                missile:launch()
+            else
+                DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 15., "You do not have the proficiency to use this spell!")
+            end
+        end
+    end
+
+    local DARKEST_OF_DARKNESS = Spell.define('A055')
+    do
+        local thistype = DARKEST_OF_DARKNESS
+
+        function thistype:onCast()
+            DarkestOfDarknessBuff:add(self.caster, self.caster):duration(20.)
+        end
+    end
+
+    local ASTRAL_FREEZE_ITEM = Spell.define('A0SX')
+    do
+        local thistype = ASTRAL_FREEZE_ITEM
+
+        function thistype:onCast()
+            if HasProficiency(self.pid, PROF_STAFF) then
+                local pt = TimerList[self.pid]:add()
+                pt.source = self.caster
+                pt.dmg = 40 * GetHeroInt(self.caster, true) * BOOST[self.pid]
+                pt.angle = bj_RADTODEG * Atan2(self.targetY - self.y, self.targetX - self.x)
+                pt.time = 4
+
+                pt.timer:callDelayed(0., ASTRAL_FREEZE.periodic, pt)
+            else
+                DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 15., "You do not have the proficiency to use this spell!")
+            end
+        end
+    end
+
+    local FINAL_BLAST = Spell.define('A00E')
+    do
+        local thistype = FINAL_BLAST
+
+        function thistype:onCast()
+            local ug = CreateGroup()
+            MakeGroupInRange(self.pid, ug, self.x, self.y, 600.00, Condition(FilterEnemy))
+            local x, y
+
+            for i = 1, 12 do
+                if i < 7 then
+                    x = self.x + 200 * Cos(60.00 * i * bj_DEGTORAD)
+                    y = self.y + 200 * Sin(60.00 * i * bj_DEGTORAD)
+                    DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", x, y))
+                end
+                x = self.x + 400 * Cos(60.00 * i * bj_DEGTORAD)
+                y = self.y + 400 * Sin(60.00 * i * bj_DEGTORAD)
+                DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", x, y))
+                x = self.x + 600 * Cos(60.00 * i * bj_DEGTORAD)
+                y = self.y + 600 * Sin(60.00 * i * bj_DEGTORAD)
+                DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", x, y))
+            end
+
+            for target in each(ug) do
+                DamageTarget(self.caster, target, 10.00 * (GetHeroInt(self.caster, true) + GetHeroAgi(self.caster, true) + GetHeroStr(self.caster, true)) * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+            end
+
+            DestroyGroup(ug)
+        end
+    end
+
+    local BANISH_DEMON = Spell.define('A00Q')
+    do
+        local thistype = BANISH_DEMON
+
+        function thistype:onCast()
+            local itm = GetItemFromPlayer(self.pid, FourCC('I0OU'))
+
+            if self.target == BossTable[BOSS_LEGION].unit then
+                itm:destroy()
+                if BANISH_FLAG == false then
+                    BANISH_FLAG = true
+                    DisplayTimedTextToForce(FORCE_PLAYING, 30., "|cffffcc00Legion:|r Fool! Did you really think splashing water on me would do anything?")
+                end
+            elseif self.target == BossTable[BOSS_DEATH_KNIGHT].unit then
+                itm:destroy()
+                if BANISH_FLAG == false then
+                    BANISH_FLAG = true
+                    DisplayTimedTextToForce(FORCE_PLAYING, 30., "|cffffcc00Death Knight:|r ...???")
+                end
+            else
+                DisplayTimedTextToPlayer(Player(self.pid - 1), 0., 0., 30., "Maybe you shouldn't waste this...")
+            end
         end
     end
 
