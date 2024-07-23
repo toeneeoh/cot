@@ -61,9 +61,7 @@ OnInit.final("Commands", function(Require)
             DisplayTextToPlayer(p, 0, 0, "|cffffcc00Tome Cap:|r " .. TomeCap(GetHeroLevel(Hero[pid])))
         end,
         ["-ready"] = function(p, pid, args)
-            if TableHas(QUEUE_GROUP, p) then
-                QUEUE_READY[pid] = true
-            end
+            QUEUE_READY[pid] = true
         end,
         ["-color"] = function(p, pid, args)
             local num = tonumber(args[2])
@@ -385,12 +383,12 @@ function FleeCommand(p)
     elseif TableHas(GODS_GROUP, p) then
         if DeadGods == 4 then
             TableRemove(GODS_GROUP, p)
-            MoveHeroLoc(pid, TownCenter)
+            MoveHeroLoc(pid, TOWN_CENTER)
         else
             DisplayTimedTextToPlayer(p, 0, 0, 10, "You cannot escape.")
         end
     elseif TableHas(Arena[ARENA_FFA], pid) then
-        MoveHeroLoc(pid, TownCenter)
+        MoveHeroLoc(pid, TOWN_CENTER)
         ArenaQueue[pid] = 0
         TableRemove(Arena[ARENA_FFA], pid)
 

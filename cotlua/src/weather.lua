@@ -246,7 +246,7 @@ function FirestormDamage(x, y)
     DestroyTreesInRange(x, y, 300)
 
     for target in each(ug) do
-        DamageTarget(DummyUnit, target, BlzGetUnitMaxHP(target) * .1, ATTACK_TYPE_NORMAL, PURE, "Firestorm")
+        DamageTarget(DUMMY_UNIT, target, BlzGetUnitMaxHP(target) * .1, ATTACK_TYPE_NORMAL, PURE, "Firestorm")
     end
 
     DestroyGroup(ug)
