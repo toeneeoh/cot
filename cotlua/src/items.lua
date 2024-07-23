@@ -1,33 +1,25 @@
 --[[
     items.lua
 
-    A library that handles item related events
+    A library that defines an item interface and handles item related events
         (EVENT_PLAYER_UNIT_PICKUP_ITEM
         EVENT_PLAYER_UNIT_DROP_ITEM
         EVENT_PLAYER_UNIT_USE_ITEM
         EVENT_PLAYER_UNIT_PAWN_ITEM
         EVENT_PLAYER_UNIT_SELL_ITEM)
-    and also defines the Item struct for better OO item handling.
-
-    Future consideration: Migrate unit drop tables elsewhere?
 ]]
 
 OnInit.final("Items", function(Require)
     Require('Users')
     Require('Variables')
-    Require('Currency')
+    Require('Frames')
 
-    hordequest        = false
+    ON_BUY_LOOKUP     = {}
+    ITEM_LOOKUP       = {}
     CHURCH_DONATION   = {} ---@type boolean[] 
     RECHARGE_COOLDOWN = {} ---@type timer[] 
     ITEM_DROP_FLAG    = {} ---@type boolean[] 
-    IS_INVENTORY_DISABLED = {} ---@type boolean[] 
 
-    ItemDrops = array2d(0)
-    Rates     = __jarray(0)
-
-    MAX_ITEM_COUNT = 100
-    ADJUST_RATE = 0.05 --percent
     DISCOUNT_RATE = 0.25
 
     POTIONS = {
@@ -108,7 +100,7 @@ OnInit.final("Items", function(Require)
         local hash = InitHashtable()
 
         function thistype.onDeath()
-            --typecast widget to item
+            -- typecast widget to item
             SaveWidgetHandle(hash, 0, 0, GetTriggerWidget())
             TimerQueue:callDelayed(2., thistype.destroy, Item[LoadItemHandle(hash, 0, 0)])
             RemoveSavedHandle(hash, 0, 0)
@@ -116,7 +108,7 @@ OnInit.final("Items", function(Require)
         end
         thistype.eval = Condition(thistype.onDeath)
 
-        --object inheritance and method operators
+        -- object inheritance and method operators
         local mt = {
                 __index = function(tbl, key)
                     return (rawget(Item, key) or rawget(tbl.proxy, key))
@@ -134,12 +126,29 @@ OnInit.final("Items", function(Require)
                 end,
             }
 
-        ---@type fun(itm: item, expire: number?): Item
-        function thistype.create(itm, expire)
-            local self = setmetatable({
+        -- override createitem
+        OldCreateItem = CreateItem
+
+        ---@type fun(id: string|integer|item, x: number?, y: number?, expire: number?): Item
+        function CreateItem(id, x, y, expire)
+            local lvl = 0
+            local itm = id
+
+            -- parse "I000:00" notation, where level / variation is signified by numbers after a colon
+            if type(id) == "string" then
+                id = FourCC(string.sub(id, 1, 4))
+                lvl = tonumber(string.sub(id, 6))
+            end
+
+            -- create the item if given an id rather than a handle
+            if type(id) ~= "userdata" then
+                itm = OldCreateItem(id, x, y)
+            end
+
+            local self = setmetatable({ ---@type Item
                 obj = itm,
                 id = GetItemTypeId(itm),
-                level = 0,
+                level = lvl,
                 trig = CreateTrigger(),
                 x = GetItemX(itm),
                 y = GetItemY(itm),
@@ -162,7 +171,7 @@ OnInit.final("Items", function(Require)
             end
 
             -- determine if immediately useable in recipes
-            self.nocraft = ItemData[self.id][ITEM_NOCRAFT]
+            self.nocraft = ItemData[self.id][ITEM_NOCRAFT] ~= 0
 
             -- determine if saveable (ITEM_TYPE_MISCELLANEOUS yields 6 instead of proper value of 7)
             if (GetHandleId(GetItemType(self.obj)) == 7 or GetItemType(self.obj) == ITEM_TYPE_PERMANENT) and self.id > CUSTOM_ITEM_OFFSET then
@@ -221,11 +230,8 @@ OnInit.final("Items", function(Require)
                 if abilid ~= 0 and itm.level >= ItemData[itm.id][index .. "unlock"] then
                     BlzItemAddAbility(itm.obj, abilid)
 
-                    -- simple item spells
-                    if ITEM_EQUIP_SPELL[abilid] then
-                        ITEM_EQUIP_SPELL[abilid](itm, abilid, index)
                     -- defined item spells
-                    elseif Spells[abilid] then
+                    if Spells[abilid] then
                         -- if onequip returns true, dont allocate real fields
                         if not Spells[abilid].onEquip(itm, abilid, index) then
                             local ab = BlzGetItemAbility(itm.obj, abilid)
@@ -254,7 +260,7 @@ OnInit.final("Items", function(Require)
             for i = range[1], range[2] do
                 local match = Profile[pid].hero.items[i]
 
-                if match and match ~= self and match.id == self.id and match.charges < limit then
+                if match and match ~= self and match.id == self.id and match.charges < limit and match.level == self.level then
                     local total = match.charges + self.charges
                     local diff = limit - match.charges
 
@@ -604,7 +610,7 @@ OnInit.final("Items", function(Require)
             end
 
             local itemid = id & 0x1FFF
-            local itm = thistype.create(CreateItem(CUSTOM_ITEM_OFFSET + itemid, 30000., 30000.))
+            local itm = CreateItem(CUSTOM_ITEM_OFFSET + itemid, 30000., 30000.)
             local mask = 0x7E000
             itm.level = (id & mask) >> 13
 
@@ -681,708 +687,6 @@ OnInit.final("Items", function(Require)
                 itm:destroy()
             end
         end
-    end
-
-    ---@class DropTable
-    ---@field adjustRate function
-    ---@field pickItem function
-    DropTable = {}
-    do
-        local thistype = DropTable
-
-        --adjusts the drop rates of all items in a pool after a drop
-        ---@type fun(id: integer, i: integer)
-        local function adjustRate(id, index)
-            local max = ItemDrops[id][MAX_ITEM_COUNT]
-
-            if ItemDrops[id] == nil or max <= 1 then
-                return
-            end
-
-            local adjust = 1. / max * ADJUST_RATE
-            local balance = adjust / (max - 1.)
-
-            for i = 0, max - 1 do
-                if ItemDrops[id][i] == ItemDrops[id][index] then
-                    ItemDrops[id][i .. "\x25"] = ItemDrops[id][i .. "\x25"] - adjust
-                else
-                    ItemDrops[id][i .. "\x25"] = ItemDrops[id][i .. "\x25"] + balance
-                end
-            end
-        end
-
-        --[[selects an item from a unit type item pool
-            starts at a random index and increments by 1]]
-        ---@type fun(self: DropTable, id: integer):integer
-        function thistype:pickItem(id)
-            local max = ItemDrops[id][MAX_ITEM_COUNT] - 1
-            local i = GetRandomInt(0, max)
-
-            while true do
-                if GetRandomReal(0., 1.) < ItemDrops[id][i .. "\x25"] then
-                    adjustRate(id, i)
-                    break
-                end
-
-                if i >= max then
-                    i = 0
-                else
-                    i = i + 1
-                end
-            end
-
-            return ItemDrops[id][i]
-        end
-
-        ---@type fun(id: integer, max: integer)
-        local function setupRates(id, max)
-            ItemDrops[id][MAX_ITEM_COUNT] = (max + 1)
-
-            for i = 0, max do
-                ItemDrops[id][i .. "\x25"] = 1. / (max + 1)
-            end
-        end
-
-        local id = 69 --destructable
-        ItemDrops[id][0] = FourCC('I00O')
-        ItemDrops[id][1] = FourCC('I00Q')
-        ItemDrops[id][2] = FourCC('I00R')
-        ItemDrops[id][3] = FourCC('I01C')
-        ItemDrops[id][4] = FourCC('I01F')
-        ItemDrops[id][5] = FourCC('I01G')
-        ItemDrops[id][6] = FourCC('I01H')
-        ItemDrops[id][7] = FourCC('I01I')
-        ItemDrops[id][8] = FourCC('I01K')
-        ItemDrops[id][9] = FourCC('I01V')
-        ItemDrops[id][10] = FourCC('I021')
-        ItemDrops[id][11] = FourCC('I02R')
-        ItemDrops[id][12] = FourCC('I02T')
-        ItemDrops[id][13] = FourCC('I04O')
-        ItemDrops[id][14] = FourCC('I01X')
-        ItemDrops[id][15] = FourCC('I06F')
-        ItemDrops[id][16] = FourCC('I06G')
-        ItemDrops[id][17] = FourCC('I06H')
-        ItemDrops[id][18] = FourCC('I090')
-        ItemDrops[id][19] = FourCC('I01Z')
-        ItemDrops[id][20] = FourCC('I0FJ')
-
-        setupRates(id, 20)
-
-        --evil shopkeeper
-        id = FourCC('n01F')
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I045') --bloodstained cloak
-
-        setupRates(id, 0)
-
-        id = FourCC('nits') --troll
-        Rates[id] = 40
-        ItemDrops[id][0] = FourCC('I01Z') --claws of lightning
-        ItemDrops[id][1] = FourCC('I01F') --iron broadsword
-        ItemDrops[id][2] = FourCC('I01I') --iron sword
-        ItemDrops[id][3] = FourCC('I01G') --iron dagger
-        ItemDrops[id][4] = FourCC('I0FJ') --chipped shield
-        ItemDrops[id][5] = FourCC('I02H') --short bow
-        ItemDrops[id][6] = FourCC('I04O') --wooden staff
-        ItemDrops[id][7] = FourCC('I01H') --iron shield
-        ItemDrops[id][8] = FourCC('I00Q') --belt of the giant
-        ItemDrops[id][9] = FourCC('I00R') --boots of the ranger
-        ItemDrops[id][10] = FourCC('I02R') --sigil of magic
-        ItemDrops[id][11] = FourCC('I01C') --gauntlets of strength
-        ItemDrops[id][12] = FourCC('I02T') --slippers of agility
-        ItemDrops[id][13] = FourCC('I01S') --seven league boots
-        ItemDrops[id][14] = FourCC('I01K') --leather jacket
-        ItemDrops[id][15] = FourCC('I01X') --sword of revival
-        ItemDrops[id][16] = FourCC('I01V') --medallion of courage
-        ItemDrops[id][17] = FourCC('I021') --medallion of vitality
-        ItemDrops[id][18] = FourCC('I02D') --ring of regeneration
-        ItemDrops[id][19] = FourCC('I062') --healing potion
-        ItemDrops[id][20] = FourCC('I06E') --mana potion
-        ItemDrops[id][21] = FourCC('I06F') --crystal ball
-        ItemDrops[id][22] = FourCC('I06G') --talisman of evasion
-        ItemDrops[id][23] = FourCC('I06H') --warsong battle drums
-        ItemDrops[id][24] = FourCC('I090') --sparky orb
-        ItemDrops[id][25] = FourCC('I04D') --tattered cloth
-
-        setupRates(id, 25)
-
-        id = FourCC('ntks') --tuskarr
-        Rates[id] = 40
-        ItemDrops[id][0] = FourCC('I01Z')
-        ItemDrops[id][1] = FourCC('I01X')
-        ItemDrops[id][2] = FourCC('I01V')
-        ItemDrops[id][3] = FourCC('I021')
-        ItemDrops[id][4] = FourCC('I02D')
-        ItemDrops[id][5] = FourCC('I062')
-        ItemDrops[id][6] = FourCC('I06E')
-        ItemDrops[id][7] = FourCC('I06F')
-        ItemDrops[id][8] = FourCC('I06G')
-        ItemDrops[id][9] = FourCC('I06H')
-        ItemDrops[id][10] = FourCC('I090')
-        ItemDrops[id][11] = FourCC('I01S')
-        ItemDrops[id][12] = FourCC('I04D')
-        ItemDrops[id][13] = FourCC('I03A') --steel dagger
-        ItemDrops[id][14] = FourCC('I03W') --steel sword
-        ItemDrops[id][15] = FourCC('I00O') --arcane staff
-        ItemDrops[id][16] = FourCC('I03S') --steel shield
-        ItemDrops[id][17] = FourCC('I01L') --long bow
-        ItemDrops[id][18] = FourCC('I03K') --steel lance
-        ItemDrops[id][19] = FourCC('I08Y') --noble blade
-        ItemDrops[id][20] = FourCC('I03Q') --horse boost
-
-        setupRates(id, 20)
-
-        id = FourCC('nnwr') --spider
-        Rates[id] = 35
-        ItemDrops[id][0] = FourCC('I03A')
-        ItemDrops[id][1] = FourCC('I03W')
-        ItemDrops[id][2] = FourCC('I00O')
-        ItemDrops[id][3] = FourCC('I03K')
-        ItemDrops[id][4] = FourCC('I01L')
-        ItemDrops[id][5] = FourCC('I03S')
-        ItemDrops[id][6] = FourCC('I08Y')
-        ItemDrops[id][7] = FourCC('I03Q')
-        ItemDrops[id][8] = FourCC('I0FK') --mythril sword
-        ItemDrops[id][9] = FourCC('I00F') --mythril spear
-        ItemDrops[id][10] = FourCC('I010') --mythril dagger
-        ItemDrops[id][11] = FourCC('I00N') --blood elven staff
-        ItemDrops[id][12] = FourCC('I0FM') --blood elven bow
-        ItemDrops[id][13] = FourCC('I0FL') --mythril shield
-        ItemDrops[id][14] = FourCC('I028') --big health potion
-        ItemDrops[id][15] = FourCC('I00D') --big mana potion
-        ItemDrops[id][16] = FourCC('I025') --greater mask of death
-
-        setupRates(id, 16)
-
-        id = FourCC('nfpu') --ursa
-        Rates[id] = 30
-        ItemDrops[id][0] = FourCC('I028')
-        ItemDrops[id][1] = FourCC('I00D')
-        ItemDrops[id][2] = FourCC('I025')
-        ItemDrops[id][3] = FourCC('I02L') --great circlet
-        ItemDrops[id][4] = FourCC('I06T') --sword
-        ItemDrops[id][5] = FourCC('I034') --heavy
-        ItemDrops[id][6] = FourCC('I0FG') --dagger
-        ItemDrops[id][7] = FourCC('I06R') --bow
-        ItemDrops[id][8] = FourCC('I0FT') --staff
-
-        setupRates(id, 8)
-
-        id = FourCC('nplg') --polar bear
-        Rates[id] = 30
-        ItemDrops[id][0] = FourCC('I035') --plate
-        ItemDrops[id][1] = FourCC('I0FO') --leather
-        ItemDrops[id][2] = FourCC('I07O') --cloth
-
-        setupRates(id, 2)
-
-        id = FourCC('nmdr') --dire mammoth
-        Rates[id] = 30
-        ItemDrops[id][0] = FourCC('I0FQ') --fullplate
-
-        setupRates(id, 0)
-
-        id = FourCC('n01G') -- ogre tauren
-        Rates[id] = 25
-        ItemDrops[id][0] = FourCC('I02L')
-        ItemDrops[id][1] = FourCC('I08I')
-        ItemDrops[id][2] = FourCC('I0FE')
-        ItemDrops[id][3] = FourCC('I07W')
-        ItemDrops[id][4] = FourCC('I08B')
-        ItemDrops[id][5] = FourCC('I0FD')
-        ItemDrops[id][6] = FourCC('I08R')
-        ItemDrops[id][7] = FourCC('I08E')
-        ItemDrops[id][8] = FourCC('I08F')
-        ItemDrops[id][9] = FourCC('I07Y')
-        ItemDrops[id][10] = FourCC('I00B') --axe of speed
-
-        setupRates(id, 10)
-
-        id = FourCC('nubw') --unbroken
-        Rates[id] = 25
-        ItemDrops[id][0] = FourCC('I0FS')
-        ItemDrops[id][1] = FourCC('I0FR')
-        ItemDrops[id][2] = FourCC('I0FY')
-        ItemDrops[id][3] = FourCC('I01W')
-        ItemDrops[id][4] = FourCC('I0MB')
-
-        setupRates(id, 4)
-
-        id = FourCC('nvdl') -- hellfire hellhound
-        Rates[id] = 25
-        ItemDrops[id][0] = FourCC('I00Z')
-        ItemDrops[id][1] = FourCC('I00S')
-        ItemDrops[id][2] = FourCC('I011')
-        ItemDrops[id][3] = FourCC('I02E')
-        ItemDrops[id][4] = FourCC('I023')
-        ItemDrops[id][5] = FourCC('I0MA')
-
-        setupRates(id, 5)
-
-        id = FourCC('n024') -- centaur
-        Rates[id] = 25
-        ItemDrops[id][0] = FourCC('I06J')
-        ItemDrops[id][1] = FourCC('I06I')
-        ItemDrops[id][2] = FourCC('I06L')
-        ItemDrops[id][3] = FourCC('I06K')
-        ItemDrops[id][4] = FourCC('I07H')
-
-        setupRates(id, 4)
-
-        id = FourCC('n01M') -- magnataur forgotten one
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I01Q')
-        ItemDrops[id][1] = FourCC('I01N')
-        ItemDrops[id][2] = FourCC('I015')
-        ItemDrops[id][3] = FourCC('I019')
-
-        setupRates(id, 3)
-
-        id = FourCC('n02P') -- frost dragon frost drake
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I056')
-        ItemDrops[id][1] = FourCC('I04X')
-        ItemDrops[id][2] = FourCC('I05Z')
-
-        setupRates(id, 2)
-
-        id = FourCC('n099') -- frost elder dragon
-        Rates[id] = 40
-        ItemDrops[id][0] = FourCC('I056')
-        ItemDrops[id][1] = FourCC('I04X')
-        ItemDrops[id][2] = FourCC('I05Z')
-
-        setupRates(id, 2)
-
-        id = FourCC('n02L') -- devourers
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I02W')
-        ItemDrops[id][1] = FourCC('I00W')
-        ItemDrops[id][2] = FourCC('I017')
-        ItemDrops[id][3] = FourCC('I013')
-        ItemDrops[id][4] = FourCC('I02I')
-        ItemDrops[id][5] = FourCC('I01P')
-        ItemDrops[id][6] = FourCC('I006')
-        ItemDrops[id][7] = FourCC('I02V')
-        ItemDrops[id][8] = FourCC('I009')
-
-        setupRates(id, 8)
-
-        id = FourCC('n01H') -- ancient hydra
-        Rates[id] = 25
-        ItemDrops[id][0] = FourCC('I07N')
-        ItemDrops[id][1] = FourCC('I044')
-
-        setupRates(id, 1)
-
-        id = FourCC('n034') --demons
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I073')
-        ItemDrops[id][1] = FourCC('I075')
-        ItemDrops[id][2] = FourCC('I06Z')
-        ItemDrops[id][3] = FourCC('I06W')
-        ItemDrops[id][4] = FourCC('I04T')
-        ItemDrops[id][5] = FourCC('I06S')
-        ItemDrops[id][6] = FourCC('I06U')
-        ItemDrops[id][7] = FourCC('I06O')
-        ItemDrops[id][8] = FourCC('I06Q')
-
-        setupRates(id, 8)
-
-        id = FourCC('n03A') --horror
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I07K')
-        ItemDrops[id][1] = FourCC('I05D')
-        ItemDrops[id][2] = FourCC('I07E')
-        ItemDrops[id][3] = FourCC('I07I')
-        ItemDrops[id][4] = FourCC('I07G')
-        ItemDrops[id][5] = FourCC('I07C')
-        ItemDrops[id][6] = FourCC('I07A')
-        ItemDrops[id][7] = FourCC('I07M')
-        ItemDrops[id][8] = FourCC('I07L')
-        ItemDrops[id][9] = FourCC('I07P')
-        ItemDrops[id][10] = FourCC('I077')
-
-        setupRates(id, 10)
-
-        id = FourCC('n03F') --despair
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I05P')
-        ItemDrops[id][1] = FourCC('I087')
-        ItemDrops[id][2] = FourCC('I089')
-        ItemDrops[id][3] = FourCC('I083')
-        ItemDrops[id][4] = FourCC('I081')
-        ItemDrops[id][5] = FourCC('I07X')
-        ItemDrops[id][6] = FourCC('I07V')
-        ItemDrops[id][7] = FourCC('I07Z')
-        ItemDrops[id][8] = FourCC('I07R')
-        ItemDrops[id][9] = FourCC('I07T')
-        ItemDrops[id][10] = FourCC('I05O')
-
-        setupRates(id, 10)
-
-        id = FourCC('n08N') --abyssal
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I06C')
-        ItemDrops[id][1] = FourCC('I06B')
-        ItemDrops[id][2] = FourCC('I0A0')
-        ItemDrops[id][3] = FourCC('I0A2')
-        ItemDrops[id][4] = FourCC('I09X')
-        ItemDrops[id][5] = FourCC('I0A5')
-        ItemDrops[id][6] = FourCC('I09N')
-        ItemDrops[id][7] = FourCC('I06D')
-        ItemDrops[id][8] = FourCC('I06A')
-
-        setupRates(id, 8)
-
-        id = FourCC('n031') --void
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I04Y')
-        ItemDrops[id][1] = FourCC('I08C')
-        ItemDrops[id][2] = FourCC('I08D')
-        ItemDrops[id][3] = FourCC('I08G')
-        ItemDrops[id][4] = FourCC('I08H')
-        ItemDrops[id][5] = FourCC('I08J')
-        ItemDrops[id][6] = FourCC('I055')
-        ItemDrops[id][7] = FourCC('I08M')
-        ItemDrops[id][8] = FourCC('I08N')
-        ItemDrops[id][9] = FourCC('I08O')
-        ItemDrops[id][10] = FourCC('I08S')
-        ItemDrops[id][11] = FourCC('I08U')
-        ItemDrops[id][12] = FourCC('I04W')
-
-        setupRates(id, 12)
-
-        id = FourCC('n020') --nightmare
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I09S')
-        ItemDrops[id][1] = FourCC('I0AB')
-        ItemDrops[id][2] = FourCC('I09R')
-        ItemDrops[id][3] = FourCC('I0A9')
-        ItemDrops[id][4] = FourCC('I09V')
-        ItemDrops[id][5] = FourCC('I0AC')
-        ItemDrops[id][6] = FourCC('I0A7')
-        ItemDrops[id][7] = FourCC('I09T')
-        ItemDrops[id][8] = FourCC('I09P')
-        ItemDrops[id][9] = FourCC('I04Z')
-
-        setupRates(id, 9)
-
-        id = FourCC('n03D') --hell
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I097')
-        ItemDrops[id][1] = FourCC('I05H')
-        ItemDrops[id][2] = FourCC('I098')
-        ItemDrops[id][3] = FourCC('I095')
-        ItemDrops[id][4] = FourCC('I08W')
-        ItemDrops[id][5] = FourCC('I05G')
-        ItemDrops[id][6] = FourCC('I08Z')
-        ItemDrops[id][7] = FourCC('I091')
-        ItemDrops[id][8] = FourCC('I093')
-        ItemDrops[id][9] = FourCC('I05I')
-
-        setupRates(id, 9)
-
-        id = FourCC('n03J') --existence
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I09Y')
-        ItemDrops[id][1] = FourCC('I09U')
-        ItemDrops[id][2] = FourCC('I09W')
-        ItemDrops[id][3] = FourCC('I09Q')
-        ItemDrops[id][4] = FourCC('I09O')
-        ItemDrops[id][5] = FourCC('I09M')
-        ItemDrops[id][6] = FourCC('I09K')
-        ItemDrops[id][7] = FourCC('I09I')
-        ItemDrops[id][8] = FourCC('I09G')
-        ItemDrops[id][9] = FourCC('I09E')
-
-        setupRates(id, 9)
-
-        id = FourCC('n03M') --astral
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I0AL')
-        ItemDrops[id][1] = FourCC('I0AN')
-        ItemDrops[id][2] = FourCC('I0AA')
-        ItemDrops[id][3] = FourCC('I0A8')
-        ItemDrops[id][4] = FourCC('I0A6')
-        ItemDrops[id][5] = FourCC('I0A3')
-        ItemDrops[id][6] = FourCC('I0A1')
-        ItemDrops[id][7] = FourCC('I0A4')
-        ItemDrops[id][8] = FourCC('I09Z')
-
-        setupRates(id, 8)
-
-        id = FourCC('n026') --plainswalker
-        Rates[id] = 20
-        ItemDrops[id][0] = FourCC('I0AY')
-        ItemDrops[id][1] = FourCC('I0B0')
-        ItemDrops[id][2] = FourCC('I0B2')
-        ItemDrops[id][3] = FourCC('I0B3')
-        ItemDrops[id][4] = FourCC('I0AQ')
-        ItemDrops[id][5] = FourCC('I0AO')
-        ItemDrops[id][6] = FourCC('I0AT')
-        ItemDrops[id][7] = FourCC('I0AR')
-        ItemDrops[id][8] = FourCC('I0AW')
-
-        setupRates(id, 8)
-
-        id = FourCC('H01T') --town paladin
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I01Y')
-
-        setupRates(id, 0)
-
-        id = FourCC('n02U') -- nerubian
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I01E')
-
-        setupRates(id, 0)
-
-        id = FourCC('nplb') -- giant polar bear
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I04A')
-
-        setupRates(id, 0)
-
-        id = FourCC('n03L') -- king of ogres
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I02M')
-
-        setupRates(id, 0)
-
-        id = FourCC('O019') -- pinky
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I02Y')
-
-        setupRates(id, 0)
-
-        id = FourCC('H043') -- bryan
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I02X')
-
-        setupRates(id, 0)
-
-        id = FourCC('N01N') -- kroresh
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I04B')
-
-        setupRates(id, 0)
-
-        --id = FourCC('O01A') -- zeknen
-        --Rates[id] = 100
-        --no items
-
-        id = FourCC('N00M') -- forest corruption
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I07J')
-
-        setupRates(id, 0)
-
-        id = FourCC('O00T') -- ice troll
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I03Z')
-
-        setupRates(id, 0)
-
-        id = FourCC('n02H') -- yeti
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I05R')
-
-        setupRates(id, 0)
-
-        id = FourCC('H02H') -- paladin
-        Rates[id] = 80
-        ItemDrops[id][0] = FourCC('I0F9')
-        ItemDrops[id][1] = FourCC('I03P')
-        ItemDrops[id][2] = FourCC('I0C0')
-        ItemDrops[id][3] = FourCC('I0FX')
-
-        setupRates(id, 3)
-
-        id = FourCC('O002') -- minotaur
-        Rates[id] = 70
-        ItemDrops[id][0] = FourCC('I03T')
-        ItemDrops[id][1] = FourCC('I0FW')
-        ItemDrops[id][2] = FourCC('I07U')
-        ItemDrops[id][3] = FourCC('I076')
-        ItemDrops[id][4] = FourCC('I078')
-
-        setupRates(id, 4)
-
-        id = FourCC('H020') -- lady vashj
-        Rates[id] = 70
-        ItemDrops[id][0] = FourCC('I09F') -- sea wards
-        ItemDrops[id][1] = FourCC('I09L') -- serpent hide boots
-
-        setupRates(id, 1)
-
-        id = FourCC('H01V') -- dwarven
-        Rates[id] = 70
-        ItemDrops[id][0] = FourCC('I079')
-        ItemDrops[id][1] = FourCC('I07B')
-        ItemDrops[id][2] = FourCC('I0FC')
-
-        setupRates(id, 2)
-
-        id = FourCC('H040') -- death knight
-        Rates[id] = 80
-        ItemDrops[id][0] = FourCC('I02O')
-        ItemDrops[id][1] = FourCC('I029')
-        ItemDrops[id][2] = FourCC('I02C')
-        ItemDrops[id][3] = FourCC('I02B')
-
-        setupRates(id, 3)
-
-        id = FourCC('U00G') -- tri fire
-        Rates[id] = 70
-        ItemDrops[id][0] = FourCC('I0FA')
-        ItemDrops[id][1] = FourCC('I0FU')
-        ItemDrops[id][2] = FourCC('I00V')
-        ItemDrops[id][3] = FourCC('I03Y')
-
-        setupRates(id, 3)
-
-        id = FourCC('H045') -- mystic
-        Rates[id] = 70
-        ItemDrops[id][0] = FourCC('I03U')
-        ItemDrops[id][1] = FourCC('I0F3')
-        ItemDrops[id][2] = FourCC('I07F')
-
-        setupRates(id, 2)
-
-        id = FourCC('O01B') -- dragoon
-        Rates[id] = 70
-        ItemDrops[id][0] = FourCC('I0EX')
-        ItemDrops[id][1] = FourCC('I0EY')
-        ItemDrops[id][2] = FourCC('I074')
-        ItemDrops[id][3] = FourCC('I04N')
-
-        setupRates(id, 3)
-
-        id = FourCC('E00B') -- goddess of hate
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I02Z') --aura of hate
-
-        setupRates(id, 0)
-
-        id = FourCC('E00D') -- goddess of love
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I030') --aura of love
-
-        setupRates(id, 0)
-
-        id = FourCC('E00C') -- goddess of knowledge
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I031') --aura of knowledge
-
-        setupRates(id, 0)
-
-        id = FourCC('H04Q') -- goddess of life
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I04I') --aura of life
-
-        setupRates(id, 0)
-
-        id = FourCC('H00O') -- arkaden
-        Rates[id] = 80
-        ItemDrops[id][0] = FourCC('I02O')
-        ItemDrops[id][1] = FourCC('I02C')
-        ItemDrops[id][2] = FourCC('I02B')
-        ItemDrops[id][3] = FourCC('I036')
-
-        setupRates(id, 3)
-
-        id = FourCC('N038') -- demon prince
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I04Q') --heart
-
-        setupRates(id, 0)
-
-        id = FourCC('N017') -- absolute horror
-        Rates[id] = 85
-        ItemDrops[id][0] = FourCC('I0N7')
-        ItemDrops[id][1] = FourCC('I0N8')
-        ItemDrops[id][2] = FourCC('I0N9')
-
-        setupRates(id, 2)
-
-        id = FourCC('O02B') -- slaughter
-        Rates[id] = 85
-        ItemDrops[id][0] = FourCC('I0AE')
-        ItemDrops[id][1] = FourCC('I04F')
-        ItemDrops[id][2] = FourCC('I0AF')
-        ItemDrops[id][3] = FourCC('I0AD')
-        ItemDrops[id][4] = FourCC('I0AG')
-
-        setupRates(id, 4)
-
-        id = FourCC('O02H') -- dark soul
-        Rates[id] = 70
-        ItemDrops[id][0] = FourCC('I05A')
-        ItemDrops[id][1] = FourCC('I0AH')
-        ItemDrops[id][2] = FourCC('I0AP')
-        ItemDrops[id][3] = FourCC('I0AI')
-
-        setupRates(id, 3)
-
-        id = FourCC('O02I') -- satan
-        Rates[id] = 65
-        ItemDrops[id][0] = FourCC('I0BX')
-        ItemDrops[id][1] = FourCC('I05J')
-
-        setupRates(id, 1)
-
-        id = FourCC('O02K') -- thanatos
-        Rates[id] = 65
-        ItemDrops[id][0] = FourCC('I04E')
-        ItemDrops[id][1] = FourCC('I0MR')
-
-        setupRates(id, 1)
-
-        id = FourCC('H04R') -- legion
-        Rates[id] = 60
-        ItemDrops[id][0] = FourCC('I0B5')
-        ItemDrops[id][1] = FourCC('I0B7')
-        ItemDrops[id][2] = FourCC('I0B1')
-        ItemDrops[id][3] = FourCC('I0AU')
-        ItemDrops[id][4] = FourCC('I04L')
-        ItemDrops[id][5] = FourCC('I0AJ')
-        ItemDrops[id][6] = FourCC('I0AZ')
-        ItemDrops[id][7] = FourCC('I0AS')
-        ItemDrops[id][8] = FourCC('I0AV')
-        ItemDrops[id][9] = FourCC('I0AX')
-
-        setupRates(id, 9)
-
-        id = FourCC('O02M') -- existence
-        Rates[id] = 60
-        ItemDrops[id][0] = FourCC('I018')
-        ItemDrops[id][1] = FourCC('I0BY')
-
-        setupRates(id, 1)
-
-        id = FourCC('O03G') -- Xallarath
-        Rates[id] = 30
-        ItemDrops[id][0] = FourCC('I0OB')
-        ItemDrops[id][1] = FourCC('I0O1')
-        ItemDrops[id][2] = FourCC('I0CH')
-
-        setupRates(id, 2)
-
-        id = FourCC('O02T') -- azazoth
-        Rates[id] = 60
-        ItemDrops[id][0] = FourCC('I0BS')
-        ItemDrops[id][1] = FourCC('I0BV')
-        ItemDrops[id][2] = FourCC('I0BK')
-        ItemDrops[id][3] = FourCC('I0BI')
-        ItemDrops[id][4] = FourCC('I0BB')
-        ItemDrops[id][5] = FourCC('I0BC')
-        ItemDrops[id][6] = FourCC('I0BE')
-        ItemDrops[id][7] = FourCC('I0B9')
-        ItemDrops[id][8] = FourCC('I0BG')
-        ItemDrops[id][9] = FourCC('I06M')
-
-        setupRates(id, 9)
     end
 
 ---@return boolean
@@ -1764,26 +1068,24 @@ function onSell()
     return false
 end
 
---event handler function for buying items
+--event handler function for buying items / units
 function onBuy()
-    local u      = GetTriggerUnit() ---@type unit 
-    local b      = GetBuyingUnit() ---@type unit 
-    local pid    = GetPlayerId(GetOwningPlayer(b)) + 1 ---@type integer 
-    local itm    = Item.create(GetSoldItem()) ---@type Item 
+    local u   = GetTriggerUnit() ---@type unit 
+    local b   = GetBuyingUnit() ---@type unit 
+    local pid = GetPlayerId(GetOwningPlayer(b)) + 1 ---@type integer 
+    local itm = CreateItem(GetSoldItem()) ---@type Item 
 
     itm.owner = Player(pid - 1)
 
-    if GetUnitTypeId(u) == FourCC('h002') then --naga chest
-        TimerQueue:callDelayed(2.5, RemoveUnit, u)
-        DestroyEffect(AddSpecialEffectTarget("UI\\Feedback\\GoldCredit\\GoldCredit.mdl", u, "origin"))
-        Fade(u, 2., false)
+    if ON_BUY_LOOKUP[itm.id] then
+        ON_BUY_LOOKUP[itm.id](u, b, pid, itm)
     end
 end
 
 --event handler function for using items
 function onUse()
     local u   = GetTriggerUnit() ---@type unit 
-    local p   = GetOwningPlayer(u) 
+    local p   = GetOwningPlayer(u)
     local pid = GetPlayerId(p) + 1 ---@type integer 
     local itm = Item[GetManipulatedItem()] ---@type Item?
 
@@ -1897,43 +1199,6 @@ function onPickup()
                 DisplayTextToPlayer(p, 0, 0, "You must be at least level 50 to begin this quest.")
             end
         end
-    --the horde quest
-    elseif itemid == FourCC('I00L') then
-        if GetUnitLevel(Hero[pid]) >= 100 then
-            if IsQuestDiscovered(Defeat_The_Horde_Quest) == false then
-                DestroyEffect(TalkToMe20)
-                QuestSetDiscovered(Defeat_The_Horde_Quest, true)
-                QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1OPTIONAL QUEST|r\nThe Horde")
-                PingMinimap(12577, -15801, 4)
-                PingMinimap(15645, -12309, 4)
-
-                --orc setup
-                SetUnitPosition(kroresh, 14665, -15352)
-                UnitAddAbility(kroresh, FourCC('Avul'))
-
-                --bottom side
-                IssuePointOrder(CreateUnit(pboss, FourCC('o01I'), 12687, -15414, 45), "patrol", 668, -2146)
-                IssuePointOrder(CreateUnit(pboss, FourCC('o01I'), 12866, -15589, 45), "patrol", 668, -2146)
-                IssuePointOrder(CreateUnit(pboss, FourCC('o008'), 12539, -15589, 45), "patrol", 668, -2146)
-                IssuePointOrder(CreateUnit(pboss, FourCC('o008'), 12744, -15765, 45), "patrol", 668, -2146)
-                --top side
-                IssuePointOrder(CreateUnit(pboss, FourCC('o01I'), 15048, -12603, 225), "patrol", 668, -2146)
-                IssuePointOrder(CreateUnit(pboss, FourCC('o01I'), 15307, -12843, 225), "patrol", 668, -2146)
-                IssuePointOrder(CreateUnit(pboss, FourCC('o008'), 15299, -12355, 225), "patrol", 668, -2146)
-                IssuePointOrder(CreateUnit(pboss, FourCC('o008'), 15543, -12630, 225), "patrol", 668, -2146)
-
-                TimerQueue:callDelayed(30., SpawnOrcs)
-            elseif IsQuestCompleted(Defeat_The_Horde_Quest) == false then
-                DisplayTextToPlayer(p, 0, 0, "Militia: The Orcs are still alive!")
-            elseif IsQuestCompleted(Defeat_The_Horde_Quest) == true and not hordequest then
-                DisplayTextToPlayer(p, 0, 0, "Militia: As promised, the Key of Valor.")
-                PlayerAddItemById(pid, FourCC('I041'))
-                hordequest = true
-                DestroyEffect(TalkToMe20)
-            end
-        else
-            DisplayTextToPlayer(p, 0, 0, "You must be level |cffffcc00" .. 100 .. "|r to begin this quest.")
-        end
 
     --Headhunter
     elseif HeadHunter[itemid] then
@@ -1969,41 +1234,6 @@ function onPickup()
             end
         else
             DisplayTextToPlayer(p, 0, 0, "You must be level |cffffcc00" .. (HeadHunter[itemid].Level) .. "|r to complete this quest.")
-        end
-
-    --========================
-    --Dungeons
-    --========================
-
-    elseif itemid == DUNGEON_NAGA or itemid == DUNGEON_AZAZOTH then --queue dungeons
-        QueueDungeon(pid, itemid)
-
-    elseif itemid == FourCC('I0NM') then --naga reward
-        if RectContainsCoords(gg_rct_Naga_Dungeon_Reward, GetUnitX(u), GetUnitY(u)) or RectContainsCoords(gg_rct_Naga_Dungeon_Boss, GetUnitX(u), GetUnitY(u)) then
-            NagaReward()
-        end
-
-    elseif itemid == FourCC('I0JO') and CHAOS_MODE == false then --god portal
-        if god_portal ~= nil and TableHas(GODS_GROUP, p) == false then
-            GODS_GROUP[#GODS_GROUP + 1] = p
-
-            BlzSetUnitFacingEx(Hero[pid], 45)
-            MoveHero(pid, GetRectCenterX(gg_rct_GodsEntrance), GetRectCenterY(gg_rct_GodsEntrance))
-            reselect(Hero[pid])
-
-            if GodsEnterFlag == false then
-                GodsEnterFlag = true
-                DisplayTextToForce(FORCE_PLAYING, "This is your last chance to -flee.")
-
-                SetCinematicScene(GetUnitTypeId(zeknen), GetPlayerColor(pboss), "Zeknen", "Explain yourself or be struck down from this heaven!", 9, 8)
-                TimerQueue:callDelayed(10., ZeknenExpire)
-            end
-        end
-
-    elseif itemid == FourCC('I0NO') and CHAOS_MODE == false then --rescind to darkness
-        if GodsEnterFlag == false and CHAOS_MODE == false and GetHeroLevel(Hero[pid]) >= 240 then
-            power_crystal = CreateUnitAtLoc(pfoe, FourCC('h04S'), Location(30000, -30000), bj_UNIT_FACING)
-            KillUnit(power_crystal)
         end
 
     --========================
@@ -2254,7 +1484,7 @@ function onPickup()
                     GroupClear(ColoWaveGroup)
                     MoveHeroLoc(pid, ColosseumCenter)
                     ExperienceControl(pid)
-                    DisableItems(pid)
+                    DisableItems(pid, true)
                     TimerQueue:callDelayed(2., AdvanceColo)
                 end
             elseif index == 2 then
@@ -2299,7 +1529,7 @@ function onPickup()
                             IS_FLEEING[pid] = false
                             MoveHeroLoc(pid, ColosseumCenter)
                             ExperienceControl(pid)
-                            DisableItems(pid)
+                            DisableItems(pid, true)
                         end
                     end
                     TimerQueue:callDelayed(2., AdvanceColo)
@@ -2347,7 +1577,7 @@ function onPickup()
                         IS_IN_STRUGGLE[pid] = true
                         Struggle_Pcount = Struggle_Pcount + 1
                         IS_FLEEING[pid] = false
-                        DisableItems(pid)
+                        DisableItems(pid, true)
                         MoveHeroLoc(pid, StruggleCenter)
                         CreateUnitAtLoc(GetOwningPlayer(u), FourCC('h065'), StruggleCenter, bj_UNIT_FACING)
                         ExperienceControl(pid)
@@ -2481,12 +1711,12 @@ end
     --item preload
     local nerub = HeadHunter[NERUBIAN_QUEST].Reward ---@type table
     for _, v in ipairs(nerub) do
-        Item.create(CreateItem(v, 30000., 30000.), 0.01)
+        CreateItem(v, 30000., 30000., 0.01)
     end
 
     local polarbear = HeadHunter[POLARBEAR_QUEST].Reward ---@type table
     for _, v in ipairs(polarbear) do
-        Item.create(CreateItem(v, 30000., 30000.), 0.01)
+        CreateItem(v, 30000., 30000., 0.01)
     end
 
     --TODO ashenvat
