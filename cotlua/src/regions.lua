@@ -172,23 +172,23 @@ OnInit.final("Regions", function(Require)
         return nil
     end
 
-    function LavaRegion()
+    local function LavaRegion()
         local u = GetFilterUnit()
 
         Lava:add(u, u)
         return false
     end
 
-    function LeaveRegions()
+    local function LeaveRegions()
         local u = GetFilterUnit() ---@type unit 
 
         if u == udg_SPONSOR or u == townpaladin then --prevent paladin and sponsor from leaving
-            IssuePointOrderLoc(u, "move", TownCenter)
+            IssuePointOrderLoc(u, "move", TOWN_CENTER)
         end
     end
 
     ---@return boolean
-    function SafeRegions()
+    local function SafeRegions()
         local u    = GetFilterUnit()
         local uid  = GetUnitTypeId(u)
         local pid  = GetPlayerId(GetOwningPlayer(u)) + 1
@@ -222,7 +222,7 @@ OnInit.final("Regions", function(Require)
         return false
     end
 
-    function SpecialRegions()
+    local function SpecialRegions()
         local u   = GetFilterUnit() ---@type unit 
         local x   = GetUnitX(u) ---@type number 
         local y   = GetUnitY(u) ---@type number 
@@ -230,19 +230,17 @@ OnInit.final("Regions", function(Require)
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
         if u == Hero[pid] then
-            if NearbyRect(gg_rct_Naga_Waygate, x, y) then --naga dungeon
-                NagaWaygate()
-            elseif NearbyRect(gg_rct_Key_Quest, x, y) and not CHAOS_MODE and not IsUnitHidden(god_angel) then
+            if NearbyRect(gg_rct_Key_Quest, x, y) and not CHAOS_MODE and not IsUnitHidden(god_angel) then
                 if (PlayerHasItemType(pid, FourCC('I04J')) or PlayerHasItemType(pid, FourCC('I0NJ')) or GetHeroLevel(Hero[pid]) > 239) and IsQuestCompleted(Key_Quest) == false then
                     DisplayTextToForce(FORCE_PLAYING, "|cffffcc00The portal to the gods has opened.|r")
                     QuestSetDiscovered(Key_Quest, true)
                     QuestSetCompleted(Key_Quest, true)
                     QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_UPDATED, "|cffffcc00QUEST COMPLETED:|r\nThe Goddesses' Keys")
-                    DestroyEffect(TalkToMe13)
+                    DestroyEffect(GODS_QUEST_MARKER)
                     TimerQueue:callDelayed(1., OpenGodsPortal)
                 end
                 if IsQuestDiscovered(Key_Quest) == false then
-                    DestroyEffect(TalkToMe13)
+                    DestroyEffect(GODS_QUEST_MARKER)
                     QuestSetDiscovered(Key_Quest, true)
                     QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1REQUIRED QUEST|r|nThe Goddesses' Keys\n   - Retrieve the Key of the Gods")
                 elseif IsQuestCompleted(Key_Quest) == false then
@@ -265,7 +263,7 @@ OnInit.final("Regions", function(Require)
         end
     end
 
-    function EnterArea()
+    local function EnterArea()
         local u = GetEnteringUnit()
         local r = GetTriggeringRegion()
         local p = GetOwningPlayer(u)
@@ -288,13 +286,10 @@ OnInit.final("Regions", function(Require)
     end
 
     local enterTrigger   = CreateTrigger()
-
     local specialTrigger = CreateTrigger()
     local specialRegion  = CreateRegion()
-
     local safeTrigger    = CreateTrigger()
     local safeRegion     = CreateRegion()
-
     local leaveTrigger   = CreateTrigger()
     local leaveRegion    = CreateRegion()
 
@@ -332,7 +327,6 @@ OnInit.final("Regions", function(Require)
 
     RegionAddRect(specialRegion, gg_rct_Rescueable_Worker)
     RegionAddRect(specialRegion, gg_rct_Key_Quest)
-    RegionAddRect(specialRegion, gg_rct_Naga_Waygate)
 
     RegionAddRect(safeRegion, gg_rct_Town_Boundry)
     RegionAddRect(safeRegion, gg_rct_Top_of_Town)
@@ -350,5 +344,6 @@ OnInit.final("Regions", function(Require)
     RegionAddRect(LAVA_REGION, gg_rct_Lava1)
     RegionAddRect(LAVA_REGION, gg_rct_Lava2)
 
+    Require('Buffs')
     TriggerRegisterEnterRegion(lavaTrigger, LAVA_REGION, Filter(LavaRegion))
 end, Debug and Debug.getLine())
