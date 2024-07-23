@@ -91,7 +91,7 @@ OnInit.global("Buffs", function(Require)
                 local dmg = BlzGetUnitMaxHP(self.target) / 40. + 1000.
 
                 if BlzGetUnitZ(self.target) < 60. then
-                    DamageTarget(DummyUnit, self.target, dmg, ATTACK_TYPE_NORMAL, PURE, "Lava")
+                    DamageTarget(DUMMY_UNIT, self.target, dmg, ATTACK_TYPE_NORMAL, PURE, "Lava")
                 end
 
                 self.timer:callDelayed(1.5, periodic, self)
@@ -676,7 +676,7 @@ OnInit.global("Buffs", function(Require)
             BlzSetItemSkin(PATH_ITEM, BlzGetUnitSkin(self.target))
             self.sfx = AddSpecialEffect(BlzGetItemStringField(PATH_ITEM, ITEM_SF_MODEL_USED), x, y)
             self.lfx = AddLightningEx("HCHA", false, x, y, BlzGetUnitZ(self.target) + 75., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 75.)
-            BlzSetItemSkin(PATH_ITEM, BlzGetUnitSkin(DummyUnit))
+            BlzSetItemSkin(PATH_ITEM, BlzGetUnitSkin(DUMMY_UNIT))
 
             DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIil\\AIilTarget.mdl", x, y))
 
@@ -983,7 +983,7 @@ OnInit.global("Buffs", function(Require)
             if DistanceCoords(x, y, GetUnitX(self.target), GetUnitY(self.target)) > 800. or not UnitAlive(self.source) then
                 self:remove()
             else
-                self.timer:callDelayed(FPS_32, periodic, self, x, y)
+                self.timer:callDelayed(1., drain, self, x, y)
             end
         end
 
@@ -1118,7 +1118,6 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onApply()
-            --40% magic damage amp
             self.mr = (limitBreak[self.pid] & 0x4 > 0 and 1.4) or 1
 
             Unit[self.target].mr = Unit[self.target].mr * self.mr
@@ -1148,7 +1147,7 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onRemove()
-            EVENT_ON_STRUCK_AFTER_REDUCTIONS:unregister_unit_action(self.target, UNDYINGRAGE.onHit)
+            EVENT_ON_STRUCK_FINAL:unregister_unit_action(self.target, UNDYINGRAGE.onHit)
             self.timer:destroy()
             Unit[self.target].regen = Unit[self.target].regen - self.bonusRegen
 
@@ -1177,7 +1176,7 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onApply()
-            EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(self.target, UNDYINGRAGE.onHit)
+            EVENT_ON_STRUCK_FINAL:register_unit_action(self.target, UNDYINGRAGE.onHit)
             self.text = CreateTextTag()
             self.totalRegen = 0.
             SetTextTagText(self.text, (R2I(self.totalRegen)) .. "\x25", 0.025)
@@ -1288,7 +1287,6 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onApply()
-            --15% damage amp
             Unit[self.target].dr = Unit[self.target].dr * 1.15
         end
     end
@@ -1504,7 +1502,6 @@ OnInit.global("Buffs", function(Require)
             self.timer = TimerQueue.create()
             self.timer:callDelayed(FPS_32, grow, self.timer, self.target, size, 60)
 
-            --80% magic resist
             Unit[self.target].mr = Unit[self.target].mr * 0.2
         end
     end
@@ -2218,16 +2215,28 @@ OnInit.global("Buffs", function(Require)
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
+        local function onStruck(target, source, damage_type)
+            if damage_type == PHYSICAL then
+                DamageTarget(target, source, BlzGetUnitMaxHP(source) * 0.4, ATTACK_TYPE_NORMAL, MAGIC)
+            end
+        end
+
+        function thistype:onRemove()
+            EVENT_ON_STRUCK:unregister_unit_action(self.target, onStruck)
+        end
+
         function thistype:onApply()
+            EVENT_ON_STRUCK:register_unit_action(self.target, onStruck)
+
             TimerQueue:callDelayed(6.5, DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\ThornyShield\\ThornyShieldTargetChestLeft.mdl", self.target, "chest"))
             TimerQueue:callDelayed(2.5, DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\ThornsAura\\ThornsAura.mdl", self.target, "origin"))
         end
     end
 
-    ---@class NagaEliteAtkSpeed : Buff
-    NagaEliteAtkSpeed = setmetatable({}, mt)
+    ---@class NagaBerserkBuff : Buff
+    NagaBerserkBuff = setmetatable({}, mt)
     do
-        local thistype = NagaEliteAtkSpeed
+        local thistype = NagaBerserkBuff
 
         thistype.RAWCODE         = FourCC('A04L') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
@@ -2512,6 +2521,33 @@ OnInit.global("Buffs", function(Require)
         function thistype:onApply()
             BlzPauseUnitEx(self.target, true)
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Human\\Thunderclap\\ThunderclapTarget.mdl", self.target, "overhead")
+        end
+    end
+
+    ---@class InstillFearDebuff : Buff
+    InstillFearDebuff = setmetatable({}, mt)
+    do
+        local thistype = InstillFearDebuff
+        thistype.RAWCODE         = FourCC('Aisf') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        local function onStruck(target, source, amount, amount_after_red, damage_type)
+            if thistype:has(source, target) then
+                amount.value = amount.value * 1.15
+            end
+        end
+
+        function thistype:onRemove()
+            DestroyEffect(self.sfx)
+
+            EVENT_ON_STRUCK_MULTIPLIER:unregister_unit_action(self.target, onStruck)
+        end
+
+        function thistype:onApply()
+            self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\shadowstrike\\shadowstrike.mdl", self.target, "overhead")
+
+            EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(self.target, onStruck)
         end
     end
 
