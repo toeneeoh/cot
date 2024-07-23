@@ -81,14 +81,14 @@ OnInit.final("Death", function(Require)
     end
 
     QuestUnits = {
-        --kroresh
+        -- kroresh
         [FourCC('N01N')] = function()
             QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_COMPLETED, "|cffffcc00OPTIONAL QUEST COMPLETE|r\nThe Horde")
             QuestSetCompleted(Defeat_The_Horde_Quest, true)
             HORDE_QUEST_MARKER = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl", gg_unit_n02Q_0382, "overhead")
         end,
 
-        --zeknen
+        -- zeknen
         [FourCC('O01A')] = function()
             DeadGods = 0
             SetCinematicScene(BossTable[BOSS_LIFE].id, GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), "Goddess of Life", "You are foolish to challenge us in our realm. Prepare yourself.", 9, 7)
@@ -114,21 +114,21 @@ OnInit.final("Death", function(Require)
             TimerQueue:callDelayed(7., SpawnGods)
         end,
 
-        --evilshopkeeper
+        -- evilshopkeeper
         [FourCC('n01F')] = function()
             QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_COMPLETED, "|cffffcc00OPTIONAL QUEST COMPLETED|r\nThe Evil Shopkeeper")
             QuestSetCompleted(Evil_Shopkeeper_Quest_1, true)
             --? QuestItemSetCompleted(Quest_Req[10], true)
         end,
 
-        --forest corruption
+        -- forest corruption
         [FourCC('N00M')] = function()
-            Item.create(CreateItem(FourCC('I03X'), GetUnitX(forest_corruption), GetUnitY(forest_corruption)), 600.) --corrupted essence
+            CreateItem(FourCC('I03X'), GetUnitX(forest_corruption), GetUnitY(forest_corruption), 600.) -- corrupted essence
         end,
 
-        --ice troll
+        -- ice troll
         [FourCC('O00T')] = function()
-            Item.create(CreateItem(FourCC('I040'), GetUnitX(ice_troll), GetUnitY(ice_troll))) --key of redemption
+            CreateItem(FourCC('I040'), GetUnitX(ice_troll), GetUnitY(ice_troll)) -- key of redemption
         end,
     }
 
@@ -233,8 +233,8 @@ function HeroGraveExpire(pt)
 
             DeathHandler(pid)
 
-            EnableItems(pid)
-            RevivePlayer(pid, GetLocationX(TownCenter), GetLocationY(TownCenter), 1, 1)
+            DisableItems(pid, false)
+            RevivePlayer(pid, GetLocationX(TOWN_CENTER), GetLocationY(TOWN_CENTER), 1, 1)
             SetCamera(pid, MAIN_MAP.rect)
         end
 
@@ -375,9 +375,9 @@ function ReviveGods()
 
         if target == Hero[pid] then
             TableRemove(GODS_GROUP, GetOwningPlayer(target))
-            MoveHeroLoc(pid, TownCenter)
+            MoveHeroLoc(pid, TOWN_CENTER)
         else
-            SetUnitPositionLoc(target, TownCenter)
+            SetUnitPositionLoc(target, TOWN_CENTER)
         end
     end
 
@@ -429,6 +429,9 @@ function BossRespawn(pt)
                     BossTable[index].loc = GetRandomLocInRect(MAIN_MAP.rect)
                     GroupEnumUnitsInRangeOfLoc(ug, BossTable[index].loc, 4000., Condition(isbase))
                 until IsTerrainWalkable(GetLocationX(BossTable[index].loc), GetLocationY(BossTable[index].loc)) and BlzGroupGetSize(ug) == 0 and RectContainsLoc(gg_rct_Town_Boundry, BossTable[index].loc) == false and RectContainsLoc(gg_rct_Top_of_Town, BossTable[index].loc) == false
+
+            elseif pt.uid == BossTable[BOSS_AZAZOTH].id then
+                AddItemToStock(god_portal, FourCC('I08T'), 1, 1)
             end
 
             DestroyGroup(ug)
@@ -494,6 +497,7 @@ function BossHandler(uid)
         DeadGods = 4
         DisplayTimedTextToForce(FORCE_PLAYING, 10, "You may now -flee.")
         power_crystal = CreateUnit(pfoe, FourCC('h04S'), -2026.936, -27753.830, bj_UNIT_FACING)
+        EVENT_ON_DEATH:register_unit_action(power_crystal, BeginChaos)
     elseif BANISH_FLAG and (uid == BossTable[BOSS_DEATH_KNIGHT].id or uid == BossTable[BOSS_LEGION].id) then
         --banish death knight / legion
         return
@@ -583,13 +587,14 @@ function OnDeath()
             if (Struggle_WaveUCN == 0) and BlzGroupGetSize(StruggleWaveGroup) == 0 then
                 TimerQueue:callDelayed(3., AdvanceStruggle, 0)
             end
-        elseif uid == FourCC('h04S') then --power crystal
-            dropflag = false
-            BeginChaos() --chaos
-        else
+        elseif RectContainsCoords(gg_rct_Main_Map, x, y) then
             spawnflag = true
             goldflag = true
             xpflag = true
+        else
+            spawnflag = false
+            goldflag = false
+            xpflag = false
         end
     end
 
@@ -622,7 +627,7 @@ function OnDeath()
         else
             local rand = GetRandomInt(0, 99)
             if rand < Rates[unitType] then
-                Item.create(CreateItem(DropTable:pickItem(unitType), x, y), 600.)
+                CreateItem(DropTable:pickItem(unitType), x, y, 600.)
             end
 
             --iron golem ore
@@ -632,9 +637,9 @@ function OnDeath()
                 rand = GetRandomInt(0, 99)
 
                 if GetUnitLevel(killed) > 45 and GetUnitLevel(killed) < 85 and rand < (0.05 * GetUnitLevel(killed)) then
-                    Item.create(CreateItem(FourCC('I02Q'), GetUnitX(killed), GetUnitY(killed)), 600.)
+                    CreateItem(FourCC('I02Q'), GetUnitX(killed), GetUnitY(killed), 600.)
                 elseif GetUnitLevel(killed) > 265 and GetUnitLevel(killed) < 305 and rand < (0.02 * GetUnitLevel(killed)) then
-                    Item.create(CreateItem(FourCC('I04Z'), GetUnitX(killed), GetUnitY(killed)), 600.)
+                    CreateItem(FourCC('I04Z'), GetUnitX(killed), GetUnitY(killed), 600.)
                 end
             end
         end
