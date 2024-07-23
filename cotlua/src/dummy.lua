@@ -9,6 +9,7 @@ OnInit.final("Dummy", function(Require)
     Require("TimerQueue")
     Require("Events")
     Require("Units")
+    Require('Frames')
 
     DUMMY_COUNT = 0
     DUMMY_STACK = {}
@@ -16,13 +17,15 @@ OnInit.final("Dummy", function(Require)
 
     DPS_TIMER          = TimerQueue.create()
     DPS_STOPWATCH      = Stopwatch.create(false) ---@type Stopwatch
-    DPS_TOTAL_PHYSICAL = BigNum:new() ---@type BigNum 
-    DPS_TOTAL_MAGIC    = BigNum:new() ---@type BigNum 
-    DPS_TOTAL          = BigNum:new() ---@type BigNum 
+    DPS_TOTAL_PHYSICAL = 0.
+    DPS_TOTAL_MAGIC    = 0.
+    DPS_TOTAL          = 0.
     DPS_LAST           = 0.
-    DPS_CURRENT        = BigNum:new() ---@type BigNum 
-    DPS_PEAK           = BigNum:new() ---@type BigNum 
+    DPS_CURRENT        = 0.
+    DPS_PEAK           = 0.
     DPS_STORAGE        = CircularArrayList.create(30) ---@type CircularArrayList 
+
+    PUNCHING_BAG       = CreateUnit(Player(PLAYER_NEUTRAL_AGGRESSIVE), FourCC('h02D'), GetRectCenterX(gg_rct_Punching_Bag), GetRectCenterY(gg_rct_Punching_Bag), 0.)
 
     ---@class Dummy
     ---@field unit unit
@@ -84,6 +87,10 @@ OnInit.final("Dummy", function(Require)
             EVENT_DUMMY_ON_HIT:unregister_unit_action(self.unit)
         end
 
+        local function onAggro(source, target)
+            BlzSetUnitWeaponBooleanField(source, UNIT_WEAPON_BF_ATTACKS_ENABLED, 0, false)
+        end
+
         ---@type fun(x: number, y: number, abil: integer, ablev: integer, dur: any): Dummy
         function thistype.create(x, y, abil, ablev, dur)
             local self = DUMMY_STACK[#DUMMY_STACK]
@@ -100,6 +107,7 @@ OnInit.final("Dummy", function(Require)
                 UnitAddAbility(self.unit, FourCC('Aloc'))
                 SetUnitPathing(self.unit, false)
                 TriggerRegisterUnitEvent(ACQUIRE_TRIGGER, self.unit, EVENT_UNIT_ACQUIRED_TARGET)
+                EVENT_ON_AGGRO:register_unit_action(self.unit, onAggro)
 
                 Dummy[self.unit] = self
 
@@ -161,12 +169,12 @@ OnInit.final("Dummy", function(Require)
     end
 
     function DPS_RESET()
-        DPS_TOTAL_PHYSICAL:set()
-        DPS_TOTAL_MAGIC:set()
-        DPS_TOTAL:set()
+        DPS_TOTAL_PHYSICAL = 0.
+        DPS_TOTAL_MAGIC = 0.
+        DPS_TOTAL = 0.
         DPS_LAST = 0.
-        DPS_CURRENT:set()
-        DPS_PEAK:set()
+        DPS_CURRENT = 0.
+        DPS_PEAK = 0.
         DPS_STORAGE:wipe()
         BlzFrameSetText(DPS_FRAME_TEXTVALUE, "0\n0\n0\n0\n0\n0\n0s")
     end
@@ -194,12 +202,12 @@ OnInit.final("Dummy", function(Require)
         local time = DPS_STOPWATCH:getElapsed()
         local calc = calcPeakDps()
 
-        DPS_CURRENT:set(DPS_TOTAL / math.ceil(time))
+        DPS_CURRENT = (DPS_TOTAL / math.ceil(time))
         if calc > DPS_PEAK then
-            DPS_PEAK:set(calc)
+            DPS_PEAK = calc
         end
         if DPS_CURRENT > DPS_PEAK then
-            DPS_PEAK:set(DPS_CURRENT)
+            DPS_PEAK = DPS_CURRENT
         end
     end
 
@@ -237,11 +245,11 @@ OnInit.final("Dummy", function(Require)
         DPS_LAST = amount_after_red
 
         if damage_type == PHYSICAL then
-            DPS_TOTAL_PHYSICAL:set(DPS_TOTAL_PHYSICAL + DPS_LAST)
+            DPS_TOTAL_PHYSICAL = (DPS_TOTAL_PHYSICAL + DPS_LAST)
         elseif damage_type == MAGIC then
-            DPS_TOTAL_MAGIC:set(DPS_TOTAL_MAGIC + DPS_LAST)
+            DPS_TOTAL_MAGIC = (DPS_TOTAL_MAGIC + DPS_LAST)
         end
-        DPS_TOTAL:set(DPS_TOTAL + DPS_LAST)
+        DPS_TOTAL = (DPS_TOTAL + DPS_LAST)
 
         DPS_STORAGE:add_timed(DPS_LAST, 1., 0.)
         DPS_TIMER:reset()
@@ -250,6 +258,6 @@ OnInit.final("Dummy", function(Require)
         SetWidgetLife(target, BlzGetUnitMaxHP(target))
     end
 
-    EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(PUNCHING_BAG, DPS_ON_HIT)
+    EVENT_ON_STRUCK_FINAL:register_unit_action(PUNCHING_BAG, DPS_ON_HIT)
 
 end, Debug and Debug.getLine())
