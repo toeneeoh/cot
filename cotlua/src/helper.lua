@@ -908,30 +908,6 @@ function HideEffect(sfx)
     DestroyEffect(sfx)
 end
 
----@type fun(index: integer, loc: location, facing: number, id: integer, name: string, level: integer, items: integer[], crystal: integer, leash: number): unit
-function CreateBossEntry(index, loc, facing, id, name, level, items, crystal, leash)
-
-    BossTable[index] = {
-        loc = loc,
-        facing = facing,
-        unit = CreateUnitAtLoc(pboss, id, loc, facing),
-        id = id,
-        name = name,
-        level = level,
-        item = items,
-        crystal = crystal,
-        leash = leash,
-        total_damage = 0,
-        damage = __jarray(0),
-        revive = function(self) self.unit = CreateUnitAtLoc(pboss, self.id, self.loc, self.facing) end
-    }
-
-    -- boss spell casting
-    EVENT_ON_STRUCK_FINAL:register_unit_action(BossTable[index].unit, BossAI)
-
-    return BossTable[index].unit
-end
-
 ---@param u unit
 ---@return boolean
 function IsUnitStunned(u)
@@ -1127,15 +1103,6 @@ function FilterDespawn()
 end
 
 ---@return boolean
-function isvillager()
-    local id = GetUnitTypeId(GetFilterUnit()) ---@type integer 
-    if id == FourCC('n02V') or id == FourCC('n03U') or id == FourCC('n09Q') or id == FourCC('n09T') or id == FourCC('n09O') or id == FourCC('n09P') or id == FourCC('n09R') or id == FourCC('n09S') or id == FourCC('nvk2') or id == FourCC('nvlw') or id == FourCC('nvlk') or id == FourCC('nvil') or id == FourCC('nvl2') or id == FourCC('H01Y') or id == FourCC('H01T') or id == FourCC('n036') or id == FourCC('n035') or id == FourCC('n037') or id == FourCC('n03S') or id == FourCC('n01I') or id == FourCC('n0A3') or id == FourCC('n0A4') or id == FourCC('n0A5') or id == FourCC('n0A6') or id == FourCC('h00G') then
-        return true
-    end
-    return false
-end
-
----@return boolean
 function isspirit()
     local id = GetUnitTypeId(GetFilterUnit()) ---@type integer 
     if id == FourCC('n00P') then
@@ -1181,18 +1148,6 @@ function ishostile()
     local i =GetPlayerId(GetOwningPlayer(GetFilterUnit())) ---@type integer 
 
     return (UnitAlive(GetFilterUnit()) and GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and (i ==10 or i ==11 or i ==PLAYER_NEUTRAL_AGGRESSIVE))
-end
-
----@return boolean
-function ChaosTransition()
-    local i = GetPlayerId(GetOwningPlayer(GetFilterUnit())) ---@type integer 
-
-    return (GetFilterUnit() ~= PUNCHING_BAG and
-    UnitAlive(GetFilterUnit()) and
-    GetUnitAbilityLevel(GetFilterUnit(),FourCC('Avul')) == 0 and
-    (i == 10 or i == 11 or i == PLAYER_NEUTRAL_AGGRESSIVE) and
-    RectContainsUnit(gg_rct_Colosseum, GetFilterUnit()) == false and
-    RectContainsUnit(gg_rct_Infinite_Struggle, GetFilterUnit()) == false)
 end
 
 ---@return boolean
@@ -1287,17 +1242,17 @@ function GetType(id)
     return id
 end
 
----@type fun(u: any):integer
+---@type fun(u: any): integer|nil
 function IsBoss(u)
     local uid = (type(u) == "number" and u) or GetType(GetUnitTypeId(u))
 
-    for i = BOSS_OFFSET, #BossTable do
-        if BossTable[i].id == uid then
+    for i = BOSS_OFFSET, #Boss do
+        if Boss[i].id == uid then
             return i
         end
     end
 
-    return -1
+    return nil
 end
 
 ---@param i integer
@@ -1311,19 +1266,15 @@ function ExplodeUnits()
     KillUnit(GetEnumUnit())
 end
 
-local ImportantItems = {
-    FourCC('I042'), FourCC('I040'), FourCC('I041'), FourCC('I0M4'), FourCC('I0M5'), FourCC('I0M6'), FourCC('I0M7') --keys
-}
-
 ---@type fun(itm: item): boolean
 function isImportantItem(itm)
-    return ImportantItems[GetItemTypeId(itm)] ~= nil or itm == PATH_ITEM
+    return itm == PATH_ITEM
 end
 
 function ClearItems()
     local itm = GetEnumItem() ---@type item 
 
-    if not isImportantItem(itm) then --keys + pathcheck
+    if not isImportantItem(itm) then -- pathcheck
         Item[itm]:destroy()
     end
 end
@@ -1640,13 +1591,13 @@ end
 function ShowHeroCircle(p, show)
     if show then
         if GetLocalPlayer() == p then
-            for i = 1, HERO_TOTAL -1 do
+            for i = 0, HERO_TOTAL -1 do
                 BlzSetUnitSkin(HeroCircle[i].unit, GetUnitTypeId(HeroCircle[i].unit))
             end
         end
     else
         if GetLocalPlayer() == p then
-            for i = 1, HERO_TOTAL -1 do
+            for i = 0, HERO_TOTAL -1 do
                 BlzSetUnitSkin(HeroCircle[i].unit, DUMMY_VISION)
             end
         end
@@ -2017,7 +1968,7 @@ function PlayerCountItemType(pid, id)
     return j
 end
 
----@type fun(pid: integer, id: integer):boolean
+---@type fun(pid: integer, id: integer): boolean
 function PlayerHasItemType(pid, id)
     for i = 0, MAX_INVENTORY_SLOTS - 1 do
         if Profile[pid].hero.items[i] and Profile[pid].hero.items[i].id == id then
@@ -2028,7 +1979,7 @@ function PlayerHasItemType(pid, id)
     return false
 end
 
----@type fun(u: unit, itid: integer):boolean
+---@type fun(u: unit, itid: integer): boolean
 function UnitHasItemType(u, itid)
     for i = 0, 5 do
         if GetItemTypeId(UnitItemInSlot(u, i)) == itid then
@@ -2177,29 +2128,6 @@ function ItemInfo(pid, itm)
 
     if ItemToIndex(itm.id) then --item info cannot be cast on backpacked items
         DisplayTimedTextToPlayer(p, 0, 0, 15., "|c0000ff33Saveable|r")
-    end
-end
-
----@param flag integer
-function SpawnCreeps(flag)
-    local i = 0 ---@type integer 
-    local index = UnitData[flag][i] ---@type integer
-    local myregion = nil ---@type rect 
-    local x ---@type number 
-    local y ---@type number 
-
-    while index ~= 0 do
-        for _ = 1, UnitData[index].count do
-            myregion = SelectGroupedRegion(UnitData[index].spawn)
-            repeat
-                x = GetRandomReal(GetRectMinX(myregion), GetRectMaxX(myregion))
-                y = GetRandomReal(GetRectMinY(myregion), GetRectMaxY(myregion))
-            until IsTerrainWalkable(x, y)
-            CreateUnit(pfoe, index, x, y, GetRandomInt(0, 359))
-        end
-
-        i = i + 1
-        index = UnitData[flag][i]
     end
 end
 
@@ -2356,13 +2284,52 @@ function IndexWells(index)
     wellcount = wellcount - 1
 end
 
----@type fun(id: integer, chance: integer, x: number, y: number)
-function BossDrop(id, chance, x, y)
-    for _ = 0, HARD_MODE do
-        if math.random(0, 99) < chance then
-            local itm = CreateItem(DropTable:pickItem(id), x, y, 600.)
-            itm:lvl(IMaxBJ(0, ItemData[itm.id][ITEM_UPGRADE_MAX] - math.random(ITEM_MIN_LEVEL_VARIANCE, ITEM_MAX_LEVEL_VARIANCE)))
+---@type fun(killed: unit, killer: unit)
+function RewardXPGold(killed, killer)
+    local kpid = GetPlayerId(GetOwningPlayer(killer)) + 1 ---@type integer 
+    local xpgroup = {}
+    local lvl = GetUnitLevel(killed)
+
+    -- nearby allies
+    local U = User.first
+
+    while U do
+        if IsUnitInRange(Hero[U.id], killed, 1800.00) and UnitAlive(Hero[U.id]) and U.id ~= kpid then
+            if (GetHeroLevel(Hero[U.id]) >= (lvl - 20)) and (GetHeroLevel(Hero[U.id])) >= GetUnitLevel(Hero[kpid]) - LEECH_CONSTANT then
+                xpgroup[#xpgroup + 1] = U.id
+            end
         end
+        U = U.next
+    end
+
+    -- killer
+    if GetHeroLevel(Hero[kpid]) >= (lvl - 20) then
+        xpgroup[#xpgroup + 1] = kpid
+    end
+
+    -- allocate rewards
+    local maingold = RewardGold[lvl]
+    local teamgold = 0
+    local expbase = Experience_Table[lvl] * 0.007 ---@type number 
+
+    -- boss bounty
+    local boss = IsBoss(killed)
+
+    if boss then
+        expbase = expbase * 15. * Boss[boss].difficulty
+        maingold = expbase * 87.5 * Boss[boss].difficulty
+    end
+
+    if #xpgroup > 0 then
+        expbase = expbase * (1.2 / #xpgroup)
+        teamgold = maingold * (1. / #xpgroup)
+    end
+
+    for pid = 1, #xpgroup do
+        local XP = math.floor(expbase * XP_Rate[pid])
+
+        AwardGold(pid, teamgold, false)
+        AwardXP(pid, XP)
     end
 end
 
@@ -2900,10 +2867,9 @@ function DisableItems(pid, disable)
     BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(Hero[pid], FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, i)
     BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(Backpack[pid], FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, i)
 
-    UnitDisableAbility(Hero[pid], FourCC('A03V'), disable)
+    BlzUnitDisableAbility(Hero[pid], FourCC('A03V'), disable, false)
     UnitDisableAbility(Backpack[pid], FourCC('A0DT'), disable)
     if disable then
-        BlzUnitHideAbility(Hero[pid], FourCC('A03V'), false)
         BlzUnitHideAbility(Backpack[pid], FourCC('A0DT'), false)
     end
 end
@@ -3941,7 +3907,7 @@ function Taunt(hero, pid, aoe, bossaggro, allythreat, herothreat)
         local threat = Threat[enemy][hero]
         Threat[enemy][hero] = IMaxBJ(0, threat + herothreat)
         --boss taunting
-        if IsBoss(enemy) ~= -1 then
+        if IsBoss(enemy) then
             --instant aggro grab
             if bossaggro then
                 IssueTargetOrder(enemy, "smart", hero)
