@@ -48,7 +48,7 @@ OnInit.final("Dev", function(Require)
         ["shopkeeper"] = "Pings the location of the evil shopkeeper",
         ["setweather"] = "Randomly changes the weather with no second argument or changes it to id #. usage: -setweather [#]",
         ["noborders"] = "Allows you to view the entire map",
-        ["fastrespawn"] = "Toggles 5 second boss respawn time on/off",
+        ["bossrespawn"] = "Toggles 5 second boss respawn time on/off",
         ["heal"] = "Fully restores the health and mana of the selected unit.",
         ["colo"] = "Sets the current number of players inside the colosseum. Potentially buggy",
         ["hp"] = "Sets the maximum health of the selected unit. usage: -hp [#]",
@@ -234,14 +234,11 @@ modifiers:
         ["displayhint"] = function(p, pid, args)
             DisplayHint()
         end,
-        ["fastrespawn"] = function(p, pid, args)
-            if RESPAWN_DEBUG then
-                print("5 second boss respawn disabled!")
-            else
-                print("5 second boss respawn enabled!")
-            end
-
-            RESPAWN_DEBUG = not RESPAWN_DEBUG
+        ["bossrespawn"] = function(p, pid, args)
+            args[2] = args[2] or 5
+            
+            BOSS_RESPAWN_TIME = args[2]
+            print("Boss respawn time set to " .. args[2] .. " seconds")
         end,
         ["pause"] = function(p, pid, args)
             PauseUnit(Hero[pid], true)
@@ -680,49 +677,6 @@ modifiers:
 
             i = i + 1
         end
-
-        --death setup
-        local death = CreateTrigger()
-        TriggerRegisterUnitEvent(death, Hero[pid], EVENT_UNIT_DEATH)
-
-        TriggerAddAction(death, OnDeath)
-
-        --attack setup
-        local attacked = CreateTrigger()
-        TriggerRegisterUnitEvent(attacked, Hero[pid], EVENT_UNIT_ATTACKED)
-
-        TriggerAddCondition(attacked, Filter(OnAttack))
-
-        --damage setup
-        local beforearmor = CreateTrigger()
-        TriggerRegisterUnitEvent(beforearmor, Hero[pid], EVENT_UNIT_DAMAGING)
-
-        TriggerAddCondition(beforearmor, Filter(OnDamage))
-
-        --item setup
-        local onpickup = CreateTrigger()
-        local ondrop   = CreateTrigger()
-        local useitem  = CreateTrigger()
-        local onsell   = CreateTrigger()
-        TriggerRegisterUnitEvent(onpickup, Hero[pid], EVENT_UNIT_PICKUP_ITEM)
-        TriggerRegisterUnitEvent(ondrop, Hero[pid], EVENT_UNIT_DROP_ITEM)
-        TriggerRegisterUnitEvent(useitem, Hero[pid], EVENT_UNIT_USE_ITEM)
-        TriggerRegisterUnitEvent(onsell, Hero[pid], EVENT_UNIT_PAWN_ITEM)
-
-        --order setup
-        local ordertarget = CreateTrigger()
-        --TriggerRegisterPlayerUnitEvent(pointOrder, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, nil)
-        --TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, nil)
-        TriggerRegisterPlayerUnitEvent(ordertarget, Player(pid - 1), EVENT_PLAYER_UNIT_ISSUED_ORDER, nil)
-
-        --TriggerAddAction(pointOrder, OnOrder)
-        TriggerAddCondition(ordertarget, Condition(OnOrder))
-
-        TriggerAddCondition(onpickup, Condition(PickupFilter))
-        TriggerAddAction(onpickup, onPickup)
-        TriggerAddAction(ondrop, onDrop)
-        TriggerAddAction(useitem, onUse)
-        TriggerAddCondition(onsell, Condition(onSell))
     end
 
     function PreloadItemSearch()
