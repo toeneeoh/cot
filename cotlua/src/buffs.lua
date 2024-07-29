@@ -1757,7 +1757,7 @@ OnInit.global("Buffs", function(Require)
             self.ms = SANCTIFIEDGROUND.ms * 0.01 * (math.min(1, Unit[self.target].ms_percent))
             Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
 
-            if IsBoss(self.target) < 0 then
+            if IsBoss(self.target) then
                 self.regen = Unit[self.target].regen
                 Unit[self.target].regen = 0
             end
