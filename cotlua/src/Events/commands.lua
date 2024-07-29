@@ -13,7 +13,6 @@ OnInit.final("Commands", function(Require)
     VoteNay            = 0
     IS_AUTO_ATTACK_OFF = {} ---@type boolean[] 
     IS_ITEM_FULL_STACKING = __jarray(true) ---@type boolean[] 
-    bossResMod         = 1.
     IS_BASE_DESTROYED  = {} ---@type boolean[] 
     votekickPlayer     = 0
     votekickingPlayer  = 0
@@ -194,15 +193,6 @@ OnInit.final("Commands", function(Require)
                 end
             end
         end,
-        ["-hardmode"] = function(p, pid, args)
-            if HARD_MODE > 0 then
-                DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 5, "|cffffcc00Hard mode is already active.|r")
-            else
-                if VOTING_TYPE == 0 then
-                    Hardmode()
-                end
-            end
-        end,
         ["-votekick"] = function(p, pid, args)
             if VOTING_TYPE == 0 and User.AmountPlaying > 2 then
                 local dw = DialogWindow.create(pid, "", VotekickPanelClick) ---@type DialogWindow
@@ -268,28 +258,6 @@ OnInit.final("Commands", function(Require)
 
     CMD_LIST["-nohints"] = CMD_LIST["-hints"]
 
----@type fun(index: integer|nil)
-function ApplyHardmode(index)
-    local j, k = index or BOSS_OFFSET, index or #BossTable
-
-    if not index then
-        BlzFrameSetVisible(VOTING_BACKDROP, false)
-        HARD_MODE = 1
-        bossResMod = math.min(bossResMod, 0.75)
-        DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00The game is now in hard mode: bosses are stronger, respawn faster, and have increased drop rates.|r")
-    end
-
-    for i = j, k do
-        if UnitAlive(BossTable[i].unit) then
-            SetHeroStr(BossTable[i].unit, GetHeroStr(BossTable[i].unit, true) * 2, true)
-            BlzSetUnitBaseDamage(BossTable[i].unit, BlzGetUnitBaseDamage(BossTable[i].unit, 0) * 2 + 1, 0)
-            SetWidgetLife(BossTable[i].unit, GetWidgetLife(BossTable[i].unit) + BlzGetUnitMaxHP(BossTable[i].unit) * 0.5) --heal
-            Buff.dispelAll(BossTable[i].unit)
-            Unit[BossTable[i].unit].mm = 2.
-        end
-    end
-end
-
 ---@return boolean
 local function VotingMenu()
     local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
@@ -303,17 +271,7 @@ local function VotingMenu()
 end
 
 function CheckVote()
-    if VOTING_TYPE == 1 then
-        if (VoteYay + VoteNay) >= User.AmountPlaying then
-            VOTING_TYPE = 0
-
-            if VoteYay > VoteNay and not CHAOS_LOADING then
-                ApplyHardmode()
-            else
-                DisplayTextToForce(FORCE_PLAYING, "Hardmode vote failed.")
-            end
-        end
-    elseif VOTING_TYPE == 2 then
+    if VOTING_TYPE == 2 then
         if (VoteYay + VoteNay) >= User.AmountPlaying then
             VOTING_TYPE = 0
 
@@ -351,31 +309,9 @@ local function VoteNo()
     end
 end
 
-function HardmodeVoteExpire()
-    if VOTING_TYPE == 1 then
-        BlzFrameSetVisible(VOTING_BACKDROP, false)
-        VOTING_TYPE = 0
-
-        if VoteYay > VoteNay and not CHAOS_LOADING then
-            ApplyHardmode()
-        end
-    end
-end
-
-function Hardmode()
-    VOTING_TYPE = 1
-    ResetVote()
-    DisplayTimedTextToForce(FORCE_PLAYING, 30, "Voting for Hardmode has begun and will conclude in 30 seconds.")
-    BlzFrameSetVisible(VOTING_BACKDROP, true)
-    BlzFrameSetTexture(VOTING_BACKDROP, "war3mapImported\\hardmode.dds", 0, true)
-
-    TimerQueue:callDelayed(30., HardmodeVoteExpire)
-end
-
 ---@type fun(p: player)
 function FleeCommand(p)
     local pid = GetPlayerId(p) + 1 ---@type integer 
-    local U = User.first ---@type User 
 
     if IS_IN_STRUGGLE[pid] or IS_IN_COLO[pid] then
         IS_FLEEING[pid] = true
@@ -388,23 +324,7 @@ function FleeCommand(p)
             DisplayTimedTextToPlayer(p, 0, 0, 10, "You cannot escape.")
         end
     elseif TableHas(Arena[ARENA_FFA], pid) then
-        MoveHeroLoc(pid, TOWN_CENTER)
-        ArenaQueue[pid] = 0
-        TableRemove(Arena[ARENA_FFA], pid)
-
-        while U do
-                SetPlayerAllianceStateBJ(U.player, Player(pid - 1), bj_ALLIANCE_ALLIED_VISION)
-                SetPlayerAllianceStateBJ(Player(pid - 1), U.player, bj_ALLIANCE_ALLIED_VISION)
-
-                if IS_HERO_PANEL_ON[pid * PLAYER_CAP + U.id] then
-                    ShowHeroPanel(Player(pid - 1), U.player, true)
-                end
-
-                if IS_HERO_PANEL_ON[U.id * PLAYER_CAP + pid] then
-                    ShowHeroPanel(U.player, Player(pid - 1), true)
-                end
-            U = U.next
-        end
+        FleeFFA(pid)
     end
 end
 
