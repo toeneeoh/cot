@@ -242,30 +242,6 @@ OnInit.final("Currency", function(Require)
         end
     end
 
-    ---@type fun(id: integer, x: number, y: number)
-    function AwardCrystals(id, x, y)
-        local count = BossTable[id].crystal ---@type integer 
-
-        if count == 0 then
-            return
-        end
-
-        if HARD_MODE > 0 then
-            count = count * 2
-        end
-
-        local u = User.first
-
-        while u do
-            if IsUnitInRangeXY(Hero[u.id], x, y, NEARBY_BOSS_RANGE) and GetHeroLevel(Hero[u.id]) >= BossTable[id].level then
-                AddCurrency(u.id, CRYSTAL, count)
-                FloatingTextUnit("+" .. (count) .. (count == 1 and " Crystal" or " Crystals"), Hero[u.id], 2.1, 80, 90, 9, 70, 150, 230, 0, false)
-            end
-
-            u = u.next
-        end
-    end
-
     ---@type fun(p: player, flat: integer, percent: number, minimum: integer, message: string)
     function ChargeNetworth(p, flat, percent, minimum, message)
         local pid          = GetPlayerId(p) + 1
