@@ -187,7 +187,6 @@ OnInit.final("Frames", function(Require)
     --voting UI
     VOTING_BACKDROP = BlzCreateFrameByType("BACKDROP", "VOTING_BACKDROP", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
     BlzFrameSetPoint(VOTING_BACKDROP, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0, - 0.11)
-    BlzFrameSetTexture(VOTING_BACKDROP, "war3mapImported\\hardmode.dds", 0, true)
     BlzFrameSetSize(VOTING_BACKDROP, 0.12, 0.12)
     BlzFrameSetVisible(VOTING_BACKDROP, false)
 
