@@ -203,9 +203,9 @@ OnInit.final("Regions", function(Require)
         end
 
         if IsEnemy(pid) and (IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Town_Boundry),GetRectCenterY(gg_rct_Town_Boundry),4000.) or IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Top_of_Town),GetRectCenterY(gg_rct_Top_of_Town),4000.)) then
-            if boss ~= -1 then
-                SetUnitXBounded(BossTable[boss].unit, GetLocationX(BossTable[boss].loc))
-                SetUnitYBounded(BossTable[boss].unit, GetLocationY(BossTable[boss].loc))
+            if boss then
+                SetUnitXBounded(Boss[boss].unit, GetLocationX(Boss[boss].loc))
+                SetUnitYBounded(Boss[boss].unit, GetLocationY(Boss[boss].loc))
             elseif UnitData[uid].count > 0 then
                 r = SelectGroupedRegion(UnitData[uid].spawn)
                 SetUnitPosition(u, GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)))
@@ -230,29 +230,7 @@ OnInit.final("Regions", function(Require)
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
         if u == Hero[pid] then
-            if NearbyRect(gg_rct_Key_Quest, x, y) and not CHAOS_MODE and not IsUnitHidden(god_angel) then
-                if (PlayerHasItemType(pid, FourCC('I04J')) or PlayerHasItemType(pid, FourCC('I0NJ')) or GetHeroLevel(Hero[pid]) > 239) and IsQuestCompleted(Key_Quest) == false then
-                    DisplayTextToForce(FORCE_PLAYING, "|cffffcc00The portal to the gods has opened.|r")
-                    QuestSetDiscovered(Key_Quest, true)
-                    QuestSetCompleted(Key_Quest, true)
-                    QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_UPDATED, "|cffffcc00QUEST COMPLETED:|r\nThe Goddesses' Keys")
-                    DestroyEffect(GODS_QUEST_MARKER)
-                    TimerQueue:callDelayed(1., OpenGodsPortal)
-                end
-                if IsQuestDiscovered(Key_Quest) == false then
-                    DestroyEffect(GODS_QUEST_MARKER)
-                    QuestSetDiscovered(Key_Quest, true)
-                    QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_DISCOVERED, "|cff322ce1REQUIRED QUEST|r|nThe Goddesses' Keys\n   - Retrieve the Key of the Gods")
-                elseif IsQuestCompleted(Key_Quest) == false then
-                    local itm = GetItemFromPlayer(pid, FourCC('I0M7'))
-                    if itm then
-                        QuestSetCompleted(Key_Quest, true)
-                        QuestMessageBJ(FORCE_PLAYING, bj_QUESTMESSAGE_UPDATED, "|cffffcc00QUEST COMPLETED:|r\nThe Goddesses' Keys")
-                        TimerQueue:callDelayed(1., OpenGodsPortal)
-                        itm:destroy()
-                    end
-                end
-            elseif NearbyRect(gg_rct_Rescueable_Worker, x, y) and GUARD_CAPTURED == false then --guard
+            if NearbyRect(gg_rct_Rescueable_Worker, x, y) and GUARD_CAPTURED == false then --guard
                 if UnitAlive(velreon_guard) then
                     GUARD_CAPTURED = true
                     DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Velreon Scholar:|r Thank the lords! If you could escort me back to town I will be able to share the wealth of knowledge I have obtained.")
@@ -326,7 +304,6 @@ OnInit.final("Regions", function(Require)
     TriggerAddCondition(enterTrigger, Condition(EnterArea))
 
     RegionAddRect(specialRegion, gg_rct_Rescueable_Worker)
-    RegionAddRect(specialRegion, gg_rct_Key_Quest)
 
     RegionAddRect(safeRegion, gg_rct_Town_Boundry)
     RegionAddRect(safeRegion, gg_rct_Top_of_Town)
