@@ -1526,7 +1526,7 @@ OnInit.final("UnitSpells", function(Require)
             MakeGroupInRange(BOSS_ID, ug, pt.x, pt.y, 180., Condition(FilterEnemy))
 
             for target in each(ug) do
-                DamageTarget(BossTable[BOSS_DEATH_KNIGHT].unit, target, 15000., ATTACK_TYPE_NORMAL, MAGIC, DEATHSTRIKE.tag)
+                DamageTarget(Boss[BOSS_DEATH_KNIGHT].unit, target, 15000., ATTACK_TYPE_NORMAL, MAGIC, DEATHSTRIKE.tag)
             end
 
             DestroyGroup(ug)
@@ -1995,10 +1995,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            SetUnitAbilityLevel(target, FourCC('A064'), HARD_MODE + 1)
-            SetUnitAbilityLevel(target, thistype.id, HARD_MODE + 1)
-
-            if GetRandomInt(0, 99) < 13 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
+            if math.random(0, 99) < 13 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
                 CastSpell(target, thistype.id, 0., -1, 1.)
                 FloatingTextUnit("Avatar", target, 3, 100, 0, 13, 255, 255, 255, 0, true)
                 TimerQueue:callDelayed(2., avatar, target)
@@ -2006,6 +2003,10 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
+            local boss = IsBoss(u)
+            SetUnitAbilityLevel(u, FourCC('A064'), Boss[boss].difficulty)
+            SetUnitAbilityLevel(u, thistype.id, Boss[boss].difficulty)
+
             EVENT_ON_STRUCK:register_unit_action(u, onStruck)
         end
     end
@@ -2087,7 +2088,7 @@ OnInit.final("UnitSpells", function(Require)
 
         local function on_hit(source, target)
             if IsUnitEnemy(target, pboss) then
-                DamageTarget(BossTable[BOSS_SATAN].unit, target, 10000., ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                DamageTarget(source, target, 10000., ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
         end
 
@@ -2097,7 +2098,7 @@ OnInit.final("UnitSpells", function(Require)
                 dummy.source = target
                 SetUnitOwner(dummy.unit, pboss, false)
                 IssuePointOrder(dummy.unit, "flamestrike", GetUnitX(source), GetUnitY(source))
-                EVENT_DUMMY_ON_HIT:register_unit_action(dummy.unit, on_hit)
+                EVENT_DUMMY_ON_HIT:register_unit_action(target, on_hit)
             end
         end
 
@@ -2138,8 +2139,8 @@ OnInit.final("UnitSpells", function(Require)
             if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and TimerList[BOSS_ID]:has(FourCC('tpin')) == false and UnitDistance(source, target) < 800 and not Unit[target].casting then
                 CastSpell(target, thistype.id, 0.5, 12, 1.)
                 TimerQueue:callDelayed(2, DestroyEffect, AddSpecialEffect("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageCaster.mdl", GetUnitX(target), GetUnitY(target)))
-                RemoveLocation(BossTable[BOSS_LEGION].loc)
-                BossTable[BOSS_LEGION].loc = Location(GetUnitX(source), GetUnitY(source))
+                RemoveLocation(Boss[BOSS_LEGION].loc)
+                Boss[BOSS_LEGION].loc = Location(GetUnitX(source), GetUnitY(source))
                 TimerQueue:callDelayed(0.5, spawn, target)
             end
         end
@@ -2222,22 +2223,14 @@ OnInit.final("UnitSpells", function(Require)
             pt.dur = pt.dur - 1
 
             if pt.dur == 3 then
-                if pt.spell == 3 then
+                if pt.spell == 2 then
                     BossInnerRing(pt.source, 1000000, 2, 400, "Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", "Implosion")
-                elseif pt.spell == 4 then
+                elseif pt.spell == 3 then
                     BossOuterRing(pt.source, 500000, 2, 400, 900, "war3mapImported\\NeutralExplosion.mdx", "Explosion")
                 end
-            elseif pt.dur == 2 then
-                if pt.spell == 1 then
-                    BossXSpell(pt.source, 500000, 2, "Abilities\\Spells\\Undead\\ReplenishMana\\ReplenishManaCasterOverhead.mdl", "Extermination")
-                end
             elseif pt.dur == 1 then
-                if pt.spell == 2 then
-                    BossBlastTaper(pt.source, 1500000, FourCC('A0AB'), 800, "Devastation")
-                end
-            elseif pt.dur == 0 then
                 if pt.spell == 1 then
-                    BossPlusSpell(pt.source, 500000, 2, "Abilities\\Spells\\Undead\\ReplenishMana\\ReplenishManaCasterOverhead.mdl", "Extermination")
+                    BossBlastTaper(pt.source, 1500000, FourCC('A0AB'), 800, "Extermination")
                 end
             end
 
@@ -2250,20 +2243,23 @@ OnInit.final("UnitSpells", function(Require)
 
         local function onStruck(target, source)
             if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A07F')) <= 0. and not Unit[target].casting then
-                local rand = random(1, 4)
-                if rand == 1 then
-                    FloatingTextUnit("Devastation", target , 3, 70, 0, 12, 255, 40, 40, 0, true)
-                elseif rand == 2 then
-                    FloatingTextUnit("Extermination", target, 3, 70, 0, 12, 255, 255, 255, 0, true)
-                elseif rand == 3 and UnitDistance(source, target) <= 400 then
-                    FloatingTextUnit("Implosion", target, 3, 70, 0, 12, 68, 68, 255, 0, true)
-                elseif rand == 4 and UnitDistance(source, target) >= 400 then
-                    FloatingTextUnit("Explosion", target, 3, 70, 0, 12, 255, 100, 50, 0, true)
-                end
+                local rand = 0
+                repeat
+                    rand = random(1, 3)
+                    if rand == 1 then
+                        FloatingTextUnit("Extermination", target, 3, 70, 0, 12, 255, 255, 255, 0, true)
+                    elseif rand == 2 and UnitDistance(source, target) <= 400 then
+                        FloatingTextUnit("Implosion", target, 3, 70, 0, 12, 68, 68, 255, 0, true)
+                    elseif rand == 3 and UnitDistance(source, target) >= 400 then
+                        FloatingTextUnit("Explosion", target, 3, 70, 0, 12, 255, 100, 50, 0, true)
+                    else
+                        rand = 0
+                    end
+                until rand ~= 0
 
                 local pt = TimerList[BOSS_ID]:add()
                 pt.source = target
-                pt.dur = 5.
+                pt.dur = 6
                 pt.spell = rand
                 CastSpell(target, FourCC('A07F'), 0., -1, 1.)
                 CastSpell(target, FourCC('A07Q'), 0., -1, 1.)
@@ -2421,7 +2417,7 @@ OnInit.final("UnitSpells", function(Require)
                 local target = FirstOfGroup(ug)
 
                 if target then
-                    DamageTarget(BossTable[BOSS_XALLARATH].unit, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, "Fireball")
+                    DamageTarget(Boss[BOSS_XALLARATH].unit, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, "Fireball")
 
                     pt.dur = 0.
                 end
@@ -2571,6 +2567,15 @@ OnInit.final("UnitSpells", function(Require)
 
         function thistype:setup(u)
             EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+        end
+    end
+
+    local MINK_LUCK = Spell.define("A0BH")
+    do
+        local thistype = MINK_LUCK
+
+        function thistype:setup(u)
+            Unit[u].evasion = Unit[u].evasion + 50
         end
     end
 end, Debug and Debug.getLine())
