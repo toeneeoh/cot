@@ -37,8 +37,6 @@ OnInit.final("HeroSelect", function(Require)
             ResetToGameCamera(0)
         end
 
-        SetCamera(pid, MAIN_MAP.rect)
-
         ExperienceControl(pid)
         CharacterSetup(pid, false)
     end
@@ -78,16 +76,16 @@ OnInit.final("HeroSelect", function(Require)
         BlzSetUnitWeaponRealField(selected_unit, UNIT_WEAPON_RF_ATTACK_RANGE, 1, BlzGetUnitWeaponRealField(current_hero.unit, UNIT_WEAPON_RF_ATTACK_RANGE, 0) - 100)
         BlzSetUnitArmor(selected_unit, BlzGetUnitArmor(current_hero.unit))
 
-        SetHeroStr(selected_unit, GetHeroStr(current_hero.unit, true), true)
-        SetHeroAgi(selected_unit, GetHeroAgi(current_hero.unit, true), true)
-        SetHeroInt(selected_unit, GetHeroInt(current_hero.unit, true), true)
+        Unit[selected_unit].str = Unit[current_hero.unit].str
+        Unit[selected_unit].agi = Unit[current_hero.unit].agi
+        Unit[selected_unit].int = Unit[current_hero.unit].int
 
         BlzSetUnitBaseDamage(selected_unit, BlzGetUnitBaseDamage(current_hero.unit, 0), 0)
         BlzSetUnitDiceNumber(selected_unit, BlzGetUnitDiceNumber(current_hero.unit, 0), 0)
         BlzSetUnitDiceSides(selected_unit, BlzGetUnitDiceSides(current_hero.unit, 0), 0)
 
-        BlzSetUnitMaxHP(selected_unit, BlzGetUnitMaxHP(current_hero.unit))
-        BlzSetUnitMaxMana(selected_unit, BlzGetUnitMaxMana(current_hero.unit))
+        -- BlzSetUnitMaxHP(selected_unit, BlzGetUnitMaxHP(current_hero.unit))
+        -- BlzSetUnitMaxMana(selected_unit, BlzGetUnitMaxMana(current_hero.unit))
         SetWidgetLife(selected_unit, BlzGetUnitMaxHP(selected_unit))
 
         UnitAddAbility(selected_unit, current_hero.select)
@@ -137,9 +135,7 @@ OnInit.final("HeroSelect", function(Require)
     function HardcoreYes()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-        Hardcore[pid] = true
         Profile[pid].hero.hardcore = 1
-        PlayerAddItemById(pid, FourCC('I03N'))
 
         StartGame(pid)
 
@@ -168,12 +164,8 @@ OnInit.final("HeroSelect", function(Require)
 
         RemoveUnit(SELECT_DUMMY[pid])
 
-        Hero[pid] = CreateUnit(p, id, -690., -238., 0.)
-        HeroID[pid] = id
-        PlayerSelectedUnit[pid] = Hero[pid]
+        Profile[pid]:new_character(id)
         SELECTING_HERO[pid] = false
-
-        PauseUnit(Hero[pid], true)
 
         if (GetLocalPlayer() == p) then
             ClearTextMessages()
