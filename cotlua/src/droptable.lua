@@ -13,7 +13,7 @@ OnInit.final("DropTable", function(Require)
         local MAX_ITEM_COUNT = 100
         local ADJUST_RATE = 0.05
 
-        --adjusts the drop rates of all items in a pool after a drop
+        -- adjusts the drop rates of all items in a pool after a drop
         ---@type fun(id: integer, i: integer)
         local function adjustRate(id, index)
             local max = ItemDrops[id][MAX_ITEM_COUNT]
@@ -66,7 +66,26 @@ OnInit.final("DropTable", function(Require)
             end
         end
 
-        local id = 69 --destructable
+        function RewardItem(killed)
+            local uid = GetType(killed)
+            local rand = math.random(0, 99)
+            local x, y = GetUnitX(killed), GetUnitY(killed)
+            if rand < Rates[uid] then
+                CreateItem(thistype:pickItem(uid), x, y, 600.)
+            end
+
+            -- iron golem ore
+            -- chaotic ore
+
+            rand = math.random(0, 99)
+            if GetUnitLevel(killed) > 45 and GetUnitLevel(killed) < 85 and rand < (0.05 * GetUnitLevel(killed)) then
+                CreateItem(FourCC('I02Q'), GetUnitX(killed), GetUnitY(killed), 600.)
+            elseif GetUnitLevel(killed) > 265 and GetUnitLevel(killed) < 305 and rand < (0.02 * GetUnitLevel(killed)) then
+                CreateItem(FourCC('I04Z'), GetUnitX(killed), GetUnitY(killed), 600.)
+            end
+        end
+
+        local id = 69 -- destructables
         ItemDrops[id][0] = FourCC('I00O')
         ItemDrops[id][1] = FourCC('I00Q')
         ItemDrops[id][2] = FourCC('I00R')
@@ -91,14 +110,7 @@ OnInit.final("DropTable", function(Require)
 
         setupRates(id, 20)
 
-        --evil shopkeeper
-        id = FourCC('n01F')
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I045') --bloodstained cloak
-
-        setupRates(id, 0)
-
-        id = FourCC('nits') --troll
+        id = FourCC('n0tb') --troll
         Rates[id] = 40
         ItemDrops[id][0] = FourCC('I01Z') --claws of lightning
         ItemDrops[id][1] = FourCC('I01F') --iron broadsword
@@ -129,7 +141,7 @@ OnInit.final("DropTable", function(Require)
 
         setupRates(id, 25)
 
-        id = FourCC('ntks') --tuskarr
+        id = FourCC('n0ts') --tuskarr
         Rates[id] = 40
         ItemDrops[id][0] = FourCC('I01Z')
         ItemDrops[id][1] = FourCC('I01X')
@@ -155,7 +167,7 @@ OnInit.final("DropTable", function(Require)
 
         setupRates(id, 20)
 
-        id = FourCC('nnwr') --spider
+        id = FourCC('n0ss') --spider
         Rates[id] = 35
         ItemDrops[id][0] = FourCC('I03A')
         ItemDrops[id][1] = FourCC('I03W')
@@ -177,7 +189,7 @@ OnInit.final("DropTable", function(Require)
 
         setupRates(id, 16)
 
-        id = FourCC('nfpu') --ursa
+        id = FourCC('n0uw') --ursa
         Rates[id] = 30
         ItemDrops[id][0] = FourCC('I028')
         ItemDrops[id][1] = FourCC('I00D')
@@ -191,19 +203,14 @@ OnInit.final("DropTable", function(Require)
 
         setupRates(id, 8)
 
-        id = FourCC('nplg') --polar bear
+        id = FourCC('n0dm') --dire mammoth
         Rates[id] = 30
         ItemDrops[id][0] = FourCC('I035') --plate
         ItemDrops[id][1] = FourCC('I0FO') --leather
         ItemDrops[id][2] = FourCC('I07O') --cloth
+        ItemDrops[id][3] = FourCC('I0FQ') --fullplate
 
-        setupRates(id, 2)
-
-        id = FourCC('nmdr') --dire mammoth
-        Rates[id] = 30
-        ItemDrops[id][0] = FourCC('I0FQ') --fullplate
-
-        setupRates(id, 0)
+        setupRates(id, 3)
 
         id = FourCC('n01G') -- ogre tauren
         Rates[id] = 25
@@ -221,7 +228,7 @@ OnInit.final("DropTable", function(Require)
 
         setupRates(id, 10)
 
-        id = FourCC('nubw') --unbroken
+        id = FourCC('n0ud') --unbroken
         Rates[id] = 25
         ItemDrops[id][0] = FourCC('I0FS')
         ItemDrops[id][1] = FourCC('I0FR')
@@ -231,7 +238,7 @@ OnInit.final("DropTable", function(Require)
 
         setupRates(id, 4)
 
-        id = FourCC('nvdl') -- hellfire hellhound
+        id = FourCC('n0hs') -- hellfire hellhound
         Rates[id] = 25
         ItemDrops[id][0] = FourCC('I00Z')
         ItemDrops[id][1] = FourCC('I00S')
@@ -449,19 +456,13 @@ OnInit.final("DropTable", function(Require)
 
         setupRates(id, 8)
 
-        id = FourCC('H01T') --town paladin
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I01Y')
-
-        setupRates(id, 0)
-
         id = FourCC('n02U') -- nerubian
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I01E')
 
         setupRates(id, 0)
 
-        id = FourCC('nplb') -- giant polar bear
+        id = FourCC('n0pb') -- giant polar bear
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I04A')
 
@@ -470,40 +471,6 @@ OnInit.final("DropTable", function(Require)
         id = FourCC('n03L') -- king of ogres
         Rates[id] = 100
         ItemDrops[id][0] = FourCC('I02M')
-
-        setupRates(id, 0)
-
-        id = FourCC('O019') -- pinky
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I02Y')
-
-        setupRates(id, 0)
-
-        id = FourCC('H043') -- bryan
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I02X')
-
-        setupRates(id, 0)
-
-        id = FourCC('N01N') -- kroresh
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I04B')
-
-        setupRates(id, 0)
-
-        --id = FourCC('O01A') -- zeknen
-        --Rates[id] = 100
-        --no items
-
-        id = FourCC('N00M') -- forest corruption
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I07J')
-
-        setupRates(id, 0)
-
-        id = FourCC('O00T') -- ice troll
-        Rates[id] = 100
-        ItemDrops[id][0] = FourCC('I03Z')
 
         setupRates(id, 0)
 
@@ -684,7 +651,7 @@ OnInit.final("DropTable", function(Require)
 
         setupRates(id, 1)
 
-        id = FourCC('O03G') -- Xallarath
+        id = FourCC('O03G') -- xallarath
         Rates[id] = 30
         ItemDrops[id][0] = FourCC('I0OB')
         ItemDrops[id][1] = FourCC('I0O1')
