@@ -9,7 +9,7 @@ OnInit.final("MapSetup", function(Require)
     Require('Variables')
     Require('Profile')
 
-    --create floating texttags
+    -- create floating texttags
     SetTextTagText(ColoText, "", 15.00)
     SetTextTagPos(ColoText, 21710., -4261., 0)
     SetTextTagColor(ColoText, 235, 235, 21, 255)
@@ -19,33 +19,20 @@ OnInit.final("MapSetup", function(Require)
     SetTextTagColor(StruggleText, 235, 235, 21, 255)
     SetTextTagPermanent(StruggleText, true)
 
-    --ally enemies and bosses
-    SetPlayerAllianceStateBJ(pboss, pfoe, bj_ALLIANCE_ALLIED)
-    SetPlayerAllianceStateBJ(pfoe, pboss, bj_ALLIANCE_ALLIED)
+    -- ally enemies and bosses
+    SetPlayerAllianceStateBJ(PLAYER_BOSS, PLAYER_CREEP, bj_ALLIANCE_ALLIED)
+    SetPlayerAllianceStateBJ(PLAYER_CREEP, PLAYER_BOSS, bj_ALLIANCE_ALLIED)
 
-    --player loop
+    -- player loop
     local pos = 1
     local u = User.first
     while u do
-        --alliances / research / food state
+        -- alliances / research / food state
         SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), u.player, bj_ALLIANCE_ALLIED)
         SetPlayerAlliance(u.player, Player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_SHARED_SPELLS, true)
-        SetPlayerTechMaxAllowed(u.player, FourCC('o03K'), 1)
-        SetPlayerTechMaxAllowed(u.player, FourCC('e016'), 15)
-        SetPlayerTechMaxAllowed(u.player, FourCC('e017'), 8)
-        SetPlayerTechMaxAllowed(u.player, FourCC('e018'), 3)
-        SetPlayerTechMaxAllowed(u.player, FourCC('u01H'), 3)
-        SetPlayerTechMaxAllowed(u.player, FourCC('h06S'), 15)
-        SetPlayerTechMaxAllowed(u.player, FourCC('h06U'), 3)
-        SetPlayerTechMaxAllowed(u.player, FourCC('h06T'), 8)
-        AddPlayerTechResearched(u.player, FourCC('R013'), 1)
-        AddPlayerTechResearched(u.player, FourCC('R014'), 1)
-        AddPlayerTechResearched(u.player, FourCC('R015'), 1)
-        AddPlayerTechResearched(u.player, FourCC('R016'), 1)
-        AddPlayerTechResearched(u.player, FourCC('R017'), 1)
         SetPlayerState(u.player, PLAYER_STATE_RESOURCE_FOOD_USED, 0)
 
-        --player vision
+        -- player vision
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Tavern, false, false))
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Church, false, false))
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_InfiniteStruggleCameraBounds, false, false))
@@ -63,16 +50,16 @@ OnInit.final("MapSetup", function(Require)
         u = u.next
     end
 
-    --neutral / enemy vision
+    -- neutral / enemy vision
     FogModifierStart(CreateFogModifierRect(Player(PLAYER_NEUTRAL_PASSIVE),FOG_OF_WAR_VISIBLE,bj_mapInitialPlayableArea, false, false))
-    FogModifierStart(CreateFogModifierRect(pboss,FOG_OF_WAR_VISIBLE,gg_rct_Colosseum, false, false))
-    FogModifierStart(CreateFogModifierRect(pboss,FOG_OF_WAR_VISIBLE,gg_rct_Gods_Arena, false, false))
-    FogModifierStart(CreateFogModifierRect(pboss,FOG_OF_WAR_VISIBLE,gg_rct_InfiniteStruggleCameraBounds, false, false))
+    FogModifierStart(CreateFogModifierRect(PLAYER_BOSS,FOG_OF_WAR_VISIBLE,gg_rct_Colosseum, false, false))
+    FogModifierStart(CreateFogModifierRect(PLAYER_BOSS,FOG_OF_WAR_VISIBLE,gg_rct_Gods_Arena, false, false))
+    FogModifierStart(CreateFogModifierRect(PLAYER_BOSS,FOG_OF_WAR_VISIBLE,gg_rct_InfiniteStruggleCameraBounds, false, false))
 
-    --player clean on leave
+    -- player clean on leave
     TriggerAddCondition(LEAVE_TRIGGER, Filter(onPlayerLeave))
 
-    --setup alliances
+    -- setup alliances
     for i = 0, bj_MAX_PLAYERS do
         for i2 = 0, bj_MAX_PLAYERS do
             if i ~= i2 and GetPlayerController(Player(i)) == MAP_CONTROL_USER then
@@ -82,18 +69,18 @@ OnInit.final("MapSetup", function(Require)
         end
     end
 
-    --turn off gold bounty from pfoe
-    SetPlayerState(pfoe, PLAYER_STATE_GIVES_BOUNTY, 0)
+    -- turn off gold bounty from PLAYER_CREEP
+    SetPlayerState(PLAYER_CREEP, PLAYER_STATE_GIVES_BOUNTY, 0)
 
-    --not sure if needed
+    -- not sure if needed
     SetMapFlag(MAP_LOCK_ALLIANCE_CHANGES, true)
 
-    --disable neutral building default marketplace behavior
+    -- disable neutral building default marketplace behavior
     PauseTimer(bj_stockUpdateTimer)
     DestroyTimer(bj_stockUpdateTimer)
     DisableTrigger(bj_stockItemPurchased)
 
-    --final misc touches
+    -- final misc touches
     bj_useDawnDuskSounds = false
     StopSound(bj_nightAmbientSound, true, false)
     StopSound(bj_dayAmbientSound, true, false)
@@ -106,5 +93,6 @@ OnInit.final("MapSetup", function(Require)
     FogEnable(true)
     ShowInterface(true, 0)
     EnableUserControl(true)
+	SetFloatGameState(GAME_STATE_TIME_OF_DAY, 6.)
     TimerQueue:callDelayed(0., DisplayCineFilter, false)
 end, Debug and Debug.getLine())
