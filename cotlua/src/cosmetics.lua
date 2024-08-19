@@ -334,12 +334,6 @@ OnInit.final("Cosmetics", function(Require)
     local u = User.first
 
     while u do
-        for i, v in ipairs(funnyList) do
-            if StringHash(u.name) == v and i ~= 1 then
-                CustomDefeatBJ(u.player, "Lol")
-            end
-        end
-
         if CosmeticTable[u.name][0] > 0 then
             IS_DONATOR[u.id] = true
         end
