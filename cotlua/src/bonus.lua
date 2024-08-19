@@ -17,6 +17,7 @@ OnInit.global("Bonus", function()
     BONUS_HERO_BASE_AGI = 9
     BONUS_HERO_BASE_INT = 10
     BONUS_MOVE_SPEED    = 11
+    BONUS_MANA_REGEN    = 12
 
     local turn_speed = function(source, target)
         BlzSetUnitFacingEx(source, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(source), GetUnitX(target) - GetUnitX(source)))
@@ -39,9 +40,10 @@ OnInit.global("Bonus", function()
         ABILITY_ILF_INTELLIGENCE_BONUS,
     }
 
-    --special case behaviors for certain stats
+    -- special case behaviors for certain stats
     local bonus_getters = {
         [BONUS_LIFE_REGEN] = function(u) return BlzGetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE) end,
+        [BONUS_MANA_REGEN] = function(u) return BlzGetUnitRealField(u, UNIT_RF_MANA_REGENERATION) end,
         [BONUS_ATTACK_SPEED] = function(u, bonus) return BlzGetAbilityRealLevelField(BlzGetUnitAbility(u, BONUS_ABIL[bonus]), ABILITY_RLF_ATTACK_SPEED_INCREASE_ISX1, 0) end,
 
         [BONUS_HERO_BASE_STR] = function(u) return GetHeroStr(u, false) end,
@@ -51,6 +53,7 @@ OnInit.global("Bonus", function()
 
     local bonus_setters = {
         [BONUS_LIFE_REGEN] = function(u, _, amount) return BlzSetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE, amount) end,
+        [BONUS_MANA_REGEN] = function(u, _, amount) return BlzSetUnitRealField(u, UNIT_RF_MANA_REGENERATION, amount) end,
         [BONUS_ATTACK_SPEED] = function(u, bonus, amount) return BlzSetAbilityRealLevelField(BlzGetUnitAbility(u, BONUS_ABIL[bonus]), ABILITY_RLF_ATTACK_SPEED_INCREASE_ISX1, 0, amount) end,
         [BONUS_HERO_BASE_STR] = function(u, _, amount) return SetHeroStr(u, amount, true) end,
         [BONUS_HERO_BASE_AGI] = function(u, _, amount) return SetHeroAgi(u, amount, true) end,
@@ -67,9 +70,11 @@ OnInit.global("Bonus", function()
             if amount > MOVESPEED.MAX and not TableHas(MOVESPEED.units, u) then
                 MOVESPEED.units[#MOVESPEED.units + 1] = u
                 EVENT_ON_AGGRO:register_unit_action(u, turn_speed)
+                EVENT_ON_ORDER:register_unit_action(u, turn_speed)
             elseif amount <= MOVESPEED.MAX then
                 TableRemove(MOVESPEED.units, u)
                 EVENT_ON_AGGRO:unregister_unit_action(u, turn_speed)
+                EVENT_ON_ORDER:unregister_unit_action(u, turn_speed)
             end
             SetUnitMoveSpeed(u, amount)
         end,
@@ -99,9 +104,6 @@ OnInit.global("Bonus", function()
 
         IncUnitAbilityLevel(u, abil)
         DecUnitAbilityLevel(u, abil)
-
-        --trigger stat change event
-        EVENT_STAT_CHANGE:trigger(u)
     end
 
     ---@type fun(u: unit, bonus: integer, amount: number)
