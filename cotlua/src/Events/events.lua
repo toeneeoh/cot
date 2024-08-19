@@ -15,7 +15,7 @@ OnInit.final("Events", function()
     EVENT = {}
     do
         local thistype = EVENT
-        local unit_actions_mt = { __mode = 'k' } --make keys weak for when units are removed
+        local unit_actions_mt = { __mode = 'k' } -- make keys weak for when units are removed
         local event_mt = { __index = thistype }
 
         ---@return EVENT
@@ -31,10 +31,14 @@ OnInit.final("Events", function()
 
         ---@type fun(self: EVENT, u: unit, ...)
         function thistype:trigger(u, ...)
-            --prevent actions from triggering the event for a unit again
+            if not u then
+                return
+            end
+
+            -- prevent actions from triggering the event for a unit again
             if not recurse[u] then
                 recurse[u] = true
-                --run any actions registered with this unit
+                -- run any actions registered with this unit
                 local actions = self.unit_actions[u]
                 if actions then
                     for i = 1, #actions do
@@ -53,7 +57,7 @@ OnInit.final("Events", function()
             if not self.unit_actions[u] then
                 self.unit_actions[u] = {}
             end
-            --prevent duplicate registers
+            -- prevent duplicate registers
             if not TableHas(self.unit_actions[u], func) then
                 self.unit_actions[u][#self.unit_actions[u] + 1] = func
             end
@@ -64,7 +68,7 @@ OnInit.final("Events", function()
                 return
             end
 
-            --remove all registered functions if not specified
+            -- remove all registered functions if not specified
             if not func then
                 self.unit_actions[u] = nil
             else
@@ -88,12 +92,17 @@ OnInit.final("Events", function()
     EVENT_ON_STRUCK_AFTER_REDUCTIONS = EVENT.create() ---@type EVENT
     EVENT_ON_STRUCK_FINAL            = EVENT.create() ---@type EVENT
     EVENT_ON_FATAL_DAMAGE            = EVENT.create() ---@type EVENT
+    EVENT_ENEMY_AI                   = EVENT.create() ---@type EVENT
 
     -- death events
     EVENT_ON_DEATH    = EVENT.create()
     EVENT_GRAVE_DEATH = EVENT.create()
+    EVENT_ON_KILL     = EVENT.create()
 
-    -- on aggro
     EVENT_ON_AGGRO = EVENT.create()
+    EVENT_ON_CAST = EVENT.create()
+    EVENT_ON_CLICK = EVENT.create()
+    EVENT_ON_ORDER = EVENT.create()
+
 
 end, Debug and Debug.getLine())
