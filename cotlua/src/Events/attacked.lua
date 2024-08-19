@@ -66,11 +66,11 @@ OnInit.final("Attacked", function(Require)
                 pt.target = target
                 pt.tag = 'datk'
 
-                SetHeroAgi(source, 0, true)
+                Unit[source].agi = 0
                 if Unit[source].devour_stacks == 5 then
-                    SetHeroAgi(source, 400, true)
+                    Unit[source].agi = 400
                 elseif Unit[source].devour_stacks >= 3 then
-                    SetHeroAgi(source, 200, true)
+                    Unit[source].agi = 200
                 end
 
                 pt.timer:callDelayed(1., SUMMONDESTROYER.periodic, pt)
