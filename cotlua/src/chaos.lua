@@ -37,7 +37,7 @@ OnInit.final("Chaos", function(Require)
     function ZeknenExpire()
         UnitRemoveAbility(zeknen, FourCC('Avul'))
         PauseUnit(zeknen, false)
-        SetCinematicScene(GetUnitTypeId(zeknen), GetPlayerColor(pboss), "Zeknen", "Very well.", 5, 4)
+        SetCinematicScene(GetUnitTypeId(zeknen), GetPlayerColor(PLAYER_BOSS), "Zeknen", "Very well.", 5, 4)
     end
 
     local passive_units = {
@@ -121,17 +121,6 @@ OnInit.final("Chaos", function(Require)
         local loc = {GetUnitX(gg_unit_h036_0002), GetUnitY(gg_unit_h036_0002)}
         RemoveUnit(gg_unit_h036_0002) -- huntsman
         CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h009'), loc[1], loc[2], facing)
-
-        -- home salesmen
-        facing = GetUnitFacing(gg_unit_n01Q_0045)
-        loc = {GetUnitX(gg_unit_n01Q_0045), GetUnitY(gg_unit_n01Q_0045)}
-        RemoveUnit(gg_unit_n01Q_0045)
-        CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03V'), loc[1], loc[2], facing)
-
-        facing = GetUnitFacing(gg_unit_n00Z_0004)
-        loc = {GetUnitX(gg_unit_n00Z_0004), GetUnitY(gg_unit_n00Z_0004)}
-        RemoveUnit(gg_unit_n00Z_0004)
-        CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03H'), loc[1], loc[2], facing)
 
         -- removes creeps and villagers
         local ug = CreateGroup()
@@ -231,20 +220,6 @@ OnInit.final("Chaos", function(Require)
 
         BOSS_OFFSET = BOSS_DEMON_PRINCE
 
-        -- give boss items
-        for i = BOSS_OFFSET, #Boss do
-            BossNearbyPlayers[i] = 0
-            SetHeroLevel(Boss[i].unit, Boss[i].level, false)
-
-            for j = 1, 6 do
-                if Boss[i].item[j] ~= 0 then
-                    local itm = UnitAddItemById(Boss[i].unit, Boss[i].item[j])
-                    itm:lvl(ItemData[itm.id][ITEM_UPGRADE_MAX])
-                end
-            end
-            SetUnitCreepGuard(Boss[i].unit, true)
-        end
-
         -- colo banners
         local target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h01M'), GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1), 180.00)
         SetUnitPathing(target, false)
@@ -265,7 +240,7 @@ OnInit.final("Chaos", function(Require)
         -- chaotic enemies
         SpawnCreeps(1)
 
-        forgotten_spawner = CreateUnit(pboss, FourCC('o02E'), 15100., -12650., bj_UNIT_FACING)
+        forgotten_spawner = CreateUnit(PLAYER_BOSS, FourCC('o02E'), 15100., -12650., bj_UNIT_FACING)
         SetUnitAnimation(forgotten_spawner, "Stand Work")
         SpawnForgotten(5)
         TimerQueue:callDelayed(60., SpawnForgotten, 1)
@@ -328,14 +303,14 @@ OnInit.final("Chaos", function(Require)
                 GodsEnterFlag = true
                 DisplayTextToForce(FORCE_PLAYING, "This is your last chance to -flee.")
 
-                SetCinematicScene(GetUnitTypeId(zeknen), GetPlayerColor(pboss), "Zeknen", "Explain yourself or be struck down from this heaven!", 9, 8)
+                SetCinematicScene(GetUnitTypeId(zeknen), GetPlayerColor(PLAYER_BOSS), "Zeknen", "Explain yourself or be struck down from this heaven!", 9, 8)
                 TimerQueue:callDelayed(10., ZeknenExpire)
             end
         end
     end
 
     local function rescind_to_darkness(p, pid, u, itm)
-        if GodsEnterFlag == false and CHAOS_MODE == false and GetHeroLevel(Hero[pid]) >= 240 then
+        if GodsEnterFlag == false and CHAOS_MODE == false and GetHeroLevel(Hero[pid]) >= 300 then
             BeginChaos()
         end
     end
