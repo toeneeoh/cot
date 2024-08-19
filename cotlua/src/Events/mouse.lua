@@ -3,10 +3,8 @@ OnInit.final("Mouse", function(Require)
     Require('Variables')
 
     IS_M2_MOVEMENT     = {} ---@type boolean[]
+    IS_M1_DOWN         = {} ---@type boolean[]
     IS_M2_DOWN         = {} ---@type boolean[]
-    well               = {} ---@type unit[] 
-    wellcount          = 0 ---@type integer 
-    wellheal           = __jarray(0) ---@type integer[] 
     MouseX             = __jarray(0) ---@type number[] 
     MouseY             = __jarray(0) ---@type number[] 
     moveCounter        = __jarray(0) ---@type integer[] 
@@ -14,141 +12,106 @@ OnInit.final("Mouse", function(Require)
     clickCounter       = __jarray(0) ---@type integer[] 
     PlayerSelectedUnit = {} ---@type unit[] 
 
----@type fun(pid: integer)
-function UnselectBP(pid)
-    local p = Player(pid - 1)
+    ---@type fun(pid: integer)
+    local function UnselectBP(pid)
+        local p = Player(pid - 1)
 
-    if IsUnitSelected(Hero[pid], p) and IsUnitSelected(Backpack[pid], p) then
-        if GetLocalPlayer() == p then
-            SelectUnit(Backpack[pid], false)
-        end
-    end
-end
-
----@return boolean
-function MouseUp()
-    local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-    local x   = BlzGetTriggerPlayerMouseX() ---@type number 
-    local x2 ---@type number 
-    local y   = BlzGetTriggerPlayerMouseY() ---@type number 
-    local y2 ---@type number 
-    local heal ---@type number 
-
-    if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_LEFT then
-        if BP_DESELECT[pid] then
-            TimerQueue:callDelayed(0., UnselectBP, pid)
-        end
-    end
-
-    if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_RIGHT then
-        --Health / Mana Wells
-        for i = 1, wellcount do
-            x2 = GetUnitX(well[i])
-            y2 = GetUnitY(well[i])
-            if SquareRoot(Pow(x2 - x, 2) + Pow(y2 - y, 2)) < 110 and SquareRoot(Pow(x2 - GetUnitX(Hero[pid]), 2) + Pow(y2 - GetUnitY(Hero[pid]), 2)) < 250 then
-                if wellheal[i] < 100 then --hp
-                    heal = BlzGetUnitMaxHP(Hero[pid]) * wellheal[i] // 100
-                    HP(well[i], Hero[pid], heal)
-                else
-                    heal = GetUnitState(Hero[pid], UNIT_STATE_MAX_MANA) * (wellheal[i] - 100) // 100
-                    MP(Hero[pid], heal)
-                end
-                Fade(well[i], 1., true)
-                TimerQueue:callDelayed(5, RemoveUnit, well[i])
-                IndexWells(i)
-                break
+        if IsUnitSelected(Hero[pid], p) and IsUnitSelected(Backpack[pid], p) then
+            if GetLocalPlayer() == p then
+                SelectUnit(Backpack[pid], false)
             end
         end
-
-        IS_M2_DOWN[pid] = false
     end
 
-    return false
-end
+    ---@return boolean
+    local function MouseUp()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
+        local mouse = BlzGetTriggerPlayerMouseButton()
 
----@return boolean
-function MouseDown()
-    local p   = GetTriggerPlayer()
-    local pid = GetPlayerId(p) + 1 ---@type integer 
+        if mouse == MOUSE_BUTTON_TYPE_LEFT then
+            if BP_DESELECT[pid] then
+                TimerQueue:callDelayed(0., UnselectBP, pid)
+            end
 
-    clickCounter[pid] = clickCounter[pid] + 1
-
-    --backpack ai
-    if PlayerSelectedUnit[pid] == Backpack[pid] then
-        IS_BACKPACK_MOVING[pid] = true
-        local pt = TimerList[pid]:get('bkpk')
-
-        if not pt then
-            pt = TimerList[pid]:add()
-            pt.dur = 4.
-            pt.tag = 'bkpk'
-
-            pt.timer:callDelayed(1., MoveExpire, pt)
-        else
-            pt.dur = 4.
+            IS_M1_DOWN[pid] = false
+        elseif mouse == MOUSE_BUTTON_TYPE_RIGHT then
+            IS_M2_DOWN[pid] = false
         end
-    end
 
-    if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_RIGHT then
-        IS_M2_DOWN[pid] = true
-    end
-
-    return false
-end
-
----@return boolean
-function MoveMouse()
-    local p   = GetTriggerPlayer() 
-    local pid = GetPlayerId(p) + 1 ---@type integer 
-    local x   = BlzGetTriggerPlayerMouseX() ---@type number 
-    local y   = BlzGetTriggerPlayerMouseY() ---@type number 
-
-    if x == 0 and y == 0 then
         return false
     end
 
-    if HeroID[pid] > 0 then
-        local dist = DistanceCoords(x, y, MouseX[pid], MouseY[pid])
+    ---@return boolean
+    local function MouseDown()
+        local p   = GetTriggerPlayer()
+        local pid = GetPlayerId(p) + 1 ---@type integer 
+        local mouse = BlzGetTriggerPlayerMouseButton()
 
-        if dist < 100 then
-            moveCounter[pid] = moveCounter[pid] + 1
-        elseif dist > 1000 then
-            panCounter[pid] = panCounter[pid] + 1
+        clickCounter[pid] = clickCounter[pid] + 1
+
+        if mouse == MOUSE_BUTTON_TYPE_RIGHT then
+            IS_M2_DOWN[pid] = true
+        elseif mouse == MOUSE_BUTTON_TYPE_LEFT then
+            IS_M1_DOWN[pid] = true
         end
 
-        if IS_M2_MOVEMENT[pid] and IS_M2_DOWN[pid] and IsUnitSelected(Hero[pid], p) then
-            if dist >= 3 then
-                local ug = CreateGroup()
-                GroupEnumUnitsInRange(ug, x, y, 15.0, Condition(ishostile))
-
-                local target = FirstOfGroup(ug)
-                if target == nil then
-                    IssuePointOrder(Hero[pid], "smart", x, y)
-                elseif GetUnitCurrentOrder(Hero[pid]) ~= OrderId("attack") then
-                    IssueTargetOrder(Hero[pid], "attack", target)
-                end
-
-                DestroyGroup(ug)
-            end
-        end
+        return false
     end
 
-    MouseX[pid] = x
-    MouseY[pid] = y
+    ---@return boolean
+    local function MoveMouse()
+        local p   = GetTriggerPlayer()
+        local pid = GetPlayerId(p) + 1 ---@type integer 
+        local x   = BlzGetTriggerPlayerMouseX() ---@type number 
+        local y   = BlzGetTriggerPlayerMouseY() ---@type number 
 
-    return false
-end
+        if x == 0 and y == 0 then
+            return false
+        end
 
----@return boolean
-function Select()
-    local u   = GetTriggerUnit()
-    local p   = GetTriggerPlayer()
-    local pid = GetPlayerId(p) + 1 ---@type integer 
+        if HeroID[pid] > 0 then
+            local dist = DistanceCoords(x, y, MouseX[pid], MouseY[pid])
 
-    PlayerSelectedUnit[pid] = u
+            if dist < 100 then
+                moveCounter[pid] = moveCounter[pid] + 1
+            elseif dist > 1000 then
+                panCounter[pid] = panCounter[pid] + 1
+            end
 
-    return false
-end
+            if IS_M2_MOVEMENT[pid] and IS_M2_DOWN[pid] and IsUnitSelected(Hero[pid], p) then
+                if dist >= 3 then
+                    local ug = CreateGroup()
+                    GroupEnumUnitsInRange(ug, x, y, 15.0, Condition(ishostile))
+
+                    local target = FirstOfGroup(ug)
+                    if target == nil then
+                        IssuePointOrder(Hero[pid], "smart", x, y)
+                    elseif GetUnitCurrentOrder(Hero[pid]) ~= OrderId("attack") then
+                        IssueTargetOrder(Hero[pid], "attack", target)
+                    end
+
+                    DestroyGroup(ug)
+                end
+            end
+        end
+
+        MouseX[pid] = x
+        MouseY[pid] = y
+
+        return false
+    end
+
+    ---@return boolean
+    local function Select()
+        local u   = GetTriggerUnit()
+        local p   = GetTriggerPlayer()
+        local pid = GetPlayerId(p) + 1 ---@type integer 
+
+        PlayerSelectedUnit[pid] = u
+        EVENT_ON_CLICK:trigger(u, pid)
+
+        return false
+    end
 
     local click     = CreateTrigger()
     local move      = CreateTrigger()
