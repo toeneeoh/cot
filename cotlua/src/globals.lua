@@ -83,7 +83,6 @@ gg_rct_InfiniteStruggleSpawn1 = nil
 gg_rct_InfiniteStruggleSpawn2 = nil
 gg_rct_InfiniteStruggleSpawn3 = nil
 gg_rct_InfiniteStruggleSpawn4 = nil
-gg_rct_Key_Quest = nil
 gg_rct_Lava1 = nil
 gg_rct_Lava2 = nil
 gg_rct_Leaving_Forrest_Base = nil
