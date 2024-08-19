@@ -1,7 +1,9 @@
 OnInit.global("MissileEffect", function(Require)
     Require('WorldBounds')
 
-do
+    ---@class MissileEffect
+    ---@field effect effect
+    ---@field create function
     MissileEffect = setmetatable({}, {})
     local mt = getmetatable(MissileEffect)
     mt.__index = mt
@@ -121,6 +123,5 @@ do
 
         return this
     end
-end
 
 end, Debug and Debug.getLine())

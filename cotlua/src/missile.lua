@@ -2,7 +2,6 @@ OnInit.global("Missile", function(Require)
     Require('Variables')
     Require "MissileEffect"
 
-do
     -- ---------------------------------------------------------------------------------------------- --
     --                                          Configuration                                         --
     -- ---------------------------------------------------------------------------------------------- --
@@ -200,6 +199,7 @@ do
     ---@field onHit function
     ---@field terminate function
     ---@field pause function
+    ---@field effect MissileEffect
     Missiles = setmetatable({}, {})
     local mt = getmetatable(Missiles)
     mt.__index = mt
@@ -927,6 +927,5 @@ do
 
         return this
     end
-end
 
 end, Debug and Debug.getLine())
