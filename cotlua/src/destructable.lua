@@ -71,15 +71,6 @@ end
 
     local t = CreateTrigger()
 
-    AddResourceAmount(gg_unit_ngol_0009, 49500000)
-    AddResourceAmount(gg_unit_ngol_0019, 49500000)
-    AddResourceAmount(gg_unit_ngol_0014, 49500000)
-    AddResourceAmount(gg_unit_ngol_0012, 49500000)
-    AddResourceAmount(gg_unit_ngol_0001, 49500000)
-    AddResourceAmount(gg_unit_ngol_0022, 49500000)
-    AddResourceAmount(gg_unit_ngol_0021, 49500000)
-    AddResourceAmount(gg_unit_ngol_0013, 49500000)
-
     TriggerRegisterDeathEvent(t, gg_dest_B007_3861)
     TriggerRegisterDeathEvent(t, gg_dest_LTbs_4010)
     TriggerRegisterDeathEvent(t, gg_dest_LTbs_4009)
