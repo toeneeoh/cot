@@ -9,31 +9,32 @@ OnInit.global("Users", function()
 
     FORCE_PLAYING = CreateForce() ---@type force 
     LEAVE_TRIGGER = CreateTrigger()
-    OriginalHex = {} ---@type string[] 
-        OriginalHex[0]  = "|cffff0303"
-        OriginalHex[1]  = "|cff0042ff"
-        OriginalHex[2]  = "|cff1ce6b9"
-        OriginalHex[3]  = "|cff540081"
-        OriginalHex[4]  = "|cfffffc01"
-        OriginalHex[5]  = "|cfffe8a0e"
-        OriginalHex[6]  = "|cff20c000"
-        OriginalHex[7]  = "|cffe55bb0"
-        OriginalHex[8]  = "|cff959697"
-        OriginalHex[9]  = "|cff7ebff1"
-        OriginalHex[10] = "|cff106246"
-        OriginalHex[11] = "|cff4e2a04"
-        OriginalHex[12] = "|cff9B0000"
-        OriginalHex[13] = "|cff0000C3"
-        OriginalHex[14] = "|cff00EAFF"
-        OriginalHex[15] = "|cffBE00FE"
-        OriginalHex[16] = "|cffEBCD87"
-        OriginalHex[17] = "|cffF8A48B"
-        OriginalHex[18] = "|cffBFFF80"
-        OriginalHex[19] = "|cffDCB9EB"
-        OriginalHex[20] = "|cff282828"
-        OriginalHex[21] = "|cffEBF0FF"
-        OriginalHex[22] = "|cff00781E"
-        OriginalHex[23] = "|cffA46F33"
+    OriginalHex = { ---@type string[] 
+        "|cffff0303",
+        "|cff0042ff",
+        "|cff1ce6b9",
+        "|cff540081",
+        "|cfffffc01",
+        "|cfffe8a0e",
+        "|cff20c000",
+        "|cffe55bb0",
+        "|cff959697",
+        "|cff7ebff1",
+        "|cff106246",
+        "|cff4e2a04",
+        "|cff9B0000",
+        "|cff0000C3",
+        "|cff00EAFF",
+        "|cffBE00FE",
+        "|cffEBCD87",
+        "|cffF8A48B",
+        "|cffBFFF80",
+        "|cffDCB9EB",
+        "|cff282828",
+        "|cffEBF0FF",
+        "|cff00781E",
+        "|cffA46F33",
+    }
 
     OriginalRGB = {}
         OriginalRGB[0] =  { r = 255, g = 3,   b = 3 }
@@ -61,18 +62,52 @@ OnInit.global("Users", function()
     ---@field nameColored string
     ---@field onLeave function
     ---@field create function
-    User = setmetatable({},
-        -- handle player reference (User[Player(1)])
-        { __index = function(tbl, key)
-            if type(key) == "userdata" then
-                return rawget(tbl, GetPlayerId(key))
-            end
-        end})
+    ---@field AmountPlaying integer
+    User = {}
     do
         local thistype = User
         local mt = { __index = User }
         thistype.first = nil
         thistype.AmountPlaying = 0
+
+        function thistype.create(i)
+            local p = Player(i)
+
+            local self = {
+                player = p,
+                id = i + 1,
+                isPlaying = true,
+                color = GetPlayerColor(p),
+                name = GetPlayerName(p),
+                hex = OriginalHex[i + 1],
+            }
+
+            self.nameColored = self.hex .. self.name .. "|r"
+
+            thistype[p] = self
+            thistype[i] = self
+            setmetatable(self, mt)
+
+            thistype.last = self
+
+            if not thistype.first then
+                thistype.first = self
+                self.next = nil
+                self.prev = nil
+            else
+                self.prev = thistype[thistype.AmountPlaying - 1]
+                self.prev.next = self
+                self.next = nil
+            end
+
+            -- Increment the number of players when a new user is created
+            thistype.AmountPlaying = thistype.AmountPlaying + 1
+
+            TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_LEAVE)
+            TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_DEFEAT)
+
+            ForceAddPlayer(FORCE_PLAYING, p)
+        end
 
         function thistype:colorUnits()
             local ug = CreateGroup()
@@ -127,39 +162,7 @@ OnInit.global("Users", function()
             local p = Player(i)
 
             if (GetPlayerController(p) == MAP_CONTROL_USER and GetPlayerSlotState(p) == PLAYER_SLOT_STATE_PLAYING) then
-                local self = {
-                    player = p,
-                    id = i + 1,
-                    isPlaying = true,
-                    color = GetPlayerColor(p),
-                    name = GetPlayerName(p),
-                    hex = OriginalHex[i],
-                }
-
-                self.nameColored = self.hex .. self.name .. "|r"
-
-                thistype[i] = self
-                setmetatable(self, mt)
-
-                thistype.last = self
-
-                if not thistype.first then
-                    thistype.first = self
-                    self.next = nil
-                    self.prev = nil
-                else
-                    self.prev = thistype[thistype.AmountPlaying - 1]
-                    self.prev.next = self
-                    self.next = nil
-                end
-
-                -- Increment the number of players when a new user is created
-                thistype.AmountPlaying = thistype.AmountPlaying + 1
-
-                TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_LEAVE)
-                TriggerRegisterPlayerEvent(LEAVE_TRIGGER, p, EVENT_PLAYER_DEFEAT)
-
-                ForceAddPlayer(FORCE_PLAYING, p)
+                User.create(i)
             end
         end
 
