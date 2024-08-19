@@ -12,7 +12,6 @@ OnInit.final("Commands", function(Require)
     VoteYay            = 0
     VoteNay            = 0
     IS_AUTO_ATTACK_OFF = {} ---@type boolean[] 
-    IS_ITEM_FULL_STACKING = __jarray(true) ---@type boolean[] 
     IS_BASE_DESTROYED  = {} ---@type boolean[] 
     votekickPlayer     = 0
     votekickingPlayer  = 0
@@ -37,13 +36,6 @@ OnInit.final("Commands", function(Require)
                 ClearTextMessages()
             end
         end,
-        ["-destroybase"] = function(p, pid, args)
-            if PlayerBase[pid] ~= nil then
-                IS_BASE_DESTROYED[pid] = true
-                SetUnitExploded(PlayerBase[pid], true)
-                KillUnit(PlayerBase[pid])
-            end
-        end,
         ["-suicide"] = function(p, pid, args)
             reselect(Hero[pid])
             KillUnit(Hero[pid])
@@ -54,7 +46,8 @@ OnInit.final("Commands", function(Require)
             end
         end,
         ["-tome"] = function(p, pid, args)
-            local stats = GetHeroStr(Hero[pid], false) + GetHeroAgi(Hero[pid], false) + GetHeroInt(Hero[pid], false)
+            local unit = Unit[Hero[pid]]
+            local stats = unit.str + unit.agi + unit.int
 
             DisplayTextToPlayer(p, 0, 0, "|cffffcc00Total Stats:|r " .. stats)
             DisplayTextToPlayer(p, 0, 0, "|cffffcc00Tome Cap:|r " .. TomeCap(GetHeroLevel(Hero[pid])))
@@ -66,11 +59,11 @@ OnInit.final("Commands", function(Require)
             local num = tonumber(args[2])
 
             if num and num > 0 and num < 26 then
-                User[p].color = ConvertPlayerColor(num)
+                User[p].color = ConvertPlayerColor(num - 1)
                 User[p].hex = OriginalHex[num]
                 User[p]:colorUnits()
                 User[p].nameColored = OriginalHex[num] .. GetPlayerName(p) .. "|r"
-                SetPlayerColor(p, ConvertPlayerColor(num))
+                SetPlayerColor(p, ConvertPlayerColor(num - 1))
             end
         end,
         ["-roll"] = function(p, pid, args)
@@ -90,15 +83,6 @@ OnInit.final("Commands", function(Require)
                 DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 1 Platinum Coin to buy this")
             end
         end,
-        ["-a"] = function(p, pid, args)
-            if GetCurrency(pid, ARCADITE) > 0 then
-                AddCurrency(pid, ARCADITE, -1)
-                AddCurrency(pid, LUMBER, 1000000)
-                DisplayTimedTextToPlayer(p, 0, 0, 10, ArcTag .. (GetCurrency(pid, ARCADITE)))
-            else
-                DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 1 Arcadite Lumber to buy this")
-            end
-        end,
         ["-actions"] = function(p, pid, args)
             UnitRemoveAbility(Hero[pid], FourCC('A03C'))
             UnitAddAbility(Hero[pid], FourCC('A03C'))
@@ -112,7 +96,7 @@ OnInit.final("Commands", function(Require)
 
                 if zoom then
                     IS_CAMERA_LOCKED[pid] = (lock == "l") or IS_CAMERA_LOCKED[pid]
-                    Zoom[pid] = MathClamp(tonumber(zoom), 100, 3000)
+                    ZOOM[pid] = MathClamp(tonumber(zoom), 100, 3000)
 
                     if not SELECTING_HERO[pid] then
                         SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, zoom, 0)
@@ -126,7 +110,7 @@ OnInit.final("Commands", function(Require)
         ["-zml"] = function(p, pid, args, cmd)
             local _, _, lock = cmd:find("[lL]$")
             IS_CAMERA_LOCKED[pid] = (lock == "l") or IS_CAMERA_LOCKED[pid]
-            Zoom[pid] = 2500
+            ZOOM[pid] = 2500
 
             if not SELECTING_HERO[pid] then
                 SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, 2500, 0)
@@ -142,7 +126,7 @@ OnInit.final("Commands", function(Require)
             Profile.new(pid)
         end,
         ["-info"] = function(p, pid, args)
-            local index = S2I(args[2]) or 1
+            local index = (args[2] and S2I(args[2])) or 1
             DisplayTimedTextToPlayer(p, 0, 0, 30, infoString[index])
         end,
         ["-unstuck"] = function(p, pid, args)
@@ -165,10 +149,10 @@ OnInit.final("Commands", function(Require)
             end
         end,
         ["-restime"] = function(p, pid, args)
-            if TimerGetRemaining(RECHARGE_COOLDOWN[pid]) <= 0.1 then
+            if RECHARGE_COOLDOWN[pid] <= 0. then
                 DisplayTimedTextToPlayer(p, 0, 0, 20, "You can recharge.")
             else
-                DisplayTimedTextToPlayer(p, 0, 0, 20, (R2I(TimerGetRemaining(RECHARGE_COOLDOWN[pid]))) .. " seconds until you can recharge again.")
+                DisplayTimedTextToPlayer(p, 0, 0, 20, (RECHARGE_COOLDOWN[pid]) .. " seconds until you can recharge again.")
             end
         end,
         ["-autosave"] = function(p, pid, args)
@@ -201,8 +185,7 @@ OnInit.final("Commands", function(Require)
                 while U do
 
                     if pid ~= U.id then
-                        dw.data[dw.ButtonCount] = U.id
-                        dw:addButton(U.nameColored)
+                        dw:addButton(U.nameColored, U.id)
                     end
 
                     U = U.next
@@ -211,9 +194,8 @@ OnInit.final("Commands", function(Require)
         end,
         ["-repick"] = function(p, pid, args)
             if Profile[pid] then
-                --TODO 30?
-                if Profile[pid]:getSlotsUsed() >= 30 then
-                    DisplayTimedTextToPlayer(p, 0, 0, 30.0, "You cannot save more than 30 heroes!")
+                if Profile[pid]:getSlotsUsed() >= MAX_SLOTS then
+                    DisplayTimedTextToPlayer(p, 0, 0, 30.0, "You cannot save more than " .. MAX_SLOTS .. " heroes!")
                 else
                     Profile[pid]:repick()
                 end
@@ -236,8 +218,6 @@ OnInit.final("Commands", function(Require)
     --alternate syntax
     CMD_LIST["-cl"] = CMD_LIST["-clear"]
     CMD_LIST["-clr"] = CMD_LIST["-clear"]
-
-    CMD_LIST["-db"] = CMD_LIST["-destroybase"]
 
     CMD_LIST["-pf"] = CMD_LIST["-proficiency"]
     CMD_LIST["-prof"] = CMD_LIST["-proficiency"]
