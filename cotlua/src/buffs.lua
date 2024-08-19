@@ -269,8 +269,42 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onApply()
-            self.attack = (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * 0.2
+            self.attack = math.floor((BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * 0.2)
             UnitAddBonus(self.target, BONUS_DAMAGE, self.attack)
+        end
+    end
+
+    ---@class SongOfHarmonyBuff : Buff
+    SongOfHarmonyBuff = setmetatable({}, mt)
+    do
+        local thistype = SongOfHarmonyBuff
+        thistype.RAWCODE         = FourCC('Ashh') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].regen_max = Unit[self.target].regen_max - 1
+        end
+
+        function thistype:onApply()
+            Unit[self.target].regen_max = Unit[self.target].regen_max + 1
+        end
+    end
+
+    ---@class SongOfPeaceBuff : Buff
+    SongOfPeaceBuff = setmetatable({}, mt)
+    do
+        local thistype = SongOfPeaceBuff
+        thistype.RAWCODE         = FourCC('Aspm') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:onRemove()
+            Unit[self.target].mana_regen_max = Unit[self.target].mana_regen_max - 1
+        end
+
+        function thistype:onApply()
+            Unit[self.target].mana_regen_max = Unit[self.target].mana_regen_max + 1
         end
     end
 
@@ -393,8 +427,6 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Afbo') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.count      = 0. ---@type number 
-        thistype.attack      = 0. ---@type number 
 
         local function onHit(source, target)
             local self = FlamingBowBuff:get(nil, source)
@@ -402,12 +434,12 @@ OnInit.global("Buffs", function(Require)
 
             UnitAddBonus(self.target, BONUS_DAMAGE, -self.attack)
 
-            if MultiShot[self.tpid] then
-                self.count = math.min(self.count + 1. // (2 + IMinBJ(GetHeroLevel(self.target), 200) // 50), 30. + 2. * ablev)
+            if MULTISHOT.enabled[self.tpid] then
+                self.count = math.min(self.count + 1. / (1 + GetUnitAbilityLevel(self.target, MULTISHOT.id)), 30. + 2. * ablev)
             else
                 self.count = math.min(self.count + 1., 30. + 2. * ablev)
             end
-            self.attack = (0.5 + 0.01 * self.count) * (GetHeroAgi(self.target, true) + UnitGetBonus(self.target, BONUS_DAMAGE)) * LBOOST[self.tpid]
+            self.attack = math.floor((0.5 + 0.01 * self.count) * (GetHeroAgi(self.target, true) + UnitGetBonus(self.target, BONUS_DAMAGE)) * LBOOST[self.tpid])
 
             UnitAddBonus(self.target, BONUS_DAMAGE, self.attack)
         end
@@ -424,7 +456,8 @@ OnInit.global("Buffs", function(Require)
             self.pen = FLAMINGBOW.pierce(self.tpid)
             Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent + self.pen
             EVENT_ON_HIT:register_unit_action(self.target, onHit)
-            self.attack = FLAMINGBOW.bonus(self.tpid)
+            self.attack = math.floor(FLAMINGBOW.bonus(self.tpid))
+            self.count = 0
 
             self.sfx = AddSpecialEffectTarget("Environment\\SmallBuildingspeffect\\SmallBuildingspeffect2.mdl", self.target, "weapon")
             UnitAddAbility(self.target, FourCC('A08B'))
@@ -483,23 +516,6 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onApply()
             Unit[self.target].overmovespeed = 1000
-        end
-    end
-
-    ---@class ControlTimeBuff : Buff
-    ControlTimeBuff = setmetatable({}, mt)
-    do
-        local thistype = ControlTimeBuff
-        thistype.RAWCODE         = FourCC('Acti') ---@type integer 
-        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-
-        function thistype:onRemove()
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / 0.5, 0)
-        end
-
-        function thistype:onApply()
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * 0.5, 0)
         end
     end
 
@@ -734,16 +750,16 @@ OnInit.global("Buffs", function(Require)
         function thistype:onRemove()
             DestroyEffect(self.sfx)
 
-            Unit[self.target].regen = Unit[self.target].regen - self.regen
-            Unit[self.target].healamp = Unit[self.target].healamp - self.percent * 0.01
+            Unit[self.target].regen_flat = Unit[self.target].regen_flat - self.regen
+            Unit[self.target].regen_percent = Unit[self.target].regen_percent - self.percent * 0.01
         end
 
         function thistype:onApply()
             self.regen = LAWOFVALOR.regen(self.pid) * BOOST[self.pid]
             self.percent = R2I(LAWOFVALOR.amp(self.pid))
 
-            Unit[self.target].regen = Unit[self.target].regen + self.regen
-            Unit[self.target].healamp = Unit[self.target].healamp + self.percent * 0.01
+            Unit[self.target].regen_flat = Unit[self.target].regen_flat + self.regen
+            Unit[self.target].regen_percent = Unit[self.target].regen_percent + self.percent * 0.01
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\RunicShield.mdx", self.target, "chest")
         end
@@ -914,9 +930,10 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             EVENT_ON_HIT:unregister_unit_action(self.source, onHit)
-            BlzSetUnitAttackCooldown(self.source, BlzGetUnitAttackCooldown(self.source, 0) / 0.7, 0)
-            UnitAddBonus(self.source, BONUS_HERO_AGI, -self.agi)
-            UnitAddBonus(self.source, BONUS_HERO_STR, -self.str)
+
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / 0.7
+            Unit[self.source].bonus_agi = Unit[self.source].bonus_agi - self.agi
+            Unit[self.source].bonus_str = Unit[self.source].bonus_str - self.str
 
             self.agi = 0.
             self.str = 0.
@@ -941,13 +958,13 @@ OnInit.global("Buffs", function(Require)
                 self.timer = TimerQueue.create()
                 self.timer:callDelayed(1., periodic, self)
                 self.agi = BLOODLORD.bonus(self.pid)
-                UnitAddBonus(self.source, BONUS_HERO_AGI, self.agi)
+                Unit[self.source].bonus_str = Unit[self.source].bonus_str + self.str
             else
                 self.str = BLOODLORD.bonus(self.pid)
-                UnitAddBonus(self.source, BONUS_HERO_STR, self.str)
+                Unit[self.source].bonus_str = Unit[self.source].bonus_str + self.str
             end
 
-            BlzSetUnitAttackCooldown(self.source, BlzGetUnitAttackCooldown(self.source, 0) * 0.7, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * 0.7
             TimerQueue:callDelayed(BLOODLORD.dur(self.pid) * LBOOST[self.pid], DestroyEffect, AddSpecialEffectTarget("war3mapImported\\Burning Rage Red.mdx", self.source, "overhead"))
             SetUnitAnimationByIndex(self.source, 3)
 
@@ -1010,15 +1027,15 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Asda') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.as      = 1.25 ---@type number 
+        thistype.as              = 1.25 ---@type number 
 
         function thistype:onRemove()
             DestroyEffect(self.sfx)
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / self.as, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / self.as
         end
 
         function thistype:onApply()
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.as, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * self.as
 
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\StasisTrap\\StasisTotemTarget.mdl", self.target, "overhead")
         end
@@ -1041,7 +1058,7 @@ OnInit.global("Buffs", function(Require)
                 amount_ref.value = 0.00
                 self:playSound()
 
-                DamageTarget(target, source, PARRY.dmg(pid) * (((limitBreak[pid] & 0x1) > 0 and 2.) or 1.), ATTACK_TYPE_NORMAL, MAGIC, PARRY.tag)
+                DamageTarget(target, source, PARRY.dmg(pid) * (((LIMITBREAK.flag[pid] & 0x1) > 0 and 2.) or 1.), ATTACK_TYPE_NORMAL, MAGIC, PARRY.tag)
             end
         end
 
@@ -1065,7 +1082,7 @@ OnInit.global("Buffs", function(Require)
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Buff_Shield_Non.mdx", self.target, "chest")
 
-            if limitBreak[self.tpid] & 0x1 > 0 then
+            if LIMITBREAK.flag[self.tpid] & 0x1 > 0 then
                 BlzSetSpecialEffectColor(self.sfx, 255, 255, 0)
             end
         end
@@ -1118,7 +1135,7 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onApply()
-            self.mr = (limitBreak[self.pid] & 0x4 > 0 and 1.4) or 1
+            self.mr = (LIMITBREAK.flag[self.pid] & 0x4 > 0 and 1.4) or 1
 
             Unit[self.target].mr = Unit[self.target].mr * self.mr
             self.dmg = math.max(0., (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * 0.4)
@@ -1138,18 +1155,16 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.totalRegen      = 0. ---@type number 
         thistype.text         = nil ---@type texttag 
-        thistype.bonusRegen      = 0. ---@type number 
         thistype.timer      = nil ---@type TimerQueue
 
         ---@param dmg number
         function thistype:addRegen(dmg)
-            self.totalRegen = math.max(-200., math.min(200., self.totalRegen + dmg / BlzGetUnitMaxHP(self.target) * 100))
+            self.totalRegen = MathClamp(self.totalRegen + dmg / BlzGetUnitMaxHP(self.target) * 100., -100., 100)
         end
 
         function thistype:onRemove()
             EVENT_ON_STRUCK_FINAL:unregister_unit_action(self.target, UNDYINGRAGE.onHit)
             self.timer:destroy()
-            Unit[self.target].regen = Unit[self.target].regen - self.bonusRegen
 
             DestroyEffect(self.sfx)
             DestroyTextTag(self.text)
@@ -1160,7 +1175,7 @@ OnInit.global("Buffs", function(Require)
                 DamageTarget(self.target, self.target, BlzGetUnitMaxHP(self.target) * 0.01 * -self.totalRegen, ATTACK_TYPE_NORMAL, PURE, UNDYINGRAGE.tag)
             end
 
-            Unit[self.target].noregen = false
+            Unit[self.target].hidehp = false
         end
 
         local periodic = function(self)
@@ -1182,7 +1197,7 @@ OnInit.global("Buffs", function(Require)
             SetTextTagText(self.text, (R2I(self.totalRegen)) .. "\x25", 0.025)
             SetTextTagColor(self.text, R2I(Pow(100 - self.totalRegen, 1.1)), R2I(SquareRoot(math.max(0, self.totalRegen) * 500)), 0, 255)
 
-            Unit[self.target].noregen = true
+            Unit[self.target].hidehp = true
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\DemonicAdornment.mdx", self.target, "head")
 
@@ -1236,14 +1251,14 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / 1.25, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / 1.25
         end
 
         function thistype:onApply()
             self.ms = 0.25 * (math.min(1, Unit[self.target].ms_percent))
 
             Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * 1.25, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * 1.25
         end
     end
 
@@ -1515,14 +1530,14 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * 1.50, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * 1.5
             DestroyEffect(self.sfx)
         end
 
         function thistype:onApply()
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\Bloodlust\\BloodlustTarget.mdl", self.target, "chest")
 
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / 1.50, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / 1.5
             DamageTarget(self.source, self.source, 0.15 * BlzGetUnitMaxHP(self.source), ATTACK_TYPE_NORMAL, PURE, BLOODFRENZY.tag)
         end
     end
@@ -1731,11 +1746,11 @@ OnInit.global("Buffs", function(Require)
         thistype.as      = 1.1 ---@type number 
 
         function thistype:onRemove()
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.as, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * self.as
         end
 
         function thistype:onApply()
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / self.as, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / self.as
         end
     end
 
@@ -1749,18 +1764,15 @@ OnInit.global("Buffs", function(Require)
         thistype.regen      = 0. ---@type number 
 
         function thistype:onRemove()
-            Unit[self.target].regen = Unit[self.target].regen + self.regen
+            Unit[self.target].regen_percent = Unit[self.target].regen_percent + self.regen
             Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
         end
 
         function thistype:onApply()
             self.ms = SANCTIFIEDGROUND.ms * 0.01 * (math.min(1, Unit[self.target].ms_percent))
             Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
-
-            if IsBoss(self.target) then
-                self.regen = Unit[self.target].regen
-                Unit[self.target].regen = 0
-            end
+            self.regen = (IsBoss(self.target) and 0.5) or 1
+            Unit[self.target].regen_percent = Unit[self.target].regen_percent - self.regen
         end
     end
 
@@ -1780,6 +1792,36 @@ OnInit.global("Buffs", function(Require)
             self.ms = 25 + 25 * GetUnitAbilityLevel(self.source, DIVINELIGHT.id)
 
             Unit[self.target].ms_flat = Unit[self.target].ms_flat + self.ms
+        end
+    end
+
+    ---@class ResurgenceBuff : Buff
+    ResurgenceBuff = setmetatable({}, mt)
+    do
+        local thistype = ResurgenceBuff
+        thistype.RAWCODE         = FourCC('Ares') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        local function periodic(self)
+            local max_hp = Unit[self.target].hp
+            local hp = math.min(5, (((max_hp - GetWidgetLife(self.target)) / max_hp) * 100.) // 15.)
+
+            Unit[self.target].regen_max = Unit[self.target].regen_max - self.regen
+            self.regen = self.item:getValue(ITEM_ABILITY, 0) * hp
+            Unit[self.target].regen_max = Unit[self.target].regen_max + self.regen
+            self.timer:callDelayed(0.5, periodic, self)
+        end
+
+        function thistype:onRemove()
+            Unit[self.target].regen_max = Unit[self.target].regen_max - (self.regen or 0)
+            self.timer:destroy()
+        end
+
+        function thistype:onApply()
+            self.regen = 0
+            self.timer = TimerQueue.create()
+            self.timer:callDelayed(0., periodic, self)
         end
     end
 
@@ -1963,12 +2005,14 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             masterElement[self.tpid] = 0
+            Unit[self.target].mana_regen_max = Unit[self.target].mana_regen_max - 1.5
             DestroyEffect(self.sfx)
             DestroyEffect(self.sfx2)
         end
 
         function thistype:onApply()
             masterElement[self.tpid] = ELEMENTICE.value
+            Unit[self.target].mana_regen_max = Unit[self.target].mana_regen_max + 1.5
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Water High.mdx", self.target, "right hand")
             self.sfx2 = AddSpecialEffectTarget("war3mapImported\\Water High.mdx", self.target, "left hand")
         end
@@ -2272,27 +2316,24 @@ OnInit.global("Buffs", function(Require)
     end
 
     ---@class LightSealBuff : Buff
+    ---@field timer TimerQueue
     LightSealBuff = setmetatable({}, mt)
     do
         local thistype = LightSealBuff
         thistype.RAWCODE         = FourCC('Alse') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.strength         = 0 ---@type integer 
-        thistype.armor         = 0 ---@type integer 
-        thistype.stacks         = 0 ---@type integer 
-        thistype.timer         = nil ---@type TimerQueue
 
         ---@param i integer
         function thistype:addStack(i)
-            UnitAddBonus(self.source, BONUS_HERO_STR, -self.strength)
+            Unit[self.source].bonus_str = Unit[self.source].bonus_str - self.strength
             UnitAddBonus(self.source, BONUS_ARMOR, -self.armor)
 
             self.stacks = IMinBJ(self.stacks + i, GetUnitAbilityLevel(self.source, LIGHTSEAL.id) * 10)
             self.strength = R2I(GetHeroStr(self.source, true) * 0.01 * self.stacks)
             self.armor = R2I(BlzGetUnitArmor(self.source) * 0.01 * self.stacks)
 
-            UnitAddBonus(self.source, BONUS_HERO_STR, self.strength)
+            Unit[self.source].bonus_str = Unit[self.source].bonus_str + self.strength
             UnitAddBonus(self.source, BONUS_ARMOR, self.armor)
         end
 
@@ -2307,19 +2348,24 @@ OnInit.global("Buffs", function(Require)
             else
                 self.stacks = IMaxBJ(0, self.stacks - 1)
 
-                UnitAddBonus(self.source, BONUS_HERO_STR, -self.strength)
+
+                Unit[self.source].bonus_str = Unit[self.source].bonus_str - self.strength
                 UnitAddBonus(self.source, BONUS_ARMOR, -self.armor)
 
                 self.strength = R2I(GetHeroStr(self.source, true) * 0.01 * self.stacks)
                 self.armor = R2I(BlzGetUnitArmor(self.source) * 0.01 * self.stacks)
 
-                UnitAddBonus(self.source, BONUS_HERO_STR, self.strength)
+                Unit[self.source].bonus_str = Unit[self.source].bonus_str + self.strength
                 UnitAddBonus(self.source, BONUS_ARMOR, self.armor)
+                self.timer:callDelayed(5., LightSealStackExpire, self)
             end
         end
 
         function thistype:onApply()
             self.timer = TimerQueue.create()
+            self.stacks = 0
+            self.strength = 0
+            self.armor = 0
 
             self.timer:callDelayed(5., LightSealStackExpire, self)
         end
@@ -2364,17 +2410,17 @@ OnInit.global("Buffs", function(Require)
         --reapplies spellboost and bat bonus
         function thistype:refresh()
             Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.bat, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * self.bat
 
             self.spellboost = self.count * 0.01
             self.bat = (1. + self.count * 0.01)
             Unit[self.target].spellboost = Unit[self.target].spellboost + self.spellboost
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / self.bat, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / self.bat
         end
 
         function thistype:onRemove()
             Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.bat, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * self.bat
 
             Dummy[self.sfx]:recycle()
 
@@ -2413,6 +2459,7 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             Unit[self.target].dm = Unit[self.target].dm / self.dm
+            Unit[self.target].base_bat = 2.222
         end
 
         function thistype:onApply()
@@ -2421,6 +2468,7 @@ OnInit.global("Buffs", function(Require)
             SetWidgetLife(self.target, hp)
             self.dm = 1 + math.max(0.01, hp / (BlzGetUnitMaxHP(self.target) * 1.))
             Unit[self.target].dm = Unit[self.target].dm * self.dm
+            Unit[self.target].base_bat = 0.8
         end
     end
 
@@ -2581,11 +2629,11 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
 
         function thistype:onRemove()
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * 2, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * 2.
         end
 
         function thistype:onApply()
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / 2, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / 2.
         end
     end
 
@@ -2613,6 +2661,40 @@ OnInit.global("Buffs", function(Require)
         end
     end
 
+    ---@class IntenseFocusBuff : Buff
+    IntenseFocusBuff = setmetatable({}, mt)
+    do
+        local thistype = IntenseFocusBuff
+        thistype.RAWCODE         = FourCC('Aifc') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+       local function periodic(self)
+            if UnitAlive(self.target) and
+                Unit[self.target].x == GetUnitX(self.target) and
+                Unit[self.target].y == GetUnitY(self.target)
+            then
+                Unit[self.target].dm = Unit[self.target].dm / self.mult
+                self.mult = math.min(1.1, self.mult + 0.01)
+                Unit[self.target].dm = Unit[self.target].dm * self.mult
+                self.timer:callDelayed(1, periodic, self)
+            else
+                self:remove()
+            end
+        end
+
+        function thistype:onRemove()
+            Unit[self.target].dm = Unit[self.target].dm / self.mult
+            self.timer:destroy()
+        end
+
+        function thistype:onApply()
+            self.mult = 1.
+            self.timer = TimerQueue.create()
+            self.timer:callDelayed(1, periodic, self)
+        end
+    end
+
     ---@class WeatherBuff : Buff
     WeatherBuff = setmetatable({}, mt)
     do
@@ -2635,7 +2717,7 @@ OnInit.global("Buffs", function(Require)
             UnitRemoveAbility(self.target, WeatherTable[self.weather].abil)
             UnitRemoveAbility(self.target, WeatherTable[self.weather].buff)
             UnitAddBonus(self.target, BONUS_DAMAGE, -self.atk)
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) * self.as, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * self.as
             Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
             Unit[self.target].dr = Unit[self.target].dr / self.dr
             Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
@@ -2662,7 +2744,7 @@ OnInit.global("Buffs", function(Require)
             UnitMakeAbilityPermanent(self.target, true, WeatherTable[self.weather].abil)
             UnitAddAbility(self.target, WeatherTable[self.weather].buff)
             UnitAddBonus(self.target, BONUS_DAMAGE, self.atk)
-            BlzSetUnitAttackCooldown(self.target, BlzGetUnitAttackCooldown(self.target, 0) / self.as, 0)
+            Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / self.as
             Unit[self.target].spellboost = Unit[self.target].spellboost + self.spellboost
             Unit[self.target].dr = Unit[self.target].dr * self.dr
 
