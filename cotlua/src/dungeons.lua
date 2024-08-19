@@ -29,6 +29,7 @@ OnInit.final("Dungeons", function(Require)
     ---@field exit_x number
     ---@field exit_y number
     ---@field timer TimerFrame
+    ---@field playerDeath function
     Dungeon = {}
     do
         local thistype = Dungeon
@@ -59,7 +60,7 @@ OnInit.final("Dungeons", function(Require)
 
         ---@type fun(id: integer, x: number, y: number, facing: number, dmgr: integer, g: table):unit
         function thistype:createUnit(id, x, y, facing)
-            local u = CreateUnit(pfoe, id, x, y, facing)
+            local u = CreateUnit(PLAYER_CREEP, id, x, y, facing)
             self.enemies[#self.enemies + 1] = u
 
             if self.creepDeath then
@@ -98,6 +99,9 @@ OnInit.final("Dungeons", function(Require)
             for i = 1, #self.players do
                 local pid = self.players[i]
                 DisableItems(pid, false)
+                if self.playerDeath then
+                    EVENT_GRAVE_DEATH:unregister_unit_action(Hero[pid], self.playerDeath)
+                end
             end
 
             -- timer runs out, dungeon closes
@@ -178,8 +182,8 @@ OnInit.final("Dungeons", function(Require)
                         if TableHas(QUEUE_GROUP, U.id) == false and GetHeroLevel(Hero[U.id]) >= self.level then
                             QUEUE_GROUP[#QUEUE_GROUP + 1] = U.id
                             mb:addRows(1)
-                            mb:get(mb.rowCount, 1).text = {0.02, 0, 0.09, 0.011}
-                            mb:get(mb.rowCount, 2).icon = {0.26, 0, 0.011, 0.011}
+                            mb:get(#mb.rows, 1).text = {0.02, 0, 0.09, 0.011}
+                            mb:get(#mb.rows, 2).icon = {0.26, 0, 0.011, 0.011}
                             mb.available[U.id] = true
                             mb:display(U.id)
                         end
@@ -279,6 +283,8 @@ OnInit.final("Dungeons", function(Require)
 
         local function onComplete()
             StartSound(bj_questCompletedSound)
+
+            -- wait for azazoth to respawn before able to enter again
             RemoveItemFromStock(god_portal, FourCC('I08T'))
 
             thistype:endDungeon()
@@ -295,12 +301,12 @@ OnInit.final("Dungeons", function(Require)
         end
 
         function thistype:onStart()
-            thistype.boss = BossTable[BOSS_AZAZOTH].unit
+            thistype.boss = Boss[BOSS_AZAZOTH].unit
             PauseUnit(thistype.boss, true)
             SetUnitTimeScale(thistype.boss, 0.)
             TimerQueue:callDelayed(5., unpause_boss, false)
 
-            EVENT_ON_DEATH:register_unit_action(BossTable[BOSS_AZAZOTH].unit, onComplete)
+            EVENT_ON_DEATH:register_unit_action(Boss[BOSS_AZAZOTH].unit, onComplete)
         end
     end
 
@@ -337,7 +343,7 @@ OnInit.final("Dungeons", function(Require)
                 thistype.timer:destroy()
             end
             --[[for _, pid in ipairs(thistype.players) do
-                local XP = R2I(Experience_Table[300] * XP_Rate[pid])
+                local XP = R2I(EXPERIENCE_TABLE[300] * XP_Rate[pid])
                 AwardXP(pid, XP)
             end]]
 
@@ -418,15 +424,13 @@ OnInit.final("Dungeons", function(Require)
             end
 
             local pcount  = #thistype.players ---@type integer 
-            local plat    = math.random(12, 15) + pcount * 3 ---@type integer 
-            local arc     = math.random(12, 15) + pcount * 3 ---@type integer 
+            local plat    = math.random(22, 25) + pcount * 3 ---@type integer 
             local crystal = math.random(12, 15) + pcount * 3 ---@type integer 
 
-            DisplayTimedTextToTable(thistype.players, 7.5, "|cffffcc00You have been rewarded:|r \n|cffe3e2e2" .. (plat) .. " Platinum|r \n|cff66FF66" .. (arc) .. " Arcadite|r \n|cff6969FF" .. (crystal) .. " Crystals|r")
+            DisplayTimedTextToTable(thistype.players, 7.5, "|cffffcc00You have been rewarded:|r \n|cffe3e2e2" .. (plat) .. " Platinum|r \n|cff6969FF" .. (crystal) .. " Crystals|r")
 
             for _, v in ipairs(thistype.players) do
                 AddCurrency(v, PLATINUM, plat)
-                AddCurrency(v, ARCADITE, arc)
                 AddCurrency(v, CRYSTAL, crystal)
                 DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", GetUnitX(Hero[v]), GetUnitY(Hero[v])))
             end
