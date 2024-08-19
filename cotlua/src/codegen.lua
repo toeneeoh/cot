@@ -8,21 +8,52 @@
 ]]
 
 OnInit.global("CodeGen", function()
-    local ALPHABET        = "!#$\x25&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}`" ---@type string 
-    local ERROR           = ""
-    local MAX_SPACE       = 6
-    local BASE            = ALPHABET:len() - MAX_SPACE - 1
-    local CHAR            = ALPHABET:sub(2, MAX_SPACE + 1)
-    ALPHABET              = ALPHABET:sub(1, 1) .. ALPHABET:sub(MAX_SPACE + 2)
+    local ALPHABET  = "!#$\x25&'()*+,-.0123456789:;=<>?[]^_{}|`@ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" ---@type string 
+    local MAX_SPACE = 6
+    local BASE      = ALPHABET:len() - MAX_SPACE - 1
+    local CHAR      = ALPHABET:sub(2, MAX_SPACE + 1)
+    ALPHABET        = ALPHABET:sub(1, 1) .. ALPHABET:sub(MAX_SPACE + 2)
 
-    ---@return string
-    function GetCodeGenError()
-        return ERROR
+    ---@param str string
+    local function compress(str)
+        local compressed = ""
+        local i = 1
+
+        while i <= #str do
+            local sequence = str:sub(i, i)
+            local count = 1
+
+            while sequence == str:sub(i + count, i + count) do
+                count = count + 1
+            end
+
+            if count > 2 and count < ALPHABET:len() + 2 then
+                local char = ALPHABET:sub(count - 2, count - 2)
+                compressed = compressed .. " " .. char .. sequence -- use a space to indicate compression
+                i = i + (count - 1)
+            else
+                compressed = compressed .. sequence
+            end
+
+            i = i + 1
+        end
+
+        return compressed
     end
 
+    ---@param str string
+    local function decompress(str)
+        str = str:gsub(" (\x25S)(\x25S)", function(symbol, sequence)
+            local count = string.find(ALPHABET, symbol, nil, true) + 2
+
+            return string.rep(sequence, count)
+        end)
+
+        return str
+    end
     ---@param i integer
     ---@return string
-    function Encode(i)
+    local function encode(i)
         local s = ""
 
         if i < BASE then
@@ -52,7 +83,7 @@ OnInit.global("CodeGen", function()
 
     ---@param s string
     ---@return integer
-    function Decode(s)
+    local function decode(s)
         local a = 0 ---@type integer 
 
         while s:len() ~= 1 do
@@ -65,39 +96,34 @@ OnInit.global("CodeGen", function()
 
     ---@param in_ string
     ---@return integer
-    local function StringChecksum(in_)
+    function StringChecksum(in_)
         local o = 0 ---@type integer 
 
         for i = 1, in_:len() do
-            o = o + Decode(in_:sub(i, i))
+            o = o + decode(in_:sub(i, i))
         end
 
         return o
     end
 
-    ---@type fun(str: string, p: player): boolean|table
-    function Load(str, p)
+    ---@type fun(str: string, p: player): table?, string?
+    function Decompile(str, p)
         local VALID = false
+        str = decompress(str)
 
         for i = 1, 3 do
-            if DEV_ENABLED then
-                print("Decode checksum: " .. Decode(str:sub(1, i)) .. " " .. str:sub(1, i))
-                print("Checksum " .. i .. ": " .. StringChecksum(str:sub(i + 1)) .. " " .. str:sub(i + 1))
-            end
-
-            if Decode(str:sub(1, i)) == StringChecksum(str:sub(i + 1)) then
+            if decode(str:sub(1, i)) == StringChecksum(str:sub(i + 1)) then
                 VALID = true
                 str = str:sub(i + 1)
                 break
             end
         end
 
-        local checksum = Encode(StringChecksum(GetPlayerName(p)))
+        local checksum = encode(StringChecksum(GetPlayerName(p)))
         local checksum_len = checksum:len()
 
         if (not VALID) or checksum ~= str:sub(-checksum_len) then
-            ERROR = "Invalid code"
-            return false
+            return nil, "|cffff0000Error: Invalid code|r"
         end
 
         str = str:sub(1, -checksum_len - 1)
@@ -108,13 +134,13 @@ OnInit.global("CodeGen", function()
             local tmp = str:sub(i, i)
             local token_length = (CHAR:find(tmp, 1, true) or 0) + 1
 
-            --ignore space indicator
+            -- ignore space indicator
             if token_length > 1 then
                 i = i + 1
             end
 
             local token = str:sub(i, i + token_length - 1)
-            data[#data + 1] = Decode(token)
+            data[#data + 1] = decode(token)
             i = i + token_length
         end
 
@@ -127,7 +153,7 @@ OnInit.global("CodeGen", function()
         local p   = Player(pid - 1)
 
         for _, v in ipairs(data) do
-            local x = Encode(v)
+            local x = encode(v)
             local j = x:len()
 
             if (j > 1) then
@@ -137,18 +163,18 @@ OnInit.global("CodeGen", function()
             out = out .. x
         end
 
-        --appends player name checksum to end of string
-        out = out .. Encode(StringChecksum(GetPlayerName(p)))
+        -- appends player name checksum to end of string
+        out = out .. encode(StringChecksum(GetPlayerName(p)))
 
-        --appends total checksum to beginning of string
+        -- appends total checksum to beginning of string
         local cs = StringChecksum(out)
-        out = Encode(cs) .. out
+        out = encode(cs) .. out
 
         if DEV_ENABLED then
-            print("Checksum: " .. cs .. " Encoded: " .. Encode(cs))
+            print("Checksum: " .. cs .. " Encoded: " .. encode(cs))
         end
 
-        return out
+        return compress(out)
     end
 
 end, Debug and Debug.getLine())
