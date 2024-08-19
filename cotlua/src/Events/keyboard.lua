@@ -44,6 +44,10 @@ OnInit.final("Keyboard", function(Require)
 
         STAT_WINDOW.close(pid)
 
+        if Player(pid - 1) == GetLocalPlayer() then
+            ClearTextMessages()
+        end
+
         return false
     end
 
