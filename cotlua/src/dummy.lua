@@ -35,6 +35,7 @@ OnInit.final("Dummy", function(Require)
     ---@field cast function
     ---@field source unit
     ---@field attack function
+    ---@field lightning function
     Dummy = {} ---@type Dummy|Dummy[]
     do
         local thistype = Dummy
@@ -44,18 +45,25 @@ OnInit.final("Dummy", function(Require)
         function thistype:cast(owner, order, a, b)
             SetUnitOwner(self.unit, owner, true)
 
-            --self cast
+            -- self cast
             if a == nil then
                 IssueImmediateOrder(self.unit, order)
-            --target cast
+            -- target cast
             elseif type(a == "userdata") then
                 BlzSetUnitFacingEx(self.unit, bj_RADTODEG * Atan2(GetUnitY(a) - GetUnitY(self.unit), GetUnitX(a) - GetUnitX(self.unit)))
                 IssueTargetOrder(self.unit, order, a)
-            --point cast
+            -- point cast
             elseif type(a == "number") then
                 BlzSetUnitFacingEx(self.unit, bj_RADTODEG * Atan2(b - GetUnitY(self.unit), a - GetUnitX(self.unit)))
                 IssuePointOrder(self.unit, order, a, b)
             end
+        end
+
+        function thistype:lightning(x, y)
+            local dummy = thistype.create(x, y, 0, 0, 1.)
+            UnitRemoveAbility(dummy.unit, FourCC('Avul'))
+            UnitRemoveAbility(dummy.unit, FourCC('Aloc'))
+            self:attack(dummy.unit)
         end
 
         ---@type fun(self: Dummy)
@@ -92,10 +100,10 @@ OnInit.final("Dummy", function(Require)
         end
 
         ---@type fun(x: number, y: number, abil: integer, ablev: integer, dur: any): Dummy
-        function thistype.create(x, y, abil, ablev, dur)
+        function Dummy.create(x, y, abil, ablev, dur)
             local self = DUMMY_STACK[#DUMMY_STACK]
 
-            --available list is empty
+            -- available list is empty
             if self == nil then
                 DUMMY_COUNT = DUMMY_COUNT + 1
                 self = {
@@ -112,7 +120,7 @@ OnInit.final("Dummy", function(Require)
                 Dummy[self.unit] = self
 
                 setmetatable(self, mt)
-            --use an existing available dummy
+            -- use an existing available dummy
             else
                 DUMMY_STACK[#DUMMY_STACK] = nil
                 PauseUnit(self.unit, false)
@@ -131,7 +139,7 @@ OnInit.final("Dummy", function(Require)
                 TimerQueue:callDelayed(DUMMY_RECYCLE_TIME, thistype.recycle, self)
             end
 
-            --reset attack cooldown
+            -- reset attack cooldown
             BlzSetUnitAttackCooldown(self.unit, 0.01, 0)
             UnitSetBonus(self.unit, BONUS_ATTACK_SPEED, 4.)
 
@@ -147,7 +155,9 @@ OnInit.final("Dummy", function(Require)
             UnitDisableAbility(self.unit, FourCC('Amov'), true)
             self.source = source or self.unit
             SetUnitOwner(self.unit, GetOwningPlayer(source), false)
-            EVENT_DUMMY_ON_HIT:register_unit_action(source, func)
+            if func then
+                EVENT_DUMMY_ON_HIT:register_unit_action(source, func)
+            end
             InstantAttack(self.unit, enemy)
         end
     end
