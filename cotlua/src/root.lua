@@ -7,8 +7,8 @@
 
 do
     LOCAL_JOIN_TIME = 0
-    PLAYER_JOIN_TIME = __jarray(0)
-    PLAYER_START_TIME = __jarray(0)
+    PLAYER_JOIN_TIME = {}
+    PLAYER_START_TIME = {}
     local a,b=load,GetLocalizedString
 
     --functions to determine which player is the host based on lobby join time
@@ -23,13 +23,12 @@ do
     function DetectHost()
         local host = {p = nil, time = 0}
 
-        for i = 0, bj_MAX_PLAYERS do
+        for i = 0, 5 do
             local p = Player(i)
 
             if (GetPlayerController(p) == MAP_CONTROL_USER and GetPlayerSlotState(p) == PLAYER_SLOT_STATE_PLAYING) then
-                print(User[p].nameColored .. " start time: " .. PLAYER_START_TIME[p] .. " | join time: " .. PLAYER_JOIN_TIME[p])
-                if PLAYER_START_TIME[p] - PLAYER_JOIN_TIME[p] > host.time then
-                    host.time = PLAYER_START_TIME[p] - PLAYER_JOIN_TIME[p]
+                if PLAYER_START_TIME[p] - (PLAYER_JOIN_TIME[p] or 0) > host.time then
+                    host.time = PLAYER_START_TIME[p] - (PLAYER_JOIN_TIME[p] or 0)
                     host.p = p
                 end
             end
@@ -119,19 +118,17 @@ BlzLoadTOCFile("war3mapImported\\FDF.toc")
 dofile('debugutils.lua')
 dofile('ingameconsole.lua')
 dofile('TotalInitialization.lua')
---dofile('bignum.lua')
---dofile('pathfinding.lua')
-dofile('preload.lua')
 dofile('helper.lua')
 dofile('variables.lua')
-dofile('dev.lua')
 dofile('users.lua')
+dofile('preload.lua')
+dofile('gamestatus.lua')
+dofile('dev.lua')
 dofile('quests.lua')
 dofile('mapsetup.lua')
 dofile('timerqueue.lua')
 dofile('playertimer.lua')
 dofile('worldbounds.lua')
-dofile('gamestatus.lua')
 dofile('missile.lua')
 dofile('missileeffect.lua')
 dofile('shop.lua')
@@ -139,6 +136,7 @@ dofile('fileio.lua')
 dofile('codegen.lua')
 dofile('unitevent.lua')
 dofile('pathing.lua')
+dofile('nolag.lua')
 
 dofile('Events/events.lua')
 dofile('Events/attacked.lua')
@@ -146,10 +144,9 @@ dofile('Events/damage.lua')
 dofile('Events/death.lua')
 dofile('Events/commands.lua')
 dofile('Events/orders.lua')
-dofile('Events/keyboard.lua')
+dofile('Events/hotkeys.lua')
 dofile('Events/mouse.lua')
 dofile('Events/level.lua')
-dofile('Events/train.lua')
 
 dofile('threat.lua')
 dofile('unittable.lua')
@@ -157,22 +154,28 @@ dofile('dummy.lua')
 dofile('profile.lua')
 dofile('buffsystem.lua')
 dofile('buffs.lua')
-dofile('saveload.lua')
 dofile('bonus.lua')
-dofile('bossai.lua')
+dofile('boss.lua')
+dofile('saveload.lua')
 
 dofile('Spells/herospells.lua')
 dofile('Spells/unitspells.lua')
 dofile('Spells/itemspells.lua')
 dofile('Spells/spells.lua')
 
-dofile('UI/button.lua')
+dofile('UI/mousetracker.lua')
+dofile('UI/gluebutton.lua')
 dofile('UI/spellview.lua')
 dofile('UI/frames.lua')
 dofile('UI/statview.lua')
 dofile('UI/multiboard.lua')
+dofile('UI/hidemindamage.lua')
+dofile('UI/inventory.lua')
+dofile('UI/dynamicmenu.lua')
 
+dofile('currency.lua')
 dofile('units.lua')
+dofile('training.lua')
 dofile('items.lua')
 dofile('recipe.lua')
 dofile('droptable.lua')
@@ -184,7 +187,6 @@ dofile('dungeons.lua')
 dofile('cosmetics.lua')
 dofile('weather.lua')
 dofile('heroselect.lua')
-dofile('bases.lua')
-dofile('currency.lua')
 dofile('movespeed.lua')
 dofile('timers.lua')
+dofile('colosseum.lua')
