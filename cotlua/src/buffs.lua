@@ -8,6 +8,7 @@ OnInit.global("Buffs", function(Require)
     Require('BuffSystem')
     Require('UnitTable')
 
+    local FPS_32 = FPS_32
     PHASED_MOVEMENT = FourCC('I0OE')
 
     local mt = { __index = Buff }
@@ -140,7 +141,7 @@ OnInit.global("Buffs", function(Require)
         local thistype = EmpyreanSongBuff
         thistype.RAWCODE         = FourCC('Aeso') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].ms_flat = Unit[self.target].ms_flat - 150
@@ -155,9 +156,9 @@ OnInit.global("Buffs", function(Require)
     BloodHornBuff = setmetatable({}, mt)
     do
         local thistype = BloodHornBuff
-        thistype.RAWCODE         = FourCC('A03G') ---@type integer 
+        thistype.RAWCODE         = FourCC('Aunh') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
-        thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
             Unit[self.target].ms_flat = Unit[self.target].ms_flat - 75
@@ -408,7 +409,7 @@ OnInit.global("Buffs", function(Require)
             SetUnitVertexColor(self.target, 255, 25, 25, 255)
             DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Call of Dread Red.mdx", self.target, "chest"))
 
-            self.timer:callPeriodically(3., nil, Taunt, self.target, self.tpid, 800., false, 500, 500)
+            self.timer:callPeriodically(3., nil, Taunt, self.target, 800.)
             self.timer:callPeriodically(0.1, nil, pull, self.tpid, self.target)
 
             local ablev = GetUnitAbilityLevel(self.source, MAGNETICSTANCE.id)
@@ -1324,6 +1325,8 @@ OnInit.global("Buffs", function(Require)
 
             --disable casting at 0 charges
             if BODYOFFIRE.charges[pid] <= 0 then
+                UnitDisableAbility(source, INFERNALSTRIKE.id, true)
+                BlzUnitHideAbility(source, INFERNALSTRIKE.id, false)
                 UnitDisableAbility(source, MAGNETICSTRIKE.id, true)
                 BlzUnitHideAbility(source, MAGNETICSTRIKE.id, false)
             end
@@ -1382,6 +1385,8 @@ OnInit.global("Buffs", function(Require)
             if BODYOFFIRE.charges[pid] <= 0 then
                 UnitDisableAbility(source, INFERNALSTRIKE.id, true)
                 BlzUnitHideAbility(source, INFERNALSTRIKE.id, false)
+                UnitDisableAbility(source, MAGNETICSTRIKE.id, true)
+                BlzUnitHideAbility(source, MAGNETICSTRIKE.id, false)
             end
 
             --refresh charge timer
@@ -2326,6 +2331,8 @@ OnInit.global("Buffs", function(Require)
 
         ---@param i integer
         function thistype:addStack(i)
+            -- prevent hp decay from losing all stacks
+            local hp = GetWidgetLife(self.source)
             Unit[self.source].bonus_str = Unit[self.source].bonus_str - self.strength
             UnitAddBonus(self.source, BONUS_ARMOR, -self.armor)
 
@@ -2335,6 +2342,7 @@ OnInit.global("Buffs", function(Require)
 
             Unit[self.source].bonus_str = Unit[self.source].bonus_str + self.strength
             UnitAddBonus(self.source, BONUS_ARMOR, self.armor)
+            SetWidgetLife(self.source, hp)
         end
 
         function thistype:onRemove()
@@ -2347,7 +2355,6 @@ OnInit.global("Buffs", function(Require)
                 self:remove()
             else
                 self.stacks = IMaxBJ(0, self.stacks - 1)
-
 
                 Unit[self.source].bonus_str = Unit[self.source].bonus_str - self.strength
                 UnitAddBonus(self.source, BONUS_ARMOR, -self.armor)
@@ -2679,7 +2686,8 @@ OnInit.global("Buffs", function(Require)
                 Unit[self.target].dm = Unit[self.target].dm * self.mult
                 self.timer:callDelayed(1, periodic, self)
             else
-                self:remove()
+                Unit[self.target].dm = Unit[self.target].dm / self.mult
+                self.mult = 1.
             end
         end
 
