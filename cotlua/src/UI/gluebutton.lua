@@ -1,21 +1,16 @@
 --[[
-    shopcomponent.lua
+    gluebutton.lua
 
-    A module that provides button and tooltip functionality for shop.lua UI.
+    A module that provides button and tooltip functionality for shops and other UI.
 ]]
 
-OnInit.final("Button", function()
-
-    -- Credits:
-    --      Taysen: FDF file
-    --      Chopinski: Original vJass
-
-    local TOOLTIP_SIZE               = 0.2 ---@type number 
-    local SCROLL_DELAY               = 0.01 ---@type number 
-    local DOUBLE_CLICK_DELAY         = 0.25 ---@type number 
-    local HIGHLIGHT                  = "UI\\Widgets\\Glues\\GlueScreen-Button-KeyboardHighlight" ---@type string 
-    local CHECKED_BUTTON             = "UI\\Widgets\\EscMenu\\Human\\checkbox-check.blp" ---@type string 
-    local UNAVAILABLE_BUTTON         = "ui\\widgets\\battlenet\\chaticons\\bnet-squelch" ---@type string 
+OnInit.final("Gluebutton", function()
+    local TOOLTIP_SIZE       = 0.2 ---@type number 
+    local SCROLL_DELAY       = 0.01 ---@type number 
+    local DOUBLE_CLICK_DELAY = 0.25 ---@type number 
+    local HIGHLIGHT          = "UI\\Widgets\\Glues\\GlueScreen-Button-KeyboardHighlight" ---@type string 
+    local CHECKED_BUTTON     = "UI\\Widgets\\EscMenu\\Human\\checkbox-check.blp" ---@type string 
+    local UNAVAILABLE_BUTTON = "ui\\widgets\\battlenet\\chaticons\\bnet-squelch" ---@type string 
 
     ---@class Tooltip
     ---@field text function
@@ -125,18 +120,8 @@ OnInit.final("Button", function()
             return self.isVisible
         end
 
-        function thistype:destroy()
-            BlzDestroyFrame(self.nameFrame)
-            BlzDestroyFrame(self.iconFrame)
-            BlzDestroyFrame(self.tooltip)
-            BlzDestroyFrame(self.line)
-            BlzDestroyFrame(self.box)
-            BlzDestroyFrame(self.frame)
-            self = nil
-        end
-
-        ---@type fun(owner: framehandle, width: number, point: framepointtype, simpleTooltip: boolean):Tooltip
-        function thistype.create(owner, width, point, simpleTooltip)
+        ---@type fun(owner: framehandle, width: number, point: framepointtype, simpleTooltip: boolean): Tooltip
+        function Tooltip.create(owner, width, point, simpleTooltip)
             local self = setmetatable({}, mt)
 
             self.parent = owner
@@ -183,12 +168,13 @@ OnInit.final("Button", function()
     local doubleTime = array2d(0)
 
     ---@class Button
+    ---@field xPos number
+    ---@field yPos number
     ---@field icon function
     ---@field tooltip Tooltip
     ---@field frame framehandle
     ---@field clicked trigger
     ---@field scrolled trigger
-    ---@field rightClicked trigger
     ---@field timer timer[]
     ---@field play function
     ---@field enabled function
@@ -196,13 +182,10 @@ OnInit.final("Button", function()
     ---@field click trigger
     ---@field scroll trigger
     ---@field doubleClick trigger
-    ---@field rightClick trigger
     ---@field time table
     ---@field create function
-    ---@field destroy function
     ---@field onClick function
     ---@field onScroll function
-    ---@field onRightClick function
     ---@field onDoubleClick function
     ---@field visible function
     ---@field available function
@@ -212,43 +195,28 @@ OnInit.final("Button", function()
     ---@field isChecked boolean
     ---@field table Button[]
     ---@field canScroll boolean[]
+    ---@field isVisible boolean
+    ---@field texture string
+    ---@field index integer
+    ---@field iconFrame framehandle
+    ---@field parent framehandle
+    ---@field availableFrame framehandle
+    ---@field checkedFrame framehandle
+    ---@field highlightFrame framehandle
+    ---@field displayFrame framehandle
+    ---@field spriteFrame framehandle
     Button = {}
     do
         local thistype = Button
         local mt = { __index = Button }
-        thistype.clicked         = CreateTrigger()
-        thistype.scrolled         = CreateTrigger()
-        thistype.rightClicked         = CreateTrigger()
-        thistype.double       = CreateTimer() ---@type timer 
-        thistype.timer={} ---@type timer[] 
-        thistype.table={} ---@type table 
-        thistype.time={} ---@type table 
+        thistype.clicked = CreateTrigger()
+        thistype.scrolled = CreateTrigger()
+        thistype.double = CreateTimer() ---@type timer 
+        thistype.timer ={} ---@type timer[] 
+        thistype.table ={} ---@type table 
+        thistype.time ={} ---@type table 
         thistype.canScroll = {} ---@type boolean[] 
-
-        thistype.click=nil  
-        thistype.scroll=nil  
-        thistype.doubleClick=nil  
-        thistype.rightClick=nil
-        thistype.iconFrame=nil ---@type framehandle 
-        thistype.availableFrame=nil ---@type framehandle 
-        thistype.checkedFrame=nil ---@type framehandle 
-        thistype.highlightFrame=nil ---@type framehandle 
-        thistype.spriteFrame=nil ---@type framehandle 
-        thistype.displayFrame=nil ---@type framehandle 
-        thistype.parent=nil ---@type framehandle 
-        thistype.isVisible=nil ---@type boolean 
-        thistype.isAvailable=nil ---@type boolean 
-        thistype.isChecked=nil ---@type boolean 
-        thistype.isHighlighted=nil ---@type boolean 
-        thistype.isEnabled=nil ---@type boolean 
-        thistype.texture="" ---@type string 
-        thistype.widthSize=nil ---@type number 
-        thistype.heightSize=nil ---@type number 
-        thistype.xPos=nil ---@type number 
-        thistype.yPos=nil ---@type number 
-
-        thistype.frame=nil ---@type framehandle 
-        thistype.tooltip=nil ---@type Tooltip 
+        thistype.texture = "" ---@type string 
 
         function thistype:x(newX)
             if newX ~= nil then
@@ -405,32 +373,6 @@ OnInit.final("Button", function()
             end
         end
 
-        function thistype:onRightClick(c)
-            DestroyTrigger(self.rightClick)
-            self.rightClick = nil
-
-            if c ~= nil then
-                self.rightClick = CreateTrigger()
-                TriggerAddCondition(self.rightClick, Condition(c))
-            end
-        end
-
-        function thistype:destroy()
-            thistype.table[(self.frame)] = nil
-            DestroyTrigger(self.click)
-            DestroyTrigger(self.scroll)
-            DestroyTrigger(self.doubleClick)
-            DestroyTrigger(self.rightClick)
-            BlzDestroyFrame(self.displayFrame)
-            BlzDestroyFrame(self.spriteFrame)
-            BlzDestroyFrame(self.frame)
-            BlzDestroyFrame(self.iconFrame)
-            BlzDestroyFrame(self.availableFrame)
-            BlzDestroyFrame(self.checkedFrame)
-            self.tooltip:destroy()
-            self = nil
-        end
-
         ---@param model string
         ---@param scale number
         ---@param animation integer
@@ -460,7 +402,7 @@ OnInit.final("Button", function()
         end
 
         ---@type fun(owner: framehandle, width: number, height: number, x: number, y: number, simpleTooltip: boolean): Button
-        function thistype.create(owner, width, height, x, y, simpleTooltip)
+        function Button.create(owner, width, height, x, y, simpleTooltip)
             local self = setmetatable({}, mt)
 
             self.parent = owner
@@ -495,7 +437,6 @@ OnInit.final("Button", function()
             BlzFrameSetVisible(self.highlightFrame, false)
             BlzTriggerRegisterFrameEvent(self.clicked, self.frame, FRAMEEVENT_CONTROL_CLICK)
             BlzTriggerRegisterFrameEvent(self.scrolled, self.frame, FRAMEEVENT_MOUSE_WHEEL)
-            BlzTriggerRegisterFrameEvent(self.rightClicked, self.frame, FRAMEEVENT_MOUSE_UP)
 
             return self
         end
@@ -520,16 +461,6 @@ OnInit.final("Button", function()
 
             if SCROLL_DELAY > 0 then
                 TimerStart(thistype.timer[i], TimerGetRemaining(thistype.timer[i]), false, thistype.onExpire)
-            end
-        end
-
-        function thistype.onRightClicked()
-            local self = thistype.table[(BlzGetTriggerFrame())] ---@type Button
-
-            if self then
-                if BlzGetTriggerPlayerMouseButton() == MOUSE_BUTTON_TYPE_RIGHT and self.rightClick ~= nil then
-                    TriggerEvaluate(self.rightClick)
-                end
             end
         end
 
@@ -568,7 +499,6 @@ OnInit.final("Button", function()
         TimerStart(thistype.double, 10000000., false, nil)
         TriggerAddAction(thistype.clicked, thistype.onClicked)
         TriggerAddAction(thistype.scrolled, thistype.onScrolled)
-        TriggerAddAction(thistype.rightClicked, thistype.onRightClicked)
     end
 
 end, Debug and Debug.getLine())
