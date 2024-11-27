@@ -9,7 +9,7 @@ OnInit.final("Dungeons", function(Require)
     Require('Units')
     Require('Items')
     Require('Death')
-    Require('Button')
+    Require('Gluebutton')
 
     QUEUE_DUNGEON = false
     QUEUE_GROUP   = {} ---@type player[]
@@ -134,18 +134,21 @@ OnInit.final("Dungeons", function(Require)
                     self:destroy()
                 end
             end
-            FrameAddButton(self.exit_timer.frame, "war3mapImported\\ExitButton.blp", 0.03, 0.015, FRAMEPOINT_TOP, FRAMEPOINT_TOP, 0., 0.015, exit)
+            SimpleButton.create(self.exit_timer.frame, "war3mapImported\\ExitButton.blp", 0.03, 0.015, FRAMEPOINT_TOP, FRAMEPOINT_TOP, 0., 0.015, exit)
         end
 
         local function start(self)
+            local mb = MULTIBOARD.QUEUE
+
             for i = 1, #QUEUE_GROUP do
                 MoveHero(QUEUE_GROUP[i], self.entrance_x, self.entrance_y)
                 self.players[#self.players + 1] = QUEUE_GROUP[i]
                 DisableItems(QUEUE_GROUP[i], true)
                 DisableBackpackTeleports(QUEUE_GROUP[i], true)
 
-                MULTIBOARD.QUEUE:delRows(1)
-                MULTIBOARD.QUEUE.available[QUEUE_GROUP[i]] = false
+                mb:showRow(mb.last_row, false)
+                mb.last_row = mb.last_row - 1
+                mb.available[QUEUE_GROUP[i]] = false
                 MULTIBOARD.MAIN:display(QUEUE_GROUP[i])
 
                 if self.playerDeath then
@@ -181,16 +184,19 @@ OnInit.final("Dungeons", function(Require)
                     if IsUnitInRangeXY(Hero[U.id], self.queue_x, self.queue_y, 750.) and UnitAlive(Hero[U.id]) and not Unit[Hero[U.id]].busy then
                         if TableHas(QUEUE_GROUP, U.id) == false and GetHeroLevel(Hero[U.id]) >= self.level then
                             QUEUE_GROUP[#QUEUE_GROUP + 1] = U.id
-                            mb:addRows(1)
-                            mb:get(#mb.rows, 1).text = {0.02, 0, 0.09, 0.011}
-                            mb:get(#mb.rows, 2).icon = {0.26, 0, 0.011, 0.011}
+                            mb.player_lookup[U.id] = mb.last_row
+                            mb:get(mb.last_row, 1).text = {0.02, 0, 0.09, 0.011}
+                            mb:get(mb.last_row, 2).icon = {0.26, 0, 0.011, 0.011}
                             mb.available[U.id] = true
                             mb:display(U.id)
+                            mb.last_row = mb.last_row + 1
                         end
                     elseif TableHas(QUEUE_GROUP, U.id) then
                         TableRemove(QUEUE_GROUP, U.id)
                         QUEUE_READY[U.id] = false
-                        mb:delRows(1)
+                        mb.player_lookup[mb.last_row + 1] = mb.player_lookup[U.id]
+                        mb.showRow(mb.player_lookup[U.id], false)
+                        mb.last_row = mb.last_row - 1
                         mb.available[U.id] = false
                         MULTIBOARD.MAIN:display(U.id)
                     end
@@ -416,10 +422,7 @@ OnInit.final("Dungeons", function(Require)
                 spawn_floor()
             elseif thistype.floor == 3 then
                 if thistype.token_flag then
-                    CreateItem(FourCC('I0NN'), GetUnitX(u), GetUnitY(u)) --token
-                    if #thistype.players > 3 and math.random(0, 99) < 50 then
-                        CreateItem(FourCC('I0NN'), GetUnitX(u), GetUnitY(u))
-                    end
+                    -- TODO: Replace with special reward
                 end
             end
 
@@ -439,14 +442,14 @@ OnInit.final("Dungeons", function(Require)
         local function timer_expire()
             thistype.token_flag = false
             thistype.timer = nil
-            DisplayTextToTable(thistype.players, "Prestige token will no longer drop.")
+            DisplayTextToTable(thistype.players, "Special reward will no longer drop.")
         end
 
         function thistype:onStart()
             spawn_floor()
 
             self.token_flag = true
-            self.timer = TimerFrame.create("Prestige Token available:", 1800, timer_expire, self.players)
+            self.timer = TimerFrame.create("Special reward available:", 1800, timer_expire, self.players)
         end
     end
 end, Debug and Debug.getLine())
