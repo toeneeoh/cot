@@ -179,7 +179,7 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
         --BEGIN OF SETTINGS--
         settings = {
                 SHOW_TRACE_ON_ERROR = true                      ---Set to true to show a stack trace on every error in addition to the regular message (msg sources: automatic error handling, Debug.try, Debug.throwError, ...)
-            ,   INCLUDE_DEBUGUTILS_INTO_TRACE = true            ---Set to true to include lines from Debug Utils into the stack trace. Those show the source of error handling, which you might consider redundant.
+            ,   INCLUDE_DEBUGUTILS_INTO_TRACE = false           ---Set to true to include lines from Debug Utils into the stack trace. Those show the source of error handling, which you might consider redundant.
             ,   USE_TRY_ON_TRIGGERADDACTION = true              ---Set to true for automatic error handling on TriggerAddAction (applies Debug.try on every trigger action).
             ,   USE_TRY_ON_CONDITION = true                     ---Set to true for automatic error handling on boolexpressions created via Condition() or Filter() (essentially applies Debug.try on every trigger condition).
             ,   USE_TRY_ON_TIMERSTART = true                    ---Set to true for automatic error handling on TimerStart (applies Debug.try on every timer callback).
