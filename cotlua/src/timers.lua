@@ -3,7 +3,6 @@
 
     A library that initializes game timers and functions that should run periodically.
     Notable functions:
-    Tick() - executes roughly 64 times per second
     Periodic() - executes roughly 3 times per second
 
     Ideally we try to avoid doing too much in periodic functions because performance
@@ -18,8 +17,6 @@ OnInit.final("Timers", function(Require)
     Require('MapSetup')
     Require('Buffs')
     Require('Frames')
-
-    WANDER_TIMER = TimerQueue.create()
 
     function DisplayHint()
         local rand = GetRandomInt(2, #HINT_TOOLTIP) ---@type integer 
@@ -42,13 +39,23 @@ OnInit.final("Timers", function(Require)
     end
 
     local setcamerafield = SetCameraField
+    local gpi, glp = GetPlayerId, GetLocalPlayer
+
+    local is_camera_locked = {} ---@type boolean[] 
+    local selecting_hero, zoom = SELECTING_HERO, ZOOM
+
+    function SetCameraLocked(pid, lock)
+        if not is_camera_locked[pid] then
+            is_camera_locked[pid] = lock
+        end
+    end
 
     local function Periodic()
-        -- camera lock
-        local pid = GetPlayerId(GetLocalPlayer()) + 1
+        local pid = gpi(glp()) + 1
 
-        if IS_CAMERA_LOCKED[pid] and not SELECTING_HERO[pid] then
-            setcamerafield(CAMERA_FIELD_TARGET_DISTANCE, ZOOM[pid], 0)
+        -- camera lock
+        if is_camera_locked[pid] and not selecting_hero[pid] then
+            setcamerafield(CAMERA_FIELD_TARGET_DISTANCE, zoom[pid], 0)
         end
     end
 
@@ -76,19 +83,19 @@ OnInit.final("Timers", function(Require)
     end
 
     local function ColosseumXPDecrease()
-        local u = User.first ---@type User 
+        local U = User.first ---@type User 
 
-        while u do
-            if HeroID[u.id] ~= 0 then
-                if IS_IN_COLO[u.id] and Colosseum_XP[u.id] > 0.05 then
-                    Colosseum_XP[u.id] = Colosseum_XP[u.id] - 0.005
+        while U do
+            if Profile[U.id].playing then
+                if IS_IN_COLO[U.id] and Colosseum_XP[U.id] > 0.05 then
+                    Colosseum_XP[U.id] = Colosseum_XP[U.id] - 0.005
                 end
-                if Colosseum_XP[u.id] < 0.05 then
-                    Colosseum_XP[u.id] = 0.05
+                if Colosseum_XP[U.id] < 0.05 then
+                    Colosseum_XP[U.id] = 0.05
                 end
-                ExperienceControl(u.id)
+                ExperienceControl(U.id)
             end
-            u = u.next
+            U = U.next
         end
     end
 
@@ -119,17 +126,17 @@ OnInit.final("Timers", function(Require)
         end
 
         if UnitAlive(townpaladin) then
-            if not TimerList[0]:has('pala') or (DistanceCoords(GetUnitX(townpaladin), GetUnitY(townpaladin), GetRectCenterX(gg_rct_Town_Boundry), GetRectCenterY(gg_rct_Town_Boundry)) > 3000.) then
-                x = GetRandomReal(GetRectMinX(gg_rct_Town_Boundry) + 500, GetRectMaxX(gg_rct_Town_Boundry) - 500)
-                y = GetRandomReal(GetRectMinY(gg_rct_Town_Boundry) + 500, GetRectMaxY(gg_rct_Town_Boundry) - 500)
+            if not TimerList[0]:has('pala') or (DistanceCoords(GetUnitX(townpaladin), GetUnitY(townpaladin), GetRectCenterX(gg_rct_Town_Main), GetRectCenterY(gg_rct_Town_Main)) > 3000.) then
+                x = GetRandomReal(GetRectMinX(gg_rct_Town_Main) + 500, GetRectMaxX(gg_rct_Town_Main) - 500)
+                y = GetRandomReal(GetRectMinY(gg_rct_Town_Main) + 500, GetRectMaxY(gg_rct_Town_Main) - 500)
 
                 IssuePointOrder(townpaladin, "move", x, y)
             end
         end
 
         if UnitAlive(udg_SPONSOR) then
-            x = GetRandomReal(GetRectMinX(gg_rct_Town_Boundry) + 500, GetRectMaxX(gg_rct_Town_Boundry) - 500)
-            y = GetRandomReal(GetRectMinY(gg_rct_Town_Boundry) + 500, GetRectMaxY(gg_rct_Town_Boundry) - 500)
+            x = GetRandomReal(GetRectMinX(gg_rct_Town_Main) + 500, GetRectMaxX(gg_rct_Town_Main) - 500)
+            y = GetRandomReal(GetRectMinY(gg_rct_Town_Main) + 500, GetRectMaxY(gg_rct_Town_Main) - 500)
 
             IssuePointOrder(udg_SPONSOR, "move", x, y)
         end
@@ -137,10 +144,11 @@ OnInit.final("Timers", function(Require)
 
     function OneMinute()
         local id = GetPlayerId(GetLocalPlayer()) + 1
+        local profile = Profile[id]
 
-        if HeroID[id] > 0 then
-            Profile[id].hero.time = Profile[id].hero.time + 1
-            Profile[id].total_time = Profile[id].total_time + 1
+        if profile.playing then
+            profile.hero.time = profile.hero.time + 1
+            profile.total_time = profile.total_time + 1
 
             --colosseum xp decrease
             if not IS_IN_COLO[id] and Colosseum_XP[id] < 1.30 then
@@ -170,40 +178,6 @@ OnInit.final("Timers", function(Require)
         return str
     end
 
-    function AFKClock()
-        local U = User.first ---@type User 
-
-        AFK_TEXT = GenerateAFKString()
-        BlzFrameSetText(AFK_FRAME, "Type -" .. AFK_TEXT)
-
-        while U do
-            if HeroID[U.id] > 0 then
-                if afkTextVisible[U.id] then
-                    afkTextVisible[U.id] = false
-                    if GetLocalPlayer() == U.player then
-                        BlzFrameSetVisible(AFK_FRAME_BG, false)
-                    end
-                    PanCameraToTimedLocForPlayer(U.player, TOWN_CENTER, 0)
-                    DisplayTextToForce(FORCE_PLAYING, U.nameColored .. " was removed for being AFK.")
-                    DisplayTextToPlayer(U.player, 0, 0, "You have lost the game. All of your structures and units will be removed from the game, however you may stay and watch or leave as you choose.")
-                    PlayerCleanup(U.id)
-                elseif panCounter[U.id] < 50 or moveCounter[U.id] < 5000 or clickCounter[U.id] < 200 then
-                    afkTextVisible[U.id] = true
-                    if GetLocalPlayer() == U.player then
-                        BlzFrameSetVisible(AFK_FRAME_BG, true)
-                    end
-                    SoundHandler("Sound\\Interface\\SecretFound.wav", false, U.player, nil)
-                end
-            end
-
-            moveCounter[U.id] = 0
-            panCounter[U.id] = 0
-            clickCounter[U.id] = 0
-
-            U = U.next
-        end
-    end
-
     local fountain_filter = Filter(function()
         local u = GetFilterUnit()
         local id = GetUnitTypeId(u)
@@ -223,6 +197,80 @@ OnInit.final("Timers", function(Require)
         end
     end)
 
+    local function RefreshHeroes()
+        local U = User.first
+
+        while U do
+            if Profile[U.id].playing then
+                local hero = Hero[U.id]
+                local x, y = GetUnitX(hero), GetUnitY(hero)
+
+                -- update boost variance every second
+                BOOST[U.id] = 1. + Unit[hero].spellboost + GetRandomReal(-0.2, 0.2)
+                LBOOST[U.id] = 1. + 0.5 * Unit[hero].spellboost
+
+                if DEV_ENABLED then
+                    if BOOST_OFF then
+                        BOOST[U.id] = (1. + Unit[hero].spellboost)
+                    end
+                end
+
+                -- cooldowns
+                UpdateManaCosts(U.id)
+
+                -- keep track of hero positions
+                Unit[hero].proxy.x = x
+                Unit[hero].proxy.y = y
+
+                -- PVP leave range
+                if ArenaQueue[U.id] > 0 and IsUnitInRangeXY(hero, -1311., 2905., 1000.) == false then
+                    ArenaQueue[U.id] = 0
+                    DisplayTimedTextToPlayer(U.player, 0, 0, 5.0, "You have been removed from the PvP queue.")
+                end
+
+                local hp = GetWidgetLife(hero) / BlzGetUnitMaxHP(hero)
+
+                -- backpack hp/mp percentage and movespeed
+                if hp >= 0.01 then
+                    SetWidgetLife(Backpack[U.id], BlzGetUnitMaxHP(Backpack[U.id]) * hp)
+                    local mp = GetUnitState(hero, UNIT_STATE_MANA) / GetUnitState(hero, UNIT_STATE_MAX_MANA)
+                    SetUnitState(Backpack[U.id], UNIT_STATE_MANA, GetUnitState(Backpack[U.id], UNIT_STATE_MAX_MANA) * mp)
+                    --SetUnitMoveSpeed(Backpack[U.id], Unit[hero].ms_flat * Unit[hero].ms_percent)
+                end
+
+                -- tooltips
+                UpdateSpellTooltips(U.id)
+
+                -- TODO: move these to individual spells
+                local ug = CreateGroup()
+                MakeGroupInRange(U.id, ug, x, y, 900. * LBOOST[U.id], Condition(FilterAlly))
+
+                for target in each(ug) do
+                    if InspireBuff:has(hero, hero) then
+                        InspireBuff:add(hero, target):duration(1.)
+                        local b = InspireBuff:get(nil, target)
+                        b:strongest(math.max(b.ablev, GetUnitAbilityLevel(hero, INSPIRE.id)))
+                    end
+                    if GetUnitAbilityLevel(hero, PROTECTOR.id) > 0 then
+                        ProtectedBuff:add(hero, target):duration(2.)
+                    end
+                    if FightMeCasterBuff:has(hero, hero) and target ~= hero then
+                        FightMeBuff:add(hero, target):duration(2.)
+                    end
+                    if GetUnitAbilityLevel(hero, AURAOFJUSTICE.id) > 0 then
+                        JusticeAuraBuff:add(hero, target):duration(2.)
+                        local b = JusticeAuraBuff:get(nil, target)
+                        b:strongest(math.max(b.ablev, GetUnitAbilityLevel(hero, AURAOFJUSTICE.id)))
+                    end
+                end
+
+                DestroyGroup(ug)
+            end
+
+            U = U.next
+        end
+    end
+
     local function OneSecond()
         -- set space bar camera to town
         SetCameraQuickPositionLoc(TOWN_CENTER)
@@ -236,40 +284,12 @@ OnInit.final("Timers", function(Require)
         RefreshHeroes()
     end
 
-    -- localizing here is great
-    local framesetvisible = BlzFrameSetVisible
-    local framesettexture = BlzFrameSetTexture
-    local getmainselectedunit = GetMainSelectedUnit
-    local unititeminslot = UnitItemInSlot
-
-    local function Tick()
-        local u = getmainselectedunit() ---@type unit 
-
-        -- rarity item borders
-        for i = 1, 6 do
-            local itm = Item[unititeminslot(u, i - 1)]
-
-            if itm then
-                framesettexture(INVENTORYBACKDROP[i], (SPRITE_RARITY[itm.level]), 0, true)
-            end
-
-            framesetvisible(INVENTORYBACKDROP[i], (itm and true) or false)
-        end
-
-        framesetvisible(PUNCHING_BAG_UI, u == PUNCHING_BAG)
-
-        -- frame to hide health
-        framesetvisible(HIDE_HEALTH_FRAME, (u and Unit[u].hidehp))
-    end
-
-    TimerQueue:callPeriodically(FPS_64, nil, Tick)
     TimerQueue:callPeriodically(0.35, nil, Periodic)
     TimerQueue:callPeriodically(1.0, nil, OneSecond)
     TimerQueue:callPeriodically(15., nil, WanderingGuys)
     TimerQueue:callPeriodically(15., nil, ColosseumXPDecrease)
     TimerQueue:callPeriodically(60., nil, OneMinute)
     TimerQueue:callPeriodically(240., nil, DisplayHint)
-    TimerQueue:callPeriodically(1800., nil, AFKClock)
 
-    WANDER_TIMER:callDelayed(2040. - (User.AmountPlaying * 240), ShadowStepExpire)
+    HUNT_TIMER = TimerQueue:callDelayed(2040. - (User.AmountPlaying * 240), ShadowStepExpire)
 end, Debug and Debug.getLine())
