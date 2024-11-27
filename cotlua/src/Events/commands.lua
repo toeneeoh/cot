@@ -29,7 +29,7 @@ OnInit.final("Commands", function(Require)
 
             tpid = tpid or GetPlayerId(p) + 1
 
-            DisplayStatWindow(Hero[tpid] or PlayerSelectedUnit[tpid], pid)
+            DisplayStatWindow(Hero[tpid] or PLAYER_SELECTED_UNIT[tpid], pid)
         end,
         ["-clear"] = function(p, pid, args)
             if p == GetLocalPlayer() then
@@ -70,7 +70,7 @@ OnInit.final("Commands", function(Require)
             myRoll(pid)
         end,
         ["-estats"] = function(p, pid, args)
-            local u = PlayerSelectedUnit[pid]
+            local u = PLAYER_SELECTED_UNIT[pid]
 
             DisplayStatWindow(u, pid)
         end,
@@ -83,10 +83,6 @@ OnInit.final("Commands", function(Require)
                 DisplayTimedTextToPlayer(p, 0, 0, 20, "You need 1 Platinum Coin to buy this")
             end
         end,
-        ["-actions"] = function(p, pid, args)
-            UnitRemoveAbility(Hero[pid], FourCC('A03C'))
-            UnitAddAbility(Hero[pid], FourCC('A03C'))
-        end,
         ["-flee"] = function(p, pid, args)
             FleeCommand(p)
         end,
@@ -95,7 +91,9 @@ OnInit.final("Commands", function(Require)
                 local _, _, zoom, lock = args[2]:find("(\x25d+)\x25s.([lL])")
 
                 if zoom then
-                    IS_CAMERA_LOCKED[pid] = (lock == "l") or IS_CAMERA_LOCKED[pid]
+                    if lock == "l" then
+                        SetCameraLocked(pid, true)
+                    end
                     ZOOM[pid] = MathClamp(tonumber(zoom), 100, 3000)
 
                     if not SELECTING_HERO[pid] then
@@ -104,12 +102,11 @@ OnInit.final("Commands", function(Require)
                 end
             end
         end,
-        ["-aa"] = function(p, pid, args)
-            ToggleAutoAttack(pid)
-        end,
         ["-zml"] = function(p, pid, args, cmd)
             local _, _, lock = cmd:find("[lL]$")
-            IS_CAMERA_LOCKED[pid] = (lock == "l") or IS_CAMERA_LOCKED[pid]
+            if lock == "l" then
+                SetCameraLocked(pid, true)
+            end
             ZOOM[pid] = 2500
 
             if not SELECTING_HERO[pid] then
@@ -117,10 +114,10 @@ OnInit.final("Commands", function(Require)
             end
         end,
         ["-lock"] = function(p, pid, args)
-            IS_CAMERA_LOCKED[pid] = true
+            SetCameraLocked(pid, true)
         end,
         ["-unlock"] = function(p, pid, args)
-            IS_CAMERA_LOCKED[pid] = false
+            SetCameraLocked(pid, false)
         end,
         ["-new"] = function(p, pid, args)
             Profile.new(pid)
@@ -223,8 +220,6 @@ OnInit.final("Commands", function(Require)
     CMD_LIST["-prof"] = CMD_LIST["-proficiency"]
 
     CMD_LIST["-r"] = CMD_LIST["-ready"]
-
-    CMD_LIST["-autoattack"] = CMD_LIST["-aa"]
 
     CMD_LIST["-zm"] = CMD_LIST["-zml"]
 
