@@ -70,10 +70,13 @@ OnInit.final("Chaos", function(Require)
     }
 
     ---@return boolean
-    local function is_passive()
-        local id = GetUnitTypeId(GetFilterUnit()) ---@type integer 
+    local function ConvertVillagers()
+        local target = GetFilterUnit()
+        local id = GetUnitTypeId(target) ---@type integer 
         if passive_units[id] then
-            return true
+            local x, y, face = GetUnitX(target), GetUnitY(target), GetUnitFacing(target)
+            RemoveUnit(target)
+            CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03' .. GetRandomInt(5, 7)), x, y, face)
         end
         return false
     end
@@ -82,12 +85,19 @@ OnInit.final("Chaos", function(Require)
         local u = GetFilterUnit()
         local i = GetPlayerId(GetOwningPlayer(u)) ---@type integer 
 
-        return (u ~= PUNCHING_BAG and
+        RemoveAntiLag(u)
+
+        if (u ~= PUNCHING_BAG and
         UnitAlive(u) and
         GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
         (i == 10 or i == 11 or i == PLAYER_NEUTRAL_AGGRESSIVE) and
         RectContainsUnit(gg_rct_Colosseum, u) == false and
-        RectContainsUnit(gg_rct_Infinite_Struggle, u) == false)
+        RectContainsUnit(gg_rct_Infinite_Struggle, u) == false) and
+        u ~= udg_SPONSOR then
+            RemoveUnit(u)
+        end
+
+        return false
     end
 
     function SetupChaos()
@@ -126,9 +136,8 @@ OnInit.final("Chaos", function(Require)
         local ug = CreateGroup()
         local g  = CreateGroup()
 
-        GroupEnumUnitsInRect(ug, bj_mapInitialPlayableArea, Condition(ChaosTransition)) -- exception for struggle / colo
-        GroupEnumUnitsOfPlayer(g, Player(PLAYER_NEUTRAL_PASSIVE), Condition(is_passive))
-        BlzGroupAddGroupFast(g, ug)
+        GroupEnumUnitsInRect(ug, WorldBounds.rect, Condition(ChaosTransition)) -- exception for struggle / colo
+        GroupEnumUnitsOfPlayer(g, Player(PLAYER_NEUTRAL_PASSIVE), Condition(ConvertVillagers))
 
         for i = 1, #GHOST_UNITS do
             RemoveUnit(GHOST_UNITS[i])
@@ -138,6 +147,13 @@ OnInit.final("Chaos", function(Require)
             if target ~= udg_SPONSOR then
                 RemoveUnit(target)
             end
+        end
+
+        -- replace villagers
+        for target in each(g) do
+            local x, y, face = GetUnitX(target), GetUnitY(target), GetUnitFacing(target)
+            RemoveUnit(target)
+            CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03' .. GetRandomInt(5, 7)), x, y, face)
         end
 
         DestroyGroup(ug)
@@ -165,14 +181,6 @@ OnInit.final("Chaos", function(Require)
             u = u.next
         end
 
-        -- spawn new villagers
-        for _ = 1, 15 do
-            loc = {GetRandomReal(GetRectMinX(gg_rct_Town_Boundry) + 300.00, GetRectMaxX(gg_rct_Town_Boundry) - 300.00),
-                    GetRandomReal(GetRectMinY(gg_rct_Town_Boundry) + 300.0, GetRectMaxY(gg_rct_Town_Boundry) - 300.0)}
-
-            CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03' .. GetRandomInt(5, 7)), loc[1], loc[2], GetRandomReal(0, 360.00))
-        end
-
         -- bosses
 
         -- clear spider webs in demon prince pit
@@ -186,37 +194,37 @@ OnInit.final("Chaos", function(Require)
 
         -- Demon Prince
         Boss.create(BOSS_DEMON_PRINCE, GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn), 315.00, FourCC('N038'), "Demon Prince", 190,
-        {FourCC('I03F'), FourCC('I00X'), 0, 0, 0, 0}, 1, 2000)
+        1, 2000)
         -- Absolute Horror
         Boss.create(BOSS_ABSOLUTE_HORROR, GetRectCenter(gg_rct_Absolute_Horror_Spawn), 270.00, FourCC('N017'), "Absolute Horror", 230,
-        {FourCC('I0ND'), FourCC('I0NH'), 0, 0, 0, 0}, 2, 2000)
+        2, 2000)
         -- Orsted
         Boss.create(BOSS_ORSTED, GetRectCenter(gg_rct_Orsted_Boss_Spawn), 270.00, FourCC('N00F'), "Orsted", 250,
-        {0, 0, 0, 0, 0, 0}, 3, 2000)
+        3, 2000)
         -- Slaughter Queen
         Boss.create(BOSS_SLAUGHTER_QUEEN, Location(-5400, -15470), 135.00, FourCC('O02B'), "Slaughter Queen", 270,
-        {FourCC('I0AE'), FourCC('I04F'), 0, 0, 0, 0}, 3, 2000)
+        3, 2000)
         -- Satan
         Boss.create(BOSS_SATAN, GetRectCenter(gg_rct_Hell_Boss_Spawn), 315.00, FourCC('O02I'), "Satan", 310,
-        {FourCC('I05J'), FourCC('I0BX'), 0, 0, 0, 0}, 5, 2000)
+        5, 2000)
         -- Dark Soul
         Boss.create(BOSS_DARK_SOUL, GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn), bj_UNIT_FACING, FourCC('O02H'), "Essence of Darkness", 300,
-        {FourCC('I05A'), FourCC('I0AP'), FourCC('I0AH'), FourCC('I0AI'), 0, 0}, 3, 2000)
+        3, 2000)
         -- Legion
         Boss.create(BOSS_LEGION, GetRectCenter(gg_rct_To_The_Forrest), bj_UNIT_FACING, FourCC('H04R'), "Legion", 340,
-        {FourCC('I0AJ'), FourCC('I0B1'), FourCC('I0AU'), 0, 0, 0}, 8, 2000)
+        8, 2000)
         -- Thanatos
         Boss.create(BOSS_THANATOS, GetRandomLocInRect(gg_rct_Thanatos_Boss_Spawn), bj_UNIT_FACING, FourCC('O02K'), "Thanatos", 320,
-        {FourCC('I04E'), FourCC('I0MR'), 0, 0, 0, 0}, 5, 2000)
+        5, 2000)
         -- Existence
         Boss.create(BOSS_EXISTENCE, GetRandomLocInRect(gg_rct_Existence_Boss_Spawn), bj_UNIT_FACING, FourCC('O02M'), "Pure Existence", 320,
-        {FourCC('I09E'), FourCC('I09O'), FourCC('I018'), FourCC('I0BY'), 0, 0}, 8, 2000)
+        8, 2000)
         -- Azazoth
         Boss.create(BOSS_AZAZOTH, GetRectCenter(gg_rct_Azazoth_Boss_Spawn), 270.00, FourCC('O02T'), "Azazoth", 380,
-        {FourCC('I0BG'), FourCC('I0BI'), FourCC('I06M'), 0, 0, 0}, 12, 2000)
+        12, 2000)
         -- Xallarath
         Boss.create(BOSS_XALLARATH, GetRectCenter(gg_rct_Forgotten_Leader_Boss_Spawn), 135.00, FourCC('O03G'), "Xallarath", 360,
-        {FourCC('I0O1'), FourCC('I0OB'), FourCC('I0CH'), 0, 0, 0}, 12, 4000)
+        12, 4000)
 
         BOSS_OFFSET = BOSS_DEMON_PRINCE
 
@@ -255,13 +263,17 @@ OnInit.final("Chaos", function(Require)
         SetCineFilterDuration(2.5)
         TimerQueue:callDelayed(2.5, DisplayCineFilter, false)
 
+        -- display main multiboard
+        local id = GetPlayerId(GetLocalPlayer()) + 1
+        MULTIBOARD.MAIN:display(id)
+
         CHAOS_LOADING = false
     end
 
     function BeginChaos(killed)
-        -- reset legion jump timer
-        WANDER_TIMER:reset()
-        WANDER_TIMER:callDelayed(2040. - (User.AmountPlaying * 240), ShadowStepExpire)
+        -- 10 minute grace period for legion jumps
+        HUNT_TIMER:disable()
+        TimerQueue:callDelayed(600., function() HUNT_TIMER:enable() end)
 
         CHAOS_LOADING = true
         CHAOS_MODE = true
