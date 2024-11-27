@@ -6,7 +6,7 @@
 ]]
 
 OnInit.final("Shop", function(Require)
-    Require('Button')
+    Require('Gluebutton')
     Require('UnitEvent')
     Require('Users')
     Require('Profile')
@@ -38,24 +38,7 @@ OnInit.final("Shop", function(Require)
         --local UNDO_ICON                      = "ReplaceableTextures\\CommandButtons\\BTNReplay-Loop.blp" ---@type string 
         --local DISMANTLE_ICON                 = "UI\\Feedback\\Resources\\ResourceUpkeep.blp" ---@type string 
 
-        -- Buyer Panel
-        local BUYER_WIDTH                    = 0.234 ---@type number 
-        local BUYER_HEIGHT                   = 0.0398 * 4 ---@type number 
-        local BUYER_COUNT                    = 0 ---@type integer 
-        --local BUYER_SIZE                     = 0. ---@type number 
-        --local BUYER_GAP                      = 0. ---@type number 
-        --local BUYER_SHIFT_BUTTON_SIZE        = 0. ---@type number 
-        --local BUYER_RIGHT                    = "ReplaceableTextures\\CommandButtons\\BTNReplay-SpeedDown.blp" ---@type string 
-        --local BUYER_LEFT                     = "ReplaceableTextures\\CommandButtons\\BTNReplay-SpeedUp.blp" ---@type string 
-
-        -- Inventory Panel
-        local INVENTORY_WIDTH                = 0.1981 ---@type number 
-        local INVENTORY_HEIGHT               = 0.0312 * 4 ---@type number 
-        local INVENTORY_SIZE                 = 0.0266 ---@type number 
-        local INVENTORY_GAPX                 = 0.0333 ---@type number 
-        local INVENTORY_GAPY                 = 0.03042 ---@type number 
         local INVENTORY_COUNT                = 24 ---@type integer 
-        local INVENTORY_TEXTURE              = "inventory2.blp" ---@type string 
 
         -- Details window
         local DETAIL_WIDTH                   = 0.3125 ---@type number 
@@ -121,22 +104,39 @@ OnInit.final("Shop", function(Require)
         -- Main storage table
         local table = array2d() ---@type any[][]
 
+    ---@return any[][]
+    function GetShopStorage()
+        return table
+    end
+
     --[[ ----------------------------------------------------------------------------------------- ]]
     --[[                                          API                                              ]]
     --[[ ----------------------------------------------------------------------------------------- ]]
-    ---@type fun(pid: integer, itm: ShopItem): boolean
-    function IsCraftable(pid, itm)
-        local componentCount = itm:components()
+    ---@type fun(pid: integer, si: ShopItem): boolean
+    function IsCraftable(pid, si)
+        local counter = __jarray(0)
+        local componentCount = si:components()
 
-        for k = 0, componentCount do
-            local component = itm.component[k]
+        -- count items
+        for k = 1, INVENTORY_COUNT do
+            local itm = Profile[pid].hero.items[k]
+            if itm and not itm.nocraft then
+                local index = GetItem(itm.id)
+                counter[index] = counter[index] + itm.charges
+            end
+        end
 
-            if PlayerCountItemType(pid, component) < itm:count(component) then
+        for j = 0, componentCount - 1 do
+            local component = ShopItem.get(si.component[j])
+
+            if counter[component.id] > 0 then
+                counter[component.id] = counter[component.id] - 1
+            elseif not Shop:has(component.id) or not IsBuyable(component.id) then
                 return false
             end
         end
 
-        return componentCount > 0
+        return true
     end
 
     ---@type fun(id: string): boolean
@@ -215,14 +215,6 @@ OnInit.final("Shop", function(Require)
 
         ShopItem.itempool = __jarray(0)
 
-        function thistype:destroy()
-            self.component = nil
-            self.relation = nil
-            self.counter = nil
-            ShopItem.itempool[self.id] = 0
-            self = nil
-        end
-
         function thistype:components()
             return self.componentCount
         end
@@ -270,9 +262,7 @@ OnInit.final("Shop", function(Require)
             self.counter = __jarray(0)
 
             for tag in compstring:gmatch("\x25S+") do
-                local lvl = tag:match(":(\x25d+)$")
-
-                if lvl then
+                if tag:len() > 4 then
                     thistype.save(id, tag)
                 elseif FourCC(tag) ~= 0 then
                     thistype.save(id, tag .. ":0")
@@ -284,8 +274,8 @@ OnInit.final("Shop", function(Require)
             RemoveItem(GetEnumItem())
         end
 
-        ---@type fun(id: integer|string, category: integer): ShopItem | 0
-        function ShopItem.create(id, category)
+        ---@type fun(id: integer|string, category: integer, max_level: boolean?): ShopItem | 0
+        function ShopItem.create(id, category, max_level)
             local index, origid, lvl = GetItem(id)
 
             if ShopItem.itempool[index] ~= 0 then
@@ -300,6 +290,9 @@ OnInit.final("Shop", function(Require)
                 local itm = CreateItem(origid, 30000., 30000.)
 
                 if itm then
+                    if max_level then
+                        lvl = ItemData[origid][ITEM_UPGRADE_MAX]
+                    end
                     itm:lvl(lvl)
 
                     ---@diagnostic disable-next-line: missing-fields
@@ -309,8 +302,8 @@ OnInit.final("Shop", function(Require)
                     self.lvl = lvl
                     self.name = GetItemName(itm.obj)
                     self.icon = BlzGetItemIconPath(itm.obj)
-                    self.tooltip = itm.alt_tooltip
-                    self.charges = math.min(1, GetItemCharges(itm.obj))
+                    self.tooltip = itm.alt_tooltip or itm.tooltip
+                    self.charges = math.max(1, GetItemCharges(itm.obj))
                     self.recharge = -1
                     self.relation = __jarray(0)
                     self.currency = __jarray(0)
@@ -345,13 +338,11 @@ OnInit.final("Shop", function(Require)
     ---@field slot framehandle
     ---@field visible function
     ---@field create function
-    ---@field destroy function
     ---@field x function
     ---@field y function
     ---@field onClick function
     ---@field onScroll function
     ---@field onDoubleClick function
-    ---@field onRightClick function
     ---@field parent framehandle
     Slot = {}
     do
@@ -398,27 +389,8 @@ OnInit.final("Shop", function(Require)
             self.button:onScroll(c)
         end
 
-        function thistype:onRightClick(c)
-            self.button:onRightClick(c)
-        end
-
         function thistype:onDoubleClick(c)
             self.button:onDoubleClick(c)
-        end
-
-        function thistype:destroy()
-            BlzDestroyFrame(self.slot)
-
-            self.button:destroy()
-
-            for i = 0, CURRENCY_COUNT - 1 do
-                BlzDestroyFrame(self.cost[i])
-                BlzDestroyFrame(self.costicon[i])
-                self.costicon[i] = nil
-                self.cost[i] = nil
-            end
-
-            self = nil
         end
 
         ---@type fun(parent: framehandle, i: ShopItem, width: number, height: number, x: number, y: number, point: framepointtype, simpleTooltip: boolean): Slot
@@ -462,7 +434,6 @@ OnInit.final("Shop", function(Require)
     ---@field move function
     ---@field item ShopItem
     ---@field onClick function
-    ---@field onRightClick function
     ---@field onDoubleClick function
     ShopSlot = {}
     do
@@ -486,12 +457,6 @@ OnInit.final("Shop", function(Require)
                     end
                 end
             end
-        end
-
-        function thistype:destroy()
-            table[(self.button.frame)] = nil
-
-            self = nil
         end
 
         ---@type fun(self: ShopSlot, row: integer, column: integer)
@@ -541,7 +506,6 @@ OnInit.final("Shop", function(Require)
             self:onClick(thistype.onClicked)
             self:onScroll(thistype.onScrolled)
             self:onDoubleClick(thistype.onDoubleClicked)
-            self:onRightClick(thistype.onRightClicked)
             table[(self.button.frame)][0] = self
 
             --currencies
@@ -549,10 +513,10 @@ OnInit.final("Shop", function(Require)
             for k = 0, CURRENCY_COUNT - 1 do
                 self.costicon[k] = BlzCreateFrameByType("BACKDROP", "", self.slot, "", 0)
                 self.cost[k] = BlzCreateFrameByType("TEXT", "", self.slot, "", 0)
-                BlzFrameSetText(self.cost[k], "") --TODO?
+                BlzFrameSetText(self.cost[k], "")
                 BlzFrameSetPoint(self.costicon[k], FRAMEPOINT_TOPLEFT, self.slot, FRAMEPOINT_TOPLEFT, 0., - 0.04 - j * COST_GAP)
                 BlzFrameSetSize(self.costicon[k], GOLD_SIZE, GOLD_SIZE)
-                BlzFrameSetTexture(self.costicon[k], CURRENCY_ICON[k], 0, true)
+                BlzFrameSetTexture(self.costicon[k], CURRENCY_ICON[k + 1], 0, true)
                 --call BlzFrameSetEnable(costicon[k], false)
 
                 BlzFrameSetPoint(self.cost[k], FRAMEPOINT_TOPLEFT, self.costicon[k], FRAMEPOINT_TOPRIGHT, -0.013, -0.004)
@@ -625,18 +589,6 @@ OnInit.final("Shop", function(Require)
                 end
             end
         end
-
-        function thistype.onRightClicked()
-            local self = table[(BlzGetTriggerFrame())][0] ---@type ShopSlot
-
-            if self then
-                if self.shop:buy(self.item, GetTriggerPlayer()) then
-                    if GetLocalPlayer() == GetTriggerPlayer() then
-                        self.button:play(SPRITE_MODEL, SPRITE_SCALE, 0)
-                    end
-                end
-            end
-        end
     end
 
     ---@class Detail
@@ -656,7 +608,6 @@ OnInit.final("Shop", function(Require)
     ---@field visible function
     ---@field isVisible boolean
     ---@field create function
-    ---@field destroy function
     ---@field count integer[]
     ---@field frame framehandle
     ---@field topSeparator framehandle
@@ -689,55 +640,6 @@ OnInit.final("Shop", function(Require)
             end
 
             return self.isVisible
-        end
-
-        function thistype:destroy()
-            local u = User.first ---@type User 
-            local i = 0 ---@type integer 
-
-            while u do
-                    table[(self.main[u.id].button.frame)] = __jarray(0)
-                    self.main[u.id]:destroy()
-
-                    i = 0
-                    while i ~= INVENTORY_COUNT do
-                        table[(self.components[u.id][i].button.frame)] = __jarray(0)
-                        self.components[u.id][i]:destroy()
-
-                        if i < DETAIL_USED_COUNT then
-                            table[(self.button[u.id][i].frame)] = __jarray(0)
-                            self.button[u.id][i]:destroy()
-                        end
-
-                        i = i + 1
-                    end
-
-                    i = 0
-
-                    while i ~= DETAIL_USED_COUNT do
-                        i = i + 1
-                    end
-
-                    self.button[i] = nil
-                    self.used[i] = __jarray(0)
-                u = u.next
-            end
-
-            BlzDestroyFrame(self.topSeparator)
-            BlzDestroyFrame(self.bottomSeparator)
-            BlzDestroyFrame(self.usedIn)
-            BlzDestroyFrame(self.scrollFrame)
-            BlzDestroyFrame(self.horizontalRight)
-            BlzDestroyFrame(self.horizontalLeft)
-            BlzDestroyFrame(self.verticalMain)
-            BlzDestroyFrame(self.verticalCenter)
-            BlzDestroyFrame(self.verticalLeft1)
-            BlzDestroyFrame(self.verticalLeft2)
-            BlzDestroyFrame(self.verticalRight1)
-            BlzDestroyFrame(self.verticalRight2)
-            BlzDestroyFrame(self.tooltip)
-            BlzDestroyFrame(self.frame)
-            self = nil
         end
 
         ---@param frame framehandle
@@ -907,6 +809,15 @@ OnInit.final("Shop", function(Require)
 
                 local componentCount = i:components()
 
+                -- count items
+                for k = 1, INVENTORY_COUNT do
+                    local itm = Profile[pid].hero.items[k]
+                    if itm and not itm.nocraft then
+                        local index = GetItem(itm.id)
+                        counter[index] = counter[index] + itm.charges
+                    end
+                end
+
                 if componentCount > 0 then
                     if GetLocalPlayer() == p then
                         BlzFrameSetVisible(self.verticalCenter, true)
@@ -929,19 +840,15 @@ OnInit.final("Shop", function(Require)
                         slot.button.tooltip:icon(component.icon)
                         slot.button:available(self.shop:has(component.id))
 
-                        local itm = GetItemFromPlayer(pid, component.id, counter[component.id] + 1)
-
-                        if itm then
-                            counter[component.id] = counter[component.id] + 1
-                            slot.button:checked(true and (not itm.nocraft))
+                        if counter[component.id] > 0 then
+                            counter[component.id] = counter[component.id] - 1
+                            slot.button:checked(true)
                         else
                             slot.button:checked(false)
                         end
 
                         for j = 0, CURRENCY_COUNT - 1 do
                             if component.currency[j] > 0 then
-                                --call BlzFrameSetText(slot.cost[l], "|cffFFCC00" .. (component.currency[l]) .. "|r")
-
                                 if slot.button.isChecked then
                                     cost[j] = cost[j] - component.currency[j]
                                 end
@@ -1040,7 +947,6 @@ OnInit.final("Shop", function(Require)
                 self.main[u.id] = Slot.create(self.frame, 0, SLOT_WIDTH, SLOT_HEIGHT, 0.13625, - 0.030000, FRAMEPOINT_TOPRIGHT, false)
                 self.main[u.id]:visible(GetLocalPlayer() == u.player)
                 self.main[u.id]:onClick(thistype.onClick)
-                self.main[u.id]:onRightClick(thistype.onRightClick)
                 self.main[u.id]:onDoubleClick(thistype.onDoubleClick)
 
                 table[(self.main[u.id].button.frame)][0] = self
@@ -1050,7 +956,6 @@ OnInit.final("Shop", function(Require)
                     self.components[u.id][j] = Slot.create(self.frame, 0, SLOT_WIDTH * 0.6, SLOT_HEIGHT * 0.6, 0.13625, 0., FRAMEPOINT_TOPRIGHT, false)
                     self.components[u.id][j]:visible(false)
                     self.components[u.id][j]:onClick(thistype.onClick)
-                    self.components[u.id][j]:onRightClick(thistype.onRightClick)
                     self.components[u.id][j]:onDoubleClick(thistype.onDoubleClick)
 
                     table[(self.components[u.id][j].button.frame)][0] = self
@@ -1062,7 +967,6 @@ OnInit.final("Shop", function(Require)
                     self.button[u.id][j]:visible(false)
                     self.button[u.id][j]:onClick(thistype.onClick)
                     self.button[u.id][j]:onScroll(thistype.onScroll)
-                    self.button[u.id][j]:onRightClick(thistype.onRightClick)
                     self.button[u.id][j].tooltip:point(FRAMEPOINT_BOTTOMRIGHT)
                     table[(self.button[u.id][j].frame)][0] = self
                     table[(self.button[u.id][j].frame)][1] = j
@@ -1123,47 +1027,6 @@ OnInit.final("Shop", function(Require)
             end
         end
 
-        function thistype.onRightClick()
-            local frame = BlzGetTriggerFrame() ---@type framehandle 
-            local p     = GetTriggerPlayer()
-            local self  = table[(frame)][0] ---@type Detail
-            local i     = table[(frame)][1] ---@type integer 
-            local j     = 0 ---@type integer 
-            local pid   = GetPlayerId(p) + 1
-            local found = false ---@type boolean 
-
-            if self then
-                if frame == self.main[pid].button.frame then
-                    if self.shop:buy(self.main[pid].item, p) then
-                        if GetLocalPlayer() == p then
-                            self.main[pid].button:play(SPRITE_MODEL, SPRITE_SCALE, 0)
-                        end
-                    end
-                else
-                    while j ~= INVENTORY_COUNT do
-                            if frame == self.components[pid][j].button.frame then
-                                found = true
-                                if self.shop:buy(self.components[pid][j].item, p) then
-                                    if GetLocalPlayer() == p then
-                                        self.components[pid][j].button:play(SPRITE_MODEL, SPRITE_SCALE, 0)
-                                    end
-                                end
-                            end
-
-                        j = j + 1
-                    end
-
-                    if not found then
-                        if self.shop:buy(self.used[pid][i], p) then
-                            if GetLocalPlayer() == p then
-                                self.button[pid][i]:play(SPRITE_MODEL, SPRITE_SCALE, 0)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
         function thistype.onDoubleClick()
             local frame     = BlzGetTriggerFrame() ---@type framehandle 
             local p         = GetTriggerPlayer()
@@ -1208,161 +1071,7 @@ OnInit.final("Shop", function(Require)
         TriggerAddAction(thistype.trigger, thistype.onScroll)
     end
 
-    ---@class Inventory
-    ---@field shop Shop
-    ---@field button Button[][]
-    ---@field item ShopItem[][]
-    ---@field frame framehandle
-    ---@field show function
-    ---@field selected table
-    ---@field visible function
-    ---@field move function
-    ---@field create function
-    ---@field destroy function
-    Inventory = {}
-    do
-        local thistype = Inventory
-        local mt = { __index = Inventory }
-        thistype.isVisible=nil ---@type boolean 
-
-        thistype.shop=nil ---@type Shop 
-        thistype.frame=nil ---@type framehandle 
-        thistype.scrollFrame=nil ---@type framehandle 
-        thistype.selected={} ---@type table 
-        thistype.item={} ---@type table 
-
-        function thistype:visible(visibility)
-            if visibility ~= nil then
-                self.isVisible = visibility
-                BlzFrameSetVisible(self.frame, visibility)
-            end
-
-            return self.isVisible
-        end
-
-        function thistype:destroy()
-            local i         = 0 ---@type integer 
-            local j ---@type integer 
-
-            while i < bj_MAX_PLAYER_SLOTS do
-                    j = 0
-
-                    while j ~= INVENTORY_COUNT do
-                            table[(self.button[i][j].frame)] = __jarray(0)
-                            self.button[i][j]:destroy()
-                        j = j + 1
-                    end
-
-                    self.button[i] = nil
-                    self.item[i] = nil
-                i = i + 1
-            end
-
-            BlzDestroyFrame(self.frame)
-            BlzDestroyFrame(self.scrollFrame)
-            self.selected = nil
-            self.button = nil
-            self.item = nil
-            self.frame = nil
-            self.scrollFrame = nil
-            self = nil
-        end
-
-        ---@param point framepointtype
-        ---@param relative framehandle
-        ---@param relativePoint framepointtype
-        function thistype:move(point, relative, relativePoint)
-            BlzFrameClearAllPoints(self.frame)
-            BlzFrameSetPoint(self.frame, point, relative, relativePoint, 0, 0.1425)
-        end
-
-        ---@param pid integer
-        function thistype:show(pid)
-            for j = 0, INVENTORY_COUNT - 1 do
-                local itm = Profile[pid].hero.items[j]
-
-                if itm then
-                    self.item[pid][j] = ShopItem.get(itm.id)
-
-                    if self.item[pid][j] == 0 then
-                        if GetLocalPlayer() == Player(pid - 1) then
-                            self.button[pid][j]:icon(BlzGetItemIconPath(itm.obj))
-                            self.button[pid][j].tooltip:icon(BlzGetItemIconPath(itm.obj))
-                            self.button[pid][j].tooltip:name(GetItemName(itm.obj))
-                            self.button[pid][j].tooltip:text(BlzGetItemExtendedTooltip(itm.obj))
-                            self.button[pid][j]:visible(true)
-                        end
-                    else
-                        if GetLocalPlayer() == Player(pid - 1) then
-                            self.button[pid][j]:icon(self.item[pid][j].icon)
-                            self.button[pid][j].tooltip:icon(self.item[pid][j].icon)
-                            self.button[pid][j].tooltip:name(self.item[pid][j].name)
-                            self.button[pid][j].tooltip:text(self.item[pid][j].tooltip)
-                            self.button[pid][j]:visible(true)
-                        end
-                    end
-
-                else
-                    self.item[pid][j] = 0
-
-                    if GetLocalPlayer() == Player(pid - 1) then
-                        self.button[pid][j]:visible(false)
-                    end
-                end
-            end
-        end
-
-        ---@type fun(shop: Shop, frame: framehandle): Inventory
-        function thistype.create(shop, frame)
-            ---@diagnostic disable-next-line: missing-fields
-            local self = {} ---@type Inventory
-            local u      = User.first ---@type User 
-            local x      = 0 ---@type integer 
-            local y      = 0 ---@type integer 
-
-            setmetatable(self, mt)
-
-            self.item = array2d(0)
-            self.shop = shop
-            self.isVisible = true
-            self.frame = BlzCreateFrameByType("BACKDROP", "", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
-            self.scrollFrame = BlzCreateFrameByType("BUTTON", "", self.frame, "", 0)
-            self.button = {}
-
-            BlzFrameSetPoint(self.frame, FRAMEPOINT_TOP, frame, FRAMEPOINT_BOTTOM, 0, 0.0975)
-            BlzFrameSetSize(self.frame, INVENTORY_WIDTH, INVENTORY_HEIGHT)
-            BlzFrameSetTexture(self.frame, INVENTORY_TEXTURE, 0, false)
-            BlzFrameSetAllPoints(self.scrollFrame, self.frame)
-
-            while u do
-                x = 0
-                y = 0
-
-                self.button[u.id] = {}
-                for j = 0, INVENTORY_COUNT - 1 do
-                    self.button[u.id][j] = Button.create(self.scrollFrame, INVENTORY_SIZE, INVENTORY_SIZE, 0.0032000 + INVENTORY_GAPX * x, - 0.0033000 - INVENTORY_GAPY * y, false)
-                    self.button[u.id][j].tooltip:point(FRAMEPOINT_BOTTOM)
-                    self.button[u.id][j]:onClick(thistype.onClick)
-                    self.button[u.id][j]:onDoubleClick(thistype.onDoubleClick)
-                    self.button[u.id][j]:onRightClick(thistype.onRightClick)
-                    self.button[u.id][j]:visible(false)
-                    table[(self.button[u.id][j].frame)][0] = self
-                    table[(self.button[u.id][j].frame)][1] = j
-
-                    x = x + 1
-
-                    if x == 6 then
-                        y = y + 1
-                        x = 0
-                    end
-                end
-
-                u = u.next
-            end
-
-            return self
-        end
-
+    --[[ TODO: INVENTORY ONCLICK FOR SHOP
         function thistype.onClick()
             local frame     = BlzGetTriggerFrame() ---@type framehandle 
             local self      = table[(frame)][0] ---@type Inventory
@@ -1372,174 +1081,14 @@ OnInit.final("Shop", function(Require)
             if self then
                 self.selected[pid] = i
 
-                local s = ShopItem.get(Profile[pid].hero.items[i].id)
+                local s = ShopItem.get(Profile[pid].hero.items[i + 1].id)
 
                 if s ~= 0 then
                     self.shop:detail(s, GetTriggerPlayer())
                 end
             end
         end
-
-        function thistype:onDoubleClick()
-        end
-
-        function thistype:onRightClick()
-        end
-    end
-
-    ---@class Buyer
-    ---@field frame framehandle
-    ---@field inventory Inventory
-    ---@field shop Shop
-    ---@field selected table
-    ---@field left Button
-    ---@field right Button
-    ---@field shift function
-    ---@field last table
-    ---@field button table
-    ---@field visible function
-    ---@field create function
-    ---@field destroy function
-    ---@field update function
-    Buyer = {}
-    do
-        local thistype = Buyer
-        local mt = { __index = Buyer }
-        thistype.trigger         = CreateTrigger()
-
-        thistype.isVisible=nil ---@type boolean 
-
-        thistype.shop=nil ---@type Shop 
-        thistype.inventory=nil ---@type Inventory 
-        thistype.left=nil ---@type Button 
-        thistype.right=nil ---@type Button 
-        thistype.last={} ---@type table 
-        thistype.index={} ---@type table 
-        thistype.size={} ---@type table 
-        thistype.selected={} ---@type table 
-        thistype.button={} ---@type table 
-        thistype.unit={} ---@type table 
-        thistype.frame=nil ---@type framehandle 
-        thistype.scrollFrame=nil ---@type framehandle 
-
-        ---@type fun(self: Buyer, visibility: boolean):boolean
-        function thistype:visible(visibility)
-            if visibility ~= nil then
-                self.isVisible = visibility
-                self.inventory:visible(visibility)
-
-                if self.isVisible then
-                    self.inventory:move(FRAMEPOINT_TOP, self.frame, FRAMEPOINT_BOTTOM)
-                end
-
-                BlzFrameSetVisible(self.frame, visibility)
-            end
-
-            return self.isVisible
-        end
-
-        function thistype:destroy()
-            local i         = 0 ---@type integer 
-            local j ---@type integer 
-
-            while i < bj_MAX_PLAYER_SLOTS do
-                    j = 0
-
-                    while j ~= BUYER_COUNT do
-                            table[(self.button[i][j].frame)] = nil
-                            self.button[i][j]:destroy()
-                        j = j + 1
-                    end
-
-                    self.button[i] = nil
-                    self.unit[i] = nil
-                i = i + 1
-            end
-
-            BlzDestroyFrame(self.frame)
-            BlzDestroyFrame(self.scrollFrame)
-            self.left:destroy()
-            self.right:destroy()
-            self.inventory:destroy()
-            self = nil
-        end
-
-        ---@param pid integer
-        function thistype:update(pid)
-            if self.shop.current[pid] and IsUnitInRange(Hero[pid], self.shop.current[pid], self.shop.aoe) then
-                self.inventory:show(pid)
-
-                if GetLocalPlayer() == Player(pid - 1) then
-                    BlzFrameSetVisible(self.frame, true)
-                    self.inventory:visible(true)
-                end
-            else
-                if GetLocalPlayer() == Player(pid - 1) then
-                    BlzFrameSetVisible(self.frame, false)
-                    self.inventory:visible(false)
-                end
-            end
-        end
-
-        ---@type fun(shop: Shop): Buyer
-        function thistype.create(shop)
-            local self = {}
-
-            setmetatable(self, mt)
-
-            self.shop = shop
-            self.isVisible = true
-            self.frame = BlzCreateFrame("EscMenuBackdrop", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
-            self.scrollFrame = BlzCreateFrameByType("BUTTON", "", self.frame, "", 0)
-            self.inventory = Inventory.create(self.shop, self.frame)
-            table[(self.scrollFrame)][0] = self
-
-            BlzFrameSetPoint(self.frame, FRAMEPOINT_TOP, shop.base, FRAMEPOINT_BOTTOM, 0.42, 0.1605)
-            BlzFrameSetSize(self.frame, BUYER_WIDTH, BUYER_HEIGHT)
-            BlzFrameSetAllPoints(self.scrollFrame, self.frame)
-
-            return self
-        end
-
-        function thistype.onScroll()
-            local self = table[(BlzGetTriggerFrame())][0] ---@type Buyer
-
-            if self then
-                self:shift(BlzGetTriggerFrameValue() < 0, GetTriggerPlayer())
-            end
-        end
-
-        function thistype.onClick()
-            local frame = BlzGetTriggerFrame() ---@type framehandle 
-            local self = table[frame][0] ---@type Buyer
-            local i = table[frame][1] ---@type integer 
-            local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
-
-            if self then
-                if frame == self.left.frame then
-                    self:shift(false, GetTriggerPlayer())
-                elseif frame == self.right.frame then
-                    self:shift(true, GetTriggerPlayer())
-                else
-                    self.shop.current[self.shop.current[pid]] = self
-                    self.inventory:show(pid)
-                    self.inventory.selected:remove(pid)
-
-                    if GetLocalPlayer() == GetTriggerPlayer() then
-                        self.last[pid].highlighted = false
-                        self.button[pid][i].highlighted = true
-                        self.last[pid] = self.button[pid][i]
-
-                        self.shop.details:refresh(pid)
-                    end
-                end
-
-                BlzFrameSetEnable(self.frame, false)
-                BlzFrameSetEnable(self.frame, true)
-            end
-        end
-        TriggerAddAction(thistype.trigger, thistype.onScroll)
-    end
+        ]]
 
     ---@class Category
     ---@field active integer
@@ -1551,21 +1100,10 @@ OnInit.final("Shop", function(Require)
     ---@field button Button[]
     ---@field clear function
     ---@field create function
-    ---@field destroy function
     Category = {}
     do
         local thistype = Category
         local mt = { __index = Category }
-
-        function thistype:destroy()
-            while not (self.count == -1) do
-                    table[(self.button[self.count].frame)] = __jarray(0)
-                    self.button[self.count] = nil
-                self.count = self.count - 1
-            end
-
-            self = nil
-        end
 
         function thistype:clear()
             local i         = 0 ---@type integer 
@@ -1650,7 +1188,6 @@ OnInit.final("Shop", function(Require)
     ---@field addCategory function
     ---@field addItem function
     ---@field main framehandle
-    ---@field buyer Buyer
     ---@field base framehandle
     ---@field stock table
     ---@field aoe number
@@ -1716,11 +1253,8 @@ OnInit.final("Shop", function(Require)
         function thistype:visible(visibility)
             if visibility ~= nil then
                 self.isVisible = visibility
-                self.buyer:visible(visibility)
 
-                if not visibility then
-                    self.buyer.index = 0
-                else
+                if visibility then
                     if self.details.isVisible then
                         self.details:refresh(GetPlayerId(GetLocalPlayer()) + 1)
                     end
@@ -1732,145 +1266,130 @@ OnInit.final("Shop", function(Require)
             return self.isVisible
         end
 
-        function thistype:destroy()
-            local slot = shoppool[self][0]
-
-            while slot do
-                slot:destroy()
-                slot = slot.next
-            end
-
-            shoppool[self] = {}
-            BlzDestroyFrame(self.leftPanel)
-            BlzDestroyFrame(self.main)
-            BlzDestroyFrame(self.base)
-            self.category:destroy()
-            self.details:destroy()
-            self.buyer:destroy()
-            self = nil
-        end
-
         ---@param i ShopItem
         ---@param p player
         ---@return boolean
         function thistype:buy(i, p)
-            local component = 0 ---@type ShopItem 
-            local cost = __jarray(0) ---@type integer[] 
-            local j = 0 ---@type integer 
             local pid = GetPlayerId(p) + 1
-            local canBuy = false ---@type boolean 
-            local hasMoney = true ---@type boolean 
-            local counter = __jarray(0) ---@type table
+            local canBuy = true
+            local hasMoney = true
+            local counter = __jarray(0)
+            local counter_copy = __jarray(0)
+            local cost = {}
 
-            if i ~= 0 and IsUnitInRange(Hero[pid], self.current[pid], self.aoe) and self.stock[i.id] ~= 0 then
-                if IsBuyable(i.id) then
-                    canBuy = true
-
-                    for c = 0, CURRENCY_COUNT - 1 do
-                        cost[c] = ITEM_PRICE[i.id][c]
-                    end
-
-                    --determine if buyable and discount main item based off sum of components owned
-                    local componentCount = i:components()
-                    if componentCount > 0 then
-                        while not (j == componentCount or not canBuy) do
-                                component = ShopItem.get(i.component[j])
-
-                                local itm = GetItemFromPlayer(pid, component.id, counter[component.id] + 1)
-
-                                if itm then
-                                    counter[component.id] = counter[component.id] + 1
-                                    canBuy = (not itm.nocraft)
-                                else
-                                    canBuy = (self:has(component.id) and IsBuyable(component.id))
-                                    --currency loop
-                                    for c = 0, CURRENCY_COUNT - 1 do
-                                        cost[c] = cost[c] + ITEM_PRICE[component.id][c]
-                                    end
-                                end
-                            j = j + 1
-                        end
-                    end
-
-                    --currency loop
-                    for c = 0, CURRENCY_COUNT - 1 do
-                        if GetCurrency(pid, c) < cost[c] then
-                            hasMoney = false
-                            break
-                        end
-                    end
-
-                    if canBuy and hasMoney then
-                        --currency loop
-                        for c = 0, CURRENCY_COUNT - 1 do
-                            if cost[c] > 0 then
-                                AddCurrency(pid, c, - cost[c])
-                            end
-                        end
-
-                        j = 0
-
-                        --loop for each component - find owned components and either destroy or reduce charges
-                        if componentCount > 0 then
-                            while not (j == componentCount) do
-                                for k = 0, INVENTORY_COUNT - 1 do
-                                    local itm = Profile[pid].hero.items[k]
-
-                                    if itm and itm.id == i.component[j] and counter[i.component[j]] > 0 then
-                                        local count = math.min(itm.charges, counter[i.component[j]])
-
-                                        for _ = 1, count do
-                                            itm:consumeCharge()
-                                        end
-
-                                        counter[i.component[j]] = counter[i.component[j]] - count
-
-                                        break
-                                    end
-                                end
-                                j = j + 1
-                            end
-                        end
-
-                        PlayerAddItemById(pid, i.id)
-
-                        if not GetSoundIsPlaying(self.success) then
-                            StartSoundForPlayerBJ(p, self.success)
-                        end
-
-                        self.buyer.inventory:show(pid)
-                        self.details:refresh(pid)
-
-                        -- reduce stock if finite
-                        if self.stock[i.id] ~= -1 then
-                            self.stock[i.id] = self.stock[i.id] - 1
-                            ShopSlot.refresh(table[self][i.id])
-
-                            -- TODO timer to restock custom shop items?
-                        end
-                    else
-                        if not hasMoney then
-                            if not GetSoundIsPlaying(self.noGold[(GetPlayerRace(p))]) then
-                                StartSoundForPlayerBJ(p, self.noGold[(GetPlayerRace(p))])
-                            end
-                        else
-                            if not GetSoundIsPlaying(self.error) then
-                                StartSoundForPlayerBJ(p, self.error)
-                            end
-                        end
-                    end
-                else
-                    if not GetSoundIsPlaying(self.error) then
-                        StartSoundForPlayerBJ(p, self.error)
-                    end
-                end
-            else
+            -- Check initial conditions
+            if i == 0 or not IsUnitInRange(Hero[pid], self.current[pid], self.aoe) or not self.stock[i.id] then
                 if not GetSoundIsPlaying(self.error) then
                     StartSoundForPlayerBJ(p, self.error)
                 end
+                return false
             end
 
-            return (canBuy and hasMoney)
+            -- Check if item is buyable
+            if not IsBuyable(i.id) then
+                if not GetSoundIsPlaying(self.error) then
+                    StartSoundForPlayerBJ(p, self.error)
+                end
+                return false
+            end
+
+            -- Initialize cost array
+            for c = 0, CURRENCY_COUNT - 1 do
+                cost[c] = ITEM_PRICE[i.id][c]
+            end
+
+            -- count items
+            for k = 1, INVENTORY_COUNT do
+                local itm = Profile[pid].hero.items[k]
+                if itm and not itm.nocraft then
+                    local index = GetItem(itm.id)
+                    counter[index] = counter[index] + itm.charges
+                    counter_copy[index] = counter_copy[index] + itm.charges
+                end
+            end
+
+            -- determine if craftable and calculate the total cost
+            local componentCount = i:components()
+            for j = 0, componentCount - 1 do
+                local component = ShopItem.get(i.component[j])
+
+                if counter[component.id] > 0 then
+                    counter[component.id] = counter[component.id] - 1
+                elseif not self:has(component.id) or not IsBuyable(component.id) then
+                    canBuy = false
+                    break
+                else
+                    for c = 0, CURRENCY_COUNT - 1 do
+                        cost[c] = cost[c] + ITEM_PRICE[component.id][c]
+                    end
+                end
+            end
+
+            if not canBuy then
+                if not GetSoundIsPlaying(self.error) then
+                    StartSoundForPlayerBJ(p, self.error)
+                end
+                return false
+            end
+
+            -- Check if player has enough money
+            for c = 0, CURRENCY_COUNT - 1 do
+                if GetCurrency(pid, c) < cost[c] then
+                    hasMoney = false
+                    break
+                end
+            end
+
+            if not hasMoney then
+                if not GetSoundIsPlaying(self.noGold[GetPlayerRace(p)]) then
+                    StartSoundForPlayerBJ(p, self.noGold[GetPlayerRace(p)])
+                end
+                return false
+            end
+
+            -- Deduct cost from player's currency
+            for c = 0, CURRENCY_COUNT - 1 do
+                if cost[c] > 0 then
+                    AddCurrency(pid, c, -cost[c])
+                end
+            end
+
+            -- Consume components from inventory
+            for j = 0, componentCount - 1 do
+                for k = 1, INVENTORY_COUNT do
+                    local itm = Profile[pid].hero.items[k]
+                    if itm then
+                        local index = GetItem(itm.id)
+                        if index == i.component[j] and counter_copy[i.component[j]] > 0 then
+                            local count = math.min(itm.charges, counter_copy[i.component[j]])
+                            for _ = 1, count do
+                                itm:consumeCharge()
+                            end
+                            counter_copy[i.component[j]] = counter_copy[i.component[j]] - count
+                            if counter_copy[i.component[j]] <= 0 then
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- Add item to player's inventory
+            PlayerAddItemById(pid, i.id)
+
+            if not GetSoundIsPlaying(self.success) then
+                StartSoundForPlayerBJ(p, self.success)
+            end
+
+            self.details:refresh(pid)
+
+            -- Reduce stock if finite
+            if self.stock[i.id] ~= -1 then
+                self.stock[i.id] = self.stock[i.id] - 1
+                ShopSlot.refresh(table[self][i.id])
+            end
+
+            return true
         end
 
         ---@type fun(self: Shop, down: boolean)
@@ -1931,8 +1450,10 @@ OnInit.final("Shop", function(Require)
                         process = process and thistype.find(StringCase(slot.item.name, false), StringCase(text, false))
                     end
 
+                    local _, origid = GetItem(slot.item.id)
+
                     if self.levelsort then
-                        process = process and (GetHeroLevel(Hero[pid]) >= ItemData[slot.item.id][ITEM_LEVEL_REQUIREMENT])
+                        process = process and (GetHeroLevel(Hero[pid]) >= ItemData[origid][ITEM_LEVEL_REQUIREMENT])
                     end
 
                     if self.craftablesort then
@@ -2097,10 +1618,10 @@ OnInit.final("Shop", function(Require)
                             BlzFrameSetValue(self.sliderFrame, max)
                         end
                     else
-                        print("Invalid item code: " + string.pack(">I4", itemId))
+                        print("Invalid item code: " .. string.pack(">I4", itemId))
                     end
                 else
-                    print("The item " + GetObjectName(itemId) .. " is already registered for the shop " + GetObjectName(id))
+                    print("The item " .. GetObjectName(itemId) .. " is already registered for the shop " .. GetObjectName(id))
                 end
             end
         end
@@ -2132,7 +1653,6 @@ OnInit.final("Shop", function(Require)
                 self.sliderValue = 0
                 self.category = Category.create(self)
                 self.details = Detail.create(self)
-                self.buyer = Buyer.create(self)
                 self.close = Button.create(self.main, TOOLBAR_BUTTON_SIZE, TOOLBAR_BUTTON_SIZE, (WIDTH - 2*TOOLBAR_BUTTON_SIZE), 0.015000, true)
                 self.close:icon(CLOSE_ICON)
                 self.close:onClick(thistype.onClose)
@@ -2248,9 +1768,18 @@ OnInit.final("Shop", function(Require)
             while u do
                 local self = table[GetUnitTypeId(thistype.current[u.id])][0] ---@type Shop
 
-                if self then
-                    self.buyer:update(u.id)
-                end
+                -- TODO: open inventory if nearby
+                --[[
+                    if self.shop.current[pid] and IsUnitInRange(Hero[pid], self.shop.current[pid], self.shop.aoe) then
+                        if GetLocalPlayer() == Player(pid - 1) then
+                            BlzFrameSetVisible(self.frame, true)
+                        end
+                    else
+                        if GetLocalPlayer() == Player(pid - 1) then
+                            BlzFrameSetVisible(self.frame, false)
+                        end
+                    end
+                ]]
                 u = u.next
             end
         end
@@ -2262,20 +1791,6 @@ OnInit.final("Shop", function(Require)
 
             if self then
                 self.details:refresh(pid)
-                self.buyer:update(pid)
-            end
-
-            return false
-        end
-
-        function thistype.onDrop()
-            local u = GetTriggerUnit()
-            local pid = GetPlayerId(GetOwningPlayer(u)) + 1
-            local self = table[GetUnitTypeId(thistype.current[pid])][0] ---@type Shop
-
-            if self then
-                self.details:refresh(pid)
-                self.buyer:update(pid)
             end
 
             return false
@@ -2425,26 +1940,18 @@ OnInit.final("Shop", function(Require)
 
                 if GetTriggerEventId() == EVENT_PLAYER_UNIT_SELECTED then
                     self.current[pid] = GetTriggerUnit()
-                    if IsUnitInRange(Hero[pid], self.current[pid], self.aoe) then
-                        self.buyer.inventory:show(pid)
-                    else
-                        self.buyer:visible(false)
-                    end
                 else
                     self.current[pid] = nil
                 end
             end
         end
 
-        function thistype.onEsc()
-            local p = GetTriggerPlayer()
-            local pid = GetPlayerId(p) + 1 ---@type integer 
-
+        function Shop.onEsc(pid)
             if table[GetUnitTypeId(thistype.current[pid])] then
                 local self = table[GetUnitTypeId(thistype.current[pid])][0]; ---@type Shop
 
                 if self then
-                    if GetLocalPlayer() == p then
+                    if GetLocalPlayer() == Player(pid - 1) then
                         self:visible(false)
                     end
 
@@ -2453,7 +1960,6 @@ OnInit.final("Shop", function(Require)
             end
         end
 
-        local i = 0 ---@type integer 
         local id
 
         thistype.success = CreateSound(SUCCESS_SOUND, false, false, false, 10, 10, "")
@@ -2481,19 +1987,12 @@ OnInit.final("Shop", function(Require)
         SetSoundParamsFromLabel(thistype.noGold[id], "NoGoldNaga")
         SetSoundDuration(thistype.noGold[id], 2690)
 
-        while i < bj_MAX_PLAYER_SLOTS do
-                TriggerRegisterPlayerEventEndCinematic(thistype.escPressed, Player(i))
-            i = i + 1
-        end
-
         TimerStart(thistype.update, UPDATE_PERIOD, true, thistype.onPeriod)
         TriggerAddAction(thistype.trigger, thistype.onScroll)
         TriggerAddCondition(thistype.search, Condition(thistype.onSearch))
-        TriggerAddCondition(thistype.escPressed, Condition(thistype.onEsc))
         RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_SELECTED, thistype.onSelect)
         RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DESELECTED, thistype.onSelect)
         RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_PICKUP_ITEM, thistype.onPickup)
-        RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DROP_ITEM, thistype.onDrop)
     end
 
 end, Debug and Debug.getLine())
