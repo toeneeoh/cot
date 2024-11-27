@@ -7,303 +7,236 @@
 
 OnInit.final("Units", function(Require)
     Require('Shop')
+    Require('Boss')
     Require('Items')
     Require('Damage')
 
-    BossTable         = {} ---@type table[]
-    BossNearbyPlayers = __jarray(0) ---@type integer[] 
-    --ice troll trapper
-    local id = FourCC('nitt')
-    UnitData[id].count = 18
-    UnitData[id].spawn = 1
-    UnitData[0][0] = id
-    --ice troll berserker
-    id = FourCC('nits')
-    UnitData[id].count = 10
-    UnitData[id].spawn = 1
-    UnitData[0][1] = id
-    --tuskarr sorc
-    id = FourCC('ntks')
-    UnitData[id].count = 10
-    UnitData[id].spawn = 2
-    UnitData[0][2] = id
-    --tuskarr warrior
-    id = FourCC('ntkw')
-    UnitData[id].count = 11
-    UnitData[id].spawn = 2
-    UnitData[0][3] = id
-    --tuskarr chieftain
-    id = FourCC('ntkc')
-    UnitData[id].count = 9
-    UnitData[id].spawn = 2
-    UnitData[0][4] = id
-    --nerubian Seer
-    id = FourCC('nnwr')
-    UnitData[id].count = 18
-    UnitData[id].spawn = 3
-    UnitData[0][5] = id
-    --nerubian spider lord
-    id = FourCC('nnws')
-    UnitData[id].count = 18
-    UnitData[id].spawn = 3
-    UnitData[0][6] = id
-    --polar furbolg warrior 
-    id = FourCC('nfpu')
-    UnitData[id].count = 38
-    UnitData[id].spawn = 4
-    UnitData[0][7] = id
-    --polar furbolg elder shaman
-    id = FourCC('nfpe')
-    UnitData[id].count = 22
-    UnitData[id].spawn = 4
-    UnitData[0][8] = id
-    --giant polar bear
-    id = FourCC('nplg')
-    UnitData[id].count = 20
-    UnitData[id].spawn = 5
-    UnitData[0][9] = id
-    --dire mammoth
-    id = FourCC('nmdr')
-    UnitData[id].count = 16
-    UnitData[id].spawn = 5
-    UnitData[0][10] = id
-    --ogre overlord
-    id = FourCC('n01G')
-    UnitData[id].count = 55
-    UnitData[id].spawn = 6
-    UnitData[0][11] = id
-    --tauren
-    id = FourCC('o01G')
-    UnitData[id].count = 40
-    UnitData[id].spawn = 6
-    UnitData[0][12] = id
-    --unbroken deathbringer
-    id = FourCC('nfod')
-    UnitData[id].count = 18
-    UnitData[id].spawn = 7
-    UnitData[0][13] = id
-    --unbroken trickster
-    id = FourCC('nfor')
-    UnitData[id].count = 15
-    UnitData[id].spawn = 7
-    UnitData[0][14] = id
-    --unbroken darkweaver
-    id = FourCC('nubw')
-    UnitData[id].count = 12
-    UnitData[id].spawn = 7
-    UnitData[0][15] = id
-    --lesser hellfire
-    id = FourCC('nvdl')
-    UnitData[id].count = 25
-    UnitData[id].spawn = 8
-    UnitData[0][16] = id
-    --lesser hellhound
-    id = FourCC('nvdw')
-    UnitData[id].count = 30
-    UnitData[id].spawn = 8
-    UnitData[0][17] = id
-    --centaur lancer
-    id = FourCC('n027')
-    UnitData[id].count = 25
-    UnitData[id].spawn = 9
-    UnitData[0][18] = id
-    --centaur ranger
-    id = FourCC('n024')
-    UnitData[id].count = 20
-    UnitData[id].spawn = 9
-    UnitData[0][19] = id
-    --centaur mage
-    id = FourCC('n028')
-    UnitData[id].count = 15
-    UnitData[id].spawn = 9
-    UnitData[0][20] = id
-    --magnataur destroyer
-    id = FourCC('n01M')
-    UnitData[id].count = 45
-    UnitData[id].spawn = 10
-    UnitData[0][21] = id
-    --forgotten one
-    id = FourCC('n08M')
-    UnitData[id].count = 20
-    UnitData[id].spawn = 10
-    UnitData[0][22] = id
-    --ancient hydra
-    id = FourCC('n01H')
-    UnitData[id].count = 4
-    UnitData[id].spawn = 11
-    UnitData[0][23] = id
-    --frost dragon
-    id = FourCC('n02P')
-    UnitData[id].count = 18
-    UnitData[id].spawn = 12
-    UnitData[0][24] = id
-    --frost drake
-    id = FourCC('n01R')
-    UnitData[id].count = 18
-    UnitData[id].spawn = 12
-    UnitData[0][25] = id
-    --frost elder
-    id = FourCC('n099')
-    UnitData[id].count = 1
-    UnitData[id].spawn = 14
-    UnitData[0][26] = id
-    --medean berserker
-    id = FourCC('n00C')
-    UnitData[id].count = 7
-    UnitData[id].spawn = 13
-    UnitData[0][27] = id
-    --medean devourer
-    id = FourCC('n02L')
-    UnitData[id].count = 15
-    UnitData[id].spawn = 13
-    UnitData[0][28] = id
+    UnitData = {}
 
-    --demon
-    id = FourCC('n033')
-    UnitData[id].count = 20
-    UnitData[id].spawn = 1
-    UnitData[1][0] = id
-    --demon wizard
-    id = FourCC('n034')
-    UnitData[id].count = 11
-    UnitData[id].spawn = 1
-    UnitData[1][1] = id
-    --horror young
-    id = FourCC('n03C')
-    UnitData[id].count = 24
-    UnitData[id].spawn = 15
-    UnitData[1][2] = id
-    --horror mindless
-    id = FourCC('n03A')
-    UnitData[id].count = 46
-    UnitData[id].spawn = 15
-    UnitData[1][3] = id
-    --horror leader
-    id = FourCC('n03B')
-    UnitData[id].count = 11
-    UnitData[id].spawn = 15
-    UnitData[1][4] = id
-    --despair
-    id = FourCC('n03F')
-    UnitData[id].count = 62
-    UnitData[id].spawn = 18
-    UnitData[1][5] = id
-    --despair wizard
-    id = FourCC('n01W')
-    UnitData[id].count = 30
-    UnitData[id].spawn = 18
-    UnitData[1][6] = id
-    --abyssal beast
-    id = FourCC('n00X')
-    UnitData[id].count = 19
-    UnitData[id].spawn = 16
-    UnitData[1][7] = id
-    --abyssal guardian
-    id = FourCC('n08N')
-    UnitData[id].count = 34
-    UnitData[id].spawn = 16
-    UnitData[1][8] = id
-    --abyssal spirit
-    id = FourCC('n00W')
-    UnitData[id].count = 34
-    UnitData[id].spawn = 16
-    UnitData[1][9] = id
-    --void seeker
-    id = FourCC('n030')
-    UnitData[id].count = 30
-    UnitData[id].spawn = 17
-    UnitData[1][10] = id
-    --void keeper
-    id = FourCC('n031')
-    UnitData[id].count = 40
-    UnitData[id].spawn = 17
-    UnitData[1][11] = id
-    --void mother
-    id = FourCC('n02Z')
-    UnitData[id].count = 40
-    UnitData[id].spawn = 17
-    UnitData[1][12] = id
-    --nightmare creature
-    id = FourCC('n020')
-    UnitData[id].count = 22
-    UnitData[id].spawn = 9
-    UnitData[1][13] = id
-    --nightmare spirit
-    id = FourCC('n02J')
-    UnitData[id].count = 18
-    UnitData[id].spawn = 9
-    UnitData[1][14] = id
-    --spawn of hell
-    id = FourCC('n03E')
-    UnitData[id].count = 18
-    UnitData[id].spawn = 8
-    UnitData[1][15] = id
-    --death dealer
-    id = FourCC('n03D')
-    UnitData[id].count = 16
-    UnitData[id].spawn = 8
-    UnitData[1][16] = id
-    --lord of plague
-    id = FourCC('n03G')
-    UnitData[id].count = 6
-    UnitData[id].spawn = 8
-    UnitData[1][17] = id
-    --denied existence
-    id = FourCC('n03J')
-    UnitData[id].count = 24
-    UnitData[id].spawn = 13
-    UnitData[1][18] = id
-    --deprived existence
-    id = FourCC('n01X')
-    UnitData[id].count = 13
-    UnitData[id].spawn = 13
-    UnitData[1][19] = id
-    --astral being
-    id = FourCC('n03M')
-    UnitData[id].count = 24
-    UnitData[id].spawn = 12
-    UnitData[1][20] = id
-    --astral entity
-    id = FourCC('n01V')
-    UnitData[id].count = 13
-    UnitData[id].spawn = 12
-    UnitData[1][21] = id
-    --dimensional planewalker
-    id = FourCC('n026')
-    UnitData[id].count = 22
-    UnitData[id].spawn = 7
-    UnitData[1][22] = id
-    --dimensional planeshifter
-    id = FourCC('n03T')
-    UnitData[id].count = 18
-    UnitData[id].spawn = 7
-    UnitData[1][23] = id
+    ---@return boolean
+    local function respawn_filter()
+        local u = GetFilterUnit()
 
-    --forgotten units
-    forgottenTypes[0] = FourCC('o030') --corpse basher
-    forgottenTypes[1] = FourCC('o033') --destroyer
-    forgottenTypes[2] = FourCC('o036') --spirit
-    forgottenTypes[3] = FourCC('o02W') --warrior
-    forgottenTypes[4] = FourCC('o02Y') --monster
+        return IsUnitEnemy(u, PLAYER_CREEP) and
+            UnitAlive(u) and
+            GetUnitTypeId(u) ~= BACKPACK and
+            not IsDummy(u) and
+            GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
+            GetPlayerId(GetOwningPlayer(u)) <= PLAYER_CAP
+    end
+
+    ---@type fun(u: unit)
+    local function revive_ghost(u)
+        HideEffect(Unit[u].ghost)
+        PauseUnit(u, false)
+        UnitRemoveAbility(u, FourCC('Avul'))
+        ShowUnit(u, true)
+        Unit[u].original_x = GetUnitX(u)
+        Unit[u].original_y = GetUnitY(u)
+    end
+
+    local function ghost_respawn(creep)
+        local ug = CreateGroup()
+
+        GroupEnumUnitsInRange(ug, GetUnitX(creep), GetUnitY(creep), 800., Condition(respawn_filter))
+        if BlzGroupGetSize(ug) == 0 then
+            TimerQueue:callDelayed(0.9, revive_ghost, creep)
+            TableRemove(GHOST_UNITS, creep)
+        else
+            TimerQueue:callDelayed(1., ghost_respawn, creep)
+        end
+
+        DestroyGroup(ug)
+    end
+
+    ---@type fun(uid: integer, x: number, y: number, flag: integer, func: function)
+    local function on_respawn(uid, x, y, flag, func)
+        if CHAOS_MODE == flag then
+            local ug = CreateGroup()
+
+            GroupEnumUnitsInRange(ug, x, y, 800., Condition(respawn_filter))
+
+            local creep = CreateUnit(PLAYER_CREEP, uid, x, y, math.random(0, 359))
+            EVENT_ON_DEATH:register_unit_action(creep, func)
+
+            if FirstOfGroup(ug) ~= nil then
+                BlzSetItemSkin(PATH_ITEM, BlzGetUnitSkin(creep))
+                local sfx = AddSpecialEffect(BlzGetItemStringField(PATH_ITEM, ITEM_SF_MODEL_USED), x, y)
+                GHOST_UNITS[#GHOST_UNITS + 1] = creep
+                PauseUnit(creep, true)
+                UnitAddAbility(creep, FourCC('Avul'))
+                ShowUnit(creep, false)
+                BlzSetItemSkin(PATH_ITEM, BlzGetUnitSkin(DUMMY_UNIT))
+                BlzSetSpecialEffectColorByPlayer(sfx, PLAYER_CREEP)
+                BlzSetSpecialEffectColor(sfx, 175, 175, 175)
+                BlzSetSpecialEffectAlpha(sfx, 127)
+                BlzSetSpecialEffectScale(sfx, BlzGetUnitRealField(creep, UNIT_RF_SCALING_VALUE))
+                BlzSetSpecialEffectYaw(sfx, bj_DEGTORAD * GetUnitFacing(creep))
+                Unit[creep].ghost = sfx
+                TimerQueue:callDelayed(1., ghost_respawn, creep)
+            end
+
+            DestroyGroup(ug)
+        end
+    end
+
+    local function on_death(killed, killer)
+        local uid = GetUnitTypeId(killed)
+        local x, y = GetUnitX(killed), GetUnitY(killed)
+
+        RewardItem(killed)
+        RewardXPGold(killed, killer)
+        TimerQueue:callDelayed(20.0, on_respawn, uid, x, y, CHAOS_MODE, on_death)
+    end
+
+    local function on_enter_safe_zone(u)
+        local uid = GetUnitTypeId(u)
+        local r = SelectGroupedRegion(UnitData[uid].spawn)
+        SetUnitPosition(u, GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)))
+    end
+
+    local UNIT_COUNT = 0
+    local function setup_unit(id, count, spawn, chaos)
+        UnitData[id] = {
+            count = count,
+            spawn = spawn,
+            mode = chaos,
+        }
+        UnitData[UNIT_COUNT] = id
+        UNIT_COUNT = UNIT_COUNT + 1
+    end
+
+    setup_unit(FourCC('nitt'), 18, 1, 0) -- ice troll trapper
+    setup_unit(FourCC('n0tb'), 10, 1, 0) -- ice troll berserker
+    setup_unit(FourCC('n0ts'), 10, 2, 0) -- tuskarr sorc
+    setup_unit(FourCC('n0tw'), 11, 2, 0) -- tuskarr warrior
+    setup_unit(FourCC('n0tc'), 9, 2, 0)  -- tuskarr chieftain
+    setup_unit(FourCC('n0ss'), 18, 3, 0) -- spider seer
+    setup_unit(FourCC('n1sl'), 18, 3, 0) -- spider lord
+    setup_unit(FourCC('n1uw'), 35, 4, 0) -- ursa warrior 
+    setup_unit(FourCC('n0us'), 22, 4, 0) -- ursa shaman
+    setup_unit(FourCC('n0po'), 20, 5, 0) -- polar bear
+    setup_unit(FourCC('n0dm'), 16, 5, 0) -- dire mammoth
+    setup_unit(FourCC('n01G'), 50, 6, 0) -- ogre overlord
+    setup_unit(FourCC('o01G'), 40, 6, 0) -- tauren
+    setup_unit(FourCC('n0ub'), 18, 7, 0) -- unbroken deathbringer
+    setup_unit(FourCC('n0ut'), 15, 7, 0) -- unbroken trickster
+    setup_unit(FourCC('n0ud'), 12, 7, 0) -- unbroken darkweaver
+    setup_unit(FourCC('n0hs'), 25, 8, 0) -- lesser hellfire
+    setup_unit(FourCC('n0hs'), 30, 8, 0) -- lesser hellhound
+    setup_unit(FourCC('n027'), 25, 9, 0) -- centaur lancer
+    setup_unit(FourCC('n024'), 20, 9, 0) -- centaur ranger
+    setup_unit(FourCC('n028'), 15, 9, 0) -- centaur mage
+    setup_unit(FourCC('n01M'), 45, 10, 0) -- magnataur destroyer
+    setup_unit(FourCC('n08M'), 20, 10, 0) -- forgotten one
+    setup_unit(FourCC('n01H'), 4, 11, 0) -- ancient hydra
+    setup_unit(FourCC('n02P'), 18, 12, 0) -- frost dragon
+    setup_unit(FourCC('n01R'), 18, 12, 0) -- frost drake
+    setup_unit(FourCC('n099'), 1, 14, 0) -- frost elder
+    setup_unit(FourCC('n00C'), 7, 13, 0) -- medean berserker
+    setup_unit(FourCC('n02L'), 15, 13, 0) -- medean devourer
+    -- CHAOS
+    setup_unit(FourCC('n033'), 20, 1, 1) -- demon
+    setup_unit(FourCC('n034'), 11, 1, 1) -- demon wizard
+    setup_unit(FourCC('n03C'), 24, 15, 1) -- horror young
+    setup_unit(FourCC('n03A'), 46, 15, 1) -- horror mindless
+    setup_unit(FourCC('n03B'), 11, 15, 1) -- horror leader
+    setup_unit(FourCC('n03F'), 62, 18, 1) -- despair
+    setup_unit(FourCC('n01W'), 30, 18, 1) -- despair wizard
+    setup_unit(FourCC('n00X'), 19, 16, 1) -- abyssal beast
+    setup_unit(FourCC('n08N'), 34, 16, 1) -- abyssal guardian
+    setup_unit(FourCC('n00W'), 34, 16, 1) -- abyssal spirit
+    setup_unit(FourCC('n030'), 30, 17, 1) -- void seeker
+    setup_unit(FourCC('n031'), 40, 17, 1) -- void keeper
+    setup_unit(FourCC('n02Z'), 40, 17, 1) -- void mother
+    setup_unit(FourCC('n020'), 22, 9, 1) -- nightmare creature
+    setup_unit(FourCC('n02J'), 18, 9, 1) -- nightmare spirit
+    setup_unit(FourCC('n03E'), 18, 8, 1) -- spawn of hell
+    setup_unit(FourCC('n03D'), 16, 8, 1) -- death dealer
+    setup_unit(FourCC('n03G'), 6, 8, 1) -- lord of plague
+    setup_unit(FourCC('n03J'), 24, 13, 1) -- denied existence
+    setup_unit(FourCC('n01X'), 13, 13, 1) -- deprived existence
+    setup_unit(FourCC('n03M'), 24, 12, 1) -- astral being
+    setup_unit(FourCC('n01V'), 13, 12, 1) -- astral entity
+    setup_unit(FourCC('n026'), 22, 7, 1) -- dimensional planewalker
+    setup_unit(FourCC('n03T'), 18, 7, 1) -- dimensional planeshifter
+
+    -- forgotten units
+    forgottenTypes[0] = FourCC('o030') -- corpse basher
+    forgottenTypes[1] = FourCC('o033') -- destroyer
+    forgottenTypes[2] = FourCC('o036') -- spirit
+    forgottenTypes[3] = FourCC('o02W') -- warrior
+    forgottenTypes[4] = FourCC('o02Y') -- monster
+
+    ---@param flag integer
+    function SpawnCreeps(flag)
+        for i = 0, UNIT_COUNT - 1 do
+            local id = UnitData[i]
+            local index = UnitData[id]
+
+            if index.mode == flag then
+                for _ = 1, index.count do
+                    local myregion = SelectGroupedRegion(index.spawn)
+                    local x, y
+                    repeat
+                        x = GetRandomReal(GetRectMinX(myregion), GetRectMaxX(myregion))
+                        y = GetRandomReal(GetRectMinY(myregion), GetRectMaxY(myregion))
+                    until IsTerrainWalkable(x, y)
+                    local u = CreateUnit(PLAYER_CREEP, id, x, y, GetRandomInt(0, 359))
+
+                    AntiLagUnit(u)
+                    -- on death logic
+                    EVENT_ON_DEATH:register_unit_action(u, on_death)
+
+                    -- safe zone logic
+                    EVENT_ON_ENTER_SAFE_AREA:register_unit_action(u, on_enter_safe_zone)
+                end
+            end
+        end
+    end
 
     local x = 0. ---@type number 
     local y = 0. ---@type number 
 
-    --velreon guard
+    -- velreon guard
     velreon_guard = CreateUnit(Player(PLAYER_TOWN), FourCC('h04A'), 29919., -2419., 225.)
     PauseUnit(velreon_guard, true)
 
-    --angel
+    -- angel
     god_angel = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n0A1'), -1841., -14858., 325.)
     ShowUnit(god_angel, false)
 
-    --zeknen
-    zeknen = CreateUnit(pboss, FourCC('O01A'), -1886., -27549., 225.)
+    -- zeknen
+    zeknen = CreateUnit(PLAYER_BOSS, FourCC('O01A'), -1886., -27549., 225.)
     SetHeroLevel(zeknen, 150, false)
     PauseUnit(zeknen, true)
     UnitAddAbility(zeknen, FourCC('Avul'))
+    EVENT_ON_DEATH:register_unit_action(zeknen, function()
+        DeadGods = 0
+        SetCinematicScene(Boss[BOSS_LIFE].id, GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), "Goddess of Life", "You are foolish to challenge us in our realm. Prepare yourself.", 9, 7)
 
-    --sponsor
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_HATE].unit), GetUnitY(Boss[BOSS_HATE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_HATE].unit), GetUnitY(Boss[BOSS_HATE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_HATE].unit), GetUnitY(Boss[BOSS_HATE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_LOVE].unit), GetUnitY(Boss[BOSS_LOVE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_LOVE].unit), GetUnitY(Boss[BOSS_LOVE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_LOVE].unit), GetUnitY(Boss[BOSS_LOVE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\TomeOfRetraining\\TomeOfRetrainingCaster.mdl", GetUnitX(Boss[BOSS_KNOWLEDGE].unit), GetUnitY(Boss[BOSS_KNOWLEDGE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", GetUnitX(Boss[BOSS_KNOWLEDGE].unit), GetUnitY(Boss[BOSS_KNOWLEDGE].unit)))
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(Boss[BOSS_KNOWLEDGE].unit), GetUnitY(Boss[BOSS_KNOWLEDGE].unit)))
+        ShowUnit(Boss[BOSS_HATE].unit, true)
+        ShowUnit(Boss[BOSS_LOVE].unit, true)
+        ShowUnit(Boss[BOSS_KNOWLEDGE].unit, true)
+        PauseUnit(Boss[BOSS_HATE].unit, true)
+        PauseUnit(Boss[BOSS_LOVE].unit, true)
+        PauseUnit(Boss[BOSS_KNOWLEDGE].unit, true)
+        UnitAddAbility(Boss[BOSS_HATE].unit, FourCC('Avul'))
+        UnitAddAbility(Boss[BOSS_LOVE].unit, FourCC('Avul'))
+        UnitAddAbility(Boss[BOSS_KNOWLEDGE].unit, FourCC('Avul'))
+        TimerQueue:callDelayed(7., SpawnGods)
+    end)
+
+    -- sponsor
     BlzSetUnitMaxHP(udg_SPONSOR, 1)
     BlzSetUnitMaxMana(udg_SPONSOR, 0)
     UnitAddItemById(udg_SPONSOR, FourCC('I0ML'))
@@ -312,55 +245,94 @@ OnInit.final("Units", function(Require)
     UnitAddItemById(udg_SPONSOR, FourCC('I0MJ'))
     UnitAddItemById(udg_SPONSOR, FourCC('I0MK'))
     UnitAddItemById(udg_SPONSOR, FourCC('I0MG'))
-    --town paladin
+    -- town paladin
     townpaladin = CreateUnit(Player(PLAYER_TOWN), FourCC('H01T'), -176.3, 666, 90.)
+    SetHeroLevel(townpaladin, 100, false)
     BlzSetUnitMaxMana(townpaladin, 0)
 
-    local function paladin_on_hit(target, source, amount, amount_after_red, damage_type)
-        if amount_after_red >= 100. then
-            if GetRandomInt(0, 1) == 0 then
-                local pt = TimerList[0]:get('pala', source)
-                local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+    local function paladin_enrage(b)
+        local ug = CreateGroup()
 
-                if pt then
-                    pt.dur = 25.
-                else
-                    PaladinEnrage(true)
+        if b then
+            GroupEnumUnitsInRange(ug, GetUnitX(townpaladin), GetUnitY(townpaladin), 250., Condition(isplayerunit))
 
-                    pt = TimerList[0]:add()
-                    pt.dur = 25.
-                    pt.source = source
-                    pt.tag = 'pala'
-                    pt.pid = pid
+            for target in each(ug) do
+                DamageTarget(townpaladin, target, 20000., ATTACK_TYPE_NORMAL, PHYSICAL, "Enrage")
+            end
 
-                    SetPlayerAllianceStateBJ(Player(pid - 1), Player(PLAYER_TOWN), bj_ALLIANCE_UNALLIED)
-                    SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), Player(pid - 1), bj_ALLIANCE_UNALLIED)
+            if GetUnitAbilityLevel(townpaladin, FourCC('Bblo')) == 0 then
+                Dummy.create(GetUnitX(townpaladin), GetUnitY(townpaladin), FourCC('A041'), 1):cast(GetOwningPlayer(townpaladin), "bloodlust", townpaladin)
+            end
 
-                    if GetUnitCurrentOrder(target) ~= OrderId("attack") or GetUnitCurrentOrder(target) ~= OrderId("smart") then
-                        IssueTargetOrder(target, "attack", source)
-                    end
+            BlzSetHeroProperName(townpaladin, "|cff990000BUZAN THE FEARLESS|r")
+            UnitAddBonus(townpaladin, BONUS_DAMAGE, 5000)
+        else
+            UnitRemoveAbility(townpaladin, FourCC('Bblo'))
+            BlzSetHeroProperName(townpaladin, "|c00F8A48BBuzan the Fearless|r")
+            UnitAddBonus(townpaladin, BONUS_DAMAGE, -5000)
+            IssueImmediateOrderById(townpaladin, ORDER_ID_STOP)
+        end
 
-                    pt.timer:callDelayed(0.5, PaladinAggroExpire, pt)
+        DestroyGroup(ug)
+    end
+
+    local function paladin_aggro_expire(pt)
+        pt.dur = pt.dur - 0.5
+
+        if pt.dur <= 0 then
+            SetPlayerAllianceStateBJ(Player(pt.pid - 1), Player(PLAYER_TOWN), bj_ALLIANCE_ALLIED)
+            SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), Player(pt.pid - 1), bj_ALLIANCE_ALLIED)
+
+            paladin_enrage(false)
+
+            pt:destroy()
+        else
+            pt.timer:callDelayed(0.5, paladin_aggro_expire, pt)
+        end
+    end
+
+    local function paladin_on_struck(target, source, amount, amount_after_red, damage_type)
+        if amount_after_red >= 100. and math.random(0, 1) == 0 then
+            local pt = TimerList[0]:get('pala', source)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+
+            if pt then
+                pt.dur = 20.
+            else
+                paladin_enrage(true)
+
+                pt = TimerList[0]:add()
+                pt.dur = 20.
+                pt.source = source
+                pt.tag = 'pala'
+                pt.pid = pid
+
+                SetPlayerAllianceStateBJ(Player(pid - 1), Player(PLAYER_TOWN), bj_ALLIANCE_UNALLIED)
+                SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), Player(pid - 1), bj_ALLIANCE_UNALLIED)
+
+                if GetUnitCurrentOrder(target) ~= OrderId("attack") or GetUnitCurrentOrder(target) ~= OrderId("smart") then
+                    IssueTargetOrder(target, "attack", source)
                 end
+
+                pt.timer:callDelayed(0.5, paladin_aggro_expire, pt)
             end
         end
     end
-    EVENT_ON_STRUCK_FINAL:register_unit_action(townpaladin, paladin_on_hit)
+    local function paladin_on_kill(killer, killed)
+        local pt = TimerList[0]:get('pala', killed)
 
-    --prechaos trainer
-    prechaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 26205., 252., 270.)
-    local itm = UnitAddItemById(prechaosTrainer, FourCC('I0MY'))
-    BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(UnitData[0][0]) .. "|r")
-    BlzSetItemIconPath(itm.obj, BlzGetAbilityIcon(UnitData[0][0]))
-    itm.spawn = 0
-    --chaos trainer
-    chaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 29415., 252., 270.)
-    itm = UnitAddItemById(chaosTrainer, FourCC('I0MY'))
-    BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(UnitData[1][0]) .. "|r")
-    BlzSetItemIconPath(itm.obj, BlzGetAbilityIcon(UnitData[1][0]))
-    itm.spawn = 0
+        if pt then
+            pt.dur = 0.
+        end
+    end
 
-    --colo banners
+    EVENT_ON_STRUCK_FINAL:register_unit_action(townpaladin, paladin_on_struck)
+    EVENT_ON_KILL:register_unit_action(townpaladin, paladin_on_kill)
+    EVENT_ON_DEATH:register_unit_action(townpaladin, function(u)
+        CreateItem(FourCC('I01Y'), GetUnitX(u), GetUnitY(u)) -- cheese
+    end)
+
+    -- colo banners
     local target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h00G'), 0, 0, 180.00)
     x = GetRectCenterX(gg_rct_ColoBanner1)
     y = GetRectCenterY(gg_rct_ColoBanner1)
@@ -382,149 +354,134 @@ OnInit.final("Units", function(Require)
     SetUnitPathing(target, false)
     SetUnitPosition(target, x, y)
 
-    --special prechaos "bosses"
+    -- special prechaos "bosses"
 
-    --pinky
-    pinky = CreateUnit(pboss, FourCC('O019'), 11528., 8168., 180.)
+    -- pinky
+    pinky = CreateUnit(PLAYER_BOSS, FourCC('O019'), 11528., 8168., 180.)
     SetHeroLevel(pinky, 100, false)
     UnitAddItemById(pinky, FourCC('I02Y'))
-    --bryan
-    bryan = CreateUnit(pboss, FourCC('H043'), 11528., 7880., 180.)
+    EVENT_ON_DEATH:register_unit_action(pinky, function(u)
+        CreateItem(FourCC('I02Y'), GetUnitX(u), GetUnitY(u)) -- pinky pick
+    end)
+    -- bryan
+    bryan = CreateUnit(PLAYER_BOSS, FourCC('H043'), 11528., 7880., 180.)
     SetHeroLevel(bryan, 100, false)
     UnitAddItemById(bryan, FourCC('I02X'))
-    --ice troll
-    ice_troll = CreateUnit(pboss, FourCC('O00T'), 15833., 4382., 254.)
+    EVENT_ON_DEATH:register_unit_action(bryan, function(u)
+        CreateItem(FourCC('I02X'), GetUnitX(u), GetUnitY(u)) -- bryan pick
+    end)
+    -- ice troll
+    ice_troll = CreateUnit(PLAYER_BOSS, FourCC('O00T'), 15833., 4382., 254.)
     SetHeroLevel(ice_troll, 100, false)
     UnitAddItemById(ice_troll, FourCC('I03Z'))
-    --kroresh
-    kroresh = CreateUnit(pboss, FourCC('N01N'), 17000., -19000., 0.)
+    EVENT_ON_DEATH:register_unit_action(ice_troll, function(u)
+        CreateItem(FourCC('I040'), GetUnitX(u), GetUnitY(u)) -- key of redemption
+        CreateItem(FourCC('I03Z'), GetUnitX(u), GetUnitY(u)) -- da's dingo
+    end)
+
+    -- kroresh
+    kroresh = CreateUnit(PLAYER_BOSS, FourCC('N01N'), 17000., -19000., 0.)
     SetHeroLevel(kroresh, 120, false)
     UnitAddItemById(kroresh, FourCC('I0BZ'))
     UnitAddItemById(kroresh, FourCC('I064'))
     UnitAddItemById(kroresh, FourCC('I04B'))
-    --forest corruption
-    forest_corruption = CreateUnit(pboss, FourCC('N00M'), 5777., -15523., 90.)
-    SetHeroLevel(forest_corruption, 100, false)
-    UnitAddItemById(forest_corruption, FourCC('I03X'))
-    UnitAddItemById(forest_corruption, FourCC('I03Y'))
-    Unit[forest_corruption].mr = Unit[forest_corruption].mr * 0.5
-    --zeknen
+    EVENT_ON_DEATH:register_unit_action(kroresh, function(u)
+        CreateItem(FourCC('I04B'), GetUnitX(u), GetUnitY(u), 600.) -- jewel of the horde
+    end)
+    -- zeknen
     UnitAddItemById(zeknen, FourCC('I03Y'))
     Unit[zeknen].mr = Unit[zeknen].mr * 0.5
 
-    --prechaos bosses
+    -- prechaos bosses
 
     -- Minotaur
-    local boss = CreateBossEntry(BOSS_TAUREN, Location(-11692., -12774.), 45., FourCC('O002'), "Minotaur", 75,
-    {FourCC('I03T'), FourCC('I0FW'), FourCC('I078'), FourCC('I076'), FourCC('I07U'), 0}, 0, 2000)
+    local boss = Boss.create(BOSS_TAUREN, Location(-11692., -12774.), 45., FourCC('O002'), "Minotaur", 75,
+    0, 2000)
     -- Forgotten Mystic
-    boss = CreateBossEntry(BOSS_MYSTIC, Location(-15435., -14354.), 270., FourCC('H045'), "Forgotten Mystic", 100,
-    {FourCC('I03U'), FourCC('I07F'), FourCC('I0F3'), FourCC('I03Y'), 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_MYSTIC, Location(-15435., -14354.), 270., FourCC('H045'), "Forgotten Mystic", 100,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
     -- Hellfire Magi
-    boss = CreateBossEntry(BOSS_HELLFIRE, GetRectCenter(gg_rct_Hell_Boss_Spawn), 315., FourCC('U00G'), "Hellfire Magi", 100,
-    {FourCC('I03Y'), FourCC('I0FA'), FourCC('I0FU'), FourCC('I00V'), 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_HELLFIRE, GetRectCenter(gg_rct_Hell_Boss_Spawn), 315., FourCC('U00G'), "Hellfire Magi", 100,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
     -- Last Dwarf
-    boss = CreateBossEntry(BOSS_DWARF, Location(11520., 15466.), 225., FourCC('H01V'), "Last Dwarf", 100,
-    {FourCC('I0FC'), FourCC('I079'), FourCC('I03Y'), FourCC('I07B'), 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_DWARF, Location(11520., 15466.), 225., FourCC('H01V'), "Last Dwarf", 100,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
     -- Vengeful Test Paladin
-    boss = CreateBossEntry(BOSS_PALADIN, GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn), 270., FourCC('H02H'), "Vengeful Test Paladin", 140,
-    {FourCC('I03P'), FourCC('I0FX'), FourCC('I0F9'), FourCC('I0C0'), FourCC('I03Y'), 0}, 0, 2000)
+    boss = Boss.create(BOSS_PALADIN, GetRectCenter(gg_rct_Dark_Soul_Boss_Spawn), 270., FourCC('H02H'), "Vengeful Test Paladin", 140,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
     -- Dragoon
-    boss = CreateBossEntry(BOSS_DRAGOON, GetRectCenter(gg_rct_Thanatos_Boss_Spawn), 320., FourCC('O01B'), "Dragoon", 100,
-    {FourCC('I0EY'), FourCC('I074'), FourCC('I04N'), FourCC('I0EX'), FourCC('I046'), FourCC('I03Y')}, 0, 2000)
+    boss = Boss.create(BOSS_DRAGOON, GetRectCenter(gg_rct_Thanatos_Boss_Spawn), 320., FourCC('O01B'), "Dragoon", 100,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
-    Unit[boss].evasion = 50
     -- Death Knight
-    boss = CreateBossEntry(BOSS_DEATH_KNIGHT, Location(6932., -14177.), 0., FourCC('H040'), "Death Knight", 120,
-    {FourCC('I02B'), FourCC('I029'), FourCC('I02C'), FourCC('I02O'), 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_DEATH_KNIGHT, Location(6932., -14177.), 0., FourCC('H040'), "Death Knight", 120,
+    0, 2000)
     -- Siren of the Tides
-    boss = CreateBossEntry(BOSS_VASHJ, Location(-12375., -1181.), 0., FourCC('H020'), "Siren of the Tides", 75,
-    {FourCC('I09L'), FourCC('I09F'), FourCC('I03Y'), 0, 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_VASHJ, Location(-12375., -1181.), 0., FourCC('H020'), "Siren of the Tides", 75,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
     -- Super Fun Happy Yeti
-    boss = CreateBossEntry(BOSS_YETI, Location(15816., 6250.), 180., FourCC('n02H'), "Super Fun Happy Yeti", 0,
-    {0, 0, 0, 0, 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_YETI, Location(15816., 6250.), 180., FourCC('n02H'), "Super Fun Happy Yeti", 0,
+    0, 2000)
     -- King of Ogres
-    boss = CreateBossEntry(BOSS_OGRE, Location(-5242., -15630.), 135., FourCC('n03L'), "King of Ogres", 0,
-    {0, 0, 0, 0, 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_OGRE, Location(-5242., -15630.), 135., FourCC('n03L'), "King of Ogres", 0,
+    0, 2000)
     -- Nerubian Empress
-    boss = CreateBossEntry(BOSS_NERUBIAN, GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn), 315., FourCC('n02U'), "Nerubian Empress", 0,
-    {0, 0, 0, 0, 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_NERUBIAN, GetRectCenter(gg_rct_Demon_Prince_Boss_Spawn), 315., FourCC('n02U'), "Nerubian Empress", 0,
+    0, 2000)
     -- Giant Polar Bear
-    boss = CreateBossEntry(BOSS_POLAR_BEAR, Location(-16040., 6579.), 45., FourCC('nplb'), "Giant Polar Bear", 0,
-    {0, 0, 0, 0, 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_POLAR_BEAR, Location(-16040., 6579.), 45., FourCC('n0pb'), "Giant Polar Bear", 0,
+    0, 2000)
     -- The Goddesses
-    boss = CreateBossEntry(BOSS_LIFE, Location(-1840., -27400.), 230., FourCC('H04Q'), "The Goddesses", 180,
-    {FourCC('I04I'), FourCC('I030'), FourCC('I031'), FourCC('I02Z'), FourCC('I03Y'), 0}, 0, 2000)
+    boss = Boss.create(BOSS_LIFE, Location(-1840., -27400.), 230., FourCC('H04Q'), "The Goddesses", 180,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
     -- Hate
-    boss = CreateBossEntry(BOSS_HATE, Location(-1977., -27116.), 230., FourCC('E00B'), "Hate", 180,
-    {FourCC('I02Z'), FourCC('I03Y'), FourCC('I02B'), 0, 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_HATE, Location(-1977., -27116.), 230., FourCC('E00B'), "Hate", 180,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
     -- Love
-    boss = CreateBossEntry(BOSS_LOVE, Location(-1560., -27486.), 230., FourCC('E00D'), "Love", 180,
-    {FourCC('I030'), FourCC('I03Y'), FourCC('I0EY'), 0, 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_LOVE, Location(-1560., -27486.), 230., FourCC('E00D'), "Love", 180,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
     -- Knowledge
-    boss = CreateBossEntry(BOSS_KNOWLEDGE, Location(-1689., -27210.), 230., FourCC('E00C'), "Knowledge", 180,
-    {FourCC('I031'), FourCC('I03Y'), FourCC('I03U'), 0, 0, 0}, 0, 2000)
+    boss = Boss.create(BOSS_KNOWLEDGE, Location(-1689., -27210.), 230., FourCC('E00C'), "Knowledge", 180,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
     -- Arkaden
-    boss = CreateBossEntry(BOSS_ARKADEN, Location(-1413., -15846.), 90., FourCC('H00O'), "Arkaden", 140,
-    {FourCC('I02B'), FourCC('I02C'), FourCC('I02O'), FourCC('I03Y'), FourCC('I036'), 0}, 0, 2000)
+    boss = Boss.create(BOSS_ARKADEN, Location(-1413., -15846.), 90., FourCC('H00O'), "Arkaden", 140,
+    0, 2000)
     Unit[boss].mr = Unit[boss].mr * 0.5
-
-    for i = BOSS_OFFSET, #BossTable do
-        SetHeroLevel(BossTable[i].unit, BossTable[i].level, false)
-        for j = 1, 6 do
-            if BossTable[i].item[j] ~= 0 then
-                UnitAddItemById(BossTable[i].unit, BossTable[i].item[j])
-            end
-        end
+    local function arkaden_death()
+        SetUnitAnimation(god_angel, "birth")
+        ShowUnit(god_angel, true)
+        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(god_angel), GetUnitY(god_angel)))
+        SetCinematicScene(GetUnitTypeId(god_angel), GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), "Angel", "Halt! Before proceeding you must bring me the 3 keys to unlock the seal and face the gods in their domain.", 8, 7)
     end
+    EVENT_ON_DEATH:register_unit_action(boss, arkaden_death)
 
-    --start death march cooldown
-    BlzStartUnitAbilityCooldown(BossTable[BOSS_DEATH_KNIGHT].unit, FourCC('A0AU'), 2040. - (User.AmountPlaying * 240))
+    -- start death march cooldown
+    BlzStartUnitAbilityCooldown(Boss[BOSS_DEATH_KNIGHT].unit, FourCC('A0AU'), 2040. - (User.AmountPlaying * 240))
 
-    ShowUnit(BossTable[BOSS_LIFE].unit, false) --gods
-    ShowUnit(BossTable[BOSS_LOVE].unit, false)
-    ShowUnit(BossTable[BOSS_HATE].unit, false)
-    ShowUnit(BossTable[BOSS_KNOWLEDGE].unit, false)
+    ShowUnit(Boss[BOSS_LIFE].unit, false) --gods
+    ShowUnit(Boss[BOSS_LOVE].unit, false)
+    ShowUnit(Boss[BOSS_HATE].unit, false)
+    ShowUnit(Boss[BOSS_KNOWLEDGE].unit, false)
 
-    --evil shopkeepers
+    -- evil shopkeepers
     do
-        local onClick = CreateTrigger()
         evilshopkeeperbrother = gg_unit_n02S_0098
         evilshopkeeper = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n01F'), 7284., -13177., 270.)
-
-        --UnitAddAbility(evilshopkeeperbrother, FourCC('Aloc'))
-
-        --[[local track = CreateTrackable("units\\undead\\Acolyte\\Acolyte.mdl", GetUnitX(evilshopkeeperbrother), GetUnitY(evilshopkeeperbrother), 3 * bj_PI / 4.)
-        TriggerRegisterTrackableHitEvent(onClick, track)
-
-        ---@return boolean
-        local function trackableClick()
-            local pid = GetPlayerId(GetTriggerPlayer()) + 1
-
-            if not SELECTING_HERO[pid] then
-                if GetLocalPlayer() == Player(pid - 1) then
-                    ClearSelection()
-                    SelectUnit(evilshopkeeperbrother, true)
-                end
-            end
-
-            return false
-        end
-
-        TriggerAddCondition(onClick, Condition(trackableClick))
-        ]]
+        EVENT_ON_DEATH:register_unit_action(evilshopkeeper, function(u)
+            CreateItem(FourCC('I045'), GetUnitX(u), GetUnitY(u)) -- bloodstained cloak
+        end)
     end
 
-    --hero circle
+    -- hero circle
     HeroCircle[0] = {
         unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), HERO_OBLIVION_GUARD, 30000., 30000., 0.), --oblivion guard
         skin = HERO_OBLIVION_GUARD,
