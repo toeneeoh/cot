@@ -46,12 +46,14 @@ OnInit.final("MapSetup", function(Require)
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Training_Prechaos, false, false))
         FogModifierStart(CreateFogModifierRect(u.player, FOG_OF_WAR_VISIBLE, gg_rct_Training_Chaos, false, false))
 
+        ForceAddPlayer(FORCE_HINT, u.player)
+
         pos = pos + 1
         u = u.next
     end
 
     -- neutral / enemy vision
-    FogModifierStart(CreateFogModifierRect(Player(PLAYER_NEUTRAL_PASSIVE),FOG_OF_WAR_VISIBLE,bj_mapInitialPlayableArea, false, false))
+    FogModifierStart(CreateFogModifierRect(Player(PLAYER_NEUTRAL_PASSIVE),FOG_OF_WAR_VISIBLE, WorldBounds.rect, false, false))
     FogModifierStart(CreateFogModifierRect(PLAYER_BOSS,FOG_OF_WAR_VISIBLE,gg_rct_Colosseum, false, false))
     FogModifierStart(CreateFogModifierRect(PLAYER_BOSS,FOG_OF_WAR_VISIBLE,gg_rct_Gods_Arena, false, false))
     FogModifierStart(CreateFogModifierRect(PLAYER_BOSS,FOG_OF_WAR_VISIBLE,gg_rct_InfiniteStruggleCameraBounds, false, false))
