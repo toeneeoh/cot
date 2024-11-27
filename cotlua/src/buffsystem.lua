@@ -161,7 +161,7 @@ OnInit.global("BuffSystem", function(Require)
         ---@type fun(self: Buff, source: unit, target: unit): Buff
         function thistype:check(source, target)
             local apply = false ---@type boolean 
-            local similar = self:get(source, target) ---@type Buff
+            local similar = self:get(nil, target) ---@type Buff
 
             if self.STACK_TYPE == BUFF_STACK_FULL then
                 --Update target buff count
