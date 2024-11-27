@@ -47,8 +47,8 @@ OnInit.final("Regions", function(Require)
     RegionAddRect(REGION_DATA[10], gg_rct_CryptIn)
 
     REGION_DATA[REGION_DATA[1]]  = { x = 20943., y = 772., facing = 0., vision = gg_rct_ChurchRegion_Vision }
-    REGION_DATA[REGION_DATA[2]]  = { x = 448.7, y = 1600., facing = 270., vision = MAIN_MAP.vision, extra = function(pid, p) if not CANNOT_LOAD[pid] then
-            CANNOT_LOAD[pid] = true
+    REGION_DATA[REGION_DATA[2]]  = { x = 448.7, y = 1600., facing = 270., vision = MAIN_MAP.vision, extra = function(pid, p) if not Profile[pid].cannot_load then
+            Profile[pid].cannot_load = true
             DisplayTimedTextToPlayer(p, 0, 0, 30., "You may now save.")
         end
     end}
@@ -190,27 +190,18 @@ OnInit.final("Regions", function(Require)
     ---@return boolean
     local function SafeRegions()
         local u    = GetFilterUnit()
-        local uid  = GetUnitTypeId(u)
-        local pid  = GetPlayerId(GetOwningPlayer(u)) + 1
         local x    = GetUnitX(u)
         local y    = GetUnitY(u)
-        local r    = nil
         local U    = User.first
-        local boss = IsBoss(uid)
+
+        EVENT_ON_ENTER_SAFE_AREA:trigger(u)
 
         if IsUnitIllusion(u) then
             return false
         end
 
-        if IsEnemy(pid) and (IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Town_Boundry),GetRectCenterY(gg_rct_Town_Boundry),4000.) or IsUnitInRangeXY(u,GetRectCenterX(gg_rct_Top_of_Town),GetRectCenterY(gg_rct_Top_of_Town),4000.)) then
-            if boss then
-                SetUnitXBounded(Boss[boss].unit, GetLocationX(Boss[boss].loc))
-                SetUnitYBounded(Boss[boss].unit, GetLocationY(Boss[boss].loc))
-            elseif UnitData[uid].count > 0 then
-                r = SelectGroupedRegion(UnitData[uid].spawn)
-                SetUnitPosition(u, GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)))
-            end
-        elseif NearbyRect(gg_rct_Town_Boundry, x, y) and u == velreon_guard then --rescue guard
+        -- TODO: velreon guard rework
+        if NearbyRect(gg_rct_Town_Main, x, y) and u == velreon_guard then --rescue guard
             DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Velreon Scholar:|r Excellent work, traveler. Perhaps you would be interested in the ancient tales of the |cffffcc00Medean Empire|r...")
             while U do
                 SetPlayerTechResearched(U.player, FourCC('R018'), 1)
@@ -305,21 +296,20 @@ OnInit.final("Regions", function(Require)
 
     RegionAddRect(specialRegion, gg_rct_Rescueable_Worker)
 
-    RegionAddRect(safeRegion, gg_rct_Town_Boundry)
-    RegionAddRect(safeRegion, gg_rct_Top_of_Town)
-
+    RegionAddRect(safeRegion, gg_rct_Town_Main)
     RegionAddRect(leaveRegion, gg_rct_Town_Boundry_2)
     RegionAddRect(leaveRegion, gg_rct_Town_boundry_4)
-
-    TriggerRegisterEnterRegion(specialTrigger, specialRegion, Filter(SpecialRegions))
-    TriggerRegisterEnterRegion(safeTrigger, safeRegion, Filter(SafeRegions))
-    TriggerRegisterEnterRegion(leaveTrigger, leaveRegion, Filter(LeaveRegions))
 
     local lavaTrigger = CreateTrigger()
     LAVA_REGION = CreateRegion()
 
     RegionAddRect(LAVA_REGION, gg_rct_Lava1)
     RegionAddRect(LAVA_REGION, gg_rct_Lava2)
+
+    Require('Units')
+    TriggerRegisterEnterRegion(specialTrigger, specialRegion, Filter(SpecialRegions))
+    TriggerRegisterEnterRegion(safeTrigger, safeRegion, Filter(SafeRegions))
+    TriggerRegisterEnterRegion(leaveTrigger, leaveRegion, Filter(LeaveRegions))
 
     Require('Buffs')
     TriggerRegisterEnterRegion(lavaTrigger, LAVA_REGION, Filter(LavaRegion))
