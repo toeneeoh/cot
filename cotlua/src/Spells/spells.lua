@@ -258,6 +258,8 @@ OnInit.final("Spells", function(Require)
         local targetY = GetSpellTargetY() ---@type number 
         local spell   = nil
 
+        EVENT_ON_CAST:trigger(caster, sid, ablev)
+
         -- remember last cast spell id
         if sid ~= ADAPTIVESTRIKE.id and sid ~= LIMITBREAK.id then
             lastCast[pid] = sid
@@ -280,13 +282,13 @@ OnInit.final("Spells", function(Require)
             spell:onCast()
 
         elseif UNIT_SPELLS[sid] then
-            UNIT_SPELLS[sid](caster, pid, ablev, itm)
+            UNIT_SPELLS[sid](caster, pid)
 
         -- backpack consumeable spells
         elseif POTIONS[sid] then
             local used = false
 
-            for i = 0, MAX_INVENTORY_SLOTS - 1 do
+            for i = 1, MAX_INVENTORY_SLOTS do
                 local pot = Profile[pid].hero.items[i]
 
                 if pot then
@@ -307,10 +309,9 @@ OnInit.final("Spells", function(Require)
 
         -- on cast aggro
         if spell then
-            if targetX == 0. and targetY == 0. then
-                Taunt(caster, pid, 800., false, 0, 200)
-            else
-                Taunt(caster, pid, math.min(800., DistanceCoords(x, y, targetX, targetY)), false, 0, 200)
+            if Unit[caster].aggro_timer then
+                Unit[caster].aggro_timer:reset()
+                Unit[caster].aggro_timer:callDelayed(3., DropAggro, Unit[caster])
             end
         end
 
@@ -345,6 +346,7 @@ OnInit.final("Spells", function(Require)
             SetPlayerAbilityAvailable(p, prMulti[2], false)
             SetPlayerAbilityAvailable(p, prMulti[3], false)
             SetPlayerAbilityAvailable(p, prMulti[4], false)
+            SetPlayerAbilityAvailable(p, prMulti[5], false)
             SetPlayerAbilityAvailable(p, FourCC('A0AP'), false)
             -- bard setup
             SetPlayerAbilityAvailable(p, SONG_HARMONY, false)
