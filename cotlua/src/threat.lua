@@ -8,90 +8,93 @@ OnInit.final("Threat", function(Require)
     Require("WorldBounds")
     Require("Damage")
 
+    ACQUIRE_TRIGGER = CreateTrigger()
+
     local CALL_FOR_HELP_RANGE = 800.
 
-    ACQUIRE_TRIGGER = CreateTrigger()
-    Threat = array2d(0)
-    THREAT_CAP = 4000 ---@type integer 
+    local filter_unit
 
     ---@return boolean
     local function ProximityFilter()
         local u = GetFilterUnit()
 
         return not IsDummy(u) and
+        Unit[u] and
         GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+        GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
         GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP
     end
 
-    ---@type fun(source: unit, target: unit, dist: number):unit
-    local function AcquireProximity(source, target, dist)
-        local ug    = CreateGroup()
-        local x     = GetUnitX(source) ---@type number 
-        local y     = GetUnitY(source) ---@type number 
-        local index = -1
+    local function acquire_new_proximity(source, orig, dist)
+        local ug = CreateGroup()
+        local x  = GetUnitX(source)
+        local y  = GetUnitY(source)
+        local new_target = IsUnitInRange(source, orig.unit, dist) and orig.unit or nil
 
         GroupEnumUnitsInRange(ug, x, y, dist, Filter(ProximityFilter))
+        -- dont acquire the same target
+        GroupRemoveUnit(ug, orig.unit)
 
-        for i, prox in ieach(ug) do
-            --dont acquire the same target
-            if SquareRoot(Pow(x - GetUnitX(prox), 2) + Pow(y - GetUnitY(prox), 2)) < dist and Unit[source].target ~= target then
-                dist = SquareRoot(Pow(x - GetUnitX(prox), 2) + Pow(y - GetUnitY(prox), 2))
-                index = i
+        for enemy in each(ug) do
+            if IsUnitInRange(source, enemy, dist) then
+                dist = UnitDistance(source, enemy)
+                new_target = enemy
             end
         end
 
-        if index ~= -1 then
-            target = BlzGroupUnitAt(ug, index)
+        if new_target then
+            Unit[new_target]:taunt(Unit[source])
+        else
+            Unit[source].target = nil
+            IssuePointOrderById(source, ORDER_ID_MOVE, Unit[source].original_x, Unit[source].original_y)
         end
 
         DestroyGroup(ug)
-        return target
     end
 
-    ---@type fun(pt: PlayerTimer)
-    function RunDropAggro(pt)
-        local ug = CreateGroup()
-
-        MakeGroupInRange(pt.pid, ug, GetUnitX(pt.source), GetUnitY(pt.source), 800., Condition(FilterEnemy))
-
-        for target in each(ug) do
-            if Unit[target].target == pt.source then
-                local prox = AcquireProximity(target, pt.source, 800.)
-                IssueTargetOrder(target, "smart", prox)
-                Unit[target].target = prox
-                break
-            end
+    function DropAggro(unit)
+        for enemy in each(unit.taunted) do
+            TimerQueue:callDelayed(0., acquire_new_proximity, enemy, unit, CALL_FOR_HELP_RANGE)
         end
 
-        pt:destroy()
+        GroupClear(unit.taunted)
+    end
 
-        DestroyGroup(ug)
+    local function reset_aggro_timer(source)
+        source = Unit[source]
+
+        if source.aggro_timer then
+            source.aggro_timer:reset()
+            source.aggro_timer:callDelayed(3., DropAggro, source)
+        end
     end
 
     ---@return boolean
     local function onAcquire()
-        local target = GetEventTargetUnit() ---@type unit 
-        local source = GetTriggerUnit() ---@type unit 
+        local target = GetEventTargetUnit()
+        local source = GetTriggerUnit()
 
-        EVENT_ON_AGGRO:trigger(source, target)
-
-        if Unit[source] then
-            Unit[source].target = target
+        if source and target then
+            EVENT_ON_AGGRO:trigger(source, target)
         end
 
         return false
     end
 
-    local function enemy_aggro(target, source, amount, amount_after_red, damage_type)
+    local function creep_aggro(source, target)
+        local enemy = Unit[source].target or Unit[source]
+        Unit[target]:taunt(enemy)
+    end
+
+    local function call_for_help(target, source, amount, amount_after_red, damage_type)
         -- call for help
-        local pid = GetPlayerId(GetOwningPlayer(source)) + 1
         local ug = CreateGroup()
-        MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), CALL_FOR_HELP_RANGE, Condition(FilterEnemy))
+        MakeGroupInRange(PLAYER_NEUTRAL_AGGRESSIVE, ug, GetUnitX(target), GetUnitY(target), CALL_FOR_HELP_RANGE, Condition(FilterAlly))
 
         for enemy in each(ug) do
-            if GetUnitCurrentOrder(enemy) == 0 and enemy ~= target then --current idle
-                UnitWakeUp(enemy)
-                IssueTargetOrder(enemy, "smart", AcquireProximity(enemy, source, 800.))
+            -- only aggro other creep allies
+            if not Unit[enemy].target and GetOwningPlayer(enemy) == PLAYER_CREEP then
+                Unit[source]:taunt(Unit[enemy])
             end
         end
 
@@ -100,11 +103,17 @@ OnInit.final("Threat", function(Require)
 
     local function threat_init()
         local u = GetFilterUnit()
+        local p = GetOwningPlayer(u)
+        local pid = GetPlayerId(p) + 1
 
         TriggerRegisterUnitEvent(ACQUIRE_TRIGGER, u, EVENT_UNIT_ACQUIRED_TARGET)
 
-        if IsEnemy(GetPlayerId(GetOwningPlayer(u)) + 1) then
-            EVENT_ON_STRUCK_FINAL:register_unit_action(u, enemy_aggro)
+        if p == PLAYER_CREEP then
+            EVENT_ON_STRUCK_FINAL:register_unit_action(u, call_for_help)
+            EVENT_ON_AGGRO:register_unit_action(u, creep_aggro)
+        elseif pid <= PLAYER_CAP then
+            EVENT_ON_HIT:register_unit_action(u, reset_aggro_timer)
+            EVENT_ON_CAST:register_unit_action(u, reset_aggro_timer)
         end
 
         return false
