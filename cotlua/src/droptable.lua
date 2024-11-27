@@ -103,12 +103,11 @@ OnInit.final("DropTable", function(Require)
         ItemDrops[id][14] = FourCC('I01X')
         ItemDrops[id][15] = FourCC('I06F')
         ItemDrops[id][16] = FourCC('I06G')
-        ItemDrops[id][17] = FourCC('I06H')
-        ItemDrops[id][18] = FourCC('I090')
-        ItemDrops[id][19] = FourCC('I01Z')
-        ItemDrops[id][20] = FourCC('I0FJ')
+        ItemDrops[id][17] = FourCC('I090')
+        ItemDrops[id][18] = FourCC('I01Z')
+        ItemDrops[id][19] = FourCC('I0FJ')
 
-        setupRates(id, 20)
+        setupRates(id, 19)
 
         id = FourCC('n0tb') --troll
         Rates[id] = 40
@@ -135,11 +134,10 @@ OnInit.final("DropTable", function(Require)
         ItemDrops[id][20] = FourCC('I06E') --mana potion
         ItemDrops[id][21] = FourCC('I06F') --crystal ball
         ItemDrops[id][22] = FourCC('I06G') --talisman of evasion
-        ItemDrops[id][23] = FourCC('I06H') --warsong battle drums
-        ItemDrops[id][24] = FourCC('I090') --sparky orb
-        ItemDrops[id][25] = FourCC('I04D') --tattered cloth
+        ItemDrops[id][23] = FourCC('I090') --sparky orb
+        ItemDrops[id][24] = FourCC('I04D') --tattered cloth
 
-        setupRates(id, 25)
+        setupRates(id, 24)
 
         id = FourCC('n0ts') --tuskarr
         Rates[id] = 40
@@ -152,20 +150,19 @@ OnInit.final("DropTable", function(Require)
         ItemDrops[id][6] = FourCC('I06E')
         ItemDrops[id][7] = FourCC('I06F')
         ItemDrops[id][8] = FourCC('I06G')
-        ItemDrops[id][9] = FourCC('I06H')
-        ItemDrops[id][10] = FourCC('I090')
-        ItemDrops[id][11] = FourCC('I01S')
-        ItemDrops[id][12] = FourCC('I04D')
-        ItemDrops[id][13] = FourCC('I03A') --steel dagger
-        ItemDrops[id][14] = FourCC('I03W') --steel sword
-        ItemDrops[id][15] = FourCC('I00O') --arcane staff
-        ItemDrops[id][16] = FourCC('I03S') --steel shield
-        ItemDrops[id][17] = FourCC('I01L') --long bow
-        ItemDrops[id][18] = FourCC('I03K') --steel lance
-        ItemDrops[id][19] = FourCC('I08Y') --noble blade
-        ItemDrops[id][20] = FourCC('I03Q') --horse boost
+        ItemDrops[id][9] = FourCC('I090')
+        ItemDrops[id][10] = FourCC('I01S')
+        ItemDrops[id][11] = FourCC('I04D')
+        ItemDrops[id][12] = FourCC('I03A') --steel dagger
+        ItemDrops[id][13] = FourCC('I03W') --steel sword
+        ItemDrops[id][14] = FourCC('I00O') --arcane staff
+        ItemDrops[id][15] = FourCC('I03S') --steel shield
+        ItemDrops[id][16] = FourCC('I01L') --long bow
+        ItemDrops[id][17] = FourCC('I03K') --steel lance
+        ItemDrops[id][18] = FourCC('I08Y') --noble blade
+        ItemDrops[id][19] = FourCC('I03Q') --horse boost
 
-        setupRates(id, 20)
+        setupRates(id, 19)
 
         id = FourCC('n0ss') --spider
         Rates[id] = 35
