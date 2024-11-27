@@ -4,32 +4,27 @@
     A big bucket of defined globals.
 ]]
 
-OnInit.global("Variables", function(Require)
-    Require('Users')
-
+OnInit.global("Variables", function()
     DEV_ENABLED         = false
     MAP_NAME            = "CoT Nevermore"
     SAVE_LOAD_VERSION   = 1
-    TIME                = 0
 
     DUMMY_UNIT                         = gg_unit_h05E_0717
     PLAYER_CAP                         = 6
-    MAX_LEVEL                          = 400
+    MAX_LEVEL                          = 500
     LEECH_CONSTANT                     = 50
-    NEARBY_BOSS_RANGE                  = 2500.
     BOSS_RESPAWN_TIME                  = 600
     MIN_LIFE                           = 0.406
+    PLAYER_CREEP                       = Player(PLAYER_NEUTRAL_AGGRESSIVE)
     PLAYER_TOWN                        = 8
-    PLAYER_BOSS                        = 11
-    FOE_ID                             = PLAYER_NEUTRAL_AGGRESSIVE + 1
-    BOSS_ID                            = PLAYER_BOSS + 1
-    TOWN_ID                            = PLAYER_TOWN + 1
+    PLAYER_BOSS                        = Player(11)
+    BOSS_ID                            = 12
+    TOWN_ID                            = 9
     FPS_32                             = 0.03125
-    FPS_64                             = 0.015625
     DETECT_LEAVE_ABILITY               = FourCC('uDex') ---@type integer 
     INT_32_LIMIT                       = 2147483647
 
-    --units
+    -- units
     DUMMY_CASTER                       = FourCC('e011')
     DUMMY_VISION                       = FourCC('eRez')
     GRAVE                              = FourCC('H01G')
@@ -61,7 +56,7 @@ OnInit.global("Variables", function(Require)
     SUMMON_HOUND                       = FourCC('H05F')
     SUMMON_GOLEM                       = FourCC('H05G')
 
-    --proficiencies
+    -- proficiencies
     PROF_PLATE                         = 0x1
     PROF_FULLPLATE                     = 0x2
     PROF_LEATHER                       = 0x4
@@ -118,21 +113,13 @@ OnInit.global("Variables", function(Require)
                                     phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
     }
 
-    --default stats return 1.
+    -- default stats return 1.
     local default_stats = {phys_resist = 1., magic_resist = 1., phys_damage = 1.}
     setmetatable(HeroStats, { __index = function(tbl, key)
         return default_stats
     end})
 
-    --currency
-    GOLD                               = 0
-    LUMBER                             = 1
-    PLATINUM                           = 2
-    ARCADITE                           = 3
-    CRYSTAL                            = 4
-    CURRENCY_COUNT                     = 5
-
-    --bosses
+    -- bosses
     BOSS_TAUREN                        = 1
     BOSS_MYSTIC                        = 2
     BOSS_HELLFIRE                      = 3
@@ -163,62 +150,53 @@ OnInit.global("Variables", function(Require)
     BOSS_AZAZOTH                       = 27
     BOSS_XALLARATH                     = 28
 
-    BOSS_OFFSET = 1
-
-    --items
+    -- items
     MAX_REINCARNATION_CHARGES          = 3
     ITEM_MIN_LEVEL_VARIANCE            = 8
     ITEM_MAX_LEVEL_VARIANCE            = 11
-    ABILITY_OFFSET                     = 500 --big enough
+    ABILITY_OFFSET                     = 500 -- big enough
     QUALITY_SAVED                      = 7
 
-    --auto generated tooltips
-    ITEM_HEALTH                        = 1
-    ITEM_MANA                          = 2
-    ITEM_DAMAGE                        = 3
-    ITEM_ARMOR                         = 4
-    ITEM_STRENGTH                      = 5
-    ITEM_AGILITY                       = 6
-    ITEM_INTELLIGENCE                  = 7
-    ITEM_REGENERATION                  = 8
-    ITEM_DAMAGE_RESIST                 = 9
-    ITEM_MAGIC_RESIST                  = 10
-    ITEM_DAMAGE_MULT                   = 11
-    ITEM_MAGIC_MULT                    = 12
-    ITEM_MOVESPEED                     = 13
-    ITEM_EVASION                       = 14
-    ITEM_SPELLBOOST                    = 15
-    ITEM_CRIT_CHANCE                   = 16
-    ITEM_CRIT_DAMAGE                   = 17
-    ITEM_CRIT_CHANCE_MULT              = 18
-    ITEM_CRIT_DAMAGE_MULT              = 19
-    ITEM_BASE_ATTACK_SPEED             = 20
-    ITEM_GOLD_GAIN                     = 21
-    ITEM_ABILITY                       = 22
-    ITEM_ABILITY2                      = 23
-    ITEM_STAT_TOTAL                    = 23
+    -- auto generated tooltips
+    ITEM_HEALTH                        = 2
+    ITEM_MANA                          = 3
+    ITEM_DAMAGE                        = 4
+    ITEM_ARMOR                         = 5
+    ITEM_STRENGTH                      = 6
+    ITEM_AGILITY                       = 7
+    ITEM_INTELLIGENCE                  = 8
+    ITEM_REGENERATION                  = 9
+    ITEM_MANA_REGENERATION             = 10
+    ITEM_DAMAGE_RESIST                 = 11
+    ITEM_MAGIC_RESIST                  = 12
+    ITEM_DAMAGE_MULT                   = 13
+    ITEM_MAGIC_MULT                    = 14
+    ITEM_MOVESPEED                     = 15
+    ITEM_EVASION                       = 16
+    ITEM_SPELLBOOST                    = 17
+    ITEM_CRIT_CHANCE                   = 18
+    ITEM_CRIT_DAMAGE                   = 19
+    ITEM_CRIT_CHANCE_MULT              = 20
+    ITEM_CRIT_DAMAGE_MULT              = 21
+    ITEM_BASE_ATTACK_SPEED             = 22
+    ITEM_GOLD_GAIN                     = 23
+    ITEM_ABILITY                       = 24
+    ITEM_ABILITY2                      = 25
+    ITEM_STAT_TOTAL                    = 25
 
-    --not auto generated
-    ITEM_TOOLTIP                       = 24
-    ITEM_NOCRAFT                       = 25
-    ITEM_TIER                          = 26
-    ITEM_TYPE                          = 27
-    ITEM_UPGRADE_MAX                   = 28
-    ITEM_LEVEL_REQUIREMENT             = 29
-    ITEM_LIMIT                         = 30
-    ITEM_COST                          = 31
-    ITEM_DISCOUNT                      = 32
-    ITEM_STACK                         = 33
+    -- not auto generated
+    ITEM_TOOLTIP                       = 26
+    ITEM_NOCRAFT                       = 27
+    ITEM_TIER                          = 28
+    ITEM_TYPE                          = 29
+    ITEM_UPGRADE_MAX                   = 30
+    ITEM_LEVEL_REQUIREMENT             = 31
+    ITEM_LIMIT                         = 32
+    ITEM_COST                          = 33
+    ITEM_DISCOUNT                      = 34
+    ITEM_STACK                         = 35
 
     CUSTOM_ITEM_OFFSET = FourCC('I000') ---@type integer 
-    MAX_SAVED_ITEMS    = 8191 ---@type integer 
-    MAX_SAVED_HEROES   = 63  ---@type integer --6 bits
-    SAVE_UNIT_TYPE     = {} ---@type integer[] 
-
-    SAVE_TABLE = {
-        KEY_ITEMS = {},
-        KEY_UNITS = {}
-    }
 
     MAIN_MAP = {
         rect = gg_rct_Main_Map,
@@ -239,49 +217,35 @@ OnInit.global("Variables", function(Require)
     ItemGoldRate = __jarray(0) ---@type integer[] 
 
     SummonGroup = {} ---@type unit[]
-    IS_BACKPACK_MOVING = {} ---@type boolean[] 
     DAMAGE_TAG = {}
     IS_FLEEING = {} ---@type boolean[]
-    ArcTag     = "|cff66FF66Arcadite Lumber|r: " ---@type string 
     PlatTag    = "|cffccccccPlatinum Coins|r: " ---@type string 
     CrystalTag = "|cff6969FFCrystals: |r" ---@type string 
     Hardcore = {} ---@type boolean[]
-    HARD_MODE = 0 ---@type integer 
-    pfoe = Player(PLAYER_NEUTRAL_AGGRESSIVE)
-    pboss = Player(PLAYER_BOSS)
     CHAOS_MODE = false ---@type boolean 
     CHAOS_LOADING = false ---@type boolean 
 
-    --tables
     infoString=__jarray("") ---@type string[] 
-    ShopkeeperDirection=__jarray("") ---@type string[] 
-    CURRENCY_ICON=__jarray("") ---@type string[] 
     XP_Rate=__jarray(0) ---@type number[]
     player_fog = {} ---@type boolean[]
 
     KillQuest = array2d(0) ---@type table
     ItemData = array2d(0) ---@type table
-    UnitData = array2d(0) ---@type table
     CosmeticTable = array2d(0) ---@type table
     HeroCircle = {}
 
-    ColoGoldWon = 0
     ColoCount_main=__jarray(0) ---@type integer[] 
     ColoEnemyType_main=__jarray(0) ---@type integer[] 
     ColoCount_sec=__jarray(0) ---@type integer[] 
     ColoEnemyType_sec=__jarray(0) ---@type integer[] 
     Colosseum_XP = __jarray(0) ---@type number[]
 
-    Zoom = __jarray(0) ---@type integer[]
+    ZOOM = __jarray(0) ---@type integer[]
 
     SELECTING_HERO = {} ---@type boolean[] 
     forgottenTypes = __jarray(0) ---@type integer[] 
     forgottenCount         = 0 ---@type integer 
     forgotten_spawner      = nil ---@type unit 
-    funnyList = {
-        -894554765,
-        -1291321931,
-    }
 
     IS_ALT_DOWN = {} ---@type boolean[]
     charLight={} ---@type effect[] 
@@ -295,15 +259,12 @@ OnInit.global("Variables", function(Require)
     Backpack={} ---@type unit[] 
 
     HeroID=__jarray(0) ---@type integer[] 
-    Currency=__jarray(0) ---@type integer[] 
     prMulti=__jarray(0) ---@type integer[] 
     ShieldCount=__jarray(0) ---@type integer[] 
     RollChecks=__jarray(0) ---@type integer[] 
     HuntedLevel=__jarray(0) ---@type integer[] 
     CustomLighting=__jarray(0) ---@type integer[] 
 
-    MultiShot = {} ---@type boolean[] 
-    IS_CAMERA_LOCKED = {} ---@type boolean[] 
     IS_FORCE_SAVING = {} ---@type boolean[] 
 
     BOOST=__jarray(1) ---@type number[] 
@@ -328,7 +289,6 @@ OnInit.global("Variables", function(Require)
     Struggle_Wave_SR = __jarray(0) ---@type integer[]
     StruggleGoldPer = __jarray(0) ---@type integer[]
 
-    SYNC_PREFIX        = "S" ---@type string 
     ColoPlayerCount         = 0 ---@type integer 
     BOOST_OFF         = false ---@type boolean 
 
@@ -1125,67 +1085,8 @@ OnInit.global("Variables", function(Require)
     ColoCount_sec[211]=6
     ColoEnemyType_sec[211]=FourCC('n09Y')
 
-    NERUBIAN_QUEST = FourCC('I04M')
-    POLARBEAR_QUEST = FourCC('I092')
-
-    --quest rewards
-    HeadHunter = {
-        --spider armors
-        [NERUBIAN_QUEST] = {
-            Head = FourCC('I01E'),
-            Reward = {
-                FourCC('I0B8'),
-                FourCC('I0BA'),
-                FourCC('I0B4'),
-                FourCC('I0B6'),
-            },
-            Level = 15,
-            XP = 2000,
-        },
-        --polar bear items
-        [POLARBEAR_QUEST] = {
-            Head = FourCC('I04A'),
-            Reward = {
-                FourCC('I0MC'),
-                FourCC('I0MD'),
-                FourCC('I0FB'),
-                FourCC('I05Q'),
-            },
-            Level = 25,
-            XP = 4000,
-        },
-        --Hydra Head
-        [FourCC('I03G')] = {
-            Head = FourCC('I044'),
-            Reward = FourCC('I0F8'),
-            Level = 50,
-            XP = 6000
-        },
-        --King of Ogres Head
-        [FourCC('I049')] = {
-            Head = FourCC('I02M'),
-            Reward = FourCC('I04C'),
-            Level = 50,
-            XP = 6000
-        },
-        --Yeti Head
-        [FourCC('I05N')] = {
-            Head = FourCC('I05R'),
-            Reward = FourCC('I03O'),
-            Level = 60,
-            XP = 8000
-        },
-        --Corrupted Bark
-        [FourCC('I057')] = {
-            Head = FourCC('I07J'),
-            Reward = FourCC('I01B'),
-            Level = 100,
-            XP = 10000
-        },
-    }
-
     --trolls
-    local id         = FourCC('nits') ---@type integer 
+    local id         = FourCC('n0tb') ---@type integer 
     KillQuest[0][0] = id
     KillQuest[FourCC('I07D')][0] = id
     KillQuest[id].goal = 15
@@ -1194,7 +1095,7 @@ OnInit.global("Variables", function(Require)
     KillQuest[id].name = "Trolls"
     KillQuest[id].region = gg_rct_Troll_Demon_1
     --tuskarr
-    id = FourCC('ntks')
+    id = FourCC('n0ts')
     KillQuest[0][1] = id
     KillQuest[FourCC('I058')][0] = id
     KillQuest[id].goal = 20
@@ -1203,7 +1104,7 @@ OnInit.global("Variables", function(Require)
     KillQuest[id].name = "Tuskarr"
     KillQuest[id].region = gg_rct_Tuskar_Horror_1
     --spider
-    id = FourCC('nnwr')
+    id = FourCC('n0ss')
     KillQuest[0][2] = id
     KillQuest[FourCC('I05F')][0] = id
     KillQuest[id].goal = 20
@@ -1212,16 +1113,16 @@ OnInit.global("Variables", function(Require)
     KillQuest[id].name = "Spiders"
     KillQuest[id].region = gg_rct_Spider_Horror_3
     --ursa
-    id = FourCC('nfpu')
+    id = FourCC('n0uw')
     KillQuest[0][3] = id
     KillQuest[FourCC('I04U')][0] = id
     KillQuest[id].goal = 25
     KillQuest[id].min = 8
-    KillQuest[id].max = 24
+    KillQuest[id].max = 34
     KillQuest[id].name = "Ursae"
     KillQuest[id].region = gg_rct_Ursa_Abyssal_2
     --polar bears
-    id = FourCC('nplg')
+    id = FourCC('n0dm')
     KillQuest[0][4] = id
     KillQuest[FourCC('I04V')][0] = id
     KillQuest[id].goal = 20
@@ -1239,7 +1140,7 @@ OnInit.global("Variables", function(Require)
     KillQuest[id].name = "Taurens & Ogres"
     KillQuest[id].region = gg_rct_OgreTauren_Void_5
     --unbroken
-    id = FourCC('nubw')
+    id = FourCC('n0ud')
     KillQuest[0][6] = id
     KillQuest[FourCC('I05L')][0] = id
     KillQuest[id].goal = 25
@@ -1248,7 +1149,7 @@ OnInit.global("Variables", function(Require)
     KillQuest[id].name = "Unbroken"
     KillQuest[id].region = gg_rct_Unbroken_Dimensional_2
     --hellhounds
-    id = FourCC('nvdl')
+    id = FourCC('n0hs')
     KillQuest[0][7] = id
     KillQuest[FourCC('I05E')][0] = id
     KillQuest[id].goal = 20
@@ -1383,19 +1284,17 @@ OnInit.global("Variables", function(Require)
     KillQuest[id].name = "Dimensionals"
     KillQuest[id].region = gg_rct_Unbroken_Dimensional_2
 
-    Experience_Table = {}
-    RewardGold = {}
+    EXPERIENCE_TABLE = {}
+    GOLD_TABLE = {}
+    BASE_XP_RATE = __jarray(0) ---@type number[]
 
     for i = 1, 500 do
-        Experience_Table[i] = R2I(13. * i * 1.4 ^ (i / 20) + 10)
-        RewardGold[i] = Experience_Table[i] ^ 0.94 / 8.
+        EXPERIENCE_TABLE[i] = math.floor(20 + 13. * i * 1.4 ^ (i / 20))
+        GOLD_TABLE[i] = EXPERIENCE_TABLE[i] ^ 0.94
     end
 
-    --base experience rates per 5 levels
-
-    BaseExperience = __jarray(0) ---@type number[]
-    for i = 0, 400, 5 do
-        BaseExperience[i] = (i <= 10) and 425 or (BaseExperience[i - 5] - 17 / (i - 5)) * 0.919
+    for i = 0, 400 do
+        BASE_XP_RATE[i] = (i <= 1 and 100) or (BASE_XP_RATE[i - 1] * 0.988)
     end
 
     Gold_Mod = {
@@ -1407,39 +1306,29 @@ OnInit.global("Variables", function(Require)
         0.35 ^ 0.5,
     }
 
-    infoString[0] = "Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Hardmode\n -info 6, Prestige\n -info 7, Proficiency\n -info 8, Aggro System"
+    infoString[0] = "Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Perks\n -info 6, Proficiency\n -info 7, Aggro System"
     infoString[1] = "Most units in this game (besides Bosses, Colosseum, Struggle) will attempt to revive where they died 30 seconds after death. If a player hero/unit is within 800 range they will spawn frozen and invulnerable until no players are around."
-    infoString[2] = "Bosses respawn after 10 minutes and non-hero bosses respawn after 5 minutes, -hardmode speeds up respawns by 25\x25"
+    infoString[2] = "Bosses respawn after 10 minutes and non-hero bosses respawn after 5 minutes, players may choose to fight a stronger version of the boss after defeating them once.\x25"
     infoString[3] = "The town is protected from enemy invasion and any entering enemy will be teleported back to their original spawn."
     infoString[4] = [[Hardcore players that die without a reincarnation item/spell will be removed from the game and cannot save/load or start a new character. 
     A hardcore hero can only save every 30 minutes- the timer starts upon saving OR upon loading your hardcore hero. 
     Hardcore heroes receive double the bonus from prestiging.
     If you need to save before the timer expires you can use -forcesave to save immediately, but this deletes your hero, leaving you unable to load again in the current game (same as if your hero died).]]
-    infoString[5] = [[Hardmode doubles the health and damage of bosses, doubles their drop chance, increases their gold/xp/crystal rewards, and speeds up respawn time by 25\x25.
-    Does not apply to Dungeons.
-    Automatically turns off when entering Chaos, but can be re-activated.]]
-    infoString[6] = "You need a |cffffcc00Prestige Token|r to prestige your hero from the church.\nPrestige Talent points are awarded and can be accessed with -prestige.\nPrestige bonuses apply to all of your characters and any new ones."
-    infoString[7] = [[Most items in this game have a proficiency requirement in their description.
+    infoString[5] = "Perk Points are earned by completing specific trials for the first time on a character and will apply to ALL of your existing characters when spent."
+    infoString[6] = [[Most items in this game have a proficiency requirement in their description.
     While any hero can equip them regardless of proficiency, those lacking proficiency only recieve half stats from the item.
     Check your hero's proficiency with -pf.]]
-    infoString[8] = [[Bosses use a threat meter system for each player that increases when attacked or by casting spells. Distance from the boss reduces the threat you 
+    infoString[7] = [[Bosses use a threat meter system for each player that increases when attacked or by casting spells. Distance from the boss reduces the threat you 
     generate significantly when attacking, so melee characters will draw aggro much more quickly-- especially with taunt abilities.]]
-    infoString[69] = "Nice"
 
     prMulti[0] = FourCC('A0A3')
     prMulti[1] = FourCC('A0IW')
     prMulti[2] = FourCC('A0IX')
     prMulti[3] = FourCC('A0IY')
     prMulti[4] = FourCC('A0IZ')
+    prMulti[5] = FourCC('A00A')
 
-    --currencies
-    CURRENCY_ICON[0] = "gold.dds"
-    CURRENCY_ICON[1] = "wood.dds"
-    CURRENCY_ICON[2] = "plat.dds"
-    CURRENCY_ICON[3] = "arc.dds"
-    CURRENCY_ICON[4] = "crystal.dds"
-
-    --TODO expand channel fields?
+    --TODO: expand channel fields?
 
     SPELL_FIELD = {} ---@type abilityreallevelfield[] 
     SPELL_FIELD[0] = ABILITY_RLF_ART_DURATION
@@ -1619,140 +1508,48 @@ OnInit.global("Variables", function(Require)
     }
     PROF[0] = 0
 
-    --types: 1 - power, 2 - utility, 3 - player only, 4 - hidden
+    --priority: 1 - power, 2 - utility, 3 - player only, 4 - hidden
     STAT_TAG = {
-        [ITEM_HEALTH]            = {
-            tag = "|cffff0000Health|r", type = 1, syntax = "health",
-            getter = function(u) return RealToString(GetWidgetLife(u)) .. " / " .. RealToString(BlzGetUnitMaxHP(u)) end},
-        [ITEM_MANA]              = {
-            tag = "|cff6699ffMana|r", type = 1, syntax = "mana",
-            getter = function(u) return RealToString(GetUnitState(u, UNIT_STATE_MANA)) .. " / " .. RealToString(GetUnitState(u, UNIT_STATE_MAX_MANA)) end},
-        [ITEM_DAMAGE]            = {
-            tag = "|cffff6600Damage|r", type = 1, syntax = "damage",
-            getter = function(u) return RealToString(BlzGetUnitBaseDamage(u, 0) + UnitGetBonus(u, BONUS_DAMAGE)) end},
-        [ITEM_ARMOR]             = {
-            tag = "|cffa4a4feArmor|r", type = 1, syntax = "armor",
-            getter = function(u) return RealToString(BlzGetUnitArmor(u)) end},
-        [ITEM_STRENGTH]          = {
-            tag = "|cffbb0000Strength|r", type = 1, syntax = "str",
-            getter = function(u) return RealToString(GetHeroStr(u, true)) end},
-        [ITEM_AGILITY]           = {
-            tag = "|cff008800Agility|r", type = 1, syntax = "agi",
-            getter = function(u) return RealToString(GetHeroAgi(u, true)) end},
-        [ITEM_INTELLIGENCE]      = {
-            tag = "|cff2255ffIntelligence|r", type = 1, syntax = "int",
-            getter = function(u) return RealToString(GetHeroInt(u, true)) end},
-        [ITEM_REGENERATION]      = {
-            tag = "|cffa00070Regeneration|r", type = 1, syntax = "regen",
-            getter = function(u) return RealToString(Unit[u].regen) end},
-        [ITEM_DAMAGE_RESIST]     = {
-            tag = "|cffff8040Damage Resist|r", alternate = "|cffff8040Physical Taken|r", type = 1, suffix = "\x25", syntax = "dr",
-            breakdown = function(u)
-                local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
-                local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
-                local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. string.format("\x25.3f", (1. - chaos_reduc) * 100) .. "\x25" or "")
-
-                return "|cffffcc00Base Reduction:|r " .. string.format("\x25.3f", 100. - (HeroStats[GetUnitTypeId(u)].phys_resist) * 100.)  .. "\x25" ..
-                "\n|cffffcc00Spell/Item Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].pr) * 100. / HeroStats[GetUnitTypeId(u)].phys_resist)  .. "\x25" ..
-                "\n|cffffcc00Armor Reduction:|r " .. string.format("\x25.3f", ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u))) * 100.)  .. "\x25" ..
-                chaos ..
-                "\n|cffffcc00Total Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))) * chaos_reduc) .. "\x25"
-            end,
-            getter = function(u)
-                local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
-                local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
-
-                return string.format("\x25.3f", (Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))) * chaos_reduc)
-            end},
-        [ITEM_MAGIC_RESIST]      = {
-            tag = "|cff8000ffMagic Resist|r", alternate = "|cff8000ffMagical Taken|r", type = 1, suffix = "\x25", syntax = "mr",
-            breakdown = function(u)
-                local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
-                local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
-                local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. string.format("\x25.3f", (1. - chaos_reduc) * 100) .. "\x25" or "")
-
-                return "|cffffcc00Base Reduction:|r " .. string.format("\x25.3f", 100. - (HeroStats[GetUnitTypeId(u)].magic_resist) * 100.)  .. "\x25" ..
-                "\n|cffffcc00Spell/Item Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].mr) * 100. / HeroStats[GetUnitTypeId(u)].magic_resist)  .. "\x25" ..
-                chaos ..
-                "\n|cffffcc00Total Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].mr) * 100. * chaos_reduc) .. "\x25"
-            end,
-            getter = function(u)
-                local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
-                local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
-
-                return string.format("\x25.3f", (Unit[u].dr * Unit[u].mr) * 100. * chaos_reduc) end},
-        [ITEM_DAMAGE_MULT]       = {
-            tag = "|cffff8040Physical Dealt|r", type = 1, suffix = "\x25", syntax = "dm",
-            getter = function(u) return string.format("\x25.3f", (Unit[u].dm * Unit[u].pm) * 100.) end},
-        [ITEM_MAGIC_MULT]        = {
-            tag = "|cff8000ffMagic Dealt|r", type = 1, suffix = "\x25", syntax = "mm",
-            getter = function(u) return string.format("\x25.3f", (Unit[u].dm * Unit[u].mm) * 100.) end},
-        [ITEM_MOVESPEED]         = {
-            tag = "|cff888888Movespeed|r", type = 2, syntax = "ms",
-            getter = function(u) return RealToString(Unit[u].movespeed) end},
-        [ITEM_EVASION]           = {
-            tag = "|cff008080Evasion|r", type = 2, suffix = "\x25", syntax = "evasion",
-            getter = function(u) return math.min(100, (Unit[u].evasion)) end},
-        [ITEM_SPELLBOOST]        = {
-            tag = "|cff80ffffSpellboost|r", type = 1, suffix = "\x25", syntax = "spellboost",
-            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return string.format("\x25.3f", Unit[u].spellboost * 100.) end},
-        [ITEM_CRIT_CHANCE]       = {
-            tag = "|cffffcc00Critical Chance|r", type = 1, suffix = "\x25", syntax = "cc",
-            getter = function(u) return string.format("\x25.2f", Unit[u].cc) end},
-        [ITEM_CRIT_DAMAGE]       = {
-            tag = "|cffffcc00Critical Damage|r", type = 1, suffix = "\x25", syntax = "cd",
-            getter = function(u) return string.format("\x25.2f", Unit[u].cd) end},
-        [ITEM_CRIT_CHANCE_MULT]  = {
-            tag = "|cffffcc00Critical Chance Multiplier|r", type = 4, suffix = "\x25", syntax = "cc_percent",
-            getter = function(u) return string.format("\x25.2f", Unit[u].cc) end},
-        [ITEM_CRIT_DAMAGE_MULT]  = {
-            tag = "|cffffcc00Critical Damage Multiplier|r", type = 4, suffix = "\x25", syntax = "cd_percent",
-            getter = function(u) return string.format("\x25.2f", Unit[u].cd * 100.) end},
-        [ITEM_BASE_ATTACK_SPEED] = {
-            tag = "|cff446600Base Attack Speed|r", type = 1, item_suffix = "\x25", syntax = "bat",
-            getter = function(u) local as = 1 / BlzGetUnitAttackCooldown(u, 0) return string.format("\x25.2f", as) .. " attacks per second" end},
-        [ITEM_GOLD_GAIN]         = {
-            tag = "|cffffff00Gold Find|r", type = 3, suffix = "\x25", syntax = "gold",
-            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return ItemGoldRate[pid] end},
-        [ITEM_ABILITY]           = {
-            type = 4, syntax = "abil"},
-        [ITEM_ABILITY2]          = {
-            type = 4, syntax = "abiltwo"},
-        [ITEM_TOOLTIP]           = {
-            type = 4, syntax = ""},
-        [ITEM_NOCRAFT]           = {
-            type = 4, syntax = "nocraft"},
-        [ITEM_TIER]              = {
-            type = 4, syntax = "tier"},
-        [ITEM_TYPE]              = {
-            type = 4, syntax = "type"},
-        [ITEM_UPGRADE_MAX]       = {
-            type = 4, syntax = "upg"},
-        [ITEM_LEVEL_REQUIREMENT] = {
-            type = 4, syntax = "req"},
-        [ITEM_LIMIT]             = {
-            type = 4, syntax = "limit"},
-        [ITEM_COST]              = {
-            type = 4, syntax = "cost"},
-        [ITEM_DISCOUNT]          = {
-            type = 4, syntax = "discount"},
-        [ITEM_STACK]             = {
-            type = 4, syntax = "stack"},
-        [ITEM_STACK + 1]     = {
-            tag = "|cff446600Total Attack Speed|r", type = 1,
-            getter = function(u) local as = (1 / BlzGetUnitAttackCooldown(u, 0)) * (1 + math.min(GetHeroAgi(u, true), 400) * 0.01) return string.format("\x25.2f", as) .. " attacks per second" end},
-        [ITEM_STACK + 2]     = {
-            tag = "|cff808080Experience Rate|r", type = 3,
-            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return string.format("\x25.2f", XP_Rate[pid]) end},
-        [ITEM_STACK + 3]     = {
-            tag = "|cff808080Colosseum XP Rate|r", type = 3, suffix = "\x25",
-            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return string.format("\x25.2f", Colosseum_XP[pid] * 100.) end},
-        [ITEM_STACK + 4]     = {
-            tag = "|cff808000Hero Time Played|r", type = 3,
-            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
-        [ITEM_STACK + 5]     = {
-            tag = "|cff808000Total Time Played|r", type = 3,
-            getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end},
+        [1] = { tag = "Level", priority = 1 },
+        [ITEM_HEALTH] = { tag = "|cffff0000Health|r", priority = 1, syntax = "health" },
+        [ITEM_MANA] = { tag = "|cff6699ffMana|r", priority = 1, syntax = "mana" },
+        [ITEM_DAMAGE] = { tag = "|cffff6600Damage|r", priority = 1, syntax = "damage" },
+        [ITEM_ARMOR] = { tag = "|cffa4a4feArmor|r", priority = 1, syntax = "armor" },
+        [ITEM_STRENGTH] = { tag = "|cffbb0000Strength|r", priority = 1, syntax = "str" },
+        [ITEM_AGILITY] = { tag = "|cff008800Agility|r", priority = 1, syntax = "agi" },
+        [ITEM_INTELLIGENCE] = { tag = "|cff2255ffIntelligence|r", priority = 1, syntax = "int" },
+        [ITEM_REGENERATION] = { tag = "|cffa00070Regeneration|r", priority = 1, syntax = "regen" },
+        [ITEM_MANA_REGENERATION] = { tag = "|cff1144ddMana Regen|r", priority = 1, syntax = "manaregen" },
+        [ITEM_DAMAGE_RESIST] = { tag = "|cffff8040Damage Resist|r", alternate = "|cffff8040Physical Taken|r", priority = 1, suffix = "\x25", syntax = "dr" },
+        [ITEM_MAGIC_RESIST] = { tag = "|cff8000ffMagic Resist|r", alternate = "|cff8000ffMagical Taken|r", priority = 1, suffix = "\x25", syntax = "mr" },
+        [ITEM_DAMAGE_MULT] = { tag = "|cffff8040Physical Dealt|r", priority = 1, suffix = "\x25", syntax = "dm" },
+        [ITEM_MAGIC_MULT] = { tag = "|cff8000ffMagic Dealt|r", priority = 1, suffix = "\x25", syntax = "mm" },
+        [ITEM_MOVESPEED] = { tag = "|cff888888Movespeed|r", priority = 2, syntax = "ms" },
+        [ITEM_EVASION] = { tag = "|cff008080Evasion|r", priority = 2, suffix = "\x25", syntax = "evasion" },
+        [ITEM_SPELLBOOST] = { tag = "|cff80ffffSpellboost|r", priority = 1, suffix = "\x25", syntax = "spellboost" },
+        [ITEM_CRIT_CHANCE] = { tag = "|cffffcc00Critical Chance|r", priority = 1, suffix = "\x25", syntax = "cc" },
+        [ITEM_CRIT_DAMAGE] = { tag = "|cffffcc00Critical Damage|r", priority = 1, suffix = "\x25", syntax = "cd" },
+        [ITEM_CRIT_CHANCE_MULT] = { tag = "|cffffcc00Critical Chance Multiplier|r", priority = 4, suffix = "\x25", syntax = "cc_percent" },
+        [ITEM_CRIT_DAMAGE_MULT] = { tag = "|cffffcc00Critical Damage Multiplier|r", priority = 4, suffix = "\x25", syntax = "cd_percent" },
+        [ITEM_BASE_ATTACK_SPEED] = { tag = "|cff446600Base Attack Speed|r", priority = 1, item_suffix = "\x25", syntax = "bat" },
+        [ITEM_GOLD_GAIN] = { tag = "|cffffff00Gold Find|r", priority = 3, suffix = "\x25", syntax = "gold" },
+        [ITEM_ABILITY] = { priority = 4, syntax = "abil" },
+        [ITEM_ABILITY2] = { priority = 4, syntax = "abiltwo" },
+        [ITEM_TOOLTIP] = { priority = 4, syntax = "" },
+        [ITEM_NOCRAFT] = { priority = 4, syntax = "nocraft" },
+        [ITEM_TIER] = { priority = 4, syntax = "tier" },
+        [ITEM_TYPE] = { priority = 4, syntax = "type" },
+        [ITEM_UPGRADE_MAX] = { priority = 4, syntax = "upg" },
+        [ITEM_LEVEL_REQUIREMENT] = { priority = 4, syntax = "req" },
+        [ITEM_LIMIT] = { priority = 4, syntax = "limit" },
+        [ITEM_COST] = { priority = 4, syntax = "cost" },
+        [ITEM_DISCOUNT] = { priority = 4, syntax = "discount" },
+        [ITEM_STACK] = { priority = 4, syntax = "stack" },
+        [ITEM_STACK + 1] = { tag = "|cff446600Total Attack Speed|r", priority = 1 },
+        [ITEM_STACK + 2] = { tag = "|cff808080Experience Rate|r", priority = 3, suffix = "\x25" },
+        [ITEM_STACK + 3] = { tag = "|cff808080Colosseum XP Rate|r", priority = 3, suffix = "\x25" },
+        [ITEM_STACK + 4] = { tag = "|cff808000Hero Time Played|r", priority = 3 },
+        [ITEM_STACK + 5] = { tag = "|cff808000Total Time Played|r", priority = 3 }
     }
 
     LIMIT_STRING[1] = "You can only wear one of this item."
@@ -1788,7 +1585,6 @@ OnInit.global("Variables", function(Require)
     HINT_TOOLTIP = { ---@type string[]
         "|cffc0c0c0Every 30 minutes the game will check for AFK players, so if you see a text box appear, type the characters it displays after a hyphen (-????)|r",
         "|cffc0c0c0Did you know?|r |cff9966ffCoT RPG|r |cffc0c0c0has a discord!|r |cff9ebef5https://discord.gg/peSTvTd|r",
-        "|cffc0c0c0If you find your experience rate dropping, try upgrading to a better home.|r",
         "|cffc0c0c0Game too easy for you? Select|r |cff9966ffHardcore|r |cffc0c0c0on character creation to increase difficulty & increase benefits.|r",
         "|cffc0c0c0Type|r |cff9966ff-info|r |cffc0c0c0or|r check |cff9966ffF9|r |cffc0c0c0to for important game information, especially if you are new.|r",
         "|cffc0c0c0After an item drops it will be removed after 10 minutes, but don’t worry if you’ve already picked it up or bound it with your hero as they will not delete.|r",
@@ -1803,20 +1599,12 @@ OnInit.global("Variables", function(Require)
         "|cffc0c0c0Critical strike items and spells can stack their effect, the multipliers are additive.|r",
         "|cffc0c0c0The Ashen Vat is a mysterious crafting device located in the north-west tower.|r",
         "|cffc0c0c0The actions menu (Z on your hero) provides many useful settings such as displaying allied hero portraits on the left.|r",
-        "|cffc0c0c0Toggling off your auto attacks with -aa helps reduce the likelihood of drawing aggro, -info 8 for more information.|r",
+        "|cffc0c0c0Toggling off your auto attacks with CTRL + A helps reduce the likelihood of drawing aggro, -info 7 for more information.|r",
         "|cffc0c0c0If you meant to load another hero and you haven't left the church, you can type|r |cff9966ff-repick|r |cffc0c0c0and then|r |cff9966ff-load|r |cffc0c0c0to load another hero.|r",
         "|cffc0c0c0Hold |cff9966ffLeft Alt|r |cffc0c0c0while viewing your abilites to see how they are affected by Spellboost.|r"
     }
 
     LAST_HINT = 0
     FORCE_HINT = CreateForce() ---@type force 
-
     PrestigeTable = array2d(0) ---@type table
-
-    local U = User.first
-
-    while U do
-        ForceAddPlayer(FORCE_HINT, U.player)
-        U = U.next
-    end
 end, Debug and Debug.getLine())
