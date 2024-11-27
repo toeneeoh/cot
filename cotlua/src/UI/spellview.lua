@@ -31,9 +31,6 @@ OnInit.final("SpellView", function()
     local DataText=__jarray("") ---@type string[] 
     local DataIcon=__jarray("") ---@type string[] 
 
-    local ParentSimple ---@type framehandle 
-    local Parent ---@type framehandle 
-
     local LastUnit      = nil ---@type unit 
 
     local MOD_ABI         = 1 ---@type integer 
@@ -43,31 +40,16 @@ OnInit.final("SpellView", function()
     local UnitCodeType=__jarray(0) ---@type integer[] 
     local UnitCodeCount         = 0 ---@type integer 
 
-    ---@return framehandle
-    local function ParentFuncSimple()
-        return BlzGetFrameByName("ConsoleUI", 0)
-    end
-    ---@return framehandle
-    local function ParentFunc()
-        return BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0)
-    end
-
     --spells disabled on spellview
     local disabled_spells = {
         --backpack utilities
         [DETECT_LEAVE_ABILITY] = 1,
         [0] = 1,
         [FourCC('A04M')] = 1,
-        [FourCC('A00R')] = 1,
-        [FourCC('A0DT')] = 1,
         [FourCC('A0KX')] = 1,
         [FourCC('A04N')] = 1,
-        [FourCC('A03V')] = 1,
-        [FourCC('A0L0')] = 1,
 
         --hero utilities
-        [FourCC('A0GD')] = 1,
-        [FourCC('A06X')] = 1,
         [FourCC('A08Y')] = 1,
         [FourCC('A00B')] = 1,
         [FourCC('A02T')] = 1,
@@ -75,7 +57,7 @@ OnInit.final("SpellView", function()
         [FourCC('A067')] = 1,
         [FourCC('A03C')] = 1,
         [FourCC('A00F')] = 1,
-        [FourCC('A00I')] = 1,
+        [FourCC('A00Y')] = 1,
 
         --dummy spells
         [FourCC('A06K')] = 1,
@@ -86,6 +68,7 @@ OnInit.final("SpellView", function()
         [FourCC('A0IX')] = 1,
         [FourCC('A0IY')] = 1,
         [FourCC('A0IZ')] = 1,
+        [FourCC('A00A')] = 1,
         [FourCC('A00N')] = 1,
         [FourCC('A01A')] = 1,
         [FourCC('A09X')] = 1,
@@ -322,8 +305,8 @@ OnInit.final("SpellView", function()
     local function InitFrames()
         local frame ---@type framehandle 
         local tooltipFrame ---@type framehandle 
-        ParentSimple = BlzCreateFrameByType("SIMPLEFRAME", "TasSpellViewSimpleFrame", ParentFuncSimple(), "", 0)
-        Parent = BlzCreateFrameByType("FRAME", "TasSpellViewFrame", ParentFunc(), "", 0)
+        local ParentSimple = BlzCreateFrameByType("SIMPLEFRAME", "TasSpellViewSimpleFrame", BlzGetFrameByName("ConsoleUI", 0), "", 0)
+        local Parent = BlzCreateFrameByType("FRAME", "TasSpellViewFrame", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
         for i = 0, 11 do
             frame = BlzCreateSimpleFrame("TasSpellViewButton", ParentSimple, i)
             BlzFrameSetPoint(frame, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_COMMAND_BUTTON, i), FRAMEPOINT_CENTER, 0, 0.0)
