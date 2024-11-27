@@ -13,14 +13,14 @@ OnInit.final("Training", function(Require)
     local chaosTrainer = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h001'), 29415., 252., 270.)
     do
         local itm = UnitAddItemById(prechaosTrainer, FourCC('I0MY'))
-        BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(UnitData[0][0]) .. "|r")
-        BlzSetItemIconPath(itm.obj, BlzGetAbilityIcon(UnitData[0][0]))
+        BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(FourCC('nitt')) .. "|r")
+        BlzSetItemIconPath(itm.obj, BlzGetAbilityIcon(FourCC('nitt')))
         itm.spawn = 0
 
         itm = UnitAddItemById(chaosTrainer, FourCC('I0MY'))
-        BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(UnitData[1][0]) .. "|r")
-        BlzSetItemIconPath(itm.obj, BlzGetAbilityIcon(UnitData[1][0]))
-        itm.spawn = 0
+        BlzSetItemName(itm.obj, "|cffffcc00" .. GetObjectName(FourCC('n033')) .. "|r")
+        BlzSetItemIconPath(itm.obj, BlzGetAbilityIcon(FourCC('n033')))
+        itm.spawn = 29 --chaos unit start
     end
 
     -- enter training
@@ -81,7 +81,7 @@ OnInit.final("Training", function(Require)
         local trainerItem = Item[UnitItemInSlot(trainer, 0)]
         local r = ((flag == 0) and gg_rct_PrechaosTrainingSpawn) or gg_rct_ChaosTrainingSpawn
 
-        u = CreateUnit(PLAYER_CREEP, UnitData[flag][trainerItem.spawn], GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)), GetRandomReal(0,359))
+        u = CreateUnit(PLAYER_CREEP, UnitData[trainerItem.spawn], GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)), GetRandomReal(0,359))
         EVENT_ON_DEATH:register_unit_action(u, on_death)
     end
 
@@ -94,17 +94,20 @@ OnInit.final("Training", function(Require)
 
         if increase == true then
             trainerItem.spawn = trainerItem.spawn + 1
-            if UnitData[flag][trainerItem.spawn] == 0 then
+            if UnitData[trainerItem.spawn].chaos ~= flag then
                 trainerItem.spawn = trainerItem.spawn - 1
             end
         else
             trainerItem.spawn = math.max(0, trainerItem.spawn - 1)
+            if UnitData[trainerItem.spawn].chaos ~= flag then
+                trainerItem.spawn = trainerItem.spawn + 1
+            end
         end
 
         -- update item info
-        BlzSetItemName(trainerItem.obj, "|cffffcc00" .. GetObjectName(UnitData[flag][trainerItem.spawn]) .. "|r")
+        BlzSetItemName(trainerItem.obj, "|cffffcc00" .. GetObjectName(UnitData[flag]) .. "|r")
         -- blzgetability icon works for units as well
-        BlzSetItemIconPath(trainerItem.obj, BlzGetAbilityIcon(UnitData[flag][trainerItem.spawn]))
+        BlzSetItemIconPath(trainerItem.obj, BlzGetAbilityIcon(UnitData[flag]))
     end
 
     ITEM_LOOKUP[FourCC('I0MV')] = ITEM_LOOKUP[FourCC('I0MU')]
