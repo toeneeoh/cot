@@ -23,22 +23,7 @@ OnInit.final("Orders", function(Require)
     ORDER_ID_UNIMMOLATION  = 852178
 
     local OrderTable = {
-        [ORDER_ID_HOLD_POSITION] = function(id, source, p, pid)
-        end,
-
-        [ORDER_ID_STOP] = function(id, source, p, pid)
-        end,
-
         [ORDER_ID_SMART] = function(id, source, p, pid, target)
-            local pt = TimerList[pid]:get('aggr', source)
-            -- after 3 seconds drop aggro from nearby enemies and redirect to allies if possible
-            if not pt then
-                pt = TimerList[pid]:add()
-                pt.source = source
-                pt.tag = 'aggr'
-                TimerQueue:callDelayed(3., RunDropAggro, pt)
-            end
-
             local b = Fear:get(nil, source)
 
             -- reissue movement order to feared units
@@ -48,11 +33,9 @@ OnInit.final("Orders", function(Require)
         end,
 
         [ORDER_ID_UNDEFEND] = function(id, source, p, pid)
-            if GetPlayerController(GetOwningPlayer(source)) ~= MAP_CONTROL_USER then
-                --if unit is removed
-                if GetUnitAbilityLevel(source, DETECT_LEAVE_ABILITY) == 0 then
-                    UnitDeindex(source)
-                end
+            -- if unit is removed
+            if GetUnitAbilityLevel(source, DETECT_LEAVE_ABILITY) == 0 then
+                Unit[source]:destroy()
             end
         end,
 
@@ -102,7 +85,7 @@ OnInit.final("Orders", function(Require)
                 local pt = TimerList[pid]:get(ADAPTIVESTRIKE.id)
                 UnitDisableAbility(source, ADAPTIVESTRIKE.id, false)
 
-                if limitBreak[pid] & 0x10 > 0 and not pt then
+                if LIMITBREAK.flag[pid] & 0x10 > 0 and not pt then
                     ADAPTIVESTRIKE.effect(source, GetUnitX(source), GetUnitY(source))
                     UnitDisableAbility(source, ADAPTIVESTRIKE.id, true)
                     BlzUnitHideAbility(source, ADAPTIVESTRIKE.id, false)
@@ -110,7 +93,7 @@ OnInit.final("Orders", function(Require)
                     BlzStartUnitAbilityCooldown(source, ADAPTIVESTRIKE.id, TimerGetRemaining(pt.timer.timer))
                 end
 
-                if limitBreak[pid] & 0x1 > 0 then
+                if LIMITBREAK.flag[pid] & 0x1 > 0 then
                     ParryBuff:add(source, source):duration(1.)
                 else
                     ParryBuff:add(source, source):duration(0.5)
@@ -134,18 +117,20 @@ OnInit.final("Orders", function(Require)
         -- issued immolation on order
         [ORDER_ID_IMMOLATION] = function(id, source, p, pid)
             -- phoenix ranger multishot
-            if not MultiShot[pid] and GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not Unit[Hero[pid]].busy then
-                SetPlayerAbilityAvailable(p, prMulti[IMinBJ(4, GetHeroLevel(source) // 50)], true)
-                MultiShot[pid] = true
+            if not MULTISHOT.enabled[pid] and GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not Unit[Hero[pid]].busy then
+                SetPlayerAbilityAvailable(p, prMulti[IMinBJ(5, GetHeroLevel(source) // 50)], true)
+                MULTISHOT.enabled[pid] = true
                 Unit[source].pm = Unit[source].pm * 0.6
 
             -- assassin phantomslash
             elseif GetUnitAbilityLevel(source, PHANTOMSLASH.id) > 0 and not IsUnitStunned(source) then
-                if MouseX[pid] ~= 0 and MouseY[pid] ~= 0 and not PHANTOMSLASH.slashing[pid] then
+                local x, y = GetMouseX(pid), GetMouseY(pid)
+
+                if x ~= 0 and y ~= 0 and not PHANTOMSLASH.slashing[pid] then
                     local spell = PHANTOMSLASH:create(source) ---@type PHANTOMSLASH
                     spell.caster = source
-                    spell.targetX = MouseX[pid]
-                    spell.targetY = MouseY[pid]
+                    spell.targetX = x
+                    spell.targetY = y
                     spell.x = GetUnitX(source)
                     spell.y = GetUnitY(source)
 
@@ -161,13 +146,14 @@ OnInit.final("Orders", function(Require)
         -- issued immolation off order
         [852178] = function(id, source, p, pid)
             -- phoenix ranger multishot
-            if MultiShot[pid] and GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not Unit[Hero[pid]].busy then
+            if MULTISHOT.enabled[pid] and GetUnitTypeId(source) == HERO_PHOENIX_RANGER and not Unit[source].busy then
                 SetPlayerAbilityAvailable(p, prMulti[0], false)
                 SetPlayerAbilityAvailable(p, prMulti[1], false)
                 SetPlayerAbilityAvailable(p, prMulti[2], false)
                 SetPlayerAbilityAvailable(p, prMulti[3], false)
                 SetPlayerAbilityAvailable(p, prMulti[4], false)
-                MultiShot[pid] = false
+                SetPlayerAbilityAvailable(p, prMulti[5], false)
+                MULTISHOT.enabled[pid] = false
                 Unit[source].pm = Unit[source].pm / 0.6
             end
 
@@ -210,114 +196,31 @@ OnInit.final("Orders", function(Require)
         local targetX = target and GetUnitX(target)
         local targetY = target and GetUnitY(target)
 
-        --lookup table
+        -- lookup table
         if OrderTable[id] then
             OrderTable[id](id, source, p, pid, target)
         end
 
-        -- backpack ai
-        if source == Backpack[pid] and id ~= ORDER_ID_MOVE and id ~= ORDER_ID_STOP and id ~= ORDER_ID_HOLD_POSITION then
-            IS_BACKPACK_MOVING[pid] = true
-            local pt = TimerList[pid]:get('bkpk')
-
-            if not pt then
-                pt = TimerList[pid]:add()
-                pt.dur = 4.
-                pt.tag = 'bkpk'
-
-                pt.timer:callDelayed(1., MoveExpire, pt)
-            else
-                pt.dur = 4.
-            end
-        end
-
-        -- unit limits
-        if id == FourCC('h01P') or id == FourCC('h03Y') or id == FourCC('h04B') or id == FourCC('n09E') or id == FourCC('n00Q') or id == FourCC('n023') or id == FourCC('n09F') or id == FourCC('h010') or id == FourCC('h04U') or id == FourCC('h053') then --worker
-            if workerCount[pid] < 5 or (workerCount[pid] < 15 and id == FourCC('h053')) or (workerCount[pid] < 30 and id == FourCC('n00Q')) then
-                workerCount[pid] = workerCount[pid] + 1
-            else
-                SetPlayerTechResearched(p, FourCC('R013'), 0)
-            end
-        elseif id == FourCC('e00J') or id == FourCC('e000') or id == FourCC('e00H') or id == FourCC('e00K') or id == FourCC('e006') or id == FourCC('e00I') or id == FourCC('e00T') or id == FourCC('e00Y') then -- small lumber
-            if smallwispCount[pid] < 1 or (smallwispCount[pid] < 6 and id ~= FourCC('e00I') and id ~= FourCC('e00T') and id ~= FourCC('e00Y')) or (smallwispCount[pid] < 12 and id ~= FourCC('e006') and id ~= FourCC('e00I') and id ~= FourCC('e00T') and id ~= FourCC('e00Y')) then
-                smallwispCount[pid] = smallwispCount[pid] + 1
-            else
-                SetPlayerTechResearched(p, FourCC('R014'), 0)
-            end
-        elseif id == FourCC('e00Z') or id == FourCC('e00R') or id == FourCC('e00Q') or id == FourCC('e01L') or id == FourCC('e01E') or id == FourCC('e010') then -- large lumber
-            if largewispCount[pid] < 1 or (largewispCount[pid] < 2 and id ~= FourCC('e010')) or (largewispCount[pid] < 3 and id ~= FourCC('e00R') and id ~= FourCC('e010')) or (largewispCount[pid] < 6 and id ~= FourCC('e00R') and id ~= FourCC('e01E') and id ~= FourCC('e010')) then
-                largewispCount[pid] = largewispCount[pid] + 1
-            else
-                SetPlayerTechResearched(p, FourCC('R015'), 0)
-            end
-        elseif id == FourCC('h00S') or id == FourCC('h017') or id == FourCC('h00I') or id == FourCC('h016') or id == FourCC('nwlg') or id == FourCC('h004') or id == FourCC('h04V') or id == FourCC('o02P') then -- warrior
-            if warriorCount[pid] < 6 or (warriorCount[pid] < 12 and id ~= FourCC('nwlg') and id ~= FourCC('h04V')) then
-                warriorCount[pid] = warriorCount[pid] + 1
-                ExperienceControl(pid)
-            else
-                SetPlayerTechResearched(p, FourCC('R016'), 0)
-            end
-        elseif id == FourCC('n00A') or id == FourCC('n014') or id == FourCC('n009') or id == FourCC('n00D') or id == FourCC('n002') or id == FourCC('h005') or id == FourCC('o02Q') then -- ranger
-            if rangerCount[pid] < 6 or (rangerCount[pid] < 12 and id ~= FourCC('n002')) then
-                rangerCount[pid] = rangerCount[pid] + 1
-                ExperienceControl(pid)
-            else
-                SetPlayerTechResearched(p, FourCC('R017'), 0)
-            end
-        end
-
         -- cache issued point / target
-        if Unit[source] then
+        local u = Unit[source]
+        if u then
             if target or (x ~= 0 and y ~= 0) then
-                Unit[source].orderX = targetX or x
-                Unit[source].orderY = targetY or y
-
-                if Unit[source].movespeed > MOVESPEED.MAX then
-                    BlzSetUnitFacingEx(source, bj_RADTODEG * Atan2(Unit[source].orderY - GetUnitY(source), Unit[source].orderX - GetUnitX(source)))
-                end
+                u.orderX = targetX or x
+                u.orderY = targetY or y
             end
 
-            if IsUnitEnemy(target, Player(pid - 1)) then
-                Unit[source].target = target
+            if pid <= PLAYER_CAP and IsUnitEnemy(target, p) then
+                u.target = target
             end
         end
+
+        EVENT_ON_ORDER:trigger(source, target, id, x, y)
 
         -- item target
         if itm then
-            local oldSlot = GetItemSlot(itm, source) ---@type integer 
-
             -- prevent other units from attacking a bound item
-            if id == ORDER_ID_ATTACK and itm.owner ~= Player(pid - 1) then
+            if id == ORDER_ID_ATTACK and (itm.owner and itm.owner ~= Player(pid - 1)) then
                 TimerQueue:callDelayed(0., IssueImmediateOrderById, source, ORDER_ID_HOLD_POSITION)
-            end
-
-            -- move item slot
-            if id >= 852002 and id <= 852007 and oldSlot >= 0 then
-                local swappedItem = UnitItemInSlot(source, id - 852002)
-
-                if GetLocalPlayer() == Player(pid - 1) then
-                    if swappedItem then
-                        BlzFrameSetTexture(INVENTORYBACKDROP[oldSlot], SPRITE_RARITY[Item[swappedItem].level], 0, true)
-                    end
-                    BlzFrameSetTexture(INVENTORYBACKDROP[id - 852002], SPRITE_RARITY[itm.level], 0, true)
-                end
-
-                if id - 852002 ~= oldSlot then -- order slot not equal to old slot
-                    local offset = 0
-
-                    if GetUnitTypeId(source) == BACKPACK then
-                        oldSlot = oldSlot + 6
-                        offset = offset + 6
-                    end
-
-                    Profile[pid].hero.items[id - 852002 + offset] = itm -- move slot = current item
-
-                    if Item[UnitItemInSlot(source, id - 852002)] then
-                        Profile[pid].hero.items[oldSlot] = Item[UnitItemInSlot(source, id - 852002)] -- item that was swapped = previous item slot
-                    else
-                        Profile[pid].hero.items[oldSlot] = nil
-                    end
-                end
             end
         end
     end
