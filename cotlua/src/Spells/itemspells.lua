@@ -12,7 +12,7 @@ OnInit.final("ItemSpells", function(Require)
         local thistype = ARMOR_OF_THE_GODS
 
         function thistype.onEquip(itm, id, index)
-            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_ARMOR_BONUS_HAD1, 0, itm:getValue(index, 0))
+            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_ARMOR_BONUS_HAD1, 0, itm:getValue(index, 0))
         end
     end
 
@@ -21,9 +21,11 @@ OnInit.final("ItemSpells", function(Require)
         local thistype = BASH
 
         function thistype.onEquip(itm, id, index)
-            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_CHANCE_TO_BASH, 0, itm:getValue(index, 0))
-            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_DURATION_NORMAL, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
-            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_DURATION_HERO, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
+            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_CHANCE_TO_BASH, 0, itm:getValue(index, 0))
+            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_DURATION_NORMAL, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
+            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_DURATION_HERO, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
+
+            return true
         end
     end
 
@@ -32,7 +34,7 @@ OnInit.final("ItemSpells", function(Require)
         local thistype = HEALING_POTION
 
         function thistype.onEquip(itm, id, index)
-            BlzSetAbilityIntegerLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_ILF_HIT_POINTS_GAINED_IHPG, 0, itm:getValue(index, 0))
+            BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_ILF_HIT_POINTS_GAINED_IHPG, 0, itm:getValue(index, 0))
         end
     end
 
@@ -137,30 +139,49 @@ OnInit.final("ItemSpells", function(Require)
         end
     end
 
+    local MANA_FLOW = Spell.define('A0C0')
+    do
+        local thistype = MANA_FLOW
+
+        function thistype.onUnequip(itm, id, index)
+            Unit[itm.holder].mana_regen_percent = Unit[itm.holder].mana_regen_percent - 2
+        end
+
+        function thistype.onEquip(itm, id, index)
+            Unit[itm.holder].mana_regen_percent = Unit[itm.holder].mana_regen_percent + 2
+            return true
+        end
+    end
+
+    local HORSE_BOOST = Spell.define('A09O')
+    do
+        local thistype = HORSE_BOOST
+
+        function thistype.onUnequip(itm, id, index)
+            Unit[itm.holder].mana_regen_max = Unit[itm.holder].mana_regen_max - 0.7
+        end
+
+        function thistype.onEquip(itm, id, index)
+            Unit[itm.holder].mana_regen_max = Unit[itm.holder].mana_regen_max + 0.7
+            return true
+        end
+    end
+
     local RESURGENCE = Spell.define('Areg')
     do
         local thistype = RESURGENCE
 
-        ---@type fun(itm: Item)
-        local function regen(itm)
-            if itm.equipped then
-                local max_hp = BlzGetUnitMaxHP(itm.holder)
-                local hp = math.min(5, math.floor((max_hp - GetWidgetLife(itm.holder)) / max_hp * 100. / 15.))
-
-                Unit[itm.holder].regen = Unit[itm.holder].regen - (itm.regen or 0)
-                itm.regen = math.floor(BlzGetUnitMaxHP(itm.holder) * 0.01 * (itm:getValue(ITEM_ABILITY, 0)) * hp)
-                Unit[itm.holder].regen = Unit[itm.holder].regen + itm.regen
-                TimerQueue:callDelayed(0.5, regen, itm)
-            end
-        end
-
         function thistype.onUnequip(itm, id, index)
-            Unit[itm.holder].regen = Unit[itm.holder].regen - (itm.regen or 0)
-            itm.regen = 0
+            local b = ResurgenceBuff:get(itm.holder, itm.holder)
+            b:remove()
         end
 
         function thistype.onEquip(itm, id, index)
-            TimerQueue:callDelayed(0.5, regen, itm)
+            local b = ResurgenceBuff:create(itm.holder, itm.holder)
+
+            b.item = itm
+            b = b:check(itm.holder, itm.holder)
+            return true
         end
     end
 
@@ -312,7 +333,7 @@ OnInit.final("ItemSpells", function(Require)
         end
 
         function thistype.onEquip(itm, id, index)
-            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
+            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
         end
     end
 
@@ -341,7 +362,7 @@ OnInit.final("ItemSpells", function(Require)
             itm.sfx = AddSpecialEffectTarget(tbl[1].path, itm.holder, tbl[1].attach)
             itm.sfx2 = AddSpecialEffectTarget(tbl[2].path, itm.holder, tbl[2].attach)
 
-            BlzSetAbilityRealLevelField(BlzGetItemAbility(itm.obj, id), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
+            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.obj, id), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
 
             return true
         end
@@ -457,13 +478,13 @@ OnInit.final("ItemSpells", function(Require)
         function thistype:onCast()
             local itm = GetItemFromPlayer(self.pid, FourCC('I0OU'))
 
-            if self.target == BossTable[BOSS_LEGION].unit then
+            if self.target == Boss[BOSS_LEGION].unit then
                 itm:destroy()
                 if BANISH_FLAG == false then
                     BANISH_FLAG = true
                     DisplayTimedTextToForce(FORCE_PLAYING, 30., "|cffffcc00Legion:|r Fool! Did you really think splashing water on me would do anything?")
                 end
-            elseif self.target == BossTable[BOSS_DEATH_KNIGHT].unit then
+            elseif self.target == Boss[BOSS_DEATH_KNIGHT].unit then
                 itm:destroy()
                 if BANISH_FLAG == false then
                     BANISH_FLAG = true
@@ -472,6 +493,69 @@ OnInit.final("ItemSpells", function(Require)
             else
                 DisplayTimedTextToPlayer(Player(self.pid - 1), 0., 0., 30., "Maybe you shouldn't waste this...")
             end
+        end
+    end
+
+    local INTENSE_FOCUS = Spell.define('A0B9')
+    do
+        local thistype = INTENSE_FOCUS
+
+        function thistype.onUnequip(itm, id, index)
+            IntenseFocusBuff:dispel(itm.holder, itm.holder)
+        end
+
+        function thistype.onEquip(itm, id, index)
+            if HasProficiency(itm.pid, PROF_BOW) then
+                IntenseFocusBuff:add(itm.holder, itm.holder)
+            end
+        end
+    end
+
+    local EMPYREAN_SONG = Spell.define('A04I')
+    do
+        local thistype = EMPYREAN_SONG
+
+        local function periodic(itm, holder)
+            if itm and itm.holder == holder then
+                local ug = CreateGroup()
+                MakeGroupInRange(itm.pid, ug, GetUnitX(holder), GetUnitY(holder), 900. * LBOOST[itm.pid], Condition(FilterAlly))
+
+                for ally in each(ug) do
+                    EmpyreanSongBuff:add(holder, ally):duration(2.)
+                end
+
+                DestroyGroup(ug)
+                TimerQueue:callDelayed(1., periodic, itm, holder)
+            end
+        end
+
+        function thistype.onEquip(itm, id, index)
+            TimerQueue:callDelayed(0., periodic, itm, itm.holder)
+            return true
+        end
+    end
+
+    local UNHOLY_AURA = Spell.define('A03G')
+    do
+        local thistype = UNHOLY_AURA
+
+        local function periodic(itm, holder)
+            if itm and itm.holder == holder then
+                local ug = CreateGroup()
+                MakeGroupInRange(itm.pid, ug, GetUnitX(holder), GetUnitY(holder), 900. * LBOOST[itm.pid], Condition(FilterAlly))
+
+                for ally in each(ug) do
+                    BloodHornBuff:add(holder, ally):duration(2.)
+                end
+
+                DestroyGroup(ug)
+                TimerQueue:callDelayed(1., periodic, itm, holder)
+            end
+        end
+
+        function thistype.onEquip(itm, id, index)
+            TimerQueue:callDelayed(0., periodic, itm, itm.holder)
+            return true
         end
     end
 
