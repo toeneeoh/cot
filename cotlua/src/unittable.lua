@@ -11,6 +11,7 @@ OnInit.final("UnitTable", function(Require)
     Require('Events')
 
     ---@class Unit
+    ---@field owner player
     ---@field pid integer
     ---@field unit unit
     ---@field create function
@@ -184,6 +185,11 @@ OnInit.final("UnitTable", function(Require)
             end,
             bonus_bat = function(tbl, val)
                 BlzSetUnitAttackCooldown(tbl.unit, tbl.bat, 0)
+            end,
+            hidehp = function(tbl, val)
+                if GetMainSelectedUnit() == tbl.unit then
+                    BlzFrameSetVisible(HIDE_HEALTH_FRAME, val)
+                end
             end,
         }
 
