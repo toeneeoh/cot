@@ -229,6 +229,10 @@ OnInit.final("Dummy", function(Require)
         end
     end
 
+    local dps_check = function()
+        return DPS_TOTAL <= 0
+    end
+
     local function DPS_ON_HIT(target, source, amount, amount_after_red, damage_type)
         local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
@@ -248,8 +252,8 @@ OnInit.final("Dummy", function(Require)
 
         if DPS_TOTAL <= 0 then
             DPS_STOPWATCH:start()
-            TimerQueue:callPeriodically(0.2, function() return DPS_TOTAL <= 0 end, DPS_UPDATE)
-            TimerQueue:callPeriodically(1., function() return DPS_TOTAL <= 0 end, DPS_PEAK_UPDATE)
+            TimerQueue:callPeriodically(0.2, dps_check, DPS_UPDATE)
+            TimerQueue:callPeriodically(1., dps_check, DPS_PEAK_UPDATE)
         end
 
         DPS_LAST = amount_after_red
