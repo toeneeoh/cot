@@ -8,9 +8,9 @@ OnInit.global("Weather", function(Require)
     Require('Helper')
     Require('Buffs')
 
-    WeatherTimer = TimerQueue.create()
     WeatherTable = {}
-    WeatherGroup = {}
+    local WeatherTimer = TimerQueue.create()
+    local WeatherGroup = {}
 
     WEATHER_HURRICANE           = 1
     WEATHER_CHAOTIC_HURRICANE   = 2
@@ -266,7 +266,7 @@ function FirestormEffect(pt)
                 x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
                 y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
                 GroupEnumUnitsInRange(ug, x, y, 4000., Condition(isbase))
-            until RectContainsCoords(gg_rct_NoSin, x, y) == false and BlzGroupGetSize(ug) == 0
+            until RectContainsCoords(gg_rct_Town_Main, x, y) == false and BlzGroupGetSize(ug) == 0
             TimerQueue:callDelayed(1.5, FirestormDamage, x, y)
             DestroyEffect(AddSpecialEffect("Units\\Demon\\Infernal\\InfernalBirth.mdl", x, y))
         end
@@ -357,7 +357,7 @@ end
         local u = GetFilterUnit()
 
         if u and GetUnitTypeId(u) ~= BACKPACK and not IsDummy(u) then
-            if RectContainsUnit(MAIN_MAP.rect, u) then
+            if RectContainsUnit(MAIN_MAP.rect, u) == true then
                 if not TableHas(WeatherGroup, u) then
                     WeatherGroup[#WeatherGroup + 1] = u
                     if GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
