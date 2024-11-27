@@ -9,6 +9,7 @@ OnInit.final("Damage", function(Require)
     Require('Variables')
     Require('UnitTable')
     Require('Events')
+    Require('Boss')
 
     ATTACK_CHAOS     = 5 ---@type integer 
     ARMOR_CHAOS      = 6 ---@type integer 
@@ -18,6 +19,7 @@ OnInit.final("Damage", function(Require)
     MAGIC    = DAMAGE_TYPE_MAGIC ---@type damagetype 
     PURE     = DAMAGE_TYPE_DIVINE ---@type damagetype 
 
+    local format = string.format
     local color_tag = {
         [MAGIC] = {100, 100, 255},
         [PURE] = {255, 255, 100},
@@ -163,8 +165,12 @@ OnInit.final("Damage", function(Require)
             EVENT_ON_STRUCK:trigger(target, source, damage_type)
             EVENT_ON_STRUCK_MULTIPLIER:trigger(target, source, amount, damage_type)
 
-            -- intense focus azazoth bow amp
-            amount.value = amount.value * (1. + IntenseFocus[pid] * 0.01)
+            -- struck or hit
+            if IsEnemy(tpid) and not Unit[target].casting then
+                EVENT_ENEMY_AI:trigger(target, source)
+            elseif IsEnemy(pid) and not Unit[source].casting then
+                EVENT_ENEMY_AI:trigger(source, target)
+            end
 
             -- main hero damage taken
             if target == Hero[tpid] then
@@ -194,14 +200,12 @@ OnInit.final("Damage", function(Require)
 
         -- after reductions
         local amount_after_red = amount.value * ApplyArmorMult(source, target, damage_type)
-        local damage_text = RealToString(amount_after_red)
 
         -- after reductions
         EVENT_ON_HIT_AFTER_REDUCTIONS:trigger(source, target, amount, amount_after_red, damage_type)
         EVENT_ON_STRUCK_AFTER_REDUCTIONS:trigger(target, source, amount, amount_after_red, damage_type)
 
         -- damage numbers
-        local size = (crit > 1. and 2.5) or 2
         local colors = amount.color or (crit > 1. and color_tag.crit) or color_tag[damage_type]
         local zeroDamage = (amount_after_red <= 0. or amount.value <= 0.)
 
@@ -209,11 +213,11 @@ OnInit.final("Damage", function(Require)
         if zeroDamage == false and source ~= target then
             -- prevent non-crit physical attacks from appearing if they do not reach a 0.05% max health damage threshold 
             if target == PUNCHING_BAG or damage_type ~= PHYSICAL or crit > 1. or (amount_after_red >= (BlzGetUnitMaxHP(target) * 0.0005)) then
-                ArcingTextTag.create(damage_text, target, 1, size, colors[1], colors[2], colors[3], 0)
+                ArcingTextTag.create(amount_after_red, target, 1, 1, colors[1], colors[2], colors[3], 0)
             end
 
-            local damageHex = string.format("|cff\x2502X\x2502X\x2502X", colors[1], colors[2], colors[3])
-            LogDamage(source, target, damageHex .. damage_text .. "|r", false, tag)
+            local damageHex = format("|cff\x2502X\x2502X\x2502X", colors[1], colors[2], colors[3])
+            LogDamage(source, target, damageHex .. RealToString(amount_after_red) .. "|r", false, tag)
         end
 
         -- pure damage on chaos armor
@@ -235,7 +239,7 @@ OnInit.final("Damage", function(Require)
 
         -- attack count based health
         if Unit[target].attackCount > 0 then
-            local count = (IsBoss(source) ~= -1 and 2) or 1
+            local count = (IsBoss(source) and 2) or 1
             Unit[target].attackCount = Unit[target].attackCount - count
             BlzSetEventDamage(0.00)
             SetWidgetLife(target, GetWidgetLife(target) - count)
