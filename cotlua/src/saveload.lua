@@ -74,12 +74,11 @@ OnInit.final("SaveLoad", function(Require)
             DisplayTimedTextToPlayer(p, 0, 0, 20, "You cannot -load anymore!")
         end
 
-        if HeroID[pid] > 0 then
+        if profile.playing then
             DisplayTimedTextToPlayer(p, 0, 0, 20, "You need to repick before using -load again!")
             return false
         end
 
-        profile.new_char = false
         profile:open_dialog()
 
         return false
@@ -89,18 +88,12 @@ OnInit.final("SaveLoad", function(Require)
     local function force_save(p)
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
-        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or UnitAlive(Hero[pid]) == false then
+        if not Profile[pid].playing or GetUnitTypeId(Hero[pid]) == 0 or UnitAlive(Hero[pid]) == false then
             DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
             return
         end
 
         IS_FORCE_SAVING[pid] = false
-
-        -- save profile and hero
-        if Profile[pid].new_char then
-            Profile[pid].new_char = false
-            Profile[pid]:get_empty_slot()
-        end
 
         Profile[pid]:save_character()
 
@@ -130,15 +123,16 @@ OnInit.final("SaveLoad", function(Require)
     ---@param p player
     ---@param timed boolean
     local function start_force_save(p, timed)
-        local pid         = GetPlayerId(p) + 1 ---@type integer 
+        local pid = GetPlayerId(p) + 1 ---@type integer 
         local pt ---@type PlayerTimer 
+        local profile = Profile[pid]
 
-        if not Profile[pid].cannot_load then
+        if not profile.cannot_load then
             DisplayTextToPlayer(p, 0, 0, "You must leave the church to save.")
             return
         end
 
-        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or UnitAlive(Hero[pid]) == false then
+        if not profile.playing or GetUnitTypeId(Hero[pid]) == 0 or UnitAlive(Hero[pid]) == false then
             DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
             return
         end
@@ -205,18 +199,13 @@ OnInit.final("SaveLoad", function(Require)
             return false
         end
 
-        if GetUnitTypeId(Hero[pid]) == 0 or HeroID[pid] == 0 or UnitAlive(Hero[pid]) == false then
+        if not profile.playing or GetUnitTypeId(Hero[pid]) == 0 or UnitAlive(Hero[pid]) == false then
             DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
             return false
         end
 
         if GetLocalPlayer() == p then
             ClearTextMessages()
-        end
-
-        if profile.new_char then
-            profile.new_char = false
-            profile:get_empty_slot()
         end
 
         profile:save_character()
