@@ -5,6 +5,23 @@
 ]]
 
 OnInit.final("Currency", function(Require)
+    local CURRENCY = __jarray(0) ---@type integer[] 
+    GOLD           = 0
+    PLATINUM       = 1
+    CRYSTAL        = 2
+    HONOR          = 3
+    FACTION        = 4
+    CURRENCY_COUNT = 5
+
+    --currencies
+    CURRENCY_ICON = {
+        "gold.dds",
+        "plat.dds",
+        "crystal.dds",
+        "ShopHonorPoints.dds",
+        "ShopFactionPoints.dds",
+    }
+
     Require('Users')
     Require('Frames')
     Require('Items')
@@ -59,53 +76,48 @@ OnInit.final("Currency", function(Require)
 
     --platinum to crystal
     ITEM_LOOKUP[FourCC('I0MF')] = function(p, pid)
-        if GetCurrency(pid, PLATINUM) >= 3 then
-            AddCurrency(pid, PLATINUM, -3)
-            AddCurrency(pid, CRYSTAL, 1)
-            DisplayTimedTextToPlayer(p, 0, 0, 20, CrystalTag .. (GetCurrency(pid, CRYSTAL)))
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "You need at least 3 platinum to buy this.")
-        end
+        AddCurrency(pid, CRYSTAL, 1)
+        DisplayTimedTextToPlayer(p, 0, 0, 20, CrystalTag .. (GetCurrency(pid, CRYSTAL)))
     end
 
     ITEM_LOOKUP[FourCC('I04G')] = function(p, pid)
-        if GetCurrency(pid, GOLD) >= 1000000 then
-            AddCurrency(pid, PLATINUM, 1)
-            AddCurrency(pid, GOLD, -1000000)
-            ConversionEffect(pid)
-            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag .. (GetCurrency(pid, PLATINUM)))
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffee0000You do not have a million gold to convert.")
-        end
+        AddCurrency(pid, PLATINUM, 1)
+        ConversionEffect(pid)
+        DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag .. (GetCurrency(pid, PLATINUM)))
     end
 
     ITEM_LOOKUP[FourCC('I052')] = function(p, pid)
-        if GetCurrency(pid, PLATINUM) >0 then
-            ConversionEffect(pid)
-            AddCurrency(pid, PLATINUM, -1)
-            AddCurrency(pid, GOLD, 1000000)
-            DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag .. (GetCurrency(pid, PLATINUM)))
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 20, "|cff990000Unable to convert; not enough Platinum Coins.")
-        end
+        ConversionEffect(pid)
+        AddCurrency(pid, GOLD, 1000000)
+        DisplayTimedTextToPlayer(p, 0, 0, 20, PlatTag .. (GetCurrency(pid, PLATINUM)))
     end
+
+    local setter = {
+        [GOLD] = function(pid, amount) SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_GOLD, amount) end,
+        [PLATINUM] = function(pid, amount) SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_LUMBER, amount) end,
+        [CRYSTAL] = function(pid, amount) SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_FOOD_USED, amount) end,
+        [HONOR] = function (pid, amount)
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzFrameSetText(HONOR_TEXT, amount)
+            end
+        end,
+        [FACTION] = function(pid, amount)
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzFrameSetText(FACTION_TEXT, amount)
+            end
+        end,
+    }
 
     ---@type fun(pid: integer, index: integer, amount: integer)
     function SetCurrency(pid, index, amount)
-        Currency[pid * CURRENCY_COUNT + index] = IMaxBJ(0, amount)
-
-        if index == GOLD then
-            SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_GOLD, Currency[pid * CURRENCY_COUNT + index])
-        elseif index == PLATINUM then
-            SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_LUMBER, Currency[pid * CURRENCY_COUNT + index])
-        elseif index == CRYSTAL then
-            SetPlayerState(Player(pid - 1), PLAYER_STATE_RESOURCE_FOOD_USED, Currency[pid * CURRENCY_COUNT + index])
-        end
+        amount = math.max(0, amount)
+        CURRENCY[pid * CURRENCY_COUNT + index] = amount
+        setter[index](pid, amount)
     end
 
     ---@type fun(pid: integer, index: integer):integer
     function GetCurrency(pid, index)
-        return Currency[pid * CURRENCY_COUNT + index]
+        return CURRENCY[pid * CURRENCY_COUNT + index]
     end
 
     ---@type fun(pid: integer, index: integer, amount: integer)
@@ -179,20 +191,23 @@ OnInit.final("Currency", function(Require)
     end
 
     ---@return boolean
-    function CurrencyConverter()
-        local p   = GetTriggerPlayer() 
+    local function CurrencyConverter()
+        local p   = GetTriggerPlayer()
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
-        Currency[pid * CURRENCY_COUNT + GOLD] = GetPlayerState(p, PLAYER_STATE_RESOURCE_GOLD)
+        CURRENCY[pid * CURRENCY_COUNT + GOLD] = GetPlayerState(p, PLAYER_STATE_RESOURCE_GOLD)
 
         if IS_CONVERTING_PLAT[pid] then
-            local plat = Currency[pid * CURRENCY_COUNT + GOLD] // 1000000
+            -- prevent stack overflow
+            IS_CONVERTING_PLAT[pid] = false
+            local plat = CURRENCY[pid * CURRENCY_COUNT + GOLD] // 1000000
 
             if plat > 0 then
                 AddCurrency(pid, PLATINUM, plat)
                 AddCurrency(pid, GOLD, -1000000 * plat)
                 ConversionEffect(pid)
             end
+            IS_CONVERTING_PLAT[pid] = true
         end
 
         return false
