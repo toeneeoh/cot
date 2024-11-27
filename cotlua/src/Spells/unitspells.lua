@@ -8,6 +8,7 @@ OnInit.final("UnitSpells", function(Require)
     Require("Spells")
 
     local random = math.random
+    local FPS_32 = FPS_32
 
     ---@return boolean
     local function HeroPanelClick()
@@ -33,9 +34,8 @@ OnInit.final("UnitSpells", function(Require)
         local U  = User.first ---@type User 
 
         while U do
-            if pid ~= U.id and HeroID[U.id] ~= 0 then
-                dw.data[dw.ButtonCount] = U.id
-                dw:addButton(U.nameColored)
+            if pid ~= U.id and Profile[U.id].playing then
+                dw:addButton(U.nameColored, U.id)
             end
 
             U = U.next
@@ -190,18 +190,19 @@ OnInit.final("UnitSpells", function(Require)
         DestroyGroup(ug)
     end
 
-    --Runs upon selecting a backpack
+    -- Runs upon selecting a backpack
     ---@return boolean
     function BackpackSkinClick()
         local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
         local dw    = DialogWindow[pid] ---@type DialogWindow 
         local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
-
+        
         if index ~= -1 then
-            if CosmeticTable[User[pid - 1].name][dw.data[index]] == 0 then
-                DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, CosmeticTable.skins[dw.data[index]].error)
+            index = dw.data[index]
+            if CosmeticTable[User[pid - 1].name][index] == 0 and not CosmeticTable.skins[index].public then
+                DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, CosmeticTable.skins[index].error)
             else
-                Profile[pid]:skin(dw.data[index])
+                Profile[pid]:skin(index)
             end
 
             dw:destroy()
@@ -210,7 +211,7 @@ OnInit.final("UnitSpells", function(Require)
         return false
     end
 
-    --Displays backpack selection dialog
+    -- Displays backpack selection dialog
     ---@param pid integer
     function BackpackSkin(pid)
         local name = User[pid - 1].name
@@ -220,15 +221,14 @@ OnInit.final("UnitSpells", function(Require)
             local text = ((v.req and CosmeticTable[name][i] > 0) and "|cff00ff00" .. v.name .. "|r") or v.name
 
             if CosmeticTable[name][i] > 0 or v.public == true then
-                dw.data[dw.ButtonCount] = i
-                dw:addButton(text)
+                dw:addButton(text, i)
             end
         end
 
         dw:display()
     end
 
-    --Runs upon selecting a cosmetic
+    -- Runs upon selecting a cosmetic
     ---@return boolean
     function CosmeticButtonClick()
         local pid   = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
@@ -244,7 +244,7 @@ OnInit.final("UnitSpells", function(Require)
         return false
     end
 
-    --Displays cosmetic selection dialog
+    -- Displays cosmetic selection dialog
     ---@param pid integer
     function DisplaySpecialEffects(pid)
         local name = User[pid - 1].name
@@ -252,61 +252,67 @@ OnInit.final("UnitSpells", function(Require)
 
         for i, v in ipairs(CosmeticTable.cosmetics) do
             if CosmeticTable[name][i + DONATOR_AURA_OFFSET] > 0 then
-                dw.data[dw.ButtonCount] = i
-                dw:addButton(v.name)
+                dw:addButton(v.name, i)
             end
         end
 
         dw:display()
     end
 
+    local mouse_move = function(pid, x, y, x2, y2)
+        if IS_M2_DOWN[pid] and IsUnitSelected(Hero[pid], Player(pid - 1)) then
+            local dist = DistanceCoords(x, y, x2, y2)
+
+            if dist >= 3 then
+                local ug = CreateGroup()
+                GroupEnumUnitsInRange(ug, x, y, 15.0, Condition(ishostile))
+
+                local target = FirstOfGroup(ug)
+                if not target then
+                    IssuePointOrder(Hero[pid], "smart", x, y)
+                elseif GetUnitCurrentOrder(Hero[pid]) ~= OrderId("attack") then
+                    IssueTargetOrder(Hero[pid], "attack", target)
+                end
+
+                DestroyGroup(ug)
+            end
+        end
+    end
+
     -- fairly simple spells
     UNIT_SPELLS = {
-        [FourCC('A0KI')] = function(caster, pid) --meat golem taunt
-            Taunt(caster, pid, 800., true, 2000, 0)
+        [FourCC('A00I')] = function(_, pid) -- change hotkeys
+            ChangeHotkeys(pid)
         end,
 
-        [FourCC('A03V')] = function(caster, pid, _, itm) --Move Item (Hero)
-            if itm then
-                UnitRemoveItem(caster, itm)
-                UnitAddItem(Backpack[pid], itm)
+        [FourCC('A0KI')] = function(caster, pid) -- meat golem taunt
+            Taunt(caster, 800.)
+        end,
+
+        [FourCC('A00Y')] = function(_, pid) -- Item drop toggle
+            if IS_ITEM_DROP[pid] then
+                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "Toggled Item Drops off.")
+            else
+                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "Toggled Item Drops on")
             end
+
+            IS_ITEM_DROP[pid] = not IS_ITEM_DROP[pid]
         end,
 
-        [FourCC('A0L0')] = function(_, pid) --Hero Info
-            DisplayStatWindow(Hero[pid], pid)
-        end,
-
-        [FourCC('A0GD')] = function(_, pid, _, itm) --Item Info
-            ItemInfo(pid, Item[itm])
-        end,
-
-        [FourCC('A06X')] = function(_, pid) --Quest Progress
-            DisplayQuestProgress(pid)
-        end,
-
-        [FourCC('A08Y')] = function(_, pid) --Auto Attack Toggle
-            ToggleAutoAttack(pid)
-        end,
-
-        [FourCC('A00I')] = function(_, pid) --Item stacking Toggle
-            ToggleItemStacking(pid)
-        end,
-
-        [FourCC('A00B')] = function(_, pid) --Movement Toggle
-            IS_M2_MOVEMENT[pid] = not IS_M2_MOVEMENT[pid]
-            if IS_M2_MOVEMENT[pid] then
+        [FourCC('A00B')] = function(_, pid) -- Movement Toggle
+            if EVENT_ON_MOUSE_MOVE:register_action(pid, mouse_move) then
                 DisplayTextToPlayer(Player(pid - 1), 0, 0, "Movement Toggle enabled.")
             else
+                EVENT_ON_MOUSE_MOVE:unregister_action(pid, mouse_move)
                 DisplayTextToPlayer(Player(pid - 1), 0, 0, "Movement Toggle disabled.")
             end
         end,
 
-        [FourCC('A02T')] = function(_, pid) --Hero Panels
+        [FourCC('A02T')] = function(_, pid) -- Hero Panels
             DisplayHeroPanel(pid)
         end,
 
-        [FourCC('A031')] = function(_, pid) --Damage Numbers
+        [FourCC('A031')] = function(_, pid) -- Damage Numbers
             if DMG_NUMBERS[pid] == 0 then
                 DMG_NUMBERS[pid] = 1
                 DisplayTextToPlayer(Player(pid - 1), 0, 0, "Damage Numbers for allied damage received disabled.")
@@ -319,7 +325,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end,
 
-        [FourCC('A067')] = function(_, pid) --Deselect Backpack
+        [FourCC('A067')] = function(_, pid) -- Deselect Backpack
             if BP_DESELECT[pid] then
                 BP_DESELECT[pid] = false
                 DisplayTextToPlayer(Player(pid - 1), 0, 0, "Deselect Backpack disabled.")
@@ -328,46 +334,13 @@ OnInit.final("UnitSpells", function(Require)
                 DisplayTextToPlayer(Player(pid - 1), 0, 0, "Deselect Backpack enabled.")
             end
         end,
-
-        [FourCC('A0DT')] = function(caster, pid, _, itm) --Move Item (Backpack)
-            if itm then
-                UnitRemoveItem(caster, itm)
-                UnitAddItem(Hero[pid], itm)
-            end
-        end,
-        [FourCC('A0KX')] = function(_, pid) --Change Skin
+        [FourCC('A0KX')] = function(_, pid) -- Change Skin
             BackpackSkin(pid)
         end,
 
-        [FourCC('A04N')] = function(_, pid) --Special Effects
+        [FourCC('A04N')] = function(_, pid) -- Special Effects
             DisplaySpecialEffects(pid)
         end,
-
-        [FourCC('A00R')] = function(_, pid) --Backpack Next Page
-            local itm
-
-            for i = MAX_INVENTORY_SLOTS + 5, 12, -1 do --iterate through hidden slots back to front
-                Profile[pid].hero.items[i] = Profile[pid].hero.items[i - 6]
-            end
-
-            for i = 0, 5 do
-                itm = UnitItemInSlot(Backpack[pid], i)
-                UnitRemoveItem(Backpack[pid], itm)
-                SetItemPosition(itm, 30000., 30000.)
-                SetItemVisible(itm, false)
-            end
-
-            for i = 0, 5 do
-                if Profile[pid].hero.items[MAX_INVENTORY_SLOTS + i] then
-                    itm = Profile[pid].hero.items[MAX_INVENTORY_SLOTS + i].obj
-                    SetItemVisible(itm, true)
-                    UnitAddItem(Backpack[pid], itm)
-                    UnitDropItemSlot(Backpack[pid], itm, i)
-                    Profile[pid].hero.items[MAX_INVENTORY_SLOTS + i] = nil
-                end
-            end
-        end,
-
     }
 
     BORROWED_LIFE = Spell.define('A071')
@@ -414,14 +387,14 @@ OnInit.final("UnitSpells", function(Require)
 
                 missile.onFinish = function()
                     golem.borrowed_life = 0
-                    UnitAddBonus(missile.source, BONUS_HERO_STR, - R2I(golem.str * 0.1 * golem.devour_stacks))
+                    Unit[missile.source].bonus_str = Unit[missile.source].bonus_str - R2I(golem.str * 0.1 * golem.devour_stacks)
                     if golem.devour_stacks > 0 then
                         golem.mr = golem.mr / (0.75 - golem.devour_stacks * 0.1)
                     end
                     golem.devour_stacks = golem.devour_stacks + 1
                     BlzSetHeroProperName(missile.source, "Meat Golem (" .. (golem.devour_stacks) .. ")")
                     FloatingTextUnit(tostring(golem.devour_stacks), missile.source, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
-                    UnitAddBonus(missile.source, BONUS_HERO_STR, R2I(golem.str * 0.1 * golem.devour_stacks))
+                    Unit[missile.source].bonus_str = Unit[missile.source].bonus_str + R2I(golem.str * 0.1 * golem.devour_stacks)
                     SetUnitScale(missile.source, 1 + golem.devour_stacks * 0.07, 1 + golem.devour_stacks * 0.07, 1 + golem.devour_stacks * 0.07)
                     --magnetic
                     if golem.devour_stacks == 1 then
@@ -474,9 +447,9 @@ OnInit.final("UnitSpells", function(Require)
 
                 missile.onFinish = function()
                     destroyer.borrowed_life = 0
-                    UnitAddBonus(missile.source, BONUS_HERO_INT, - R2I(GetHeroInt(missile.source, false) * 0.15 * destroyer.devour_stacks))
+                    Unit[missile.source].bonus_int = Unit[missile.source].bonus_int - R2I(Unit[missile.source].int * 0.15 * destroyer.devour_stacks)
                     destroyer.devour_stacks = destroyer.devour_stacks + 1
-                    UnitAddBonus(missile.source, BONUS_HERO_INT, R2I(GetHeroInt(missile.source, false) * 0.15 * destroyer.devour_stacks))
+                    Unit[missile.source].bonus_int = Unit[missile.source].bonus_int + R2I(Unit[missile.source].int * 0.15 * destroyer.devour_stacks)
                     BlzSetHeroProperName(missile.source, "Destroyer (" .. (destroyer.devour_stacks) .. ")")
                     FloatingTextUnit(tostring(destroyer.devour_stacks), missile.source, 1, 60, 50, 13.5, 255, 255, 255, 0, true)
                     if destroyer.devour_stacks == 1 then
@@ -487,12 +460,12 @@ OnInit.final("UnitSpells", function(Require)
                         destroyer.cc_flat = destroyer.cc_flat + 25
                         destroyer.cd_flat = destroyer.cd_flat + 200
                     elseif destroyer.devour_stacks == 3 then
-                        SetHeroAgi(missile.source, 200, true)
+                        Unit[missile.source].agi = 200
                     elseif destroyer.devour_stacks == 4 then
                         SetUnitAbilityLevel(missile.source, FourCC('A02D'), 2)
                     elseif destroyer.devour_stacks == 5 then
-                        SetHeroAgi(missile.source, 400, true)
-                        UnitAddBonus(missile.source, BONUS_HERO_INT, R2I(GetHeroInt(missile.source, false) * 0.25))
+                        Unit[missile.source].agi = 400
+                        Unit[missile.source].bonus_int = Unit[missile.source].bonus_int + R2I(Unit[missile.source].int * 0.25)
                     end
                     if destroyer.devour_stacks >= GetUnitAbilityLevel(Hero[self.pid], DEVOUR.id) + 1 then
                         UnitDisableAbility(missile.source, thistype.id, true)
@@ -653,7 +626,7 @@ OnInit.final("UnitSpells", function(Require)
                 BlzPlaySpecialEffect(pt.sfx, ANIM_TYPE_DEATH)
             end
 
-            BlzSetSpecialEffectZ(pt.sfx, BlzGetLocalUnitZ(caster) + 200.0)
+            BlzSetSpecialEffectZ(pt.sfx, BlzGetUnitZ(caster) + 200.0)
             BlzSetSpecialEffectTimeScale(pt.sfx, 0.001)
             BlzSetSpecialEffectColorByPlayer(pt.sfx, Player(4))
             pt.timer:callDelayed(FPS_32, periodic, pt)
@@ -677,7 +650,7 @@ OnInit.final("UnitSpells", function(Require)
         end
     end
 
-    local URSA_FROST_NOVA = Spell.define('nfpe')
+    local URSA_FROST_NOVA = Spell.define('ACfn')
     do
         local thistype = URSA_FROST_NOVA
 
@@ -686,11 +659,11 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
-    local TENTACLE = Spell.define('n08M')
+    local TENTACLE = Spell.define('A0AJ')
     do
         local thistype = TENTACLE
 
@@ -701,7 +674,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -774,7 +747,7 @@ OnInit.final("UnitSpells", function(Require)
             local dmg = GetUnitState(target, UNIT_STATE_MANA) - taken
 
             if dmg >= 0. then
-                ArcingTextTag.create(RealToString(taken), target, 1, 2, 170, 50, 220, 0)
+                ArcingTextTag.create(taken, target, 1, 1, 170, 50, 220, 0)
                 UnitAddAbility(target, FourCC('A058'))
             else
                 UnitRemoveAbility(target, FourCC('A058'))
@@ -787,42 +760,6 @@ OnInit.final("UnitSpells", function(Require)
 
         function thistype:setup(u)
             EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(u, onStruck)
-        end
-    end
-
-    local EYE_OF_GODS = Spell.define('A0A9')
-    do
-        local thistype = EYE_OF_GODS
-
-        function thistype.preCast(pid, tpid, caster, target)
-            if CHAOS_MODE then
-                IssueImmediateOrderById(caster, ORDER_ID_STOP)
-                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10.00, "With the Gods dead, the " .. GetUnitName(caster) .. " can no longer draw enough power from them in order to use its abilities.")
-            end
-        end
-    end
-
-    local STORM_OF_THE_HEAVENS = Spell.define('A0A7')
-    do
-        local thistype = STORM_OF_THE_HEAVENS
-
-        function thistype.preCast(pid, tpid, caster, target)
-            if CHAOS_MODE then
-                IssueImmediateOrderById(caster, ORDER_ID_STOP)
-                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10.00, "With the Gods dead, the " .. GetUnitName(caster) .. " can no longer draw enough power from them in order to use its abilities.")
-            end
-        end
-    end
-
-    local VOLCANIC_ACTIVITY = Spell.define('A0A5')
-    do
-        local thistype = VOLCANIC_ACTIVITY
-
-        function thistype.preCast(pid, tpid, caster, target)
-            if CHAOS_MODE then
-                IssueImmediateOrderById(caster, ORDER_ID_STOP)
-                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10.00, "With the Gods dead, the " .. GetUnitName(caster) .. " can no longer draw enough power from them in order to use its abilities.")
-            end
         end
     end
 
@@ -848,7 +785,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -894,7 +831,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -919,7 +856,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -979,7 +916,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1000,20 +937,21 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onHit(source, target, amount)
+            source = Unit[source]
             amount.value = 0.00
 
-            Unit[source].hits = Unit[source].hits + 1
-            FloatingTextUnit(tostring(Unit[source].hits), target, 1.5, 50, 150., 14.5, 255, 255, 255, 0, true)
+            source.hits = source.hits + 1
+            FloatingTextUnit(tostring(source.hits), target, 1.5, 50, 150., 14.5, 255, 255, 255, 0, true)
 
-            if Unit[source].target ~= target then
-                Unit[source].hits = 1
-            elseif Unit[source].hits > 2 then
-                proc(source, BlzGetUnitMaxHP(target) * 0.7, GetUnitX(target), GetUnitY(target), 120., Condition(isplayerunit))
+            if source.tri_target ~= target then
+                source.hits = 1
+            elseif source.hits > 2 then
+                proc(source.unit, BlzGetUnitMaxHP(target) * 0.7, GetUnitX(target), GetUnitY(target), 120., Condition(isplayerunit))
                 DestroyEffect(AddSpecialEffectTarget("Objects\\Spawnmodels\\Naga\\NagaDeath\\NagaDeath.mdl", target, "origin"))
-                Unit[source].hits = 0
+                source.hits = 0
             end
 
-            Unit[source].target = target
+            source.tri_target = target
         end
 
         function thistype:setup(u)
@@ -1088,7 +1026,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1139,7 +1077,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1153,7 +1091,7 @@ OnInit.final("UnitSpells", function(Require)
 
                 local ug = CreateGroup()
 
-                MakeGroupInRect(FOE_ID, ug, gg_rct_Naga_Dungeon_Boss, Condition(FilterEnemy))
+                MakeGroupInRect(BOSS_ID, ug, gg_rct_Naga_Dungeon_Boss, Condition(FilterEnemy))
 
                 for enemy in each(ug) do
                     local missile = Missiles:create(GetUnitX(target), GetUnitY(target), 70., 0, 0, 0) ---@type Missiles
@@ -1180,7 +1118,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1193,7 +1131,7 @@ OnInit.final("UnitSpells", function(Require)
             pt.time = pt.time + 1
 
             if UnitAlive(pt.source) then
-                if pt.time < 4 then --azazoth cast
+                if pt.time < 4 then -- azazoth cast
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Charm\\CharmTarget.mdl", pt.source, "origin"))
                     pt.timer:callDelayed(pt.dur, periodic, pt)
                 else
@@ -1211,7 +1149,7 @@ OnInit.final("UnitSpells", function(Require)
                     MakeGroupInRange(pt.pid, ug, x, y, 900., Filter(FilterEnemy))
 
                     for target in each(ug) do
-                        DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, pt.tag)
+                        DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     end
 
                     DestroyGroup(ug)
@@ -1224,22 +1162,23 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitAlive(target) and not Unit[target].casting then
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitAlive(target) then
                 -- adjust cooldown based on HP
-                BlzSetUnitAbilityCooldown(target, thistype.id, 0, 25. + R2I(GetWidgetLife(target) / BlzGetUnitMaxHP(target) * 25.))
+                local cd = 25. + R2I(GetWidgetLife(target) / BlzGetUnitMaxHP(target) * 25.)
+                local animation_time = MathClamp(GetWidgetLife(target) / BlzGetUnitMaxHP(target), 0.35, 0.75)
+                BlzSetUnitAbilityCooldown(target, thistype.id, 0, cd)
+                CastSpell(target, thistype.id, animation_time * 4., 4, 1.)
                 local pt = TimerList[BOSS_ID]:add()
-                pt.dur = MathClamp(GetWidgetLife(target) // BlzGetUnitMaxHP(target), 0.35, 0.75)
+                pt.dur = animation_time
                 pt.dmg = 2000000.
                 pt.source = target
-                pt.tag = thistype.tag
-                FloatingTextUnit(pt.tag, pt.source, 3, 70, 0, 12, 255, 255, 255, 0, true)
+                FloatingTextUnit(thistype.tag, pt.source, 3, 70, 0, 12, 255, 255, 255, 0, true)
                 pt.timer:callDelayed(pt.dur, periodic, pt)
-                CastSpell(target, thistype.id, pt.dur * 4, 4, 1.)
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1295,22 +1234,24 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitAlive(target) and not Unit[target].casting then
-                --adjust cooldown based on HP
-                BlzSetUnitAbilityCooldown(target, thistype.id, 0, 15. + R2I(GetWidgetLife(target) / BlzGetUnitMaxHP(target) * 15.))
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitAlive(target) then
+                -- adjust cooldown based on HP
+                local cd = 15. + R2I(GetWidgetLife(target) / BlzGetUnitMaxHP(target) * 15.)
+                local animation_time = MathClamp(GetWidgetLife(target) // BlzGetUnitMaxHP(target), 0.35, 0.75)
+                BlzSetUnitAbilityCooldown(target, thistype.id, 0, cd)
+                CastSpell(target, thistype.id, animation_time * 4, 4, 1.)
                 local pt = TimerList[BOSS_ID]:add()
                 pt.dmg = 4000000.
-                pt.dur = MathClamp(GetWidgetLife(target) // BlzGetUnitMaxHP(target), 0.35, 0.75)
+                pt.dur = animation_time
                 pt.angle = GetUnitFacing(target)
                 pt.source = target
                 FloatingTextUnit(thistype.tag, pt.source, 3, 70, 0, 12, 255, 255, 255, 0, true)
                 pt.timer:callDelayed(pt.dur, thistype.periodic, pt)
-                CastSpell(target, thistype.id, pt.dur * 4, 4, 1.)
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1319,7 +1260,7 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = ASTRAL_SHIELD
 
         local function onStruck(target)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitAlive(target) and not Unit[target].casting then
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitAlive(target) then
                 CastSpell(target, thistype.id, 1., 6, 1.)
                 FloatingTextUnit(thistype.tag, target, 3, 70, 0, 12, 255, 255, 255, 0, true)
                 AstralShieldBuff:add(target, target):duration(13.)
@@ -1353,12 +1294,13 @@ OnInit.final("UnitSpells", function(Require)
 
         local function onStruck(target, source)
             if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
+                Unit[target].cast_time = 1.
                 IssueTargetOrder(target, "chainlightning", source)
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1368,12 +1310,13 @@ OnInit.final("UnitSpells", function(Require)
 
         local function onStruck(target, source)
             if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
+                Unit[target].cast_time = 2.
                 IssuePointOrder(target, "flamestrike", GetUnitX(source), GetUnitY(source))
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1382,19 +1325,19 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = TORNADO_STORM
 
         local function onStruck(target, source)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and IsUnitInRange(target, source, 500.) then
                 CastSpell(target, thistype.id, 1.5, 5, 1.)
-                local dummy = CreateUnit(Player(PLAYER_BOSS), FourCC('n001'), GetUnitX(target), GetUnitY(target), 0.)
+                local dummy = CreateUnit(PLAYER_BOSS, FourCC('n001'), GetUnitX(target), GetUnitY(target), 0.)
                 IssuePointOrder(dummy, "move", GetRandomReal(GetUnitX(target) - 250, GetUnitX(target) + 250), GetRandomReal(GetUnitY(target) - 250, GetUnitY(target) + 250))
                 TimerQueue:callDelayed(40., RemoveUnit, dummy)
-                dummy = CreateUnit(Player(PLAYER_BOSS), FourCC('n001'), GetUnitX(target), GetUnitY(target), 0.)
+                dummy = CreateUnit(PLAYER_BOSS, FourCC('n001'), GetUnitX(target), GetUnitY(target), 0.)
                 IssuePointOrder(dummy, "move", GetRandomReal(GetUnitX(target) - 250, GetUnitX(target) + 250), GetRandomReal(GetUnitY(target) - 250, GetUnitY(target) + 250))
                 TimerQueue:callDelayed(40., RemoveUnit, dummy)
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1404,12 +1347,30 @@ OnInit.final("UnitSpells", function(Require)
 
         local function onStruck(target, source)
             if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitDistance(source, target) < 600. then
-                IssuePointOrder(target, "carrionswarm", GetUnitX(source), GetUnitY(source))
+                CastSpell(target, thistype.id, 1., 15, 1)
+                local x, y = GetUnitX(target), GetUnitY(target)
+                local angle = Atan2(GetUnitX(source) - y, GetUnitY(source) - x)
+                local missile = Missiles:create(x, y, 25., x + 600. * Cos(angle), y + 600. * Sin(angle), 25.) ---@type Missiles
+                missile:model("Abilities\\Spells\\Orc\\Shockwave\\ShockwaveMissile.mdl")
+
+                missile:scale(1.1)
+                missile:speed(1000)
+                missile.source = target
+                missile.collision = 100.
+                missile.owner = GetOwningPlayer(target)
+
+                missile.onHit = function(enemy)
+                    if IsHittable(enemy, missile.owner) then
+                        DamageTarget(missile.source, enemy, 6000., ATTACK_TYPE_NORMAL, MAGIC, "Shockwave")
+                    end
+                end
+
+                missile:launch()
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1419,9 +1380,9 @@ OnInit.final("UnitSpells", function(Require)
 
         local function onStruck(target, source)
             if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitDistance(source, target) < 300. then
-                CastSpell(target, thistype.id, 1., 4, 1.)
+                CastSpell(target, thistype.id, 1., 10, 1.)
                 local pt = TimerList[BOSS_ID]:add()
-                pt.dmg = 4000.
+                pt.dmg = 2000.
                 pt.source = target
                 pt.dur = 8.
                 pt.tag = "War Stomp"
@@ -1431,7 +1392,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1471,7 +1432,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1481,9 +1442,9 @@ OnInit.final("UnitSpells", function(Require)
 
         local function onStruck(target, source)
             if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitDistance(target, source) < 300. then
-                CastSpell(target, thistype.id, 1., 4, 1.)
+                CastSpell(target, thistype.id, 1., 10, 1.)
                 local pt = TimerList[BOSS_ID]:add()
-                pt.dmg = 8000.
+                pt.dmg = 4000.
                 pt.source = target
                 pt.dur = 8.
                 pt.tag = "Thunder Clap"
@@ -1493,7 +1454,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1557,7 +1518,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1586,7 +1547,7 @@ OnInit.final("UnitSpells", function(Require)
 
                 for i = 0, 4 do
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl", GetUnitX(target) + 80. * Cos(bj_PI * i * 0.4), GetUnitY(target) + 80. * Sin(bj_PI * i * 0.4)))
-                    local dummy = CreateUnit(Player(PLAYER_BOSS), FourCC('n00E'), GetUnitX(target) + 80. * Cos(bj_PI * i * 0.4), GetUnitY(target) + 80. * Sin(bj_PI * i * 0.4), GetUnitFacing(target))
+                    local dummy = CreateUnit(PLAYER_BOSS, FourCC('n00E'), GetUnitX(target) + 80. * Cos(bj_PI * i * 0.4), GetUnitY(target) + 80. * Sin(bj_PI * i * 0.4), GetUnitFacing(target))
                     CastSpell(dummy, 0, 1.5, 9, 1.)
                     UnitApplyTimedLife(dummy, FourCC('BTLF'), 30.)
                 end
@@ -1594,7 +1555,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1610,7 +1571,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1635,7 +1596,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0. then
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0. and IsUnitInRange(target, source, 700.) then
                 if GetUnitTypeId(target) == FourCC('E007') then
                     CastSpell(target, thistype.id, 1., 8, 1.)
                 else
@@ -1649,7 +1610,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1660,7 +1621,7 @@ OnInit.final("UnitSpells", function(Require)
         local function holy_ward(holyward)
             if UnitAlive(holyward) then
                 local ug = CreateGroup()
-                MakeGroupInRange(BOSS_ID, ug, GetUnitX(holyward), GetUnitY(holyward), 2000., Condition(FilterAllyHero))
+                MakeGroupInRange(BOSS_ID, ug, GetUnitX(holyward), GetUnitY(holyward), 2000., Condition(FilterAlly))
 
                 for target in each(ug) do
                     HP(holyward, target, 100000)
@@ -1676,7 +1637,7 @@ OnInit.final("UnitSpells", function(Require)
         local function onStruck(target, source)
             if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 then
                 CastSpell(target, thistype.id, 0.5, 9, 1.5)
-                local holyward = CreateUnit(pboss, FourCC('o009'), GetRandomReal(GetRectMinX(gg_rct_Crystal_Spawn) - 500, GetRectMaxX(gg_rct_Crystal_Spawn) + 500), GetRandomReal(GetRectMinY(gg_rct_Crystal_Spawn) - 600, GetRectMaxY(gg_rct_Crystal_Spawn) + 600), 0)
+                local holyward = CreateUnit(PLAYER_BOSS, FourCC('o009'), GetRandomReal(GetRectMinX(gg_rct_Crystal_Spawn) - 500, GetRectMaxX(gg_rct_Crystal_Spawn) + 500), GetRandomReal(GetRectMinY(gg_rct_Crystal_Spawn) - 600, GetRectMaxY(gg_rct_Crystal_Spawn) + 600), 0)
                 local ug = CreateGroup()
 
                 MakeGroupInRange(BOSS_ID, ug, GetUnitX(holyward), GetUnitY(holyward), 1250., Condition(FilterEnemy))
@@ -1689,7 +1650,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1715,15 +1676,15 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if UnitAlive(target) and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 and not Unit[target].casting and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
+            if UnitAlive(target) and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
                 CastSpell(target, thistype.id, 0.25, 8, 1.5)
-                Dummy.create(GetUnitX(target), GetUnitY(target), thistype.id, 1):cast(pboss, "banish", target)
+                Dummy.create(GetUnitX(target), GetUnitY(target), thistype.id, 1):cast(PLAYER_BOSS, "banish", target)
                 TimerQueue:callDelayed(1., ghost_shroud, target)
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1732,7 +1693,7 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = SILENCE
 
         local function onStruck(target, source)
-            if UnitAlive(target) and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 and not Unit[target].casting and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
+            if UnitAlive(target) and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
                 local ug = CreateGroup()
                 CastSpell(target, thistype.id, 1., 8, 1.5)
 
@@ -1748,7 +1709,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1757,14 +1718,14 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = DISARM
 
         local function onStruck(target, source)
-            if UnitAlive(target) and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 and not Unit[target].casting and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
+            if UnitAlive(target) and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.9 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
                 CastSpell(target, thistype.id, 1., 8, 1.5)
                 Disarm:add(target, source):duration(6.)
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1811,7 +1772,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1823,12 +1784,12 @@ OnInit.final("UnitSpells", function(Require)
             if UnitAlive(target) and (GetWidgetLife(target) / BlzGetUnitMaxHP(target)) <= 0.5 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
                 BlzStartUnitAbilityCooldown(target, thistype.id, 60.)
                 DemonPrinceBloodlust:add(target, target):duration(60.)
-                Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A041'), 1):cast(pboss, "bloodlust", target)
+                Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A041'), 1):cast(PLAYER_BOSS, "bloodlust", target)
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1878,7 +1839,7 @@ OnInit.final("UnitSpells", function(Require)
                     BlzStartUnitAbilityCooldown(target, thistype.id, 10.)
 
                     FloatingTextUnit(thistype.tag, target, 1.75, 100, 0, 12, 90, 30, 150, 0, true)
-                    UnitRemoveBuffs(target, false, true)
+                    Buff.dispelAll(target)
                     UnitAddAbility(target, FourCC('Avul'))
                     UnitAddAbility(target, FourCC('A043'))
                     IssueImmediateOrder(target, "windwalk")
@@ -1896,7 +1857,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1925,7 +1886,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if UnitAlive(target) and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0. and not Unit[target].casting then
+            if UnitAlive(target) and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0. then
                 local pt = TimerList[BOSS_ID]:add()
                 pt.x = GetRandomReal(GetRectMinX(gg_rct_Crypt) + 200., GetRectMaxX(gg_rct_Crypt) - 200.)
                 pt.y = GetRandomReal(GetRectMinY(gg_rct_Crypt) + 200., GetRectMaxY(gg_rct_Crypt) - 200.)
@@ -1941,7 +1902,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -1966,7 +1927,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0. and not Unit[target].casting and UnitDistance(source, target) <= 300. then
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0. and UnitDistance(source, target) <= 300. then
                 CastSpell(target, thistype.id, 2., 1, 1.)
 
                 FloatingTextUnit(thistype.tag, target, 3, 100, 0, 13, 255, 255, 255, 0, true)
@@ -1976,7 +1937,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -2004,16 +1965,16 @@ OnInit.final("UnitSpells", function(Require)
 
         function thistype:setup(u)
             local boss = IsBoss(u)
-            SetUnitAbilityLevel(u, FourCC('A064'), Boss[boss].difficulty)
-            SetUnitAbilityLevel(u, thistype.id, Boss[boss].difficulty)
+            SetUnitAbilityLevel(u, FourCC('A064'), boss.difficulty)
+            SetUnitAbilityLevel(u, thistype.id, boss.difficulty)
 
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
-    local MORITFY_TERRIFY = Spell.define("A03M")
+    local MORTIFY_TERRIFY = Spell.define("A03M")
     do
-        local thistype = MORITFY_TERRIFY
+        local thistype = MORTIFY_TERRIFY
 
         local function expire(pt)
             if UnitAlive(pt.source) then
@@ -2028,8 +1989,8 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and not Unit[target].casting then
-                CastSpell(target, thistype.id, 1., 0, 1)
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
+                CastSpell(target, thistype.id, 2., 0, 1)
                 BlzStartUnitAbilityCooldown(target, FourCC('A05U'), 5.)
                 local pt = TimerList[BOSS_ID]:add()
                 pt.source = target
@@ -2046,7 +2007,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -2070,7 +2031,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and not Unit[target].casting then
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
                 CastSpell(target, thistype.id, 2., 5, 1.)
                 FloatingTextUnit("||||| FREEZE |||||", target, 3, 70, 0, 11, 255, 255, 255, 0, true)
                 TimerQueue:callDelayed(4., expire, target)
@@ -2078,7 +2039,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -2087,7 +2048,7 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = FLAME_ONSLAUGHT
 
         local function on_hit(source, target)
-            if IsUnitEnemy(target, pboss) then
+            if IsUnitEnemy(target, PLAYER_BOSS) then
                 DamageTarget(source, target, 10000., ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
         end
@@ -2096,7 +2057,7 @@ OnInit.final("UnitSpells", function(Require)
             if random(0, 99) < 10 then
                 local dummy = Dummy.create(GetUnitX(target), GetUnitY(target), FourCC('A0DN'), 1)
                 dummy.source = target
-                SetUnitOwner(dummy.unit, pboss, false)
+                SetUnitOwner(dummy.unit, PLAYER_BOSS, false)
                 IssuePointOrder(dummy.unit, "flamestrike", GetUnitX(source), GetUnitY(source))
                 EVENT_DUMMY_ON_HIT:register_unit_action(target, on_hit)
             end
@@ -2112,14 +2073,16 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = SHADOW_STEP
 
         local function onStruck(target, source)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitDistance(source, target) > 250. and not Unit[target].casting then
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitDistance(source, target) > 250. then
                 CastSpell(target, thistype.id, 0., 1, 1.)
                 BossTeleport(source, 1.5)
             end
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            if not IsUnitIllusion(u) then
+                EVENT_ENEMY_AI:register_unit_action(u, onStruck)
+            end
         end
     end
 
@@ -2136,7 +2099,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and TimerList[BOSS_ID]:has(FourCC('tpin')) == false and UnitDistance(source, target) < 800 and not Unit[target].casting then
+            if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and TimerList[BOSS_ID]:has(FourCC('tpin')) == false and IsUnitInRange(target, source, 800.) then
                 CastSpell(target, thistype.id, 0.5, 12, 1.)
                 TimerQueue:callDelayed(2, DestroyEffect, AddSpecialEffect("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageCaster.mdl", GetUnitX(target), GetUnitY(target)))
                 RemoveLocation(Boss[BOSS_LEGION].loc)
@@ -2146,7 +2109,9 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            if not IsUnitIllusion(u) then
+                EVENT_ENEMY_AI:register_unit_action(u, onStruck)
+            end
         end
     end
 
@@ -2175,8 +2140,8 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if random(0, 99) < 10 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitDistance(source, target) > 250. and not Unit[target].casting then
-                BlzStartUnitAbilityCooldown(target, thistype.id, 10.)
+            if random(0, 99) < 10 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitDistance(source, target) > 250. then
+                CastSpell(target, thistype.id, 0, -1, 1)
                 local pt = TimerList[BOSS_ID]:add()
                 pt.x = GetUnitX(source)
                 pt.y = GetUnitY(source)
@@ -2188,7 +2153,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -2203,7 +2168,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if random(0, 99) < 10 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and not Unit[target].casting then
+            if random(0, 99) < 10 and BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 then
                 CastSpell(target, thistype.id, 2., 12, 1.)
                 TimerQueue:callDelayed(2.5, expire, target)
                 FloatingTextUnit(thistype.tag, target, 2, 70, 0, 10, 255, 255, 255, 0, true)
@@ -2211,7 +2176,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -2242,7 +2207,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         local function onStruck(target, source)
-            if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A07F')) <= 0. and not Unit[target].casting then
+            if BlzGetUnitAbilityCooldownRemaining(target, FourCC('A07F')) <= 0. then
                 local rand = 0
                 repeat
                     rand = random(1, 3)
@@ -2270,7 +2235,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -2295,8 +2260,8 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = REINFORCEMENTS
 
         local function summon(angle, x, y)
-            UnitApplyTimedLife(CreateUnit(pboss, FourCC('o034'), x + 400 * Cos((angle + 90) * bj_DEGTORAD), y + 400 * Sin((angle + 90) * bj_DEGTORAD), angle), FourCC('BTLF'), 120.)
-            UnitApplyTimedLife(CreateUnit(pboss, FourCC('o034'), x + 400 * Cos((angle - 90) * bj_DEGTORAD), y + 400 * Sin((angle - 90) * bj_DEGTORAD), angle), FourCC('BTLF'), 120.)
+            UnitApplyTimedLife(CreateUnit(PLAYER_BOSS, FourCC('o034'), x + 400 * Cos((angle + 90) * bj_DEGTORAD), y + 400 * Sin((angle + 90) * bj_DEGTORAD), angle), FourCC('BTLF'), 120.)
+            UnitApplyTimedLife(CreateUnit(PLAYER_BOSS, FourCC('o034'), x + 400 * Cos((angle - 90) * bj_DEGTORAD), y + 400 * Sin((angle - 90) * bj_DEGTORAD), angle), FourCC('BTLF'), 120.)
         end
 
         local function onStruck(target, source)
@@ -2311,7 +2276,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -2391,7 +2356,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -2491,13 +2456,13 @@ OnInit.final("UnitSpells", function(Require)
                         if not pt.lfx then
                             pt.lfx = AddLightning("RLAS", false, x, y, GetUnitX(pt.target), GetUnitY(pt.target))
                         else
-                            MoveLightningEx(pt.lfx, false, x, y, BlzGetLocalUnitZ(pt.source) + GetUnitFlyHeight(pt.source) + 50., GetUnitX(pt.target), GetUnitY(pt.target), BlzGetUnitZ(pt.target) + 50.)
+                            MoveLightningEx(pt.lfx, false, x, y, BlzGetUnitZ(pt.source) + GetUnitFlyHeight(pt.source) + 50., GetUnitX(pt.target), GetUnitY(pt.target), BlzGetUnitZ(pt.target) + 50.)
                         end
                     end
 
                     DestroyGroup(ug)
                 else
-                    if not IsUnitVisible(pt.target, Player(PLAYER_BOSS)) or UnitDistance(pt.source, pt.target) > 4000. then
+                    if not IsUnitVisible(pt.target, PLAYER_BOSS) or UnitDistance(pt.source, pt.target) > 4000. then
                         pt.target = nil
                         pt.time = 0.
                         pt.agi = 0
@@ -2507,7 +2472,7 @@ OnInit.final("UnitSpells", function(Require)
                         BlzStartUnitAbilityCooldown(pt.source, FourCC('A02G'), 0.001)
                     else
                         pt.time = pt.time + FPS_32
-                        MoveLightningEx(pt.lfx, false, x, y, BlzGetLocalUnitZ(pt.source) + GetUnitFlyHeight(pt.source) + 50., GetUnitX(pt.target), GetUnitY(pt.target), BlzGetUnitZ(pt.target) + 50.)
+                        MoveLightningEx(pt.lfx, false, x, y, BlzGetUnitZ(pt.source) + GetUnitFlyHeight(pt.source) + 50., GetUnitX(pt.target), GetUnitY(pt.target), BlzGetUnitZ(pt.target) + 50.)
 
                         if BlzGetUnitAbilityCooldownRemaining(pt.source, FourCC('A02G')) <= 0. then
                             CastSpell(pt.source, FourCC('A02G'), 5., 0, 1.)
@@ -2529,7 +2494,7 @@ OnInit.final("UnitSpells", function(Require)
 
         local function spawn_archer(x, y, height)
             local pt = TimerList[BOSS_ID]:add()
-            pt.source = CreateUnit(pboss, FourCC('o001'), x, y, 0.)
+            pt.source = CreateUnit(PLAYER_BOSS, FourCC('o001'), x, y, 0.)
             if UnitAddAbility(pt.source, FourCC('Amrf')) then
                 UnitRemoveAbility(pt.source, FourCC('Amrf'))
             end
@@ -2542,7 +2507,7 @@ OnInit.final("UnitSpells", function(Require)
 
         local function spawn_mage(x, y, height)
             local pt = TimerList[BOSS_ID]:add()
-            pt.source = CreateUnit(pboss, FourCC('o000'), x, y, 0.)
+            pt.source = CreateUnit(PLAYER_BOSS, FourCC('o000'), x, y, 0.)
             if UnitAddAbility(pt.source, FourCC('Amrf')) then
                 UnitRemoveAbility(pt.source, FourCC('Amrf'))
             end
@@ -2566,7 +2531,7 @@ OnInit.final("UnitSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_STRUCK:register_unit_action(u, onStruck)
+            EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
 
@@ -2576,6 +2541,22 @@ OnInit.final("UnitSpells", function(Require)
 
         function thistype:setup(u)
             Unit[u].evasion = Unit[u].evasion + 50
+        end
+    end
+
+    local DROP_ITEM = Spell.define("A015")
+    do
+        local thistype = DROP_ITEM
+
+        function thistype.preCast(pid, _, _, _, _, _, targetX, targetY)
+            local hero = Profile[pid].hero
+            local item = hero.item_to_drop
+
+            if item then
+                local itm = hero.items[item.index]
+                itm:drop(targetX, targetY)
+                INVENTORY.refresh(pid)
+            end
         end
     end
 end, Debug and Debug.getLine())
