@@ -5,6 +5,7 @@
 ]]
 
 OnInit.final("Recipe", function(Require)
+    Require('Units')
     Require('Shop')
     Require('Items')
 
@@ -25,17 +26,11 @@ OnInit.final("Recipe", function(Require)
     ITEM_PRICE['I0FC:0'][GOLD] = 20000
     ITEM_PRICE['I00A:0'][GOLD] = 80000
     ITEM_PRICE['I0JR:0'][GOLD] = 100000
-    ITEM_PRICE['I0JR:0'][LUMBER] = 100000
     ITEM_PRICE['I08K:0'][GOLD] = 100000
-    ITEM_PRICE['I08K:0'][LUMBER] = 100000
     ITEM_PRICE['I0F4:0'][GOLD] = 100000
-    ITEM_PRICE['I0F4:0'][LUMBER] = 100000
     ITEM_PRICE['I0F5:0'][GOLD] = 100000
-    ITEM_PRICE['I0F5:0'][LUMBER] = 100000
     ITEM_PRICE['I012:0'][GOLD] = 150000
-    ITEM_PRICE['I012:0'][LUMBER] = 150000
     ITEM_PRICE['I04J:0'][GOLD] = 400000
-    ITEM_PRICE['I04J:0'][LUMBER] = 200000
 
     CreateShop(id, 1000., 0.5)
     CreateShop(id2, 1000., 0.5)
@@ -295,27 +290,22 @@ OnInit.final("Recipe", function(Require)
     -- demon sets
     -- sword
     ITEM_PRICE['I0CK:0'][GOLD] = 250000
-    ITEM_PRICE['I0CK:0'][LUMBER] = 125000
     ShopAddItem(id, 'I0CK:0', sets + sword + plate)
     ItemAddComponents('I0CK:0', "I06S I06S I06S I073 I073 I04T")
     -- heavy
     ITEM_PRICE['I0BN:0'][GOLD] = 250000
-    ITEM_PRICE['I0BN:0'][LUMBER] = 125000
     ShopAddItem(id, 'I0BN:0', sets + heavy + fullplate)
     ItemAddComponents('I0BN:0', "I075 I075 I075 I04T I04T I073")
     -- dagger
     ITEM_PRICE['I0BO:0'][GOLD] = 250000
-    ITEM_PRICE['I0BO:0'][LUMBER] = 125000
     ShopAddItem(id, 'I0BO:0', sets + dagger + leather)
     ItemAddComponents('I0BO:0', "I06U I06U I06U I06Z I06Z I06Z")
     -- bow
     ITEM_PRICE['I0CU:0'][GOLD] = 250000
-    ITEM_PRICE['I0CU:0'][LUMBER] = 125000
     ShopAddItem(id, 'I0CU:0', sets + bow + leather)
     ItemAddComponents('I0CU:0', "I06O I06O I06O I06Z I06Z I06Z")
     -- staff
     ITEM_PRICE['I0CT:0'][GOLD] = 250000
-    ITEM_PRICE['I0CT:0'][LUMBER] = 125000
     ShopAddItem(id, 'I0CT:0', sets + staff + cloth)
     ItemAddComponents('I0CT:0', "I06Q I06Q I06Q I06W I06W I06W")
 
@@ -335,27 +325,22 @@ OnInit.final("Recipe", function(Require)
     -- horror sets
     -- sword
     ITEM_PRICE['I0CV:0'][GOLD] = 500000
-    ITEM_PRICE['I0CV:0'][LUMBER] = 250000
     ShopAddItem(id, 'I0CV:0', sets + sword + plate)
     ItemAddComponents('I0CV:0', "I07M I07M I07M I07E I07E I07A I07A")
     -- heavy
     ITEM_PRICE['I0C2:0'][GOLD] = 500000
-    ITEM_PRICE['I0C2:0'][LUMBER] = 250000
     ShopAddItem(id, 'I0C2:0', sets + heavy + fullplate)
     ItemAddComponents('I0C2:0', "I07I I07I I07I I07A I07A I07E I05D")
     -- dagger
     ITEM_PRICE['I0C1:0'][GOLD] = 500000
-    ITEM_PRICE['I0C1:0'][LUMBER] = 250000
     ShopAddItem(id, 'I0C1:0', sets + dagger + leather)
     ItemAddComponents('I0C1:0', "I07L I07L I07L I07G I07G I07G I07K")
     -- bow
     ITEM_PRICE['I0CW:0'][GOLD] = 500000
-    ITEM_PRICE['I0CW:0'][LUMBER] = 250000
     ShopAddItem(id, 'I0CW:0', sets + bow + leather)
     ItemAddComponents('I0CW:0', "I07P I07P I07P I07G I07G I07G I07K")
     -- staff
     ITEM_PRICE['I0CX:0'][GOLD] = 500000
-    ITEM_PRICE['I0CX:0'][LUMBER] = 250000
     ShopAddItem(id, 'I0CX:0', sets + staff + cloth)
     ItemAddComponents('I0CX:0', "I077 I077 I077 I07C I07C I07C I07K")
 
@@ -375,35 +360,30 @@ OnInit.final("Recipe", function(Require)
     -- sword
     ITEM_PRICE['I0CY:0'][GOLD] = 500000
     ITEM_PRICE['I0CY:0'][PLATINUM] = 1
-    ITEM_PRICE['I0CY:0'][LUMBER] = 750000
     ITEM_PRICE['I0CY:0'][CRYSTAL] = 1
     ShopAddItem(id, 'I0CY:0', sets + sword + plate)
     ItemAddComponents('I0CY:0', "I07V I07V I07V I087 I087 I07X")
     -- heavy
     ITEM_PRICE['I0BQ:0'][GOLD] = 500000
     ITEM_PRICE['I0BQ:0'][PLATINUM] = 1
-    ITEM_PRICE['I0BQ:0'][LUMBER] = 750000
     ITEM_PRICE['I0BQ:0'][CRYSTAL] = 1
     ShopAddItem(id, 'I0BQ:0', sets + heavy + fullplate)
     ItemAddComponents('I0BQ:0', "I089 I089 I089 I07X I07X I087")
     -- dagger
     ITEM_PRICE['I0BP:0'][GOLD] = 500000
     ITEM_PRICE['I0BP:0'][PLATINUM] = 1
-    ITEM_PRICE['I0BP:0'][LUMBER] = 750000
     ITEM_PRICE['I0BP:0'][CRYSTAL] = 1
     ShopAddItem(id, 'I0BP:0', sets + dagger + leather)
     ItemAddComponents('I0BP:0', "I07Z I07Z I07Z I083 I083 I083")
     -- bow
     ITEM_PRICE['I0CZ:0'][GOLD] = 500000
     ITEM_PRICE['I0CZ:0'][PLATINUM] = 1
-    ITEM_PRICE['I0CZ:0'][LUMBER] = 750000
     ITEM_PRICE['I0CZ:0'][CRYSTAL] = 1
     ShopAddItem(id, 'I0CZ:0', sets + bow + leather)
     ItemAddComponents('I0CZ:0', "I07R I07R I07R I083 I083 I083")
     -- staff
     ITEM_PRICE['I0D3:0'][GOLD] = 500000
     ITEM_PRICE['I0D3:0'][PLATINUM] = 1
-    ITEM_PRICE['I0D3:0'][LUMBER] = 750000
     ITEM_PRICE['I0D3:0'][CRYSTAL] = 1
     ShopAddItem(id, 'I0D3:0', sets + staff + cloth)
     ItemAddComponents('I0D3:0', "I07T I07T I07T I081 I081 I081")
@@ -421,37 +401,27 @@ OnInit.final("Recipe", function(Require)
 
     -- abyssal sets
     -- sword
-    ITEM_PRICE['I0C9:0'][PLATINUM] = 3
-    ITEM_PRICE['I0C9:0'][ARCADITE] = 1
-    ITEM_PRICE['I0C9:0'][LUMBER] = 500000
+    ITEM_PRICE['I0C9:0'][PLATINUM] = 4
     ITEM_PRICE['I0C9:0'][CRYSTAL] = 2
     ShopAddItem(id, 'I0C9:0', sets + sword + plate)
     ItemAddComponents('I0C9:0', "I06A I06A I06A I09X I09X I06D")
     -- heavy
-    ITEM_PRICE['I0C8:0'][PLATINUM] = 3
-    ITEM_PRICE['I0C8:0'][ARCADITE] = 1
-    ITEM_PRICE['I0C8:0'][LUMBER] = 500000
+    ITEM_PRICE['I0C8:0'][PLATINUM] = 4
     ITEM_PRICE['I0C8:0'][CRYSTAL] = 2
     ShopAddItem(id, 'I0C8:0', sets + heavy + fullplate)
     ItemAddComponents('I0C8:0', "I0A0 I0A0 I0A0 I06D I06D I09X")
     -- dagger
-    ITEM_PRICE['I0C7:0'][PLATINUM] = 3
-    ITEM_PRICE['I0C7:0'][ARCADITE] = 1
-    ITEM_PRICE['I0C7:0'][LUMBER] = 500000
+    ITEM_PRICE['I0C7:0'][PLATINUM] = 4
     ITEM_PRICE['I0C7:0'][CRYSTAL] = 2
     ShopAddItem(id, 'I0C7:0', sets + dagger + leather)
     ItemAddComponents('I0C7:0', "I06B I06B I06B I0A2 I0A2 I0A2")
     -- bow
-    ITEM_PRICE['I0C6:0'][PLATINUM] = 3
-    ITEM_PRICE['I0C6:0'][ARCADITE] = 1
-    ITEM_PRICE['I0C6:0'][LUMBER] = 500000
+    ITEM_PRICE['I0C6:0'][PLATINUM] = 4
     ITEM_PRICE['I0C6:0'][CRYSTAL] = 2
     ShopAddItem(id, 'I0C6:0', sets + bow + leather)
     ItemAddComponents('I0C6:0', "I06C I06C I06C I0A2 I0A2 I0A2")
     -- staff
-    ITEM_PRICE['I0C5:0'][PLATINUM] = 3
-    ITEM_PRICE['I0C5:0'][ARCADITE] = 1
-    ITEM_PRICE['I0C5:0'][LUMBER] = 500000
+    ITEM_PRICE['I0C5:0'][PLATINUM] = 4
     ITEM_PRICE['I0C5:0'][CRYSTAL] = 2
     ShopAddItem(id, 'I0C5:0', sets + staff + cloth)
     ItemAddComponents('I0C5:0', "I09N I09N I09N I0A5 I0A5 I0A5")
@@ -473,32 +443,27 @@ OnInit.final("Recipe", function(Require)
 
     -- void sets
     -- sword
-    ITEM_PRICE['I0D7:0'][PLATINUM] = 6
-    ITEM_PRICE['I0D7:0'][ARCADITE] = 3
+    ITEM_PRICE['I0D7:0'][PLATINUM] = 9
     ITEM_PRICE['I0D7:0'][CRYSTAL] = 3
     ShopAddItem(id, 'I0D7:0', sets + sword + plate)
     ItemAddComponents('I0D7:0', "I08C I08C I08C I08S I08S I08D I055")
     -- heavy
-    ITEM_PRICE['I0C4:0'][PLATINUM] = 6
-    ITEM_PRICE['I0C4:0'][ARCADITE] = 3
+    ITEM_PRICE['I0C4:0'][PLATINUM] = 9
     ITEM_PRICE['I0C4:0'][CRYSTAL] = 3
     ShopAddItem(id, 'I0C4:0', sets + heavy + fullplate)
     ItemAddComponents('I0C4:0', "I08U I08U I08U I08D I08D I08S I04W")
     -- dagger
-    ITEM_PRICE['I0C3:0'][PLATINUM] = 6
-    ITEM_PRICE['I0C3:0'][ARCADITE] = 3
+    ITEM_PRICE['I0C3:0'][PLATINUM] = 9
     ITEM_PRICE['I0C3:0'][CRYSTAL] = 3
     ShopAddItem(id, 'I0C3:0', sets + dagger + leather)
     ItemAddComponents('I0C3:0', "I08J I08J I08J I08O I08O I08O I055")
     -- bow
-    ITEM_PRICE['I0D5:0'][PLATINUM] = 6
-    ITEM_PRICE['I0D5:0'][ARCADITE] = 3
+    ITEM_PRICE['I0D5:0'][PLATINUM] = 9
     ITEM_PRICE['I0D5:0'][CRYSTAL] = 3
     ShopAddItem(id, 'I0D5:0', sets + bow + leather)
     ItemAddComponents('I0D5:0', "I08H I08H I08H I08O I08O I08O I055")
     -- staff
-    ITEM_PRICE['I0D6:0'][PLATINUM] = 6
-    ITEM_PRICE['I0D6:0'][ARCADITE] = 3
+    ITEM_PRICE['I0D6:0'][PLATINUM] = 9
     ITEM_PRICE['I0D6:0'][CRYSTAL] = 3
     ShopAddItem(id, 'I0D6:0', sets + staff + cloth)
     ItemAddComponents('I0D6:0', "I08G I08G I08G I08M I08M I08M I04Y")
@@ -516,32 +481,27 @@ OnInit.final("Recipe", function(Require)
 
     -- nightmare sets
     -- sword
-    ITEM_PRICE['I0CB:0'][PLATINUM] = 10
-    ITEM_PRICE['I0CB:0'][ARCADITE] = 6
+    ITEM_PRICE['I0CB:0'][PLATINUM] = 16
     ITEM_PRICE['I0CB:0'][CRYSTAL] = 6
     ShopAddItem(id, 'I0CB:0', sets + sword + plate)
     ItemAddComponents('I0CB:0', "I09P I09P I09P I09P I0A7 I0A7 I09V")
     -- heavy
-    ITEM_PRICE['I0CA:0'][PLATINUM] = 10
-    ITEM_PRICE['I0CA:0'][ARCADITE] = 6
+    ITEM_PRICE['I0CA:0'][PLATINUM] = 16
     ITEM_PRICE['I0CA:0'][CRYSTAL] = 6
     ShopAddItem(id, 'I0CA:0', sets + heavy + fullplate)
     ItemAddComponents('I0CA:0', "I0A9 I0A9 I0A9 I09V I09V I09V I0A7")
     -- dagger
-    ITEM_PRICE['I0CD:0'][PLATINUM] = 10
-    ITEM_PRICE['I0CD:0'][ARCADITE] = 6
+    ITEM_PRICE['I0CD:0'][PLATINUM] = 16
     ITEM_PRICE['I0CD:0'][CRYSTAL] = 6
     ShopAddItem(id, 'I0CD:0', sets + dagger + leather)
     ItemAddComponents('I0CD:0', "I09R I09R I09R I09R I0AC I0AC I0AC")
     -- bow
-    ITEM_PRICE['I0CE:0'][PLATINUM] = 10
-    ITEM_PRICE['I0CE:0'][ARCADITE] = 6
+    ITEM_PRICE['I0CE:0'][PLATINUM] = 16
     ITEM_PRICE['I0CE:0'][CRYSTAL] = 6
     ShopAddItem(id, 'I0CE:0', sets + bow + leather)
     ItemAddComponents('I0CE:0', "I09S I09S I09S I09S I0AC I0AC I0AC")
     -- staff
-    ITEM_PRICE['I0CF:0'][PLATINUM] = 10
-    ITEM_PRICE['I0CF:0'][ARCADITE] = 6
+    ITEM_PRICE['I0CF:0'][PLATINUM] = 16
     ITEM_PRICE['I0CF:0'][CRYSTAL] = 6
     ShopAddItem(id, 'I0CF:0', sets + staff + cloth)
     ItemAddComponents('I0CF:0', "I09T I09T I09T I09T I0AB I0AB I0AB")
@@ -560,32 +520,27 @@ OnInit.final("Recipe", function(Require)
 
     -- hell sets
     -- sword
-    ITEM_PRICE['I0D8:0'][PLATINUM] = 15
-    ITEM_PRICE['I0D8:0'][ARCADITE] = 10
+    ITEM_PRICE['I0D8:0'][PLATINUM] = 25
     ITEM_PRICE['I0D8:0'][CRYSTAL] = 10
     ShopAddItem(id, 'I0D8:0', sets + sword + plate)
     ItemAddComponents('I0D8:0', "I05G I05G I05G I097 I097 I08W I05I")
     -- heavy
-    ITEM_PRICE['I0BW:0'][PLATINUM] = 15
-    ITEM_PRICE['I0BW:0'][ARCADITE] = 10
+    ITEM_PRICE['I0BW:0'][PLATINUM] = 25
     ITEM_PRICE['I0BW:0'][CRYSTAL] = 10
     ShopAddItem(id, 'I0BW:0', sets + heavy + fullplate)
     ItemAddComponents('I0BW:0', "I05H I05H I05H I08W I08W I08W I097")
     -- dagger
-    ITEM_PRICE['I0BU:0'][PLATINUM] = 15
-    ITEM_PRICE['I0BU:0'][ARCADITE] = 10
+    ITEM_PRICE['I0BU:0'][PLATINUM] = 25
     ITEM_PRICE['I0BU:0'][CRYSTAL] = 10
     ShopAddItem(id, 'I0BU:0', sets + dagger + leather)
     ItemAddComponents('I0BU:0', "I08Z I08Z I08Z I098 I098 I098 I05I")
     -- bow
-    ITEM_PRICE['I0DK:0'][PLATINUM] = 15
-    ITEM_PRICE['I0DK:0'][ARCADITE] = 10
+    ITEM_PRICE['I0DK:0'][PLATINUM] = 25
     ITEM_PRICE['I0DK:0'][CRYSTAL] = 10
     ShopAddItem(id, 'I0DK:0', sets + bow + leather)
     ItemAddComponents('I0DK:0', "I091 I091 I091 I098 I098 I098 I05I")
     -- staff
-    ITEM_PRICE['I0DJ:0'][PLATINUM] = 15
-    ITEM_PRICE['I0DJ:0'][ARCADITE] = 10
+    ITEM_PRICE['I0DJ:0'][PLATINUM] = 25
     ITEM_PRICE['I0DJ:0'][CRYSTAL] = 10
     ShopAddItem(id, 'I0DJ:0', sets + staff + cloth)
     ItemAddComponents('I0DJ:0', "I093 I093 I093 I093 I095 I095 I095")
@@ -603,32 +558,27 @@ OnInit.final("Recipe", function(Require)
 
     -- existence sets
     -- sword
-    ITEM_PRICE['I0DX:0'][PLATINUM] = 25
-    ITEM_PRICE['I0DX:0'][ARCADITE] = 15
+    ITEM_PRICE['I0DX:0'][PLATINUM] = 40
     ITEM_PRICE['I0DX:0'][CRYSTAL] = 15
     ShopAddItem(id, 'I0DX:0', sets + sword + plate)
     ItemAddComponents('I0DX:0', "I09K I09K I09K I09K I09U I09U I09M")
     -- heavy
-    ITEM_PRICE['I0BT:0'][PLATINUM] = 25
-    ITEM_PRICE['I0BT:0'][ARCADITE] = 15
+    ITEM_PRICE['I0BT:0'][PLATINUM] = 40
     ITEM_PRICE['I0BT:0'][CRYSTAL] = 15
     ShopAddItem(id, 'I0BT:0', sets + heavy + fullplate)
     ItemAddComponents('I0BT:0', "I09W I09W I09W I09M I09M I09M I09U")
     -- dagger
-    ITEM_PRICE['I0BR:0'][PLATINUM] = 25
-    ITEM_PRICE['I0BR:0'][ARCADITE] = 15
+    ITEM_PRICE['I0BR:0'][PLATINUM] = 40
     ITEM_PRICE['I0BR:0'][CRYSTAL] = 15
     ShopAddItem(id, 'I0BR:0', sets + dagger + leather)
     ItemAddComponents('I0BR:0', "I09I I09I I09I I09I I09Q I09Q I09Q")
     -- bow
-    ITEM_PRICE['I0DL:0'][PLATINUM] = 25
-    ITEM_PRICE['I0DL:0'][ARCADITE] = 15
+    ITEM_PRICE['I0DL:0'][PLATINUM] = 40
     ITEM_PRICE['I0DL:0'][CRYSTAL] = 15
     ShopAddItem(id, 'I0DL:0', sets + bow + leather)
     ItemAddComponents('I0DL:0', "I09G I09G I09G I09G I09Q I09Q I09Q")
     -- staff
-    ITEM_PRICE['I0DY:0'][PLATINUM] = 25
-    ITEM_PRICE['I0DY:0'][ARCADITE] = 15
+    ITEM_PRICE['I0DY:0'][PLATINUM] = 40
     ITEM_PRICE['I0DY:0'][CRYSTAL] = 15
     ShopAddItem(id, 'I0DY:0', sets + staff + cloth)
     ItemAddComponents('I0DY:0', "I09E I09E I09E I09E I09O I09O I09O")
@@ -646,32 +596,27 @@ OnInit.final("Recipe", function(Require)
 
     -- astral sets
     -- sword
-    ITEM_PRICE['I0E0:0'][PLATINUM] = 45
-    ITEM_PRICE['I0E0:0'][ARCADITE] = 30
+    ITEM_PRICE['I0E0:0'][PLATINUM] = 75
     ITEM_PRICE['I0E0:0'][CRYSTAL] = 30
     ShopAddItem(id, 'I0E0:0', sets + sword + plate)
     ItemAddComponents('I0E0:0', "I0A3 I0A3 I0A3 I0A3 I0AL I0AL I0A6")
     -- heavy
-    ITEM_PRICE['I0BM:0'][PLATINUM] = 45
-    ITEM_PRICE['I0BM:0'][ARCADITE] = 30
+    ITEM_PRICE['I0BM:0'][PLATINUM] = 75
     ITEM_PRICE['I0BM:0'][CRYSTAL] = 30
     ShopAddItem(id, 'I0BM:0', sets + heavy + fullplate)
     ItemAddComponents('I0BM:0', "I0AN I0AN I0AN I0A6 I0A6 I0A6 I0AL")
     -- dagger
-    ITEM_PRICE['I0DZ:0'][PLATINUM] = 45
-    ITEM_PRICE['I0DZ:0'][ARCADITE] = 30
+    ITEM_PRICE['I0DZ:0'][PLATINUM] = 75
     ITEM_PRICE['I0DZ:0'][CRYSTAL] = 30
     ShopAddItem(id, 'I0DZ:0', sets + dagger + leather)
     ItemAddComponents('I0DZ:0', "I0A1 I0A1 I0A1 I0A1 I0AA I0AA I0AA")
     -- bow
-    ITEM_PRICE['I059:0'][PLATINUM] = 45
-    ITEM_PRICE['I059:0'][ARCADITE] = 30
+    ITEM_PRICE['I059:0'][PLATINUM] = 75
     ITEM_PRICE['I059:0'][CRYSTAL] = 30
     ShopAddItem(id, 'I059:0', sets + bow + leather)
     ItemAddComponents('I059:0', "I0A4 I0A4 I0A4 I0A4 I0AA I0AA I0AA")
     -- staff
-    ITEM_PRICE['I0E1:0'][PLATINUM] = 45
-    ITEM_PRICE['I0E1:0'][ARCADITE] = 30
+    ITEM_PRICE['I0E1:0'][PLATINUM] = 75
     ITEM_PRICE['I0E1:0'][CRYSTAL] = 30
     ShopAddItem(id, 'I0E1:0', sets + staff + cloth)
     ItemAddComponents('I0E1:0', "I09Z I09Z I09Z I09Z I0A8 I0A8 I0A8")
@@ -689,32 +634,27 @@ OnInit.final("Recipe", function(Require)
 
     -- dimensional sets
     -- sword
-    ITEM_PRICE['I0CG:0'][PLATINUM] = 80
-    ITEM_PRICE['I0CG:0'][ARCADITE] = 55
+    ITEM_PRICE['I0CG:0'][PLATINUM] = 135
     ITEM_PRICE['I0CG:0'][CRYSTAL] = 55
     ShopAddItem(id, 'I0CG:0', sets + sword + plate)
     ItemAddComponents('I0CG:0', "I0AO I0AO I0AO I0AO I0AY I0AY I0AQ")
     -- heavy
-    ITEM_PRICE['I0FH:0'][PLATINUM] = 80
-    ITEM_PRICE['I0FH:0'][ARCADITE] = 55
+    ITEM_PRICE['I0FH:0'][PLATINUM] = 135
     ITEM_PRICE['I0FH:0'][CRYSTAL] = 55
     ShopAddItem(id, 'I0FH:0', sets + heavy + fullplate)
     ItemAddComponents('I0FH:0', "I0B0 I0B0 I0B0 I0AQ I0AQ I0AQ I0AY")
     -- dagger
-    ITEM_PRICE['I0CI:0'][PLATINUM] = 80
-    ITEM_PRICE['I0CI:0'][ARCADITE] = 55
+    ITEM_PRICE['I0CI:0'][PLATINUM] = 135
     ITEM_PRICE['I0CI:0'][CRYSTAL] = 55
     ShopAddItem(id, 'I0CI:0', sets + dagger + leather)
     ItemAddComponents('I0CI:0', "I0AT I0AT I0AT I0AT I0B2 I0B2 I0B2")
     -- bow
-    ITEM_PRICE['I0FI:0'][PLATINUM] = 80
-    ITEM_PRICE['I0FI:0'][ARCADITE] = 55
+    ITEM_PRICE['I0FI:0'][PLATINUM] = 135
     ITEM_PRICE['I0FI:0'][CRYSTAL] = 55
     ShopAddItem(id, 'I0FI:0', sets + bow + leather)
     ItemAddComponents('I0FI:0', "I0AR I0AR I0AR I0AR I0B2 I0B2 I0B2")
     -- staff
-    ITEM_PRICE['I0FZ:0'][PLATINUM] = 80
-    ITEM_PRICE['I0FZ:0'][ARCADITE] = 55
+    ITEM_PRICE['I0FZ:0'][PLATINUM] = 135
     ITEM_PRICE['I0FZ:0'][CRYSTAL] = 55
     ShopAddItem(id, 'I0FZ:0', sets + staff + cloth)
     ItemAddComponents('I0FZ:0', "I0AW I0AW I0AW I0AW I0B3 I0B3 I0B3")
@@ -824,7 +764,7 @@ OnInit.final("Recipe", function(Require)
     -- drum of war
     ITEM_PRICE['I0NJ:0'][GOLD] = 100000
     ShopAddItem(id2, 'I0NJ:0', sets + misc)
-    ItemAddComponents('I0NJ:0', "I04J I00G I00H I00I I06H")
+    ItemAddComponents('I0NJ:0', "I04J I00H")
 
     -- demon golem fist
     ITEM_PRICE['I0OF:0'][GOLD] = 100000
