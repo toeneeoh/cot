@@ -49,6 +49,7 @@ OnInit.global("Profile", function(Require)
     ---@field generate_backup function
     ---@field new_character function
     ---@field delete_character function
+    ---@field playing boolean
     Profile = {} ---@type Profile | Profile[]
     do
         local thistype = Profile
@@ -116,6 +117,7 @@ OnInit.global("Profile", function(Require)
             if index ~= -1 then
                 thistype[pid] = thistype.create(pid)
                 thistype[pid].brand_new = true
+                thistype[pid].new_char = true
                 thistype[pid]:hero_select()
 
                 dw:destroy()
@@ -157,11 +159,11 @@ OnInit.global("Profile", function(Require)
             local p = Player(self.pid - 1)
 
             -- allow repicking after hardcore death
-            if HeroID[self.pid] ~= 0 then
+            if self.playing then
                 if IsUnitPaused(Hero[self.pid]) or not UnitAlive(Hero[self.pid]) then
                     DisplayTextToPlayer(p, 0, 0, "You can't repick right now.")
                     return
-                elseif RectContainsUnit(gg_rct_Tavern, Hero[self.pid]) or RectContainsUnit(gg_rct_NoSin, Hero[self.pid]) or RectContainsUnit(gg_rct_Church, Hero[self.pid]) then
+                elseif RectContainsUnit(gg_rct_Tavern, Hero[self.pid]) or RectContainsUnit(gg_rct_Town_Main, Hero[self.pid]) or RectContainsUnit(gg_rct_Church, Hero[self.pid]) then
                     ShowHeroCircle(p, true)
                 else
                     DisplayTextToPlayer(p, 0, 0, "You can only repick in church, town or tavern.")
@@ -282,11 +284,12 @@ OnInit.global("Profile", function(Require)
 
                 if toggle_delete[pid] then
                     -- confirm delete character
-                    dw = DialogWindow.create(pid, "Are you sure?|nAny prestige bonuses from this character will be lost!", ConfirmDeleteCharacter)
+                    dw = DialogWindow.create(pid, "Are you sure?|nAny perk bonuses from this character will be lost!", ConfirmDeleteCharacter)
                     dw:addButton("|cffff0000DELETE")
                     dw:display()
                 else
                     -- load character
+                    thistype[pid].new_char = false
                     DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, "Loading |c006969ffhero|r from selected slot...")
                     CharacterSetup(pid, true)
                 end
@@ -410,6 +413,8 @@ OnInit.global("Profile", function(Require)
 
             data[#data + 1] = SAVE_LOAD_VERSION
 
+            -- TODO: Save hotkeys
+
             for i = 1, MAX_SLOTS do
                 if i == self.current_slot then
                     self.checksums[i] = (self.character_code[i] and StringChecksum(tostring(StringHash(self.character_code[i])))) or 0
@@ -462,6 +467,9 @@ OnInit.global("Profile", function(Require)
                     itm.owner = p -- bind items after saving
                     hero.item_id[i] = itm:encode_id()
                     hero.item_stats[i] = itm:encode_stats()
+                else
+                    hero.item_id[i] = 0
+                    hero.item_stats[i] = 0
                 end
             end
 
@@ -545,6 +553,7 @@ OnInit.global("Profile", function(Require)
     ---@field values function
     ---@field propagate function
     ---@field load_data function
+    ---@field item_to_drop Button
     HeroData = {}
     do
         local thistype = HeroData
@@ -556,71 +565,58 @@ OnInit.global("Profile", function(Require)
 
         local setter = {
             id = function(pid, value)
-                Hero[pid] = CreateUnit(Player(pid - 1), SAVE_UNIT_TYPE[value], 0, 0, 0.)
-                HeroID[pid] = SAVE_UNIT_TYPE[value]
-                PlayerSelectedUnit[pid] = Hero[pid]
+                local hero = CreateUnit(Player(pid - 1), SAVE_UNIT_TYPE[value], 0, 0, 0.)
+                local id = SAVE_UNIT_TYPE[value]
+                Hero[pid] = hero
+                HeroID[pid] = id
+                PLAYER_SELECTED_UNIT[pid] = hero
 
-                Unit[Hero[pid]].mr = HeroStats[HeroID[pid]].magic_resist
-                Unit[Hero[pid]].pr = HeroStats[HeroID[pid]].phys_resist
-                Unit[Hero[pid]].pm = HeroStats[HeroID[pid]].phys_damage
-                Unit[Hero[pid]].cc_flat = HeroStats[HeroID[pid]].crit_chance
-                Unit[Hero[pid]].cd_flat = HeroStats[HeroID[pid]].crit_damage
+                Unit[hero].mr = HeroStats[id].magic_resist
+                Unit[hero].pr = HeroStats[id].phys_resist
+                Unit[hero].pm = HeroStats[id].phys_damage
+                Unit[hero].cc_flat = HeroStats[id].crit_chance
+                Unit[hero].cd_flat = HeroStats[id].crit_damage
 
                 -- backpack
-                Backpack[pid] = CreateUnit(Player(pid - 1), BACKPACK, 0, 0, 0)
+                local backpack = CreateUnit(Player(pid - 1), BACKPACK, 0, 0, 0)
+                Backpack[pid] = backpack
 
                 -- show backpack hero panel only for player
                 if GetLocalPlayer() == Player(pid - 1) then
                     EnablePreSelect(true, true)
                     EnableSelect(true, true)
                     ClearSelection()
-                    SelectUnit(Hero[pid], true)
+                    SelectUnit(hero, true)
                     ResetToGameCamera(0)
-                    PanCameraToTimed(GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 0)
-                    BlzSetUnitBooleanField(Backpack[pid], UNIT_BF_HERO_HIDE_HERO_INTERFACE_ICON, false)
+                    PanCameraToTimed(GetUnitX(hero), GetUnitY(hero), 0)
+                    BlzSetUnitBooleanField(backpack, UNIT_BF_HERO_HIDE_HERO_INTERFACE_ICON, false)
                 end
 
-                SetUnitOwner(Backpack[pid], Player(PLAYER_NEUTRAL_PASSIVE), false)
-                SetUnitOwner(Backpack[pid], Player(pid - 1), false)
-                SetUnitAnimation(Backpack[pid], "stand")
-                SuspendHeroXP(Backpack[pid], true)
-                UnitAddAbility(Backpack[pid], FourCC('A00R'))
-                UnitAddAbility(Backpack[pid], FourCC('A09C'))
-                UnitAddAbility(Backpack[pid], FourCC('A0FS'))
-                UnitAddAbility(Backpack[pid], TELEPORT.id)
-                UnitAddAbility(Backpack[pid], FourCC('A0FK'))
-                UnitAddAbility(Backpack[pid], TELEPORT_HOME.id)
-                UnitAddAbility(Backpack[pid], FourCC('A04M'))
-                UnitAddAbility(Backpack[pid], FourCC('A0DT'))
-                UnitAddAbility(Backpack[pid], FourCC('A05N'))
+                SetUnitOwner(backpack, Player(PLAYER_NEUTRAL_PASSIVE), false)
+                SetUnitOwner(backpack, Player(pid - 1), false)
+                SetUnitAnimation(backpack, "stand")
+                SuspendHeroXP(backpack, true)
+                UnitAddAbility(backpack, TELEPORT.id)
+                UnitAddAbility(backpack, FourCC('A0FK'))
+                UnitAddAbility(backpack, TELEPORT_HOME.id)
+                UnitAddAbility(backpack, FourCC('A04M'))
+                UnitAddAbility(backpack, FourCC('A00F')) -- settings
 
-                EVENT_ON_ORDER:register_unit_action(Backpack[pid], backpack_ai)
-                TimerQueue:callDelayed(0., backpack_periodic, Unit[Backpack[pid]], pid)
+                EVENT_ON_ORDER:register_unit_action(backpack, backpack_ai)
+                TimerQueue:callDelayed(0., backpack_periodic, Unit[backpack], pid)
 
                 -- grave
                 HeroGrave[pid] = CreateUnit(Player(pid - 1), GRAVE, 30000, 30000, 270)
                 SuspendHeroXP(HeroGrave[pid], true)
                 ShowUnit(HeroGrave[pid], false)
 
-                -- prevent actions disappearing on meta
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A03C'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A03V'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A0L0'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A0GD'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A06X'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A00F'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A08Y'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A00I'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A00Y'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A00B'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A02T'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A031'))
-                UnitMakeAbilityPermanent(Hero[pid], true, FourCC('A067'))
+                UnitAddAbility(hero, FourCC('A015')) -- hidden spells
+                UnitMakeAbilityPermanent(hero, true, FourCC('A015'))
             end,
             hardcore = function(pid, value)
                 Hardcore[pid] = (value > 0)
-                if value > 0 then
-                    PlayerAddItemById(pid, FourCC('I03N'))
+                if value > 0 and Profile[pid].new_char then
+                    TimerQueue:callDelayed(0., PlayerAddItemById, pid, FourCC('I03N'))
                 end
             end,
             level = function(pid, value)
@@ -657,18 +653,11 @@ OnInit.global("Profile", function(Require)
                 local hero = Profile[pid].hero
 
                 for j = 1, MAX_INVENTORY_SLOTS do
-                    hero.items[j] = Item.decode(hero.item_id[j], hero.item_stats[j])
-                end
-
-                for i = 1, 6 do
-                    if hero.items[i] then
-                        UnitAddItem(Hero[pid], hero.items[i].obj)
-                        UnitDropItemSlot(Hero[pid], hero.items[i].obj, i - 1)
-                    end
-
-                    if hero.items[i + 6] then
-                        UnitAddItem(Backpack[pid], hero.items[i + 6].obj)
-                        UnitDropItemSlot(Backpack[pid], hero.items[i + 6].obj, i - 1)
+                    local itm = Item.decode(hero.item_id[j], hero.item_stats[j], j)
+                    if itm then
+                        itm.pid = pid
+                        itm:equip(j)
+                        itm.owner = Player(pid - 1)
                     end
                 end
             end,
@@ -690,9 +679,6 @@ OnInit.global("Profile", function(Require)
 
                 if setter[key] then
                     setter[key](pid, self[key])
-                    if key == "item_id" then -- skip an index
-                        i = i + 1
-                    end
                 end
             end
         end
@@ -785,9 +771,7 @@ OnInit.global("Profile", function(Require)
 
         SELECTING_HERO[pid] = false
         Colosseum_XP[pid] = 1.00
-
-        -- SetPrestigeEffects(pid)
-        -- UpdatePrestigeTooltips(pid)
+        Profile[pid].playing = true
 
         -- heal to max
         SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]))
