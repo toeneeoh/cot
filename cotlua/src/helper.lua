@@ -2402,9 +2402,7 @@ function ExperienceControl(pid)
     local level = GetHeroLevel(Hero[pid]) ---@type integer 
     local xpRate = BASE_XP_RATE[level] ---@type number 
 
-    if IS_IN_COLO[pid] then
-        xpRate = xpRate * Colosseum_XP[pid] * (0.6 + 0.4 * ColoPlayerCount)
-    elseif IS_IN_STRUGGLE[pid] then
+    if IS_IN_STRUGGLE[pid] then
         xpRate = xpRate * .3
     end
 
@@ -2988,32 +2986,6 @@ do
         self.click = CreateTrigger()
         BlzTriggerRegisterFrameEvent(self.click, self.frame, FRAMEEVENT_CONTROL_CLICK)
         TriggerAddCondition(self.click, Filter(func))
-    end
-end
-
----@param uid integer
----@param count integer
-function SpawnColoUnits(uid, count)
-    local u ---@type unit 
-    local rand = 0 ---@type integer 
-
-    count = count * IMinBJ(2, ColoPlayerCount)
-
-    while count >= 1 do
-
-        rand = GetRandomInt(1,3)
-        u = CreateUnit(PLAYER_BOSS, uid, GetRectCenterX(gg_rct_Colosseum_Player_Spawn), GetRectCenterY(gg_rct_Colosseum_Player_Spawn), 270)
-        SetUnitXBounded(u, GetLocationX(colospot[rand]))
-        SetUnitYBounded(u, GetLocationY(colospot[rand]))
-        BlzSetUnitMaxHP(u, R2I(BlzGetUnitMaxHP(u) * (0.5 + 0.5 * ColoPlayerCount)))
-        UnitAddBonus(u, BONUS_DAMAGE, R2I(BlzGetUnitBaseDamage(u, 0) * (-0.5 + 0.5 * ColoPlayerCount)))
-        SetWidgetLife(u, BlzGetUnitMaxHP(u))
-        SetUnitCreepGuard(u, false)
-        SetUnitAcquireRange(u, 2500.)
-        GroupAddUnit(ColoWaveGroup, u)
-        Colosseum_Monster_Amount = Colosseum_Monster_Amount + 1
-
-        count = count - 1
     end
 end
 

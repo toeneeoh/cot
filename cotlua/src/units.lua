@@ -332,7 +332,7 @@ OnInit.final("Units", function(Require)
         CreateItem(FourCC('I01Y'), GetUnitX(u), GetUnitY(u)) -- cheese
     end)
 
-    -- colo banners
+    -- minigame banners
     local target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h00G'), 0, 0, 180.00)
     x = GetRectCenterX(gg_rct_ColoBanner1)
     y = GetRectCenterY(gg_rct_ColoBanner1)

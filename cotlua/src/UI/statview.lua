@@ -342,8 +342,7 @@ OnInit.final("StatView", function(Require)
     STAT_TAG[ITEM_GOLD_GAIN].getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return ItemGoldRate[pid] end
     STAT_TAG[ITEM_STACK + 1].getter = function(u) local as = (1 / Unit[u].bat) * (1 + math.min(GetHeroAgi(u, true), 400) * 0.01) return string.format("\x25.2f", as) .. " attacks per second" end
     STAT_TAG[ITEM_STACK + 2].getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return string.format("\x25.2f", XP_Rate[pid]) end
-    STAT_TAG[ITEM_STACK + 3].getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return string.format("\x25.2f", Colosseum_XP[pid] * 100.) end
-    STAT_TAG[ITEM_STACK + 4].getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end
-    STAT_TAG[ITEM_STACK + 5].getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].total_time) // 60 .. " hours and " .. ModuloInteger(Profile[pid].total_time, 60) .. " minutes" end
+    STAT_TAG[ITEM_STACK + 3].getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].hero.time // 60) .. " hours and " .. ModuloInteger(Profile[pid].hero.time, 60) .. " minutes" end
+    STAT_TAG[ITEM_STACK + 4].getter = function(u) local pid = GetPlayerId(GetOwningPlayer(u)) + 1 return (Profile[pid].total_time) // 60 .. " hours and " .. ModuloInteger(Profile[pid].total_time, 60) .. " minutes" end
 
 end, Debug and Debug.getLine())

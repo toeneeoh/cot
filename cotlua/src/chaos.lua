@@ -228,7 +228,7 @@ OnInit.final("Chaos", function(Require)
 
         BOSS_OFFSET = BOSS_DEMON_PRINCE
 
-        -- colo banners
+        -- minigame banners
         local target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h01M'), GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1), 180.00)
         SetUnitPathing(target, false)
         SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1))

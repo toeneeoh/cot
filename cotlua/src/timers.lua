@@ -82,23 +82,6 @@ OnInit.final("Timers", function(Require)
         end
     end
 
-    local function ColosseumXPDecrease()
-        local U = User.first ---@type User 
-
-        while U do
-            if Profile[U.id].playing then
-                if IS_IN_COLO[U.id] and Colosseum_XP[U.id] > 0.05 then
-                    Colosseum_XP[U.id] = Colosseum_XP[U.id] - 0.005
-                end
-                if Colosseum_XP[U.id] < 0.05 then
-                    Colosseum_XP[U.id] = 0.05
-                end
-                ExperienceControl(U.id)
-            end
-            U = U.next
-        end
-    end
-
     local function WanderingGuys()
         local x ---@type number 
         local y ---@type number 
@@ -150,32 +133,8 @@ OnInit.final("Timers", function(Require)
             profile.hero.time = profile.hero.time + 1
             profile.total_time = profile.total_time + 1
 
-            --colosseum xp decrease
-            if not IS_IN_COLO[id] and Colosseum_XP[id] < 1.30 then
-                if Colosseum_XP[id] < 0.75 then
-                    Colosseum_XP[id] = Colosseum_XP[id] + 0.02
-                else
-                    Colosseum_XP[id] = Colosseum_XP[id] + 0.01
-                end
-                if Colosseum_XP[id] > 1.30 then
-                    Colosseum_XP[id] = 1.30
-                end
-                ExperienceControl(id)
-            end
+            ExperienceControl(id)
         end
-    end
-
-    ---@type fun(): string
-    local function GenerateAFKString()
-        local alphanumeric = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        local str = ""
-
-        for _ = 1, 4 do
-            local index = GetRandomInt(1, #alphanumeric)
-            str = str .. alphanumeric:sub(index, index)
-        end
-
-        return str
     end
 
     local fountain_filter = Filter(function()
@@ -287,7 +246,6 @@ OnInit.final("Timers", function(Require)
     TimerQueue:callPeriodically(0.35, nil, Periodic)
     TimerQueue:callPeriodically(1.0, nil, OneSecond)
     TimerQueue:callPeriodically(15., nil, WanderingGuys)
-    TimerQueue:callPeriodically(15., nil, ColosseumXPDecrease)
     TimerQueue:callPeriodically(60., nil, OneMinute)
     TimerQueue:callPeriodically(240., nil, DisplayHint)
 

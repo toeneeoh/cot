@@ -770,7 +770,6 @@ OnInit.global("Profile", function(Require)
         SetCamera(pid, camera)
 
         SELECTING_HERO[pid] = false
-        Colosseum_XP[pid] = 1.00
         Profile[pid].playing = true
 
         -- heal to max

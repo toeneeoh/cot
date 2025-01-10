@@ -288,7 +288,7 @@ end
 function FleeCommand(p)
     local pid = GetPlayerId(p) + 1 ---@type integer 
 
-    if IS_IN_STRUGGLE[pid] or IS_IN_COLO[pid] then
+    if IS_IN_STRUGGLE[pid] then
         IS_FLEEING[pid] = true
         DisplayTimedTextToPlayer(p, 0, 0, 10, "You will escape once the current wave is complete.")
     elseif TableHas(GODS_GROUP, p) then

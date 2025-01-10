@@ -238,7 +238,6 @@ OnInit.global("Variables", function()
     ColoEnemyType_main=__jarray(0) ---@type integer[] 
     ColoCount_sec=__jarray(0) ---@type integer[] 
     ColoEnemyType_sec=__jarray(0) ---@type integer[] 
-    Colosseum_XP = __jarray(0) ---@type number[]
 
     ZOOM = __jarray(0) ---@type integer[]
 
@@ -271,9 +270,7 @@ OnInit.global("Variables", function()
     LBOOST=__jarray(1) ---@type number[] 
 
     TOWN_CENTER = Location(-250., 160.) ---@type location 
-    ColosseumCenter = Location(21710., -4261.) ---@type location 
     StruggleCenter = Location(28030., 4361.) ---@type location 
-    IS_IN_COLO = {} ---@type boolean[] 
     IS_IN_STRUGGLE = {} ---@type boolean[] 
     StruggleText = CreateTextTag() ---@type texttag 
     ColoText = CreateTextTag() ---@type texttag 
@@ -1307,7 +1304,7 @@ OnInit.global("Variables", function()
     }
 
     infoString[0] = "Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Perks\n -info 6, Proficiency\n -info 7, Aggro System"
-    infoString[1] = "Most units in this game (besides Bosses, Colosseum, Struggle) will attempt to revive where they died 30 seconds after death. If a player hero/unit is within 800 range they will spawn frozen and invulnerable until no players are around."
+    infoString[1] = "Units in the overworld will attempt to revive where they died 30 seconds after death. If a player hero/unit is within 800 range they will spawn frozen and invulnerable until no players are around."
     infoString[2] = "Bosses respawn after 10 minutes and non-hero bosses respawn after 5 minutes, players may choose to fight a stronger version of the boss after defeating them once.\x25"
     infoString[3] = "The town is protected from enemy invasion and any entering enemy will be teleported back to their original spawn."
     infoString[4] = [[Hardcore players that die without a reincarnation item/spell will be removed from the game and cannot save/load or start a new character. 
@@ -1547,9 +1544,8 @@ OnInit.global("Variables", function()
         [ITEM_STACK] = { priority = 4, syntax = "stack" },
         [ITEM_STACK + 1] = { tag = "|cff446600Total Attack Speed|r", priority = 1 },
         [ITEM_STACK + 2] = { tag = "|cff808080Experience Rate|r", priority = 3, suffix = "\x25" },
-        [ITEM_STACK + 3] = { tag = "|cff808080Colosseum XP Rate|r", priority = 3, suffix = "\x25" },
-        [ITEM_STACK + 4] = { tag = "|cff808000Hero Time Played|r", priority = 3 },
-        [ITEM_STACK + 5] = { tag = "|cff808000Total Time Played|r", priority = 3 }
+        [ITEM_STACK + 3] = { tag = "|cff808000Hero Time Played|r", priority = 3 },
+        [ITEM_STACK + 4] = { tag = "|cff808000Total Time Played|r", priority = 3 }
     }
 
     LIMIT_STRING[1] = "You can only wear one of this item."
@@ -1594,7 +1590,6 @@ OnInit.global("Variables", function()
         "|cffc0c0c0You can type|r |cff9966ff-hints|r or |cff9966ff-nohints|r |cffc0c0c0to toggle these messages on and off.|r",
         "|cffc0c0c0Once you challenge the gods you cannot flee.|r",
         "|cffc0c0c0Some artifacts remain frozen in ice, waiting to be recovered...|r",
-        "|cffc0c0c0Your colosseum experience rate will drop the more you participate, recover it by gaining experience outside of colosseum.|r",
         "|cffc0c0c0Spellboost innately affects the damage of your spells by plus or minus 20\x25.|r",
         "|cffc0c0c0Critical strike items and spells can stack their effect, the multipliers are additive.|r",
         "|cffc0c0c0The Ashen Vat is a mysterious crafting device located in the north-west tower.|r",

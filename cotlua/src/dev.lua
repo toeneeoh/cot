@@ -51,7 +51,6 @@ OnInit.final("Dev", function(Require)
         ["noborders"] = "Allows you to view the entire map",
         ["bossrespawn"] = "Toggles 5 second boss respawn time on/off",
         ["heal"] = "Fully restores the health and mana of the selected unit.",
-        ["colo"] = "Sets the current number of players inside the colosseum. Potentially buggy",
         ["hp"] = "Sets the maximum health of the selected unit. usage: -hp [#]",
         ["armor"] = "Sets the armor of the selected unit. usage: -armor [#]",
         ["armortype"] = "Sets the armor type of the selected unit. usage: -armortype [0-7]",
@@ -390,10 +389,6 @@ modifiers:
         end,
         ["tp"] = function(p, pid, args)
             SetUnitPosition(PLAYER_SELECTED_UNIT[pid], GetMouseX(pid), GetMouseY(pid))
-        end,
-        ["coloxp"] = function(p, pid, args)
-            Colosseum_XP[pid] = 1.3
-            DisplayTextToPlayer(p, 0, 0, "Set colosseum xp multiplier to 1.3")
         end,
         ["extradebug"] = function(p, pid, args)
             EXTRA_DEBUG = not EXTRA_DEBUG
