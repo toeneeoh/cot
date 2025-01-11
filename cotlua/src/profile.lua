@@ -176,6 +176,12 @@ OnInit.global("Profile", function(Require)
                 BlzFrameSetVisible(STAT_WINDOW.frame, false)
             end
 
+            -- reset multiboard
+            local mb = MULTIBOARD.BOSS
+            mb.viewing[self.pid] = nil
+            mb.available[self.pid] = false
+            MULTIBOARD.MAIN:display(self.pid)
+
             self.save_timer:reset()
             PlayerCleanup(self.pid)
             self:hero_select()
