@@ -40,47 +40,6 @@ OnInit.final("Chaos", function(Require)
         SetCinematicScene(GetUnitTypeId(zeknen), GetPlayerColor(PLAYER_BOSS), "Zeknen", "Very well.", 5, 4)
     end
 
-    local passive_units = {
-        [FourCC('n02V')] = 1,
-        [FourCC('n03U')] = 1,
-        [FourCC('n09Q')] = 1,
-        [FourCC('n09T')] = 1,
-        [FourCC('n09O')] = 1,
-        [FourCC('n09P')] = 1,
-        [FourCC('n09R')] = 1,
-        [FourCC('n09S')] = 1,
-        [FourCC('nvk2')] = 1,
-        [FourCC('nvlw')] = 1,
-        [FourCC('nvlk')] = 1,
-        [FourCC('nvil')] = 1,
-        [FourCC('nvl2')] = 1,
-        [FourCC('H01Y')] = 1,
-        [FourCC('H01T')] = 1,
-        [FourCC('n036')] = 1,
-        [FourCC('n035')] = 1,
-        [FourCC('n037')] = 1,
-        [FourCC('n03S')] = 1,
-        [FourCC('n01I')] = 1,
-        [FourCC('n0A3')] = 1,
-        [FourCC('n0A4')] = 1,
-        [FourCC('n0A5')] = 1,
-        [FourCC('n0A6')] = 1,
-        [FourCC('h00G')] = 1,
-        [FourCC('n00B')] = 1,
-    }
-
-    ---@return boolean
-    local function ConvertVillagers()
-        local target = GetFilterUnit()
-        local id = GetUnitTypeId(target) ---@type integer 
-        if passive_units[id] then
-            local x, y, face = GetUnitX(target), GetUnitY(target), GetUnitFacing(target)
-            RemoveUnit(target)
-            CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03' .. GetRandomInt(5, 7)), x, y, face)
-        end
-        return false
-    end
-
     local function ChaosTransition()
         local u = GetFilterUnit()
         local i = GetPlayerId(GetOwningPlayer(u)) ---@type integer 
@@ -134,10 +93,8 @@ OnInit.final("Chaos", function(Require)
 
         -- removes creeps and villagers
         local ug = CreateGroup()
-        local g  = CreateGroup()
 
         GroupEnumUnitsInRect(ug, WorldBounds.rect, Condition(ChaosTransition)) -- exception for struggle / colo
-        GroupEnumUnitsOfPlayer(g, Player(PLAYER_NEUTRAL_PASSIVE), Condition(ConvertVillagers))
 
         for i = 1, #GHOST_UNITS do
             RemoveUnit(GHOST_UNITS[i])
@@ -150,14 +107,9 @@ OnInit.final("Chaos", function(Require)
         end
 
         -- replace villagers
-        for target in each(g) do
-            local x, y, face = GetUnitX(target), GetUnitY(target), GetUnitFacing(target)
-            RemoveUnit(target)
-            CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n03' .. GetRandomInt(5, 7)), x, y, face)
-        end
+        KILL_VILLAGERS() -- TODO: Spawn chaos villagers? (use effects)
 
         DestroyGroup(ug)
-        DestroyGroup(g)
 
         -- town
         -- chaos merchant
