@@ -392,7 +392,6 @@ Maiev|r]], "ReplaceableTextures\\CommandButtons\\BTNJaina.blp")
 
     CreateQuestBJ(bj_QUESTTYPE_REQ_DISCOVERED, "Commands", [[-info (displays information submenu)
 -stats # (displays hero stats)
--estats (displays selected unit stats)
 -cam # (L to lock, i.e. -cam 3000L)
 -zm (L to lock, i.e. -zml will set your camera to 2500, locked distance)
 -lock (locks camera distance)

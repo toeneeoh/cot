@@ -301,7 +301,7 @@ OnInit.final("Boss", function(Require)
             EVENT_ON_DEATH:register_unit_action(self.unit, on_boss_death)
 
             -- on select or aggro show multiboard
-            EVENT_ON_SELECT:register_unit_action(self.unit, on_click)
+            EVENT_ON_UNIT_SELECT:register_unit_action(self.unit, on_click)
             EVENT_ON_AGGRO:register_unit_action(self.unit, start_boss_threat)
 
             -- safe zone logic

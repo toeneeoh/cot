@@ -116,6 +116,7 @@ IngameConsole.__name = 'IngameConsole'
 ---@param consolePlayer player player for whom the console is being created
 ---@return IngameConsole
 function IngameConsole.create(consolePlayer)
+    ---@diagnostic disable-next-line: missing-fields
     local new = {} ---@type IngameConsole
     setmetatable(new, IngameConsole)
     ---setup Object data

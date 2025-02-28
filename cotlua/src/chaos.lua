@@ -181,21 +181,13 @@ OnInit.final("Chaos", function(Require)
         BOSS_OFFSET = BOSS_DEMON_PRINCE
 
         -- minigame banners
-        local target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h01M'), GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1), 180.00)
-        SetUnitPathing(target, false)
-        SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner1), GetRectCenterY(gg_rct_ColoBanner1))
+        KILL_BANNERS()
 
-        target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h01M'), GetRectCenterX(gg_rct_ColoBanner2), GetRectCenterY(gg_rct_ColoBanner2), 0)
-        SetUnitPathing(target, false)
-        SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner2), GetRectCenterY(gg_rct_ColoBanner2))
-
-        target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h01M'), GetRectCenterX(gg_rct_ColoBanner3), GetRectCenterY(gg_rct_ColoBanner3), 180.00)
-        SetUnitPathing(target, false)
-        SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner3), GetRectCenterY(gg_rct_ColoBanner3))
-
-        target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h01M'), GetRectCenterX(gg_rct_ColoBanner4), GetRectCenterY(gg_rct_ColoBanner4), 0)
-        SetUnitPathing(target, false)
-        SetUnitPosition(target, GetRectCenterX(gg_rct_ColoBanner4), GetRectCenterY(gg_rct_ColoBanner4))
+        for i = 1, 4 do
+            local s = AddSpecialEffect("war3mapImported\\DragonmawBannerHQ.mdl", GetRectCenterX(_G["gg_rct_ColoBanner" .. i]), GetRectCenterY(_G["gg_rct_ColoBanner" .. i]))
+            local yaw = (math.fmod(i, 2) == 0 and 0) or bj_PI
+            BlzSetSpecialEffectYaw(s, yaw)
+        end
 
         -- chaotic enemies
         SpawnCreeps(1)

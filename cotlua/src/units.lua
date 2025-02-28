@@ -333,26 +333,21 @@ OnInit.final("Units", function(Require)
     end)
 
     -- minigame banners
-    local target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h00G'), 0, 0, 180.00)
-    x = GetRectCenterX(gg_rct_ColoBanner1)
-    y = GetRectCenterY(gg_rct_ColoBanner1)
-    SetUnitPathing(target, false)
-    SetUnitPosition(target, x, y)
-    target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h00G'), 0, 0, 0)
-    x = GetRectCenterX(gg_rct_ColoBanner2)
-    y = GetRectCenterY(gg_rct_ColoBanner2)
-    SetUnitPathing(target, false)
-    SetUnitPosition(target, x, y)
-    target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h00G'), 0, 0, 180.00)
-    x = GetRectCenterX(gg_rct_ColoBanner3)
-    y = GetRectCenterY(gg_rct_ColoBanner3)
-    SetUnitPathing(target, false)
-    SetUnitPosition(target, x, y)
-    target = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h00G'), 0, 0, 0)
-    x = GetRectCenterX(gg_rct_ColoBanner4)
-    y = GetRectCenterY(gg_rct_ColoBanner4)
-    SetUnitPathing(target, false)
-    SetUnitPosition(target, x, y)
+    local banners = {}
+
+    for i = 1, 4 do
+        local s = AddSpecialEffect("Doodads\\LordaeronSummer\\Props\\BannerHuman\\BannerHuman0.mdl", GetRectCenterX(_G["gg_rct_ColoBanner" .. i]), GetRectCenterY(_G["gg_rct_ColoBanner" .. i]))
+        local yaw = (math.fmod(i, 2) == 0 and 0) or bj_PI
+        BlzSetSpecialEffectYaw(s, yaw)
+        banners[i] = s
+    end
+
+    KILL_BANNERS = function()
+        for i = 1, #banners do
+            HideEffect(banners[i])
+        end
+        banners = nil
+    end
 
     -- special prechaos "bosses"
 

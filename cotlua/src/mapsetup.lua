@@ -40,7 +40,7 @@ OnInit.final("MapSetup", function(Require)
     KILL_VILLAGERS = function()
         for i = 1, #villagers do
             local v = villagers[i]
-            DestroyEffect(v.unit)
+            HideEffect(v.unit)
         end
         villagers = nil
     end
