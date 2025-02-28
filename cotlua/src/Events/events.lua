@@ -119,7 +119,7 @@ OnInit.final("Events", function()
             if not self.actions[pid] then
                 self.actions[pid] = {}
             end
-            -- prevent duplicate registers
+            -- prevent duplicate function registration
             if not TableHas(self.actions[pid], func) then
                 self.actions[pid][#self.actions[pid] + 1] = func
                 return true
@@ -172,12 +172,19 @@ OnInit.final("Events", function()
     -- regions
     EVENT_ON_ENTER_SAFE_AREA = EVENT.create()
 
+    -- specific unit selection (with hotkey as well)
+    EVENT_ON_UNIT_SELECT = EVENT.create()
+    -- player event version
+    EVENT_ON_SELECT = PLAYER_EVENT.create()
+
     -- mouse events
-    EVENT_ON_SELECT = EVENT.create()
     EVENT_ON_MOUSE_MOVE = PLAYER_EVENT.create()
     EVENT_ON_M1_DOWN = PLAYER_EVENT.create()
     EVENT_ON_M1_UP = PLAYER_EVENT.create()
     EVENT_ON_M2_DOWN = PLAYER_EVENT.create()
     EVENT_ON_M2_UP = PLAYER_EVENT.create()
+
+    -- on player repick or leave
+    EVENT_ON_CLEANUP = PLAYER_EVENT.create()
 
 end, Debug and Debug.getLine())
