@@ -1,6 +1,7 @@
 OnInit.final("Mouse", function(Require)
     Require('Users')
     Require('Variables')
+    Require('Events')
 
     local mouse_x       = __jarray(0) ---@type number[] 
     local mouse_y       = __jarray(0) ---@type number[] 
@@ -9,6 +10,9 @@ OnInit.final("Mouse", function(Require)
     IS_M1_DOWN         = {} ---@type boolean[]
     IS_M2_DOWN         = {} ---@type boolean[]
     PLAYER_SELECTED_UNIT = {} ---@type unit[] 
+
+    local player_selected_unit = PLAYER_SELECTED_UNIT
+    local event_unit_select, event_select = EVENT_ON_UNIT_SELECT, EVENT_ON_SELECT
 
     function GetMouseX(pid)
         return mouse_x[pid]
@@ -77,7 +81,7 @@ OnInit.final("Mouse", function(Require)
     end
 
     local getmousex, getmousey = BlzGetTriggerPlayerMouseX, BlzGetTriggerPlayerMouseY
-    local mouse_move = EVENT_ON_MOUSE_MOVE
+    local event_mouse_move = EVENT_ON_MOUSE_MOVE
 
     ---@return boolean
     local function MoveMouse()
@@ -88,7 +92,7 @@ OnInit.final("Mouse", function(Require)
             local p   = GetTriggerPlayer()
             local pid = GetPlayerId(p) + 1 ---@type integer 
 
-            mouse_move:trigger(pid, x, y, mouse_x[pid], mouse_y[pid])
+            event_mouse_move:trigger(pid, x, y, mouse_x[pid], mouse_y[pid])
 
             mouse_x[pid] = x
             mouse_y[pid] = y
@@ -103,8 +107,9 @@ OnInit.final("Mouse", function(Require)
         local p   = GetTriggerPlayer()
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
-        PLAYER_SELECTED_UNIT[pid] = u
-        EVENT_ON_SELECT:trigger(u, pid)
+        player_selected_unit[pid] = u
+        event_unit_select:trigger(u, pid)
+        event_select:trigger(pid, u)
 
         return false
     end

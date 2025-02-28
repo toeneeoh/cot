@@ -40,7 +40,7 @@ OnInit.final("Frames", function(Require)
         local F10MenuButton = nil
         local F11AlliesMenuButton = nil
         local F12ChatMenuButton = nil
-        local PLAYER_UI_TEXTURE = "UI\\COT_UI.tga"
+        local PLAYER_UI_TEXTURE = "UI\\HumanPlayerUITexture.tga"
         local PLAYER_RESOURCE_TEXTURE = "UI\\HumanResourceTexture.tga"
 
         -- Create Top UI Bar Texture
@@ -61,12 +61,6 @@ OnInit.final("Frames", function(Require)
         BlzFrameSetPoint(backdrop, FRAMEPOINT_BOTTOMLEFT, BlzGetOriginFrame(ORIGIN_FRAME_PORTRAIT, 0), FRAMEPOINT_BOTTOMLEFT, -0.065, -0.026)
         BlzFrameSetEnable(backdrop, false)
         BlzFrameSetLevel(backdrop, 0)
-
-        for i = 0, 5 do
-            local itemButtonFrame = BlzGetFrameByName("InventoryButton_" .. i, 0)
-            BlzFrameClearAllPoints(itemButtonFrame)
-            BlzFrameSetAbsPoint(itemButtonFrame, FRAMEPOINT_BOTTOMLEFT, 0., -0.1)
-        end
 
         -- Create Bottom UI Texture
         PLAYERUI = BlzCreateFrameByType("SIMPLESTATUSBAR", "", BlzGetFrameByName("ConsoleUI", 0), "", 0)

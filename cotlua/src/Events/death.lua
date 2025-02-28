@@ -42,7 +42,7 @@ OnInit.final("Death", function(Require)
                 local heal = 0
 
                 if itm then
-                    heal = ItemData[itm.id][ITEM_ABILITY] * 0.01
+                    heal = itm:getValue(ITEM_ABILITY, 0) * 0.01
 
                     -- remove perishable resurrections
                     if ItemData[itm.id][ITEM_ABILITY * ABILITY_OFFSET] == FourCC('Anrv') then

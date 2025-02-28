@@ -69,7 +69,7 @@ OnInit.final("StatView", function(Require)
             while U do
                 -- if a player is viewing the stat window of a unit, refresh it
                 if viewing[U.id] then
-                    RefreshStatWindow(U.id)
+                    STAT_WINDOW.refresh(U.id)
                 end
 
                 U = U.next
@@ -104,7 +104,7 @@ OnInit.final("StatView", function(Require)
         end
 
         -- escape button
-        local esc_button = SimpleButton.create(frame, "ReplaceableTextures\\CommandButtons\\BTNCancel.blp", 0.015, 0.015, FRAMEPOINT_TOPRIGHT, FRAMEPOINT_TOPRIGHT, -0.02, -0.02, onClose, "Close 'ESC'", FRAMEPOINT_BOTTOM, FRAMEPOINT_TOP, 0., 0.01)
+        local esc_button = SimpleButton.create(frame, "ReplaceableTextures\\CommandButtons\\BTNCancel.blp", 0.015, 0.015, FRAMEPOINT_TOPRIGHT, FRAMEPOINT_TOPRIGHT, -0.02, -0.02, onClose, "Close 'B'", FRAMEPOINT_BOTTOM, FRAMEPOINT_TOP, 0., 0.01)
         RegisterHotkeyTooltip(esc_button, 5)
 
         local function ViewPlayersClick()
@@ -113,7 +113,7 @@ OnInit.final("StatView", function(Require)
             local index = dw:getClickedIndex(GetClickedButton()) ---@type integer 
 
             if index ~= -1 then
-                DisplayStatWindow(Hero[dw.data[index]], pid)
+                STAT_WINDOW.display(Hero[dw.data[index]], pid)
 
                 dw:destroy()
             end
@@ -173,7 +173,7 @@ OnInit.final("StatView", function(Require)
                 tabs[viewing[pid].page]:enable(true)
             end
 
-            RefreshStatWindow(pid)
+            STAT_WINDOW.refresh(pid)
         end
 
         tabs[1]:onClick(switch_tab)
@@ -183,7 +183,7 @@ OnInit.final("StatView", function(Require)
         -- hide by default
         BlzFrameSetVisible(frame, false)
 
-        function RefreshStatWindow(pid)
+        STAT_WINDOW.refresh = function(pid)
             local u = viewing[pid].unit
             local page = viewing[pid].page
             local tab = tab_tags[page]
@@ -241,7 +241,7 @@ OnInit.final("StatView", function(Require)
             end
         end
 
-        function DisplayStatWindow(u, pid)
+        STAT_WINDOW.display = function(u, pid)
             local tpid = GetPlayerId(GetOwningPlayer(u)) + 1
 
             if u and not BlzGetUnitBooleanField(u, UNIT_BF_IS_A_BUILDING) then
@@ -249,7 +249,7 @@ OnInit.final("StatView", function(Require)
                 viewing[pid].unit = u
                 viewing[pid].page = (tpid <= PLAYER_CAP and viewing[pid].page) or 1 -- set page to stats for non-player units
                 EVENT_STAT_CHANGE:register_unit_action(u, RefreshStatWindowOnStatChange)
-                RefreshStatWindow(pid)
+                STAT_WINDOW.refresh(pid)
 
                 if GetLocalPlayer() == Player(pid - 1) then
                     BlzFrameSetVisible(frame, true)
