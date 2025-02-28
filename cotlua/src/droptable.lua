@@ -130,8 +130,6 @@ OnInit.final("DropTable", function(Require)
         ItemDrops[id][16] = FourCC('I01V') --medallion of courage
         ItemDrops[id][17] = FourCC('I021') --medallion of vitality
         ItemDrops[id][18] = FourCC('I02D') --ring of regeneration
-        ItemDrops[id][19] = FourCC('I062') --healing potion
-        ItemDrops[id][20] = FourCC('I06E') --mana potion
         ItemDrops[id][21] = FourCC('I06F') --crystal ball
         ItemDrops[id][22] = FourCC('I06G') --talisman of evasion
         ItemDrops[id][23] = FourCC('I090') --sparky orb
@@ -146,8 +144,6 @@ OnInit.final("DropTable", function(Require)
         ItemDrops[id][2] = FourCC('I01V')
         ItemDrops[id][3] = FourCC('I021')
         ItemDrops[id][4] = FourCC('I02D')
-        ItemDrops[id][5] = FourCC('I062')
-        ItemDrops[id][6] = FourCC('I06E')
         ItemDrops[id][7] = FourCC('I06F')
         ItemDrops[id][8] = FourCC('I06G')
         ItemDrops[id][9] = FourCC('I090')
@@ -180,8 +176,6 @@ OnInit.final("DropTable", function(Require)
         ItemDrops[id][11] = FourCC('I00N') --blood elven staff
         ItemDrops[id][12] = FourCC('I0FM') --blood elven bow
         ItemDrops[id][13] = FourCC('I0FL') --mythril shield
-        ItemDrops[id][14] = FourCC('I028') --big health potion
-        ItemDrops[id][15] = FourCC('I00D') --big mana potion
         ItemDrops[id][16] = FourCC('I025') --greater mask of death
 
         setupRates(id, 16)
