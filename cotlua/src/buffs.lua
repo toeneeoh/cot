@@ -95,17 +95,16 @@ OnInit.global("Buffs", function(Require)
                     DamageTarget(DUMMY_UNIT, self.target, dmg, ATTACK_TYPE_NORMAL, PURE, "Lava")
                 end
 
-                self.timer:callDelayed(1.5, periodic, self)
+                self.timer = Buff.timer:callDelayed(0.5, periodic, self)
             end
         end
 
         function thistype:onRemove()
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
         end
 
         function thistype:onApply()
-            self.timer = TimerQueue.create()
-            self.timer:callDelayed(0.5, periodic, self)
+            self.timer = Buff.timer:callDelayed(0.5, periodic, self)
         end
     end
 
@@ -212,6 +211,7 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.ablev         = 0 ---@type integer 
 
+        -- used in the instance that multiple players have inspire
         function thistype:strongest(new)
             if self.ablev < new then
                 Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
@@ -222,15 +222,24 @@ OnInit.global("Buffs", function(Require)
             end
         end
 
-        --mana cost per second
+        -- mana cost per second
         local function periodic(self)
             local mana = GetUnitState(self.target, UNIT_STATE_MANA)
             local cost = BlzGetUnitMaxMana(self.target) * 0.02
             SetUnitState(self.target, UNIT_STATE_MANA, math.max(mana - cost, 0))
             if mana - cost > 0 then
-                self.timer:callDelayed(1, periodic, self)
+                self.timer = Buff.timer:callDelayed(1., periodic, self)
             else
                 self:remove()
+            end
+
+            -- keep reapplying buff (900 default aoe)
+            MakeGroupInRange(self.pid, self.ug, GetUnitX(self.source), GetUnitY(self.source), 900. * LBOOST[self.pid], Condition(FilterAlly))
+
+            for target in each(self.ug) do
+                thistype:add(self.source, target):duration(1.)
+                local b = thistype:get(nil, target)
+                b:strongest(math.max(b.ablev, GetUnitAbilityLevel(self.source, INSPIRE.id)))
             end
         end
 
@@ -238,20 +247,22 @@ OnInit.global("Buffs", function(Require)
             Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
 
             if self.source == self.target then
-                --unimmolation
-                self.timer:destroy()
+                -- unimmolation
+                Buff.timer:disableCallback(self.timer)
                 IssueImmediateOrderById(self.source, ORDER_ID_UNIMMOLATION)
             end
+
+            DestroyGroup(self.ug)
         end
 
         function thistype:onApply()
             self.ablev = GetUnitAbilityLevel(self.source, INSPIRE.id)
             self.spellboost = (0.08 + 0.02 * self.ablev)
+            self.ug = CreateGroup()
             Unit[self.target].spellboost = Unit[self.target].spellboost + self.spellboost
 
             if self.source == self.target then
-                self.timer = TimerQueue.create()
-                self.timer:callDelayed(1, periodic, self)
+                self.timer = Buff.timer:callDelayed(1., periodic, self)
             end
         end
     end
@@ -263,15 +274,14 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Aswb') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
-        thistype.attack      = 0. ---@type number 
 
         function thistype:onRemove()
-            UnitAddBonus(self.target, BONUS_DAMAGE, -self.attack)
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent - self.attack
         end
 
         function thistype:onApply()
-            self.attack = math.floor((BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * 0.2)
-            UnitAddBonus(self.target, BONUS_DAMAGE, self.attack)
+            self.attack = 20
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent + self.attack
         end
     end
 
@@ -373,44 +383,49 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Amag') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.timer = nil ---@type TimerQueue
 
-        ---@param pid integer
-        ---@param target unit
-        local function pull(pid, target)
-            local ug = CreateGroup()
+        local function pull(self)
+            MakeGroupInRange(self.pid, self.ug, GetUnitX(self.target), GetUnitY(self.target), 500. * LBOOST[self.pid], Condition(FilterEnemy))
 
-            MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), 500. * LBOOST[pid], Condition(FilterEnemy))
-
-            for i = 0, BlzGroupGetSize(ug) - 1 do
-                local u = BlzGroupUnitAt(ug, i)
-                local angle = Atan2(GetUnitY(target) - GetUnitY(u), GetUnitX(target) - GetUnitX(u))
+            for i = 0, BlzGroupGetSize(self.ug) - 1 do
+                local u = BlzGroupUnitAt(self.ug, i)
+                local angle = Atan2(GetUnitY(self.target) - GetUnitY(u), GetUnitX(self.target) - GetUnitX(u))
                 UnitWakeUp(u)
-                if GetUnitMoveSpeed(u) > 0 and (GetUnitCurrentOrder(u) == 0 or GetUnitCurrentOrder(u) == ORDER_ID_SMART) and IsTerrainWalkable(GetUnitX(u) + (3. * Cos(angle)), GetUnitY(u) + (3. * Sin(angle))) and UnitDistance(u, target) > 100. then
+                if GetUnitMoveSpeed(u) > 0 and (GetUnitCurrentOrder(u) == 0 or
+                GetUnitCurrentOrder(u) == ORDER_ID_SMART) and
+                IsTerrainWalkable(GetUnitX(u) + (3. * Cos(angle)), GetUnitY(u) + (3. * Sin(angle))) and
+                UnitDistance(u, self.target) > 100. then
                     SetUnitXBounded(u, GetUnitX(u) + (3. * Cos(angle)))
                     SetUnitYBounded(u, GetUnitY(u) + (3. * Sin(angle)))
                 end
             end
 
-            DestroyGroup(ug)
+            self.callback2 = Buff.timer:callDelayed(0.1, pull, self)
+        end
+
+        local function taunt(self, aoe)
+            Taunt(self.target, aoe)
+
+            self.callback1 = Buff.timer:callDelayed(3., taunt, self, aoe)
         end
 
         function thistype:onRemove()
+            Buff.timer:disableCallback(self.callback1)
+            Buff.timer:disableCallback(self.callback2)
+            DestroyGroup(self.ug)
             SetUnitVertexColor(self.target, 255, 255, 255, 255)
-
-            self.timer:destroy()
             Unit[self.target].dm = Unit[self.target].dm / self.dm
             Unit[self.target].dr = Unit[self.target].dr / self.dr
         end
 
         function thistype:onApply()
-            self.timer = TimerQueue.create()
+            self.ug = CreateGroup()
 
             SetUnitVertexColor(self.target, 255, 25, 25, 255)
             DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Call of Dread Red.mdx", self.target, "chest"))
 
-            self.timer:callPeriodically(3., nil, Taunt, self.target, 800.)
-            self.timer:callPeriodically(0.1, nil, pull, self.tpid, self.target)
+            self.callback1 = Buff.timer:callDelayed(3., taunt, self, 800.)
+            self.callback2 = Buff.timer:callDelayed(0.1, pull, self)
 
             local ablev = GetUnitAbilityLevel(self.source, MAGNETICSTANCE.id)
             self.dr = (0.95 - 0.05 * ablev)
@@ -431,38 +446,33 @@ OnInit.global("Buffs", function(Require)
 
         local function onHit(source, target)
             local self = FlamingBowBuff:get(nil, source)
-            local ablev = GetUnitAbilityLevel(self.target, FLAMINGBOW.id) ---@type integer 
+            local increase = 1
 
-            UnitAddBonus(self.target, BONUS_DAMAGE, -self.attack)
+            if self.attack < self.max then
+                if MULTISHOT.enabled[self.tpid] then
+                    increase = increase / (1. + GetUnitAbilityLevel(self.target, MULTISHOT.id))
+                end
 
-            if MULTISHOT.enabled[self.tpid] then
-                self.count = math.min(self.count + 1. / (1 + GetUnitAbilityLevel(self.target, MULTISHOT.id)), 30. + 2. * ablev)
-            else
-                self.count = math.min(self.count + 1., 30. + 2. * ablev)
+                Unit[self.target].damage_percent = Unit[self.target].damage_percent + increase
+                self.attack = self.attack + increase
             end
-            self.attack = math.floor((0.5 + 0.01 * self.count) * (GetHeroAgi(self.target, true) + UnitGetBonus(self.target, BONUS_DAMAGE)) * LBOOST[self.tpid])
-
-            UnitAddBonus(self.target, BONUS_DAMAGE, self.attack)
         end
 
         function thistype:onRemove()
-            Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent - self.pen
             EVENT_ON_HIT:unregister_unit_action(self.target, onHit)
             DestroyEffect(self.sfx)
             UnitRemoveAbility(self.target, FourCC('A08B'))
-            UnitAddBonus(self.target, BONUS_DAMAGE, -self.attack)
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent - self.attack
         end
 
         function thistype:onApply()
-            self.pen = FLAMINGBOW.pierce(self.tpid)
-            Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent + self.pen
             EVENT_ON_HIT:register_unit_action(self.target, onHit)
-            self.attack = math.floor(FLAMINGBOW.bonus(self.tpid))
-            self.count = 0
+            self.attack = 50
+            self.max = 80 + 2 * GetUnitAbilityLevel(self.target, FLAMINGBOW.id)
 
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent + self.attack
             self.sfx = AddSpecialEffectTarget("Environment\\SmallBuildingspeffect\\SmallBuildingspeffect2.mdl", self.target, "weapon")
             UnitAddAbility(self.target, FourCC('A08B'))
-            UnitAddBonus(self.target, BONUS_DAMAGE, self.attack)
         end
     end
 
@@ -500,6 +510,29 @@ OnInit.global("Buffs", function(Require)
             self.ms = 0.75 * (math.min(1, Unit[self.target].ms_percent))
 
             Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
+        end
+    end
+
+    EarthquakeDebuff = setmetatable({}, mt)
+    do
+        local thistype = EarthquakeDebuff
+        thistype.RAWCODE         = FourCC('Aequ') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+
+        function thistype:onRemove()
+            DestroyEffect(self.sfx)
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
+            Unit[self.target].regen_percent = Unit[self.target].regen_percent + self.regen
+        end
+
+        function thistype:onApply()
+            self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\EarthQuake\\EarthQuakeTarget.mdl", self.target, "origin")
+            self.ms = 0.5 * (math.min(1, Unit[self.target].ms_percent))
+            self.regen = 0.5
+
+            Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
+            Unit[self.target].regen_percent = Unit[self.target].regen_percent - self.regen
         end
     end
 
@@ -557,11 +590,28 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
 
         function thistype:onRemove()
+            Buff.timer:disableCallback(self.timer)
             DestroyEffect(self.sfx)
+            DestroyGroup(self.ug)
+        end
+
+        local function periodic(self)
+            MakeGroupInRange(self.pid, self.ug, GetUnitX(self.source), GetUnitY(self.source), 900. * LBOOST[self.pid], Condition(FilterAlly))
+
+            for target in each(self.ug) do
+                if target ~= self.source then
+                    FightMeBuff:add(self.source, target):duration(2.)
+                end
+            end
+
+            self.timer = Buff.timer:callDelayed(1., periodic, self)
         end
 
         function thistype:onApply()
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Orc\\Voodoo\\VoodooAura.mdl", self.target, "origin")
+            self.ug = CreateGroup()
+
+            self.timer = Buff.timer:callDelayed(1., periodic, self)
         end
     end
 
@@ -645,13 +695,30 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             Unit[self.target].pr = Unit[self.target].pr / self.pr
+            Buff.timer:disableCallback(self.timer)
+            DestroyGroup(self.ug)
+        end
+
+        local function periodic(self)
+            MakeGroupInRange(self.pid, self.ug, GetUnitX(self.source), GetUnitY(self.source), 900. * LBOOST[self.pid], Condition(FilterAlly))
+
+            for target in each(self.ug) do
+                thistype:add(self.source, target):duration(2.)
+                local b = thistype:get(nil, target)
+                b:strongest(math.max(b.ablev, GetUnitAbilityLevel(self.source, AURAOFJUSTICE.id)))
+            end
+
+            self.timer = Buff.timer:callDelayed(1., periodic, self)
         end
 
         function thistype:onApply()
             self.ablev = GetUnitAbilityLevel(self.source, AURAOFJUSTICE.id)
             self.pr = math.max(0.91 - 0.01 * self.ablev, 0.85)
+            self.ug = CreateGroup()
 
             Unit[self.target].pr = Unit[self.target].pr * self.pr
+
+            self.timer = Buff.timer:callDelayed(1., periodic, self)
         end
     end
 
@@ -662,23 +729,28 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Asli') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.hp      = 0. ---@type number 
-        thistype.mana      = 0. ---@type number 
-        thistype.lfx           = nil ---@type lightning 
-        thistype.timer = nil ---@type TimerQueue
+        thistype.hp   = 0. ---@type number 
+        thistype.mana = 0. ---@type number 
+        thistype.lfx  = nil ---@type lightning 
 
         function thistype:onRemove()
             EVENT_ON_FATAL_DAMAGE:unregister_unit_action(self.target, SOULLINK.onHit)
             FadeSFX(self.sfx, true)
-            TimerQueue:callDelayed(2., HideEffect, self.sfx)
+            Buff.timer:callDelayed(2., HideEffect, self.sfx)
             DestroyLightning(self.lfx)
 
             HP(self.source, self.target, math.max(0., self.hp - GetWidgetLife(self.target)), SOULLINK.tag)
-            if GetUnitTypeId(self.target) ~= HERO_VAMPIRE then
+            if not Unit[self.target].nomanaregen then
                 MP(self.target, math.max(0., self.mana - GetUnitState(self.target, UNIT_STATE_MANA)))
             end
 
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
+        end
+
+        local function periodic(self, x, y)
+            MoveLightningEx(self.lfx, false, x, y, BlzGetUnitZ(self.target) + 75., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 75.)
+
+            self.timer = Buff.timer:callDelayed(FPS_32, periodic, self, x, y)
         end
 
         function thistype:onApply()
@@ -702,13 +774,7 @@ OnInit.global("Buffs", function(Require)
             BlzSetSpecialEffectColor(self.sfx, 255, 255, 0)
             BlzSetSpecialEffectAlpha(self.sfx, 100)
 
-            self.timer = TimerQueue.create()
-
-            local periodic = function()
-                MoveLightningEx(self.lfx, false, x, y, BlzGetUnitZ(self.target) + 75., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 75.)
-            end
-
-            self.timer:callPeriodically(FPS_32, nil, periodic)
+            self.timer = Buff.timer:callDelayed(FPS_32, periodic, self, x, y)
         end
     end
 
@@ -812,7 +878,9 @@ OnInit.global("Buffs", function(Require)
 
             if UnitAlive(self.target) and mana >= maxmana then
                 SetUnitState(self.target, UNIT_STATE_MANA, mana - maxmana)
+                self.timer = Buff.timer:callDelayed(1., periodic, self)
             else
+                self.timer = nil
                 self:remove()
             end
         end
@@ -820,19 +888,19 @@ OnInit.global("Buffs", function(Require)
         function thistype:onRemove()
             Unit[self.target].mm = Unit[self.target].mm / self.mm
             IssueImmediateOrder(self.target, "unimmolation")
-
             DestroyEffect(self.sfx)
-            self.timer:destroy()
+
+            if self.timer then
+                Buff.timer:disableCallback(self.timer)
+            end
         end
 
         function thistype:onApply()
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Windwalk Blue Soul.mdx", self.target, "origin")
-
-            self.timer = TimerQueue.create()
-            self.timer:callPeriodically(1., nil, periodic, self)
-
             self.mm = OVERLOAD.mult(self.pid)
             Unit[self.target].mm = Unit[self.target].mm * self.mm
+
+            self.timer = Buff.timer:callDelayed(1., periodic, self)
         end
     end
 
@@ -863,7 +931,7 @@ OnInit.global("Buffs", function(Require)
                 BlzSetSpecialEffectColor(self.sfx, 0, 0, 0)
             end
 
-            self.timer:callDelayed(1., periodic, self)
+            self.timer = Buff.timer:callDelayed(0.5, periodic, self)
         end
 
         function thistype:onRemove()
@@ -872,7 +940,7 @@ OnInit.global("Buffs", function(Require)
             Unit[self.target].ms_flat = Unit[self.target].ms_flat - self.ms
             UnitRemoveAbility(self.target, FourCC('B02Q'))
 
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
         end
 
         function thistype:onApply()
@@ -886,8 +954,7 @@ OnInit.global("Buffs", function(Require)
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Chumpool.mdx", self.target, "origin")
 
-            self.timer = TimerQueue.create()
-            self.timer:callDelayed(0.5, periodic, self)
+            self.timer = Buff.timer:callDelayed(0.5, periodic, self)
         end
     end
 
@@ -908,15 +975,13 @@ OnInit.global("Buffs", function(Require)
         end
 
         local function periodic(self)
-            local ug = CreateGroup()
+            MakeGroupInRange(self.tpid, self.ug, GetUnitX(self.source), GetUnitY(self.source), 500. * LBOOST[self.tpid], Condition(FilterEnemy))
 
-            MakeGroupInRange(self.tpid, ug, GetUnitX(self.source), GetUnitY(self.source), 500. * LBOOST[self.tpid], Condition(FilterEnemy))
-
-            if BlzGroupGetSize(ug) > 0 then
+            if BlzGroupGetSize(self.ug) > 0 then
                 DestroyEffect(AddSpecialEffectTarget("war3mapImported\\DarknessLeechTarget_Portrait.mdx", self.source, "origin"))
             end
 
-            for target in each(ug) do
+            for target in each(self.ug) do
                 BLOODBANK.add(self.tpid, BLOODLEECH.gain(self.tpid) / 3.)
                 DamageTarget(self.source, target, BLOODLEECH.dmg(self.tpid) / 3. * BOOST[self.tpid], ATTACK_TYPE_NORMAL, MAGIC, BLOODLORD.tag)
 
@@ -924,12 +989,11 @@ OnInit.global("Buffs", function(Require)
                 dummy:attack(self.source)
             end
 
-            DestroyGroup(ug)
-
-            self.timer:callDelayed(1, periodic, self)
+            self.timer = Buff.timer:callDelayed(1., periodic, self)
         end
 
         function thistype:onRemove()
+            DestroyGroup(self.ug)
             EVENT_ON_HIT:unregister_unit_action(self.source, onHit)
 
             Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / 0.7
@@ -939,10 +1003,10 @@ OnInit.global("Buffs", function(Require)
             self.agi = 0.
             self.str = 0.
 
-            if self.timer ~= nil then
+            if self.timer then
                 UnitDisableAbility(self.source, BLOODLEECH.id, false)
                 UnitDisableAbility(self.source, BLOODDOMAIN.id, false)
-                self.timer:destroy()
+                Buff.timer:disableCallback(self.timer)
             end
         end
 
@@ -956,8 +1020,8 @@ OnInit.global("Buffs", function(Require)
                 BlzUnitHideAbility(self.source, BLOODDOMAIN.id, false)
 
                 --blood leech aoe
-                self.timer = TimerQueue.create()
-                self.timer:callDelayed(1., periodic, self)
+                self.ug = CreateGroup()
+                self.timer = Buff.timer:callDelayed(1., periodic, self)
                 self.agi = BLOODLORD.bonus(self.pid)
                 Unit[self.source].bonus_str = Unit[self.source].bonus_str + self.str
             else
@@ -966,7 +1030,7 @@ OnInit.global("Buffs", function(Require)
             end
 
             Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * 0.7
-            TimerQueue:callDelayed(BLOODLORD.dur(self.pid) * LBOOST[self.pid], DestroyEffect, AddSpecialEffectTarget("war3mapImported\\Burning Rage Red.mdx", self.source, "overhead"))
+            Buff.timer:callDelayed(BLOODLORD.dur(self.pid) * LBOOST[self.pid], DestroyEffect, AddSpecialEffectTarget("war3mapImported\\Burning Rage Red.mdx", self.source, "overhead"))
             SetUnitAnimationByIndex(self.source, 3)
 
             BLOODBANK.set(self.tpid, 0)
@@ -983,7 +1047,7 @@ OnInit.global("Buffs", function(Require)
 
         local function periodic(self)
             MoveLightningEx(self.lfx, false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
-            self.timer:callDelayed(FPS_32, periodic, self)
+            self.timer = Buff.timer:callDelayed(FPS_32, periodic, self)
         end
 
         local function drain(self, x, y)
@@ -1001,23 +1065,22 @@ OnInit.global("Buffs", function(Require)
             if DistanceCoords(x, y, GetUnitX(self.target), GetUnitY(self.target)) > 800. or not UnitAlive(self.source) then
                 self:remove()
             else
-                self.timer:callDelayed(1., drain, self, x, y)
+                Buff.timer:callDelayed(1., drain, self, x, y)
             end
         end
 
         function thistype:onRemove()
             DestroyLightning(self.lfx)
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
         end
 
         function thistype:onApply()
             self.lfx = AddLightningEx("DRAM", false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
-            self.timer = TimerQueue.create()
 
             MoveLightningEx(self.lfx, false, GetUnitX(self.source), GetUnitY(self.source), BlzGetUnitZ(self.source) + 50., GetUnitX(self.target), GetUnitY(self.target), BlzGetUnitZ(self.target) + 50.)
 
-            self.timer:callDelayed(1., drain, self, GetUnitX(self.source), GetUnitY(self.source))
-            self.timer:callDelayed(FPS_32, periodic, self)
+            Buff.timer:callDelayed(1., drain, self, GetUnitX(self.source), GetUnitY(self.source))
+            self.timer = Buff.timer:callDelayed(FPS_32, periodic, self)
         end
     end
 
@@ -1101,21 +1164,14 @@ OnInit.global("Buffs", function(Require)
         function thistype:onRemove()
             DestroyEffect(self.sfx)
 
-            UnitAddBonus(self.target, BONUS_DAMAGE, -self.dmg)
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent - self.dmg
         end
 
         function thistype:onApply()
-            local stat = GetHeroStat(MainStat(self.target), self.target, true) ---@type integer 
-
-            if stat > 0 then
-                self.dmg = math.max(0., (stat + UnitGetBonus(self.target, BONUS_DAMAGE)) * 0.4)
-            else
-                self.dmg = math.max(0., (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * 0.4)
-            end
-
+            self.dmg = 20
             self.sfx = AddSpecialEffectTarget("war3mapImported\\BattleCryTarget.mdx", self.target, "overhead")
 
-            UnitAddBonus(self.target, BONUS_DAMAGE, self.dmg)
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent + self.dmg
         end
     end
 
@@ -1126,24 +1182,23 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Aint') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.dmg      = 0. ---@type number 
 
         function thistype:onRemove()
             Unit[self.target].mr = Unit[self.target].mr / self.mr
             DestroyEffect(self.sfx)
 
-            UnitAddBonus(self.target, BONUS_DAMAGE, self.dmg)
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent - self.dmg
         end
 
         function thistype:onApply()
             self.mr = (LIMITBREAK.flag[self.pid] & 0x4 > 0 and 1.4) or 1
 
             Unit[self.target].mr = Unit[self.target].mr * self.mr
-            self.dmg = math.max(0., (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * 0.4)
+            self.dmg = 40
 
             self.sfx = AddSpecialEffectTarget("Abilities\\Spells\\Other\\HowlOfTerror\\HowlTarget.mdl", self.target, "overhead")
 
-            UnitAddBonus(self.target, BONUS_DAMAGE, -self.dmg)
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent + self.dmg
         end
     end
 
@@ -1156,7 +1211,6 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.totalRegen      = 0. ---@type number 
         thistype.text         = nil ---@type texttag 
-        thistype.timer      = nil ---@type TimerQueue
 
         ---@param dmg number
         function thistype:addRegen(dmg)
@@ -1165,7 +1219,6 @@ OnInit.global("Buffs", function(Require)
 
         function thistype:onRemove()
             EVENT_ON_STRUCK_FINAL:unregister_unit_action(self.target, UNDYINGRAGE.onHit)
-            self.timer:destroy()
 
             DestroyEffect(self.sfx)
             DestroyTextTag(self.text)
@@ -1177,9 +1230,10 @@ OnInit.global("Buffs", function(Require)
             end
 
             Unit[self.target].hidehp = false
+            Buff.timer:disableCallback(self.timer)
         end
 
-        local periodic = function(self)
+        local function periodic(self)
             SetTextTagText(self.text, (R2I(self.totalRegen)) .. "\x25", 0.025)
             local red, green, blue = HealthGradient(self.totalRegen, false) ---@type integer, integer, integer
             SetTextTagColor(self.text, red, green, blue, 255)
@@ -1189,6 +1243,7 @@ OnInit.global("Buffs", function(Require)
             self:addRegen(Unit[self.target].regen * FPS_32)
 
             SetWidgetLife(self.target, math.max(10., BlzGetUnitMaxHP(self.target) * 0.0001))
+            self.timer = Buff.timer:callDelayed(FPS_32, periodic, self)
         end
 
         function thistype:onApply()
@@ -1202,8 +1257,7 @@ OnInit.global("Buffs", function(Require)
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\DemonicAdornment.mdx", self.target, "head")
 
-            self.timer = TimerQueue.create()
-            self.timer:callPeriodically(FPS_32, nil, periodic, self)
+            self.timer = Buff.timer:callDelayed(FPS_32, periodic, self)
         end
     end
 
@@ -1214,14 +1268,18 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Aram') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_NONE ---@type integer 
-        thistype.timer        = nil ---@type TimerQueue
 
         function thistype:onRemove()
             Unit[self.target].ms_flat = Unit[self.target].ms_flat - 100
             Unit[self.target].armor_pen_percent = Unit[self.target].armor_pen_percent - self.pen
 
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
             DestroyEffect(self.sfx)
+        end
+
+        local function periodic(self)
+            DamageTarget(self.source, self.source, 0.08 * GetWidgetLife(self.source), ATTACK_TYPE_NORMAL, PURE, "Rampage")
+            self.timer = Buff.timer:callDelayed(1., periodic, self)
         end
 
         function thistype:onApply()
@@ -1230,15 +1288,7 @@ OnInit.global("Buffs", function(Require)
             Unit[self.target].ms_flat = Unit[self.target].ms_flat + 100
 
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Windwalk Blood.mdx", self.source, "origin")
-
-            self.timer = TimerQueue.create()
-
-            local periodic = function()
-                DamageTarget(self.source, self.source, 0.08 * GetWidgetLife(self.source), ATTACK_TYPE_NORMAL, PURE, "Rampage")
-            end
-
-            periodic()
-            self.timer:callPeriodically(1., nil, periodic)
+            self.timer = Buff.timer:callDelayed(0., periodic, self)
         end
     end
 
@@ -1490,39 +1540,42 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Armi') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.dmg = 0. ---@type number 
-        thistype.armor = 0. ---@type number 
-        thistype.timer = nil ---@type TimerQueue
+        thistype.dmg = 0
+        thistype.armor = 0
 
-        local function grow(timer, source, size, dur)
+        local function grow(self, size, dur)
             size = size + 0.008
-            SetUnitScale(source, size, size, size)
+            SetUnitScale(self.source, size, size, size)
             dur = dur - 1
 
             if dur > 0 then
-                timer:callDelayed(FPS_32, grow, timer, source, size, dur)
+                self.timer = Buff.timer:callDelayed(FPS_32, grow, self, size, dur)
+            else
+                self.timer = nil
             end
         end
 
         function thistype:onRemove()
-            UnitAddBonus(self.target, BONUS_DAMAGE, -self.dmg)
             UnitAddBonus(self.target, BONUS_ARMOR, -self.armor)
 
-            self.timer:destroy()
             SetUnitScale(self.target, BlzGetUnitRealField(self.target, UNIT_RF_SCALING_VALUE), BlzGetUnitRealField(self.target, UNIT_RF_SCALING_VALUE), BlzGetUnitRealField(self.target, UNIT_RF_SCALING_VALUE))
             Unit[self.target].mr = Unit[self.target].mr / 0.2
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent - self.dmg
+
+            if self.timer then
+                Buff.timer:disableCallback(self.timer)
+            end
         end
 
         function thistype:onApply()
             local size = BlzGetUnitRealField(self.target, UNIT_RF_SCALING_VALUE)
 
-            UnitAddBonus(self.target, BONUS_DAMAGE, self.dmg)
             UnitAddBonus(self.target, BONUS_ARMOR, self.armor)
 
-            self.timer = TimerQueue.create()
-            self.timer:callDelayed(FPS_32, grow, self.timer, self.target, size, 60)
+            self.timer = Buff.timer:callDelayed(FPS_32, grow, self, size, 60)
 
             Unit[self.target].mr = Unit[self.target].mr * 0.2
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent + self.dmg
         end
     end
 
@@ -1570,6 +1623,46 @@ OnInit.global("Buffs", function(Require)
         end
     end
 
+    ---@class HardHatBuff : Buff
+    HardHatBuff = setmetatable({}, mt)
+    do
+        local thistype = HardHatBuff
+        thistype.RAWCODE         = FourCC('FMIN') ---@type integer 
+        thistype.DISPEL_TYPE     = BUFF_POSITIVE ---@type integer 
+        thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
+        thistype.CANNOT_PURGE    = true
+
+       local function periodic(self)
+            if UnitAlive(self.target) and
+                Unit[self.target].x == GetUnitX(self.target) and
+                Unit[self.target].y == GetUnitY(self.target)
+            then
+                self.count = self.count + 1
+                if self.count >= 3 then
+                    Unit[self.target].dr = Unit[self.target].dr / self.mult
+                    self.mult = 0.85
+                    Unit[self.target].dr = Unit[self.target].dr * self.mult
+                end
+            else
+                Unit[self.target].dr = Unit[self.target].dr / self.mult
+                self.mult = 1.
+                self.count = 0
+            end
+            self.timer = Buff.timer:callDelayed(1, periodic, self)
+        end
+
+        function thistype:onRemove()
+            Unit[self.target].dr = Unit[self.target].dr / self.mult
+            Buff.timer:disableCallback(self.timer)
+        end
+
+        function thistype:onApply()
+            self.mult = 1.
+            self.count = 0
+            self.timer = Buff.timer:callDelayed(1, periodic, self)
+        end
+    end
+
     ---@class SteedChargeBuff : Buff
     SteedChargeBuff = setmetatable({}, mt)
     do
@@ -1594,10 +1687,24 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('AIDK') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.timer         =  nil ---@type TimerQueue
 
         function thistype:onRemove()
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
+        end
+
+        local function periodic(self, dur, angle, x, y)
+            local dist = DistanceCoords(x, y, GetUnitX(self.target), GetUnitY(self.target)) ---@type number 
+
+            if dur > 0 and dist < 250 then
+                dur = dur - 1
+
+                if GetUnitMoveSpeed(self.target) > 0 then
+                    SetUnitXBounded(self.target, GetUnitX(self.target) + (5 + dist) * 0.1 * Cos(angle))
+                    SetUnitYBounded(self.target, GetUnitY(self.target) + (5 + dist) * 0.1 * Sin(angle))
+                end
+
+                self.timer = Buff.timer:callDelayed(FPS_32, periodic, self, 33, angle, x, y)
+            end
         end
 
         function thistype:onApply()
@@ -1620,26 +1727,10 @@ OnInit.global("Buffs", function(Require)
                     end
                 end
 
-                local dur = 33
                 local x = GetUnitX(self.target) + 200. * Cos(angle)
                 local y = GetUnitY(self.target) + 200. * Sin(angle)
-                local dist = DistanceCoords(x, y, GetUnitX(self.target), GetUnitY(self.target)) ---@type number 
 
-                local cond = function() return dur <= 0 or dist >= 250. end
-                local periodic = function()
-                    x = GetUnitX(self.target) + 200. * Cos(angle)
-                    y = GetUnitY(self.target) + 200. * Sin(angle)
-                    dist = DistanceCoords(x, y, GetUnitX(self.target), GetUnitY(self.target)) ---@type number 
-                    dur = dur - 1
-
-                    if GetUnitMoveSpeed(self.target) > 0 then
-                        SetUnitXBounded(self.target, GetUnitX(self.target) + (5 + dist) * 0.1 * Cos(angle))
-                        SetUnitYBounded(self.target, GetUnitY(self.target) + (5 + dist) * 0.1 * Sin(angle))
-                    end
-                end
-
-                self.timer = TimerQueue.create()
-                self.timer:callPeriodically(FPS_32, cond, periodic)
+                self.timer = Buff.timer:callDelayed(FPS_32, periodic, self, 33, angle, x, y)
             end
         end
     end
@@ -1815,18 +1906,17 @@ OnInit.global("Buffs", function(Require)
             Unit[self.target].regen_max = Unit[self.target].regen_max - self.regen
             self.regen = self.item:getValue(ITEM_ABILITY, 0) * hp
             Unit[self.target].regen_max = Unit[self.target].regen_max + self.regen
-            self.timer:callDelayed(0.5, periodic, self)
+            self.timer = Buff.timer:callDelayed(0.5, periodic, self)
         end
 
         function thistype:onRemove()
             Unit[self.target].regen_max = Unit[self.target].regen_max - (self.regen or 0)
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
         end
 
         function thistype:onApply()
             self.regen = 0
-            self.timer = TimerQueue.create()
-            self.timer:callDelayed(0., periodic, self)
+            self.timer = Buff.timer:callDelayed(0., periodic, self)
         end
     end
 
@@ -1924,12 +2014,12 @@ OnInit.global("Buffs", function(Require)
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
         thistype.armor         = 0 ---@type integer 
 
-        function thistype.periodic(self)
+        local function periodic(self)
             local dmg = NERVEGAS.dmg(self.pid) * BOOST[self.pid] / (NERVEGAS.dur * LBOOST[self.pid] * 2.)
 
             DamageTarget(self.source, self.target, dmg, ATTACK_TYPE_NORMAL, MAGIC, "Nerve Gas")
 
-            self.timer:callDelayed(0.5, thistype.periodic, self)
+            self.timer = Buff.timer:callDelayed(0.5, periodic, self)
         end
 
         function thistype:onRemove()
@@ -1937,7 +2027,7 @@ OnInit.global("Buffs", function(Require)
             Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
             UnitAddBonus(self.target, BONUS_ARMOR, self.armor)
             DestroyEffect(self.sfx)
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
         end
 
         function thistype:onApply()
@@ -1950,8 +2040,7 @@ OnInit.global("Buffs", function(Require)
             UnitAddBonus(self.target, BONUS_ATTACK_SPEED, -.3)
             UnitAddBonus(self.target, BONUS_ARMOR, -self.armor)
 
-            self.timer = TimerQueue.create()
-            self.timer:callDelayed(0.25, thistype.periodic, self)
+            self.timer = Buff.timer:callDelayed(0.25, periodic, self)
         end
     end
 
@@ -2052,28 +2141,26 @@ OnInit.global("Buffs", function(Require)
                 DestroyGroup(ug)
             end
 
-            self.timer:callDelayed(5., periodic, self)
+            self.timer = Buff.timer:callDelayed(5., periodic, self)
         end
 
         function thistype:onRemove()
             masterElement[self.tpid] = 0
             DestroyEffect(self.sfx)
             DestroyEffect(self.sfx2)
-            self.timer:destroy()
             Unit[self.target].ms_percent = Unit[self.target].ms_percent - self.ms
+
+            Buff.timer:disableCallback(self.timer)
         end
 
         function thistype:onApply()
             masterElement[self.tpid] = ELEMENTLIGHTNING.value
             self.sfx = AddSpecialEffectTarget("war3mapImported\\Storm Cast.mdx", self.target, "right hand")
             self.sfx2 = AddSpecialEffectTarget("war3mapImported\\Storm Cast.mdx", self.target, "left hand")
-
-            self.timer = TimerQueue.create()
-            self.timer:callDelayed(5., periodic, self)
-
             self.ms = 0.4 * (math.min(1, Unit[self.target].ms_percent))
-
             Unit[self.target].ms_percent = Unit[self.target].ms_percent + self.ms
+
+            self.timer = Buff.timer:callDelayed(5., periodic, self)
         end
     end
 
@@ -2277,8 +2364,8 @@ OnInit.global("Buffs", function(Require)
         function thistype:onApply()
             EVENT_ON_STRUCK:register_unit_action(self.target, onStruck)
 
-            TimerQueue:callDelayed(6.5, DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\ThornyShield\\ThornyShieldTargetChestLeft.mdl", self.target, "chest"))
-            TimerQueue:callDelayed(2.5, DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\ThornsAura\\ThornsAura.mdl", self.target, "origin"))
+            Buff.timer:callDelayed(6.5, DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\ThornyShield\\ThornyShieldTargetChestLeft.mdl", self.target, "chest"))
+            Buff.timer:callDelayed(2.5, DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\ThornsAura\\ThornsAura.mdl", self.target, "origin"))
         end
     end
 
@@ -2321,7 +2408,6 @@ OnInit.global("Buffs", function(Require)
     end
 
     ---@class LightSealBuff : Buff
-    ---@field timer TimerQueue
     LightSealBuff = setmetatable({}, mt)
     do
         local thistype = LightSealBuff
@@ -2346,7 +2432,7 @@ OnInit.global("Buffs", function(Require)
         end
 
         function thistype:onRemove()
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
         end
 
         ---@type fun(self: LightSealBuff)
@@ -2364,17 +2450,16 @@ OnInit.global("Buffs", function(Require)
 
                 Unit[self.source].bonus_str = Unit[self.source].bonus_str + self.strength
                 UnitAddBonus(self.source, BONUS_ARMOR, self.armor)
-                self.timer:callDelayed(5., LightSealStackExpire, self)
+                self.timer = Buff.timer:callDelayed(5., LightSealStackExpire, self)
             end
         end
 
         function thistype:onApply()
-            self.timer = TimerQueue.create()
             self.stacks = 0
             self.strength = 0
             self.armor = 0
 
-            self.timer:callDelayed(5., LightSealStackExpire, self)
+            self.timer = Buff.timer:callDelayed(5., LightSealStackExpire, self)
         end
     end
 
@@ -2411,7 +2496,7 @@ OnInit.global("Buffs", function(Require)
             self.count = math.min(5. + GetHeroLevel(self.source) // 100 * 10, self.count)
 
             self:refresh()
-            self.timer:callDelayed(0.5, periodic, self)
+            self.timer = Buff.timer:callDelayed(0.5, periodic, self)
         end
 
         --reapplies spellboost and bat bonus
@@ -2432,7 +2517,7 @@ OnInit.global("Buffs", function(Require)
             Dummy[self.sfx]:recycle()
 
             DestroyGroup(self.ug)
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
         end
 
         function thistype:onApply()
@@ -2451,8 +2536,7 @@ OnInit.global("Buffs", function(Require)
             SetUnitTimeScale(self.sfx, 0.8)
             DelayAnimation(self.tpid, self.sfx, 1., 0, 1., false)
 
-            self.timer = TimerQueue:create()
-            self.timer:callDelayed(0.01, periodic, self)
+            self.timer = Buff.timer:callDelayed(0.01, periodic, self)
         end
     end
 
@@ -2486,9 +2570,9 @@ OnInit.global("Buffs", function(Require)
         thistype.RAWCODE         = FourCC('Akno') ---@type integer 
         thistype.DISPEL_TYPE     = BUFF_NEGATIVE ---@type integer 
         thistype.STACK_TYPE      = BUFF_STACK_PARTIAL ---@type integer 
-        thistype.SPEED      = 1500. ---@type number 
-        thistype.DEBUFF_TIME      = 1. ---@type number 
-        thistype.time      = 0. ---@type number 
+        thistype.SPEED       = 1500. ---@type number 
+        thistype.DEBUFF_TIME = 1. ---@type number 
+        thistype.time        = 0. ---@type number 
 
         ---@param deltaTime number
         ---@return number
@@ -2515,14 +2599,14 @@ OnInit.global("Buffs", function(Require)
             if self.time > thistype.DEBUFF_TIME then
                 self:remove()
             else
-                self.timer:callDelayed(FPS_32, periodic, self)
+                self.timer = Buff.timer:callDelayed(FPS_32, periodic, self)
             end
         end
 
         function thistype:onRemove()
             BlzPauseUnitEx(self.target, false)
             SetUnitFlyHeight(self.target, 0., 0.)
-            self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
         end
 
         function thistype:onApply()
@@ -2532,9 +2616,8 @@ OnInit.global("Buffs", function(Require)
                 UnitRemoveAbility(self.target, FourCC('Amrf'))
             end
 
-            self.timer = TimerQueue.create()
             self.time = 0
-            self.timer:callDelayed(FPS_32, periodic, self)
+            self.timer = Buff.timer:callDelayed(FPS_32, periodic, self)
         end
     end
 
@@ -2684,22 +2767,22 @@ OnInit.global("Buffs", function(Require)
                 Unit[self.target].dm = Unit[self.target].dm / self.mult
                 self.mult = math.min(1.1, self.mult + 0.01)
                 Unit[self.target].dm = Unit[self.target].dm * self.mult
-                self.timer:callDelayed(1, periodic, self)
             else
                 Unit[self.target].dm = Unit[self.target].dm / self.mult
                 self.mult = 1.
             end
+            self.timer = Buff.timer:callDelayed(1, periodic, self)
         end
 
         function thistype:onRemove()
             Unit[self.target].dm = Unit[self.target].dm / self.mult
             self.timer:destroy()
+            Buff.timer:disableCallback(self.timer)
         end
 
         function thistype:onApply()
             self.mult = 1.
-            self.timer = TimerQueue.create()
-            self.timer:callDelayed(1, periodic, self)
+            self.timer = Buff.timer:callDelayed(1, periodic, self)
         end
     end
 
@@ -2724,7 +2807,7 @@ OnInit.global("Buffs", function(Require)
 
             UnitRemoveAbility(self.target, WeatherTable[self.weather].abil)
             UnitRemoveAbility(self.target, WeatherTable[self.weather].buff)
-            UnitAddBonus(self.target, BONUS_DAMAGE, -self.atk)
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent - self.atk
             Unit[self.target].bonus_bat = Unit[self.target].bonus_bat * self.as
             Unit[self.target].spellboost = Unit[self.target].spellboost - self.spellboost
             Unit[self.target].dr = Unit[self.target].dr / self.dr
@@ -2734,7 +2817,7 @@ OnInit.global("Buffs", function(Require)
         function thistype:onApply()
             self.weather = CURRENT_WEATHER
             self.as = 1. - WeatherTable[self.weather].as * 0.01
-            self.atk = (BlzGetUnitBaseDamage(self.target, 0) + UnitGetBonus(self.target, BONUS_DAMAGE)) * WeatherTable[self.weather].atk * 0.01
+            self.atk = WeatherTable[self.weather].atk
             self.spellboost = WeatherTable[self.weather].boost * 0.01
             self.dr = (1. - WeatherTable[self.weather].dr * 0.01)
 
@@ -2751,7 +2834,7 @@ OnInit.global("Buffs", function(Require)
             UnitAddAbility(self.target, WeatherTable[self.weather].abil)
             UnitMakeAbilityPermanent(self.target, true, WeatherTable[self.weather].abil)
             UnitAddAbility(self.target, WeatherTable[self.weather].buff)
-            UnitAddBonus(self.target, BONUS_DAMAGE, self.atk)
+            Unit[self.target].damage_percent = Unit[self.target].damage_percent + self.atk
             Unit[self.target].bonus_bat = Unit[self.target].bonus_bat / self.as
             Unit[self.target].spellboost = Unit[self.target].spellboost + self.spellboost
             Unit[self.target].dr = Unit[self.target].dr * self.dr
