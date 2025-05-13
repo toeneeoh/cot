@@ -12,7 +12,56 @@ OnInit.global("CodeGen", function()
     local MAX_SPACE = 6
     local BASE      = ALPHABET:len() - MAX_SPACE - 1
     local CHAR      = ALPHABET:sub(2, MAX_SPACE + 1)
-    ALPHABET        = ALPHABET:sub(1, 1) .. ALPHABET:sub(MAX_SPACE + 2)
+
+    ---@param str string
+    ---@param seed integer
+    ---@return string
+    local function pseudoRandomPermutation(str, seed)
+        local oldSeed = math.random(0, 2147483647)
+        math.randomseed(seed)
+
+        local chars = {}
+        for i = 1, #str do
+            table.insert(chars, str:sub(i, i))
+        end
+
+        for i = #chars, 2, -1 do
+            local j = math.random(i)
+            chars[i], chars[j] = chars[j], chars[i]
+        end
+
+        math.randomseed(oldSeed)
+
+        return table.concat(chars)
+    end
+
+    -- string scrambling init
+    local scrambled = pseudoRandomPermutation(ALPHABET, SAVE_LOAD_VERSION)
+    local SCRAMBLED = {}
+    local UNSCRAMBLED = {}
+    for i = 1, ALPHABET:len() do
+        SCRAMBLED[ALPHABET:sub(i, i)] = scrambled:sub(i, i)
+        UNSCRAMBLED[scrambled:sub(i, i)] = ALPHABET:sub(i, i)
+    end
+
+    -- remove delimiters
+    ALPHABET = ALPHABET:sub(1, 1) .. ALPHABET:sub(MAX_SPACE + 2)
+
+    local function scrambleString(whichString)
+        local scrambledString = ""
+        for i = 1, whichString:len() do
+            scrambledString = scrambledString .. (SCRAMBLED[whichString:sub(i, i)] or whichString:sub(i, i))
+        end
+        return scrambledString
+    end
+
+    local function unscrambleString(whichString)
+        local unscrambledString = ""
+        for i = 1, whichString:len() do
+            unscrambledString = unscrambledString .. (UNSCRAMBLED[whichString:sub(i, i)] or whichString:sub(i, i))
+        end
+        return unscrambledString
+    end
 
     ---@param str string
     local function compress(str)
@@ -109,7 +158,7 @@ OnInit.global("CodeGen", function()
     ---@type fun(str: string, p: player): table?, string?
     function Decompile(str, p)
         local VALID = false
-        str = decompress(str)
+        str = decompress(unscrambleString(str))
 
         for i = 1, 3 do
             if decode(str:sub(1, i)) == StringChecksum(str:sub(i + 1)) then
@@ -174,7 +223,7 @@ OnInit.global("CodeGen", function()
             print("Checksum: " .. cs .. " Encoded: " .. encode(cs))
         end
 
-        return compress(out)
+        return scrambleString(compress(out))
     end
 
 end, Debug and Debug.getLine())
