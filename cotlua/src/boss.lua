@@ -37,6 +37,7 @@ OnInit.final("Boss", function(Require)
     ---@field setup_range_event function
     ---@field timer TimerQueue
     ---@field switch_target function
+    ---@field vote function
     Boss = {}
     do
         local thistype = Boss
@@ -150,13 +151,12 @@ OnInit.final("Boss", function(Require)
                 else
                     -- death knight / legion
                     if boss.id == BOSS_DEATH_KNIGHT or boss.id == BOSS_LEGION then
-                        local ug = CreateGroup()
+                        local x, y
                         repeat
-                            RemoveLocation(boss.loc)
-                            boss.loc = GetRandomLocInRect(MAIN_MAP.rect)
-                            GroupEnumUnitsInRangeOfLoc(ug, boss.loc, 4000., Condition(isbase))
-                        until IsTerrainWalkable(GetLocationX(boss.loc), GetLocationY(boss.loc)) and BlzGroupGetSize(ug) == 0 and RectContainsLoc(gg_rct_Town_Main, boss.loc) == false
-                        DestroyGroup(ug)
+                            x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
+                            y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
+                        until IsTerrainWalkable(x, y) and RectContainsCoords(gg_rct_Town_Main, x, y) == false
+                        boss.loc = Location(x, y)
                     elseif boss.index == BOSS_AZAZOTH then
                         AddItemToStock(god_portal, FourCC('I08T'), 1, 1)
                     end
@@ -435,11 +435,13 @@ OnInit.final("Boss", function(Require)
                 local boss = Boss[i]
 
                 if boss and UnitAlive(boss.unit) then
+                    local bossUnit = Unit[boss.unit]
+
                     -- death knight / legion exception
                     if boss.id ~= FourCC('H04R') and boss.id ~= FourCC('H040') then
                         if IsUnitInRangeLoc(boss.unit, boss.loc, boss.leash) == false and GetUnitAbilityLevel(boss.unit, FourCC('Amrf')) == 0 then
-                            Unit[boss.unit].regen_max = 16 -- 16 percent
-                            Unit[boss.unit].overmovespeed = 750
+                            bossUnit.regen_max = 16 -- 16 percent
+                            bossUnit.overmovespeed = 750
                             UnitAddAbility(boss.unit, FourCC('Amrf'))
                             SetUnitPathing(boss.unit, false)
                             TimerQueue:callDelayed(0.25, return_boss, boss)
@@ -479,14 +481,14 @@ OnInit.final("Boss", function(Require)
                         hp = 2 -- 2 percent
                     else -- bonus damage and health
                         if CHAOS_MODE then
-                            UnitSetBonus(boss.unit, BONUS_DAMAGE, R2I(BlzGetUnitBaseDamage(boss.unit, 0) * 0.2 * (boss.nearby_count - 1)))
-                            Unit[boss.unit].bonus_str = Unit[boss.unit].bonus_str + R2I(Unit[boss.unit].str * 0.2 * (boss.nearby_count - 1))
+                            boss.damage_percent = 100 + (20 * (boss.nearby_count - 1))
+                            bossUnit.bonus_str = bossUnit.bonus_str + R2I(bossUnit.str * 20 * (boss.nearby_count - 1))
                         end
                     end
 
                     -- non-returning hp regeneration
-                    if GetUnitAbilityLevel(boss.unit, FourCC('Amrf')) == 0 then
-                        Unit[boss.unit].regen_max = hp
+                    if GetUnitAbilityLevel(boss.unit, FourCC('Amrf')) == 0 and hp ~= bossUnit.regen_max then
+                        bossUnit.regen_max = hp
                     end
                 end
             end
@@ -658,6 +660,49 @@ OnInit.final("Boss", function(Require)
         return false
     end
 
+    local function BossWander()
+        local x ---@type number 
+        local y ---@type number 
+        local x2 ---@type number 
+        local y2 ---@type number 
+        local count = 0 ---@type integer 
+        local id    = (CHAOS_MODE and BOSS_LEGION) or BOSS_DEATH_KNIGHT
+
+        if CHAOS_LOADING then
+            return
+        end
+
+        --dk / legion
+        if GetUnitTypeId(Boss[id].unit) ~= 0 and UnitAlive(Boss[id].unit) then
+            repeat
+                x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
+                y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
+                x2 = GetUnitX(Boss[id].unit)
+                y2 = GetUnitY(Boss[id].unit)
+                count = count + 1
+
+            until LineContainsRect(x2, y2, x, y, -4000, -3000, 4000, 5000) == false and IsTerrainWalkable(x, y) and DistanceCoords(x, y, x2, y2) > 2500.
+
+            IssuePointOrder(Boss[id].unit, "patrol", x, y)
+        end
+
+        if UnitAlive(townpaladin) then
+            if not TimerList[0]:has('pala') or (DistanceCoords(GetUnitX(townpaladin), GetUnitY(townpaladin), GetRectCenterX(gg_rct_Town_Main), GetRectCenterY(gg_rct_Town_Main)) > 3000.) then
+                x = GetRandomReal(GetRectMinX(gg_rct_Town_Main) + 500, GetRectMaxX(gg_rct_Town_Main) - 500)
+                y = GetRandomReal(GetRectMinY(gg_rct_Town_Main) + 500, GetRectMaxY(gg_rct_Town_Main) - 500)
+
+                IssuePointOrder(townpaladin, "move", x, y)
+            end
+        end
+
+        if UnitAlive(udg_SPONSOR) then
+            x = GetRandomReal(GetRectMinX(gg_rct_Town_Main) + 500, GetRectMaxX(gg_rct_Town_Main) - 500)
+            y = GetRandomReal(GetRectMinY(gg_rct_Town_Main) + 500, GetRectMaxY(gg_rct_Town_Main) - 500)
+
+            IssuePointOrder(udg_SPONSOR, "move", x, y)
+        end
+    end
+
     local illusions = {}
 
     ---@return boolean
@@ -668,12 +713,6 @@ OnInit.final("Boss", function(Require)
             illusions[#illusions + 1] = u
             SetUnitPathing(u, false)
             UnitAddAbility(u, FourCC('Amrf'))
-            RemoveItem(UnitItemInSlot(u, 0))
-            RemoveItem(UnitItemInSlot(u, 1))
-            RemoveItem(UnitItemInSlot(u, 2))
-            RemoveItem(UnitItemInSlot(u, 3))
-            RemoveItem(UnitItemInSlot(u, 5))
-            RemoveItem(UnitItemInSlot(u, 5))
         end
 
         if #illusions >= 7 then
@@ -733,5 +772,7 @@ OnInit.final("Boss", function(Require)
 
     TriggerRegisterPlayerUnitEvent(t, PLAYER_BOSS, EVENT_PLAYER_UNIT_SUMMON, nil)
     TriggerAddCondition(t, Filter(PositionLegionIllusions))
+
+    TimerQueue:callPeriodically(15., nil, BossWander)
 
 end, Debug and Debug.getLine())
