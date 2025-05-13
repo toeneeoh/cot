@@ -53,9 +53,11 @@ OnInit.global("BuffSystem", function(Require)
     ---@field create function
     ---@field duration function
     ---@field refresh function
-    Buff = {}
+    ---@field timer TimerQueue
+    Buff = {} ---@type Buff
     do
         local thistype = Buff
+        thistype.timer = TimerQueue.create()
 
         --Buff defaults
         thistype.pid = 0 ---@type integer
@@ -107,7 +109,7 @@ OnInit.global("BuffSystem", function(Require)
             local remove = false
 
             if self.STACK_TYPE == BUFF_STACK_FULL or self.STACK_TYPE == BUFF_STACK_PARTIAL then
-                --Update Buff count
+                -- Update Buff count
                 count[self.RAWCODE][self.target] = count[self.RAWCODE][self.target] - 1
 
                 if count[self.RAWCODE][self.target] == 0 then
@@ -122,13 +124,11 @@ OnInit.global("BuffSystem", function(Require)
                 UnitRemoveAbility(self.target, self.RAWCODE + BUFF_OFFSET)
             end
 
-            --remove TimerQueue
-            if self.t then
-                self.t:destroy()
-                self.t = nil
+            if self.callback then
+                thistype.timer:disableCallback(self.callback)
             end
 
-            --remove from buffs
+            -- remove from buffs
             for i = 1, #buffs do
                 if buffs[i] == self then
                     buffs[i] = buffs[#buffs]
@@ -144,18 +144,15 @@ OnInit.global("BuffSystem", function(Require)
             self = nil
         end
 
-        ---@type fun(self: Buff, dur: number): number
+        ---@type fun(self: Buff, dur: number)
         function thistype:duration(dur)
-            if not self.t then
-                self.t = TimerQueue.create()
+            if self.callback then
+                thistype.timer:disableCallback(self.callback)
             end
 
             if dur then
-                self.t:reset()
-                self.t:callDelayed(dur, self.remove, self)
+                self.callback = thistype.timer:callDelayed(dur, self.remove, self)
             end
-
-            return TimerGetRemaining(self.t.timer)
         end
 
         ---@type fun(self: Buff, source: unit, target: unit): Buff
@@ -234,10 +231,11 @@ OnInit.global("BuffSystem", function(Require)
         end
 
         ---@param u unit
-        function thistype.dispelAll(u)
+        ---@param override boolean
+        function thistype.dispelAll(u, override)
             local i = 1
             while i <= #buffs do
-                if buffs[i].target == u then
+                if buffs[i].target == u and (not buffs[i].CANNOT_PURGE or override) then
                     buffs[i]:remove()
                 else
                     i = i + 1
@@ -248,7 +246,7 @@ OnInit.global("BuffSystem", function(Require)
         ---@type fun(self: Buff, source: unit, target: unit)
         function thistype:dispel(source, target)
             for i = 1, #buffs do
-                if buffs[i].RAWCODE == self.RAWCODE and target == buffs[i].target and (source == nil or source == buffs[i].source) then
+                if buffs[i].RAWCODE == self.RAWCODE and target == buffs[i].target and (source == nil or source == buffs[i].source) and not buffs[i].CANNOT_PURGE then
                     buffs[i]:remove()
                     break
                 end
