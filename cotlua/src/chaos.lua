@@ -44,8 +44,6 @@ OnInit.final("Chaos", function(Require)
         local u = GetFilterUnit()
         local i = GetPlayerId(GetOwningPlayer(u)) ---@type integer 
 
-        RemoveAntiLag(u)
-
         if (u ~= PUNCHING_BAG and
         UnitAlive(u) and
         GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
@@ -67,6 +65,7 @@ OnInit.final("Chaos", function(Require)
         -- crypt coffin
         RemoveDestructable(gg_dest_B003_1936)
 
+        -- weird transition sound effect
         SoundHandler("Sound\\Interface\\BattleNetWooshStereo1.flac", false)
 
         DestroyQuest(Defeat_The_Horde_Quest)
@@ -90,6 +89,9 @@ OnInit.final("Chaos", function(Require)
         local loc = {GetUnitX(gg_unit_h036_0002), GetUnitY(gg_unit_h036_0002)}
         RemoveUnit(gg_unit_h036_0002) -- huntsman
         CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h009'), loc[1], loc[2], facing)
+
+        -- colosseum director
+        BlzSetUnitSkin(gg_unit_h059_0714, FourCC('e000'))
 
         -- removes creeps and villagers
         local ug = CreateGroup()
@@ -216,8 +218,8 @@ OnInit.final("Chaos", function(Require)
 
     function BeginChaos(killed)
         -- 10 minute grace period for legion jumps
-        HUNT_TIMER:disable()
-        TimerQueue:callDelayed(600., function() HUNT_TIMER:enable() end)
+        TimerQueue:disableCallback(HUNT_TIMER)
+        TimerQueue:callDelayed(600., function() TimerQueue:enableCallback(HUNT_TIMER) end)
 
         CHAOS_LOADING = true
         CHAOS_MODE = true
