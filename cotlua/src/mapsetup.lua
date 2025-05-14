@@ -45,16 +45,6 @@ OnInit.final("MapSetup", function(Require)
         villagers = nil
     end
 
-    -- create floating texttags
-    SetTextTagText(ColoText, "", 15.00)
-    SetTextTagPos(ColoText, 21710., -4261., 0)
-    SetTextTagColor(ColoText, 235, 235, 21, 255)
-    SetTextTagPermanent(ColoText, true)
-    SetTextTagText(StruggleText, "", 15.00)
-    SetTextTagPos(StruggleText, 28039., 4350., 0)
-    SetTextTagColor(StruggleText, 235, 235, 21, 255)
-    SetTextTagPermanent(StruggleText, true)
-
     -- ally enemies and bosses
     SetPlayerAllianceStateBJ(PLAYER_BOSS, PLAYER_CREEP, bj_ALLIANCE_ALLIED)
     SetPlayerAllianceStateBJ(PLAYER_CREEP, PLAYER_BOSS, bj_ALLIANCE_ALLIED)
