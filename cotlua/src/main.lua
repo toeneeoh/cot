@@ -30,7 +30,7 @@ EnableUserControl(false)
 SetDoodadAnimation(-16300, 1000, 100, FourCC('D08O'), true, "Stand Work -1", false)
 SetDoodadAnimation(1730, 750, 100, FourCC('D088'), true, "Stand Work", false)
 
---determine host by syncing join and start times
+-- determine host by syncing join and start times
 TimerQueue:callDelayed(0., function()
     local ON_JOIN = CreateTrigger()
     local ON_START = CreateTrigger()
