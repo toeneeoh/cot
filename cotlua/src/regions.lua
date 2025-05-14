@@ -78,10 +78,6 @@ OnInit.final("Regions", function(Require)
     REGION_DATA[gg_rct_Naga_Dungeon_Reward] = { vision = gg_rct_Naga_Dungeon_Reward_Vision, minimap = "war3mapImported\\minimap_nagadungeon.dds" }
     REGION_DATA[gg_rct_Naga_Dungeon] = { vision = gg_rct_Naga_Dungeon_Vision, minimap = "war3mapImported\\minimap_nagadungeon.dds" }
 
-    colospot[1] = GetRectCenter(gg_rct_Colosseum_Monster_Spawn)
-    colospot[2] = GetRectCenter(gg_rct_Colosseum_Monster_Spawn_2)
-    colospot[3] = GetRectCenter(gg_rct_Colosseum_Monster_Spawn_3)
-
     RegionCount      = {} ---@type rect[] 
     RegionCount[25]  = gg_rct_Troll_Demon_1
     RegionCount[26]  = gg_rct_Troll_Demon_2
@@ -175,7 +171,12 @@ OnInit.final("Regions", function(Require)
     local function LavaRegion()
         local u = GetFilterUnit()
 
-        Lava:add(u, u)
+        if UnitAlive(u) and
+            GetUnitAbilityLevel(u, FourCC('Avul')) == 0 and
+            GetUnitAbilityLevel(u, FourCC('Aloc')) == 0 and
+            not IsDummy(u) then
+            Lava:add(u, u)
+        end
         return false
     end
 
