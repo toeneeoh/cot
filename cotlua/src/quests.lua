@@ -67,12 +67,19 @@ OnInit.final("Quests", function(Require)
             HORDE_QUEST_MARKER = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl", gg_unit_n02Q_0382, "overhead")
         end
 
+        ---@return boolean
+        local function is_orc()
+            local uid = GetUnitTypeId(GetFilterUnit()) ---@type integer 
+
+            return (UnitAlive(GetFilterUnit()) and (uid == FourCC('o01I') or uid == FourCC('o008')))
+        end
+
         local function orc_death(killed)
             local uid = GetUnitTypeId(killed)
             --the horde
             if IsQuestDiscovered(Defeat_The_Horde_Quest) and IsQuestCompleted(Defeat_The_Horde_Quest) == false and (uid == FourCC('o01I') or uid == FourCC('o008')) then --Defeat the Horde
                 local ug = CreateGroup()
-                GroupEnumUnitsOfPlayer(ug, PLAYER_BOSS, Filter(isOrc))
+                GroupEnumUnitsOfPlayer(ug, PLAYER_BOSS, Filter(is_orc))
 
                 if BlzGroupGetSize(ug) == 0 and UnitAlive(kroresh) and GetUnitAbilityLevel(kroresh, FourCC('Avul')) > 0 then
                     UnitRemoveAbility(kroresh, FourCC('Avul'))
@@ -89,7 +96,7 @@ OnInit.final("Quests", function(Require)
             if IsQuestCompleted(Defeat_The_Horde_Quest) == false and not CHAOS_MODE then
                 local ug = CreateGroup()
 
-                GroupEnumUnitsOfPlayer(ug, PLAYER_BOSS, Filter(isOrc))
+                GroupEnumUnitsOfPlayer(ug, PLAYER_BOSS, Filter(is_orc))
 
                 if GetUnitAbilityLevel(kroresh, FourCC('Avul')) > 0 and BlzGroupGetSize(ug) < 32 then
                     --bottom side
@@ -378,7 +385,7 @@ CanFight]], "ReplaceableTextures\\CommandButtons\\BTNTheCaptain.blp")
 Bud-Bus-|r
 |cff7c0a02Ash
 Sagmariasus
-Aru_Azif
+AruAzif
 Orion
 AgentCody
 Anna Kendrick
@@ -402,7 +409,6 @@ Maiev|r]], "ReplaceableTextures\\CommandButtons\\BTNJaina.blp")
 -pf (proficiencies)
 -save (saves your character, this game uses a codeless save system)
 -load (loads your profile/heroes to be selected from in your current game)
--forcesave (after a timer/prompt, your character will be removed & saved)
 -autosave (automatically saves your hero every 30 minutes)
 -savetime (time until you can save again)
 -restime (time until you can recharge your ankh again)
