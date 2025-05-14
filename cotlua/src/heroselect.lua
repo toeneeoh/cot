@@ -8,12 +8,15 @@ OnInit.final("HeroSelect", function(Require)
     local SELECT_VIEWING = __jarray(0) ---@type integer[] 
     local SELECT_STAT    = __jarray(0) ---@type integer[] 
     local SELECT_SORT    = {} ---@type boolean[] 
+    local hardcore_clicked = {}
 
     local unitMapping = {
         [1] = FourCC('E001'),
         [2] = FourCC('E004'),
         [3] = FourCC('E01A')
     }
+
+    ALICE_ExcludeTypes('E001', 'E004', 'E01A')
 
     --- Create or replace the dummy unit based on the main stat index
     --- @param pid integer
@@ -103,6 +106,8 @@ OnInit.final("HeroSelect", function(Require)
         BlzUnitHideAbility(selected_unit, FourCC('Aatk'), true)
 
         if (GetLocalPlayer() == Player(pid - 1)) then
+            -- move passive Y position to (0,1)
+            BlzSetAbilityPosY(current_hero.passive, 1)
             SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 500, 0)
             SetCameraField(CAMERA_FIELD_ANGLE_OF_ATTACK, 340, 0)
             SetCameraField(CAMERA_FIELD_FIELD_OF_VIEW, 60, 0)
@@ -124,8 +129,8 @@ OnInit.final("HeroSelect", function(Require)
     function HardcoreMenu()
         local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
 
-        if not hardcoreClicked[pid] then
-            hardcoreClicked[pid] = true
+        if not hardcore_clicked[pid] then
+            hardcore_clicked[pid] = true
             return true
         end
 
@@ -166,6 +171,7 @@ OnInit.final("HeroSelect", function(Require)
 
         Profile[pid]:new_character(id)
         SELECTING_HERO[pid] = false
+        hardcore_clicked[pid] = false
 
         if (GetLocalPlayer() == p) then
             ClearTextMessages()
