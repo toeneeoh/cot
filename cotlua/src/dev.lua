@@ -10,12 +10,11 @@ OnInit.final("Dev", function(Require)
     MAP_NAME            = "CoT Nevermore BETA"
     EXTRA_DEBUG         = false ---@type boolean 
     BUDDHA_MODE         = {} ---@type boolean[] 
-    nocd                = {} ---@type boolean[] 
-    nocost              = {} ---@type boolean[] 
     DEBUG_COUNT         = 0 ---@type integer 
     WEATHER_OVERRIDE    = 0 ---@type integer 
     GAME_STATE          = (GAME_STATE == 0) and 2 or GAME_STATE -- keep game state as replay if replay
 
+    Require('TimerQueue')
     Require("Orders")
 
     local pack, find, lower = string.pack, string.find, string.lower
@@ -92,19 +91,49 @@ modifiers:
         amount.value = 0.
     end
 
+    local function NOCOST(source)
+        if not Unit[source].nomanaregen then
+            SetUnitState(source, UNIT_STATE_MANA, GetUnitState(source, UNIT_STATE_MAX_MANA))
+        end
+    end
+
+    local function reset_cd(source)
+        UnitResetCooldown(source)
+    end
+
+    local function NOCD(source)
+        TimerQueue:callDelayed(0.1, reset_cd, source)
+    end
+
+    local boost_mt = {
+        __index = function(tbl, key)
+            return (1. + Unit[Hero[key]].spellboost)
+        end,
+        __newindex = function() end,
+    }
+
     --lookup table
     dev_cmds = {
         ["nocd"] = function(p, pid, args)
-            nocd[pid] = true
-        end,
-        ["cd"] = function(p, pid, args)
-            nocd[pid] = false
+            if EVENT_ON_ORDER:register_unit_action(Hero[pid], NOCD) then
+                DisplayTextToPlayer(Player(pid - 1), 0, 0, "No cd enabled")
+            else
+                EVENT_ON_ORDER:unregister_unit_action(Hero[pid], NOCD)
+                DisplayTextToPlayer(Player(pid - 1), 0, 0, "No cd disabled")
+            end
+
+            if EVENT_ON_ORDER:register_unit_action(Backpack[pid], NOCD) then
+            else
+                EVENT_ON_ORDER:unregister_unit_action(Backpack[pid], NOCD)
+            end
         end,
         ["nocost"] = function(p, pid, args)
-            nocost[pid] = true
-        end,
-        ["cost"] = function(p, pid, args)
-            nocost[pid] = false
+            if EVENT_ON_ORDER:register_unit_action(Hero[pid], NOCOST) then
+                DisplayTextToPlayer(Player(pid - 1), 0, 0, "No cost enabled")
+            else
+                EVENT_ON_ORDER:unregister_unit_action(Hero[pid], NOCOST)
+                DisplayTextToPlayer(Player(pid - 1), 0, 0, "No cost disabled")
+            end
         end,
         ["sight"] = function(p, pid, args)
             local r = 400.
@@ -162,7 +191,7 @@ modifiers:
             SetTimeOfDay(5.95)
         end,
         ["night"] = function(p, pid, args)
-            SetTimeOfDay(17.49)
+            SetTimeOfDay(18.01)
         end,
         ["si"] = function(p, pid, args)
             local search = ""
@@ -187,17 +216,19 @@ modifiers:
             local type = S2I(args[3])
 
             if id <= PLAYER_CAP and GetPlayerSlotState(Player(id - 1)) ~= PLAYER_SLOT_STATE_PLAYING and type and type ~= 0 then
-                User.create(id - 1)
-                RemoveUnit(Hero[id])
-                RemoveUnit(HeroGrave[id])
+                if not User[id - 1] then
+                    User.create(id - 1)
+                end
 
                 if not Profile[id] then
                     Profile[id] = Profile.create(id)
+                    event_setup(id)
+                else
+                    PlayerCleanup(id)
                 end
 
                 Selection(id, SAVE_UNIT_TYPE[type])
                 StartGame(id)
-                event_setup(id)
             end
         end,
         ["sharecontrol"] = function(p, pid, args)
@@ -227,15 +258,24 @@ modifiers:
             WEATHER_OVERRIDE = w
             WeatherPeriodic()
         end,
+
+        ["getrate"] = function(p, pid, args)
+            local rate = args[2]
+
+            if rate then
+                rate = FourCC(rate)
+
+                for i = 1, ItemDrops[rate][100] do
+                    print(ItemDrops[rate][i .. "\x25"])
+                end
+            end
+        end,
         ["noborders"] = function(p, pid, args)
             if GetLocalPlayer() == p then
                 SetCameraField(CAMERA_FIELD_ROTATION, 90., 0)
                 SetCameraBounds(WorldBounds.minX, WorldBounds.minY, WorldBounds.minX, WorldBounds.maxY, WorldBounds.maxX, WorldBounds.maxY, WorldBounds.maxX, WorldBounds.minY)
             end
             SetMinimapTexture(pid, "war3mapImported\\minimap_noborders.dds")
-        end,
-        ["displayhint"] = function(p, pid, args)
-            DisplayHint()
         end,
         ["bossrespawn"] = function(p, pid, args)
             args[2] = args[2] or 5
@@ -307,7 +347,6 @@ modifiers:
             SetCurrency(pid, PLATINUM, 9999)
             SetCurrency(pid, CRYSTAL, 9999)
             SetHeroLevel(Hero[pid], 400, false)
-            PlayerAddItemById(pid, FourCC('I0M8'))
             FogMaskEnable(false)
             FogEnable(false)
             ExperienceControl(pid)
@@ -348,9 +387,16 @@ modifiers:
             if BOOST_OFF then
                 DisplayTextToPlayer(p, 0, 0, "Boost enabled.")
                 BOOST_OFF = false
+                setmetatable(BOOST, nil)
             else
                 DisplayTextToPlayer(p, 0, 0, "Boost disabled.")
                 BOOST_OFF = true
+                local U = User.first
+                while U do
+                    BOOST[U.id] = nil
+                    U = U.next
+                end
+                setmetatable(BOOST, boost_mt)
             end
         end,
         ["hurt"] = function(p, pid, args)
@@ -365,19 +411,6 @@ modifiers:
                 EVENT_ON_FATAL_DAMAGE:register_unit_action(Hero[pid], BUDDHA)
                 DisplayTextToPlayer(p, 0, 0, "Buddha enabled.")
                 BUDDHA_MODE[pid] = true
-            end
-        end,
-        ["votekicktest"] = function(p, pid, args)
-            votekickPlayer = pid
-            ResetVote()
-            VOTING_TYPE = 2
-
-            local U = User.first
-            while U do
-                if GetLocalPlayer() == U.player then
-                    BlzFrameSetVisible(VOTING_BACKDROP, true)
-                end
-                U = U.next
             end
         end,
         ["saveall"] = function(p, pid, args)
@@ -409,13 +442,13 @@ modifiers:
             BlzSetUnitBaseDamage(PLAYER_SELECTED_UNIT[pid], S2I(args[2]), 0)
         end,
         ["getitemabilstring"] = function(p, pid, args)
-            print((ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][ITEM_ABILITY * ABILITY_OFFSET .. "abil"]))
+            print((ItemData[Profile[pid].hero.items[1]][ITEM_ABILITY .. "data"]))
         end,
         ["getitemdata"] = function(p, pid, args)
-            print((ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][S2I(args[2])]))
+            print((ItemData[Profile[pid].hero.items[1]][S2I(args[2])]))
         end,
         ["itemdata"] = function(p, pid, args)
-            SetItemUserData(UnitItemInSlot(Hero[pid], 0), S2I(args[2]))
+            SetItemUserData(Profile[pid].hero.items[1].obj, S2I(args[2]))
         end,
         ["anim"] = function(p, pid, args)
             SetUnitAnimationByIndex(PLAYER_SELECTED_UNIT[pid], S2I(args[2]))
@@ -444,10 +477,10 @@ modifiers:
             print(FourCC(args[2]))
         end,
         ["itemlevel"] = function(p, pid, args)
-            Item[UnitItemInSlot(Hero[pid], 0)]:lvl(S2I(args[2]))
+            Profile[pid].hero.items[1]:lvl(S2I(args[2]))
         end,
         ["maxlevel"] = function(p, pid, args)
-            Item[UnitItemInSlot(Hero[pid], 0)]:lvl(ItemData[GetItemTypeId(UnitItemInSlot(Hero[pid], 0))][ITEM_UPGRADE_MAX])
+            Profile[pid].hero.items[1]:lvl(ItemData[Profile[pid].hero.items[1].id][ITEM_UPGRADE_MAX])
         end,
         ["itemset"] = function(p, pid, args)
             local items = Profile[pid].hero.items
@@ -459,7 +492,7 @@ modifiers:
             end
             ParseItemTooltip(items[1].obj, text)
             items[1]:update()
-            items[1]:equip(nil, Hero[pid])
+            items[1]:equip()
         end,
         ["mousecoords"] = function(p, pid, args)
             local mouse_x = GetMouseFrameXStable()
@@ -550,8 +583,39 @@ modifiers:
         ["benchmark"] = function(p, pid, args)
             iterations = (args[2] and S2I(args[2])) or 1000
 
+            local Allied = function(object, p)
+                return IsUnitAlly(object, p)
+            end
+
+            local print_name = function(object)
+                print(GetUnitName(object))
+            end
+
             local s = os.clock()
             for _ = 1, iterations do
+                ALICE_ForAllObjectsInRangeDo(print_name, 0, 0, 500., "unit", Allied, Player(0))
+                --
+            end
+            local e = os.clock()
+
+            local time = e - s
+            print(string.format("Function time: %.4f seconds", time))
+        end,
+
+        ["benchmark2"] = function(p, pid, args)
+            iterations = (args[2] and S2I(args[2])) or 1000
+
+            local Allied = function()
+                local u = GetFilterUnit()
+
+                return IsUnitAlly(u, p)
+            end
+
+            local s = os.clock()
+            for _ = 1, iterations do
+                local ug = CreateGroup()
+                MakeGroupInRange(pid, ug, 0., 0., 500., Filter(Allied))
+                DestroyGroup(ug)
                 --
             end
             local e = os.clock()
@@ -589,8 +653,8 @@ modifiers:
             ItemData[id][i .. "percent"] = 0
             ItemData[id][i .. "unlock"] = 0
             ItemData[id][i .. "fixed"] = 0
-            ItemData[id][i * ABILITY_OFFSET] = 0
-            ItemData[id][i * ABILITY_OFFSET .. "abil"] = nil
+            ItemData[id][i .. "id"] = 0
+            ItemData[id][i .. "data"] = 0
         end
     end
 
@@ -739,50 +803,6 @@ modifiers:
         end
     end
 
-    ---@type fun(pid: integer)
-    local function reset_cd(pid)
-        UnitResetCooldown(Hero[pid])
-        UnitResetCooldown(Backpack[pid])
-    end
-
-    local function newOnOrder()
-        local source = GetTriggerUnit() ---@type unit 
-        local pid = GetPlayerId(GetOwningPlayer(source)) + 1
-
-        if nocd[pid] then
-            TimerQueue:callDelayed(0.1, reset_cd, pid)
-        end
-
-        if nocost[pid] and HeroID[pid] ~= HERO_VAMPIRE then
-            SetUnitState(Hero[pid], UNIT_STATE_MANA, GetUnitState(Hero[pid], UNIT_STATE_MAX_MANA))
-        end
-
-        --[[
-        --[[local x2, y2 = GetUnitX(source), GetUnitY(source)
-
-        if source == Hero[pid] then
-            if (id == ORDER_ID_SMART or id == ORDER_ID_ATTACK) and CoordinateQueue[pid] then
-                CoordinateQueue[pid]:clear()
-                TurnQueue[pid] = {}
-            end
-
-            if A_STAR_PATHING and (id == ORDER_ID_SMART or id == ORDER_ID_ATTACK) and x ~= 0 and y ~= 0 then
-                QueuePathing(source, x2, y2, x, y)
-            end
-        end]]
-        --]]
-    end
-
-    local origOnOrder = OnOrder
-    OnOrder = function()
-        origOnOrder()
-        newOnOrder()
-    end
-
-    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_ORDER, newOnOrder)
-    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, newOnOrder)
-    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, newOnOrder)
-
     local devcmd = CreateTrigger()
 
     for i = 0, PLAYER_CAP - 1 do
@@ -790,5 +810,27 @@ modifiers:
     end
 
     TriggerAddAction(devcmd, dev_commands)
+
+    local function teleport(pid, is_down)
+        if is_down then
+            local u = PLAYER_SELECTED_UNIT[pid]
+            SetUnitXBounded(u, GetMouseX(pid))
+            SetUnitYBounded(u, GetMouseY(pid))
+        end
+    end
+    RegisterHotkeyToFunc('P', "Dev Teleport", teleport)
+
+    local setup = function(x, y)
+        local pid = 1
+        local p = Player(0)
+        dev_cmds["go"](p, pid, {"go", "arcani"})
+
+        SetUnitXBounded(Hero[pid], x)
+        SetUnitYBounded(Hero[pid], y)
+        PanCameraToTimedForPlayer(p, x, y, 0)
+    end
+
+    --- start somewhere
+    -- TimerQueue:callDelayed(1.5, setup, 0, 0)
 
 end, Debug and Debug.getLine())
