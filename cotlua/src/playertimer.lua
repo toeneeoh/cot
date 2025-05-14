@@ -92,7 +92,7 @@ OnInit.global("PlayerTimer", function(Require)
             end
 
             TimerList[self.pid]:removeTimer(self)
-            self = nil
+            setmetatable(self, nil)
         end
     end
 
