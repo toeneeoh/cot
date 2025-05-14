@@ -84,76 +84,6 @@ OnInit.final("SaveLoad", function(Require)
         return false
     end
 
-    ---@param p player
-    local function force_save(p)
-        local pid = GetPlayerId(p) + 1 ---@type integer 
-
-        if not Profile[pid].playing or GetUnitTypeId(Hero[pid]) == 0 or UnitAlive(Hero[pid]) == false then
-            DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
-            return
-        end
-
-        IS_FORCE_SAVING[pid] = false
-
-        Profile[pid]:save_character()
-
-        PlayerCleanup(pid)
-    end
-
-    ---@type fun(pt: PlayerTimer)
-    local function force_save_periodic(pt)
-        pt.time = pt.time + 1
-
-        if pt.time < pt.dur and not IS_FORCE_SAVING[pt.pid] then
-            if (GetLocalPlayer() == Player(pt.pid - 1)) then
-                ClearTextMessages()
-            end
-            DisplayTimedTextToPlayer(Player(pt.pid - 1), 0, 0, 60., "Force save aborted!")
-
-            IS_FORCE_SAVING[pt.pid] = false
-            pt:destroy()
-        elseif pt.time >= pt.dur and IS_FORCE_SAVING[pt.pid] then
-            force_save(Player(pt.pid - 1))
-
-            IS_FORCE_SAVING[pt.pid] = false
-            pt:destroy()
-        end
-    end
-
-    ---@param p player
-    ---@param timed boolean
-    local function start_force_save(p, timed)
-        local pid = GetPlayerId(p) + 1 ---@type integer 
-        local pt ---@type PlayerTimer 
-        local profile = Profile[pid]
-
-        if not profile.cannot_load then
-            DisplayTextToPlayer(p, 0, 0, "You must leave the church to save.")
-            return
-        end
-
-        if not profile.playing or GetUnitTypeId(Hero[pid]) == 0 or UnitAlive(Hero[pid]) == false then
-            DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
-            return
-        end
-
-        if timed then
-            IS_FORCE_SAVING[pid] = true
-            Unit[Hero[pid]].busy = true
-            PauseUnit(Hero[pid], true)
-            PauseUnit(Backpack[pid], true)
-            UnitRemoveAbility(Hero[pid], FourCC('Binv'))
-            DisplayTimedTextToPlayer(p, 0, 0, 120, "Please stay out of combat for 10 seconds.")
-            DisplayTimedTextToPlayer(p, 0, 0, 120, "Type |cffffcc00Or|r -cancel |cffffcc00if you wish to abort.|r")
-            pt = TimerList[pid]:add()
-            pt.tag = FourCC('fsav')
-            pt.dur = 20.
-            pt.timer:callDelayed(0.5, force_save_periodic, pt)
-        else
-            force_save(p)
-        end
-    end
-
     ---@return boolean
     local function on_save()
         local cmd = GetEventPlayerChatStringMatched()
@@ -165,21 +95,15 @@ OnInit.final("SaveLoad", function(Require)
             return false
         end
 
-        if (cmd == "-forcesave") then
-            if InCombat(Hero[pid]) then
-                DisplayTextToPlayer(p, 0, 0, "You cannot do this while in combat!")
-            elseif Unit[Hero[pid]].busy then
-                DisplayTextToPlayer(p, 0, 0, "You cannot do this right now!")
-            elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) or RectContainsCoords(gg_rct_Tavern, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) then
-                start_force_save(p, false)
-            else
-                start_force_save(p, true)
-            end
-        elseif (cmd == "-save") then
-            if TimerGetRemaining(Profile[pid].save_timer.timer) > 1 and Hardcore[pid] then
-                DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(Profile[pid].save_timer.timer) .. " until you can save again.")
-            elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) == false and Hardcore[pid] then
-                DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffFF0000You're playing in hardcore mode, you may only save inside the church in town.|r")
+        if (cmd == "-save") then
+            if Profile[pid].hero.hardcore > 0 then
+                if TimerGetRemaining(Profile[pid].save_timer.timer) > 1 then
+                    DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(Profile[pid].save_timer.timer) .. " until you can save again.")
+                elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) == false then
+                    DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffFF0000You're playing in hardcore mode, you may only save inside the church in town.|r")
+                else
+                    Save(p)
+                end
             else
                 Save(p)
             end
@@ -296,7 +220,6 @@ OnInit.final("SaveLoad", function(Require)
 
                     TriggerRegisterPlayerChatEvent(loadHeroTrigger, user.player, "-load", true)
                     TriggerRegisterPlayerChatEvent(saveHeroTrigger, user.player, "-save", true)
-                    TriggerRegisterPlayerChatEvent(saveHeroTrigger, user.player, "-forcesave", true)
                     threads[user.id] = nil
                 end)
 
