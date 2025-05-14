@@ -123,9 +123,10 @@ OnInit.final("Currency", function(Require)
     ---@type fun(pid: integer, index: integer, amount: integer)
     function AddCurrency(pid, index, amount)
         SetCurrency(pid, index, GetCurrency(pid, index) + amount)
+        Shop.refresh(pid)
     end
 
-    ---@type fun(pid: integer, goldawarded:number, displaymessage: boolean)
+    ---@type fun(pid: integer, goldawarded: number, displaymessage: boolean)
     function AwardGold(pid, goldawarded, displaymessage)
         local p = Player(pid - 1)
         local goldWon ---@type integer 
@@ -163,6 +164,28 @@ OnInit.final("Currency", function(Require)
         end
     end
 
+    ---@type fun(pid: integer, price: number, successMsg: string): boolean
+    function ChargePlayer(pid, price, successMsg)
+        local g = GetCurrency(pid, GOLD)
+        local p = GetCurrency(pid, PLATINUM)
+        local total = g + p * 1000000
+
+        if total < price then
+            DisplayTextToPlayer(Player(pid-1), 0., 0., "You do not have enough funds!")
+            return false
+        end
+
+        local newTotal = total - price
+        local newP = newTotal // 1000000
+        local newG = math.fmod(newTotal, 1000000)
+
+        AddCurrency(pid, PLATINUM, newP - p)
+        AddCurrency(pid, GOLD,     newG - g)
+
+        DisplayTextToPlayer(Player(pid - 1), 0., 0., successMsg)
+        return true
+    end
+
     ---@type fun(p: player, flat: integer, percent: number, minimum: integer, message: string)
     function ChargeNetworth(p, flat, percent, minimum, message)
         local pid          = GetPlayerId(p) + 1
@@ -195,6 +218,7 @@ OnInit.final("Currency", function(Require)
         local p   = GetTriggerPlayer()
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
+        Shop.refresh(pid)
         CURRENCY[pid * CURRENCY_COUNT + GOLD] = GetPlayerState(p, PLAYER_STATE_RESOURCE_GOLD)
 
         if IS_CONVERTING_PLAT[pid] then
