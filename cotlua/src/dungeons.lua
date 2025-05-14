@@ -146,8 +146,8 @@ OnInit.final("Dungeons", function(Require)
                 DisableItems(QUEUE_GROUP[i], true)
                 DisableBackpackTeleports(QUEUE_GROUP[i], true)
 
-                mb:showRow(mb.last_row, false)
                 mb.last_row = mb.last_row - 1
+                mb:showRow(mb.last_row, false)
                 mb.available[QUEUE_GROUP[i]] = false
                 MULTIBOARD.MAIN:display(QUEUE_GROUP[i])
 
