@@ -2,13 +2,13 @@ if Debug and Debug.beginFile then Debug.beginFile("TimerQueue") end
 --[[------------------------------------------------------------------------------------------------------------------------------------------------------------
 *
 *    --------------------------------
-*    | TimerQueue and Stopwatch 1.2 |
+*    | TimerQueue and Stopwatch 1.3 |
 *    --------------------------------
 *
-*    - by Eikonium and AGD
+*    - by Eikonium
 *
 *    -> https://www.hiveworkshop.com/threads/timerqueue-stopwatch.353718/
-*    - This is basically the enhanced and instancifiable version of ExecuteDelayed 1.0.4 by AGD https://www.hiveworkshop.com/threads/lua-delayedaction.321072/
+*    - Credits to AGD, who's "ExecuteDelayed 1.0.4" code was used as the basis for TimerQueue. See https://www.hiveworkshop.com/threads/lua-delayedaction.321072/
 *
 * --------------------
 * | TimerQueue class |
@@ -19,15 +19,15 @@ if Debug and Debug.beginFile then Debug.beginFile("TimerQueue") end
 *        - All methods can also be called on the class directly, which frees you from needing to create a TimerQueue object in the first place. You still need colon-notation!
 *    TimerQueue.create() --> TimerQueue
 *        - Creates a new TimerQueue with its own independent timer and function queue.
-*    <TimerQueue>:callDelayed(number delay, function callback, ...) --> TimerQueueElement
+*    <TimerQueue>:callDelayed(number delay, function callback, ...) --> integer (callbackId)
 *        - Calls the specified function (or callable table) after the specified delay (in seconds) with the specified arguments (...). Does not delay the following lines of codes.
-*        - The returned TimerQueueElement can usually be discarded. Saving it to a local var allows you to :disable() or re-:enable() it later.
+*        - The returned integer can usually be discarded. Saving it to a local var allows you to TimerQueue:disableCallback(callbackId) or TimerQueue:enableCallback(callbackId) later. The callbackId is unique per callback and never reused.
 *    <TimerQueue>:callPeriodically(number delay, function|nil stopCondition, function callback, ...)
 *        - Periodically calls the specified function (or callable table) after the specified delay (in seconds) with the specified arguments (...). Stops, when the specified condition resolves to true.
 *        - The stop-condition must be a function returning a boolean. It is checked after each callback execution and is passed the same arguments as the callback (...) (which you can still ignore).
 *        - You can pass nil instead of a function to let the periodic execution repeat forever.
 *        - Resetting the TimerQueue will stop all periodic executions, even if the reset happened within the periodic callback.
-*        - Doesn't return a TimerQueueElement, so disabling a periodic callback is only possible via either meeting the stop-condition or resetting the queue.
+*        - Doesn't return a callbackId, so disabling a periodic callback is only possible via either meeting the stop-condition or resetting the queue.
 *    <TimerQueue>:reset()
 *        - Discards all queued function calls from the Timer Queue. Discarded function calls are not executed.
 *        - You can continue to use <TimerQueue>:callDelayed after resetting it.
@@ -42,18 +42,24 @@ if Debug and Debug.beginFile then Debug.beginFile("TimerQueue") end
 *        - Destroys the Timer Queue. Remaining function calls are discarded and not being executed.
 *    <TimerQueue>:tostring() --> string
 *        - Represents a TimerQueue as a list of its tasks. For debugging purposes.
+*    <TimerQueue>:disableCallback(callbackId)
+*        - Disables the specified callback (as per Id returned by TimerQueue:callDelayed), making it not execute upon timeout.
+*        - The disabled callback will stay in the queue until timeout, allowing you to TimerQueue:enableCallback it, if you changed your mind.
+*        - Use this to cancel a future callback, when resetting the whole queue is not a suitable solution.
+*        - CallbackId's are unique and never reused. Using one within TimerQueue:disableCallback after original timeout will not have any effect, but you don't need to worry about accidently disabling another callback.
+*    <TimerQueue>:enableCallback(callbackId)
+*        - Enables the specified callback (as per Id returned by TimerQueue:callDelayed) after you have previously disabled it, making it again execute upon timeout.
+*        - Enabling a callback after its timeout has already passed while disabled will not have any effect.
 *    <TimerQueue>.debugMode : boolean
 *        - TimerQueues come with their own error handling in case you are not using DebugUtils (https://www.hiveworkshop.com/threads/debug-utils-ingame-console-etc.330758/).
 *        - Set to true to let erroneous function calls through <TimerQueue>:callDelayed print error messages on screen (only takes effect, if Debug Utils is not present. Otherwise you get Debug Utils error handling, which is even better).
 *        - Set to false to not trigger error messages after erroneous callbacks. Do this before map release.
-*        - Default: true.
-*    <TimerQueueElement>:disable()
-*        - Disables this TimerQueueElement (as returned by TimerQueue:callDelayed), making the callback not execute upon timeout.
-*        - Use this to cancel a future callback, when resetting the whole queue is not a suitable solution.
-*        - The disabled TimerQueue-Element will continue to tick, but will forward to the next callback upon timeout instead of executing itself.
-*    <TimerQueueElement>:enable()
-*        - Enables this TimerQueueElement after you have previously disabled it, making the callback again execute normally upon timer expiration.
-*        - Enabling a TimerQueueElement after its timeout has already passed (which happens even while disabled) will not have any effect.
+*        - Default: false (because I assume you also use DebugUtils, which provides its own error handling).
+*    local MAX_STACK_SIZE : integer
+*        - TimerQueue uses table recycling to unburden the garbage collector.
+*        - This constant defines the maximum number of tables that can wait for reusage at the same time. Tables freed while this limit is reached will be garbage collected as normal.
+*        - Can be set to 0 to disable table recycling.
+*        - Default: 128. Should be fine in most scenarios. Increase, if you expect to have a lot of callbacks in the queue.
 * -------------------
 * | Stopwatch class |
 * -------------------
@@ -74,6 +80,11 @@ if Debug and Debug.beginFile then Debug.beginFile("TimerQueue") end
 
 do
 
+    --Help data structures for recycling tables for tasks (TimerQueueElements) in TimerQueues.
+    local recycleStack = {} --Used tables are stored here to prevent garbage collection, up to MAX_STACK_SIZE
+    local stackSize = 0 --Current number of tables stored in recycleStack
+    local MAX_STACK_SIZE = 256 --Max number of tables that can be stored in recycleStack. Set this to a value > 0 to activate table recycling.
+
     ---@class TimerQueueElement
     ---@field [integer] any arguments to be passed to callback
     TimerQueueElement = {
@@ -82,9 +93,27 @@ do
         ,   callback = function() end   ---@type function callback to be executed
         ,   n = 0                       ---@type integer number of arguments passed
         ,   enabled = true              ---@type boolean defines whether the callback shall be executed on timeout or not.
+        ,   id = 0                      ---@type integer unique id of this TimerQueueElement
+        --static
+        ,   nextId = 0                  ---@type integer ever increasing counter that shows the unique id of the next TimerQueueElement being created.
+        ,   storage = setmetatable({}, {__mode = 'v'})                ---@type table<integer, TimerQueueElement> saves all TimerQueueElements by their unique id. Weak values to not interfere with garbage collection.
     }
     TimerQueueElement.__index = TimerQueueElement
     TimerQueueElement.__name = 'TimerQueueElement'
+
+    local fillTable
+    ---Recursive help function that fills a table with the specified arguments from index to maxIndex.
+    ---@param whichTable table table to be filled
+    ---@param index integer current index to be filled with firstParam
+    ---@param maxIndex integer maximum index up to which to continue recursively
+    ---@param firstParam any first param is mentioned explicitly to simplify the recursive call below
+    ---@param ... any second and subsequent params
+    fillTable = function(whichTable, index, maxIndex, firstParam, ...)
+        whichTable[index] = firstParam
+        if index < maxIndex then
+            fillTable(whichTable, index + 1, maxIndex, ...)
+        end
+    end
 
     ---Creates a new TimerQueueElement, which points to itself.
     ---@param timeout? number
@@ -92,21 +121,40 @@ do
     ---@param ... any arguments for callback
     ---@return TimerQueueElement
     function TimerQueueElement.create(timeout, callback, ...)
-        local new = setmetatable({timeout = timeout, callback = callback, n = select('#', ...), ...}, TimerQueueElement)
+        local new
+        if stackSize == 0 then
+            new = setmetatable({timeout = timeout, callback = callback, id = TimerQueueElement.nextId, n = select('#', ...), ...}, TimerQueueElement)
+        else
+            new = setmetatable(recycleStack[stackSize], TimerQueueElement)
+            recycleStack[stackSize] = nil
+            stackSize = stackSize - 1
+            new.timeout, new.callback, new.id, new.n = timeout, callback, TimerQueueElement.nextId, select('#', ...)
+            fillTable(new, 1, new.n, ...) --recursive fillTable is around 20 percent faster than a for-loop based on new[i] = select(i, ...)
+        end
         new.next = new
+        TimerQueueElement.nextId = TimerQueueElement.nextId + 1
+        TimerQueueElement.storage[new.id] = new
         return new
     end
 
-    ---Disables this TimerQueueElement, making the callback not execute upon timer expiration.
-    ---Use this to cancel a future callback, when resetting the whole queue is not suitable.
-    ---The disabled TimerQueue-Element will technically still be part of the queue, but will just forward to the next callback instead of executing itself.
-    function TimerQueueElement:disable()
-        self.enabled = false
-    end
-
-    ---Enables this TimerQueueElement after you have previously disabled it, making the callback again execute normally upon timer expiration.
-    function TimerQueueElement:enable()
-        self.enabled = true
+    ---Empties a TimerQueueElement and puts it to the recycleStack.
+    ---@param timerQueueElement TimerQueueElement
+    local function recycleTimerQueueElement(timerQueueElement)
+        --remove TimerQueueElement from storage and remove metatable
+        TimerQueueElement.storage[timerQueueElement.id] = nil
+        setmetatable(timerQueueElement, nil)
+        --If table recycling is activated and there is space on the recycleStack, push the TimerQueueElement back onto it.
+        if stackSize < MAX_STACK_SIZE then
+            --empty table before putting it back
+            for i = 1, timerQueueElement.n do
+                timerQueueElement[i] = nil
+            end
+            timerQueueElement.next, timerQueueElement.callback, timerQueueElement.n, timerQueueElement.timeout, timerQueueElement.enabled, timerQueueElement.id = nil, nil, nil, nil, nil, nil
+            --push on stack
+            stackSize = stackSize + 1
+            recycleStack[stackSize] = timerQueueElement
+        end
+        --Else: Do nothing. TimerQueueElement will automatically be garbage collected.
     end
 
     ---@class TimerQueue
@@ -115,7 +163,7 @@ do
         ,   queue = TimerQueueElement.create() -- queue of waiting callbacks to be executed in the future
         ,   n = 0                       ---@type integer number of elements in the queue
         ,   on_expire = function() end  ---@type function callback to be executed upon timer expiration (defined further below).
-        ,   debugMode = true           ---@type boolean setting this to true will print error messages, when the input function couldn't be executed properly. Set this to false before releasing your map.
+        ,   debugMode = false           ---@type boolean setting this to true will print error messages, when the input function couldn't be executed properly. Set this to false before releasing your map.
         ,   paused = false              ---@type boolean whether the queue is paused or not
     }
 
@@ -125,7 +173,7 @@ do
     --Creates a timer on first access of the static TimerQueue:callDelayed method. Avoids timer creation inside the Lua root.
     setmetatable(TimerQueue, {__index = function(t,k) if k == 'timer' then t[k] = CreateTimer() end; return rawget(t,k) end})
 
-    local unpack, max, timerStart, timerGetElapsed, pauseTimer = table.unpack, math.max, TimerStart, TimerGetElapsed, PauseTimer
+    local unpack, max, timerStart, timerGetElapsed, pauseTimer, try = table.unpack, math.max, TimerStart, TimerGetElapsed, PauseTimer, Debug and Debug.try
 
     ---@param timerQueue TimerQueue
     local function on_expire(timerQueue)
@@ -141,8 +189,8 @@ do
             pauseTimer(timer)
         end
         if topOfQueue.enabled then
-            if Debug and Debug.try then
-                Debug.try(topOfQueue.callback, unpack(topOfQueue, 1, topOfQueue.n))
+            if try then
+                try(topOfQueue.callback, unpack(topOfQueue, 1, topOfQueue.n))
             else
                 local errorStatus, errorMessage = pcall(topOfQueue.callback, unpack(topOfQueue, 1, topOfQueue.n))
                 if timerQueue.debugMode and not errorStatus then
@@ -150,6 +198,7 @@ do
                 end
             end
         end
+        recycleTimerQueueElement(topOfQueue)
     end
 
     TimerQueue.on_expire = function() on_expire(TimerQueue) end
@@ -158,6 +207,9 @@ do
     function TimerQueue.create()
         local new = {}
         setmetatable(new, TimerQueue)
+        new.n = 0
+        new.paused = false
+        new.debugMode = false
         new.timer = CreateTimer()
         new.queue = TimerQueueElement.create()
         new.on_expire = function() on_expire(new) end
@@ -168,7 +220,7 @@ do
     ---@param timeout number
     ---@param callback function|table if table, must be callable
     ---@param ... any arguments of the callback function
-    ---@return TimerQueueElement queuedTask usually discarded. Can be saved to local var to :disable() or re-:enable() later.
+    ---@return integer callbackId usually discarded. Can be saved to local var to use in :disableCallback() or :enableCallback() later.
     function TimerQueue:callDelayed(timeout, callback, ...)
         timeout = math.max(timeout, 0.)
         local queue = self.queue
@@ -195,7 +247,7 @@ do
         else
             new.next.timeout = max(new.next.timeout - timeout, 0.) --current.next might be the root element (queue), so prevent that from dropping below 0. (although it doesn't really matter)
         end
-        return new
+        return new.id
     end
 
     ---Calls the specified callback with the specified argumets (...) every <timeout> seconds, until the specified stop-condition holds.
@@ -219,10 +271,25 @@ do
         self:callDelayed(timeout, func, ...)
     end
 
+    ---Recycles all elements of a given TimerQueue, up to the limit given by MAX_STACK_SIZE
+    ---@param timerQueue TimerQueue
+    local function recycleQueueElements(timerQueue)
+        --Recycle all TimerQueueElements in the queue, but not the root element (which is used for call-by-reference checks in :callPeriodically)
+        local current, next = timerQueue.queue.next, nil
+        while current ~= timerQueue.queue and stackSize < MAX_STACK_SIZE do --stop recycling early, if MAX_STACK_SIZE is reached. Remaining TimerQueueElements will be garbage collected. Weak values in TimerQueueElement.storage makes sure no reference is left.
+            next = current.next --need to save current.next here, as it gets nilled during recycleTimerQueueElement
+            recycleTimerQueueElement(current)
+            current = next
+        end
+        TimerQueueElement.storage[timerQueue.queue.id] = nil
+    end
+
     ---Removes all queued calls from the Timer Queue, so any remaining actions will not be executed.
     ---Using <TimerQueue>:callDelayed afterwards will still work.
     function TimerQueue:reset()
-        timerStart(self.timer, 0., false, nil) --dont't put in on_expire as handlerFunc. callback can still expire after pausing and resuming the empty queue, which would set n to a value < 0.
+        recycleQueueElements(self)
+        --Reset timer and create new queue to replace the old
+        timerStart(self.timer, 0., false, nil) --don't put in on_expire as handlerFunc. callback can still expire after pausing and resuming the empty queue, which would set n to a value < 0.
         pauseTimer(self.timer)
         self.n = 0
         self.queue = TimerQueueElement.create()
@@ -254,9 +321,12 @@ do
     function TimerQueue:destroy()
         pauseTimer(self.timer) --https://www.hiveworkshop.com/threads/issues-with-timer-functions.309433/ suggests that non-paused destroyed timers can still execute their callback
         DestroyTimer(self.timer)
+        recycleQueueElements(self)
+        self.queue = nil
+        setmetatable(self, nil) --prevents consequences on the TimerQueue class, if further methods (like :destroy again) are used on the destroyed TimerQueue.
     end
 
-    ---Prints the queued callbacks within the TimerQueue. For debugging purposes.
+    ---Returns a list of queued callbacks within the TimerQueue. For debugging purposes.
     ---@return string
     function TimerQueue:tostring()
         local current, result, i = self.queue.next, {}, 0
@@ -270,6 +340,24 @@ do
             current = current.next
         end
         return '{n = ' .. self.n .. ',queue=(' .. table.concat(result, ',', 1, i) .. ')}'
+    end
+
+    ---Disables a callback that is currently queued in the TimerQueue.
+    ---The callback will still sit in the queue until timeout, but resolve without any effect.
+    ---This method is similiar to resetting the whole TimerQueue, just limited to a single callback.
+    ---@param callbackId integer the callbackId returned by TimerQueue:callDelayed
+    function TimerQueue:disableCallback(callbackId)
+        if TimerQueueElement.storage[callbackId] then
+            TimerQueueElement.storage[callbackId].enabled = false
+        end
+    end
+
+    ---Re-enables a callback that was previously disabled by TimerQueue:disableCallback.
+    ---@param callbackId integer the callbackId returned by TimerQueue:callDelayed
+    function TimerQueue:enableCallback(callbackId)
+        if TimerQueueElement.storage[callbackId] then
+            TimerQueueElement.storage[callbackId].enabled = true
+        end
     end
 
     ---@class Stopwatch
