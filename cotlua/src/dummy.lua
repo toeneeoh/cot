@@ -6,26 +6,30 @@
 ]]
 
 OnInit.final("Dummy", function(Require)
+    PUNCHING_BAG = CreateUnit(Player(PLAYER_NEUTRAL_AGGRESSIVE), FourCC('h02D'), GetRectCenterX(gg_rct_Punching_Bag), GetRectCenterY(gg_rct_Punching_Bag), 0.)
+
     Require("TimerQueue")
     Require("Events")
     Require("Units")
     Require('Frames')
 
     DUMMY_COUNT = 0
-    DUMMY_STACK = {}
-    DUMMY_RECYCLE_TIME = 5.
 
-    DPS_TIMER          = TimerQueue.create()
-    DPS_STOPWATCH      = Stopwatch.create(false) ---@type Stopwatch
-    DPS_TOTAL_PHYSICAL = 0.
-    DPS_TOTAL_MAGIC    = 0.
-    DPS_TOTAL          = 0.
-    DPS_LAST           = 0.
-    DPS_CURRENT        = 0.
-    DPS_PEAK           = 0.
-    DPS_STORAGE        = CircularArrayList.create(30) ---@type CircularArrayList 
+    local reset
+    local player_reset = {}
 
-    PUNCHING_BAG       = CreateUnit(Player(PLAYER_NEUTRAL_AGGRESSIVE), FourCC('h02D'), GetRectCenterX(gg_rct_Punching_Bag), GetRectCenterY(gg_rct_Punching_Bag), 0.)
+    local DUMMY_STACK = {}
+    local DUMMY_RECYCLE_TIME = 5.
+
+    local DPS_TIMER          = TimerQueue.create()
+    local DPS_STOPWATCH      = Stopwatch.create(false) ---@type Stopwatch
+    local DPS_TOTAL_PHYSICAL = 0.
+    local DPS_TOTAL_MAGIC    = 0.
+    local DPS_TOTAL          = 0.
+    local DPS_LAST           = 0.
+    local DPS_CURRENT        = 0.
+    local DPS_PEAK           = 0.
+    local DPS_STORAGE        = CircularArrayList.create(30) ---@type CircularArrayList 
 
     ---@class Dummy
     ---@field unit unit
@@ -160,22 +164,16 @@ OnInit.final("Dummy", function(Require)
             end
             InstantAttack(self.unit, enemy)
         end
+
+        -- exclude from ALICE
+        ALICE_ExcludeTypes(DUMMY_CASTER)
     end
 
-    --Punching Bag helper functions
-    ---@type fun(pt: PlayerTimer)
-    function DPS_HIDE_TEXT(pt)
-        pt.dur = pt.dur - 1
-
-        if pt.dur <= 0 then
-            if GetLocalPlayer() == Player(pt.pid - 1) then
-                BlzFrameSetVisible(DPS_FRAME, false)
-            end
-
-            pt:destroy()
+    -- Punching Bag helper functions
+    local function dps_hide_text(pid)
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzFrameSetVisible(DPS_FRAME, false)
         end
-
-        pt.timer:callDelayed(1., DPS_HIDE_TEXT, pt)
     end
 
     function DPS_RESET()
@@ -186,10 +184,11 @@ OnInit.final("Dummy", function(Require)
         DPS_CURRENT = 0.
         DPS_PEAK = 0.
         DPS_STORAGE:wipe()
+        DPS_TIMER:reset()
         BlzFrameSetText(DPS_FRAME_TEXTVALUE, "0\n0\n0\n0\n0\n0\n0s")
     end
 
-    local function calcPeakDps()
+    local function calc_peak_dps()
         local i = DPS_STORAGE.START ---@type integer 
         local output = 0.
         local dps = 0.
@@ -208,9 +207,9 @@ OnInit.final("Dummy", function(Require)
         return output
     end
 
-    function DPS_PEAK_UPDATE()
+    local function dps_peak_update()
         local time = DPS_STOPWATCH:getElapsed()
-        local calc = calcPeakDps()
+        local calc = calc_peak_dps()
 
         DPS_CURRENT = (DPS_TOTAL / math.ceil(time))
         if calc > DPS_PEAK then
@@ -221,39 +220,29 @@ OnInit.final("Dummy", function(Require)
         end
     end
 
-    function DPS_UPDATE()
+    local function dps_update()
         local time = DPS_STOPWATCH:getElapsed()
 
-        if DPS_TOTAL > 0 then
-            BlzFrameSetText(DPS_FRAME_TEXTVALUE, RealToString(DPS_LAST) .. "\n" .. RealToString(DPS_TOTAL_PHYSICAL) .. "\n" .. RealToString(DPS_TOTAL_MAGIC) .. "\n" .. RealToString(DPS_TOTAL) .. "\n" .. RealToString(DPS_CURRENT) .. "\n" .. RealToString(DPS_PEAK) .. "\n" .. RealToString(time) .. "s")
-        end
+        BlzFrameSetText(DPS_FRAME_TEXTVALUE, RealToString(DPS_LAST) .. "\n" .. RealToString(DPS_TOTAL_PHYSICAL) .. "\n" .. RealToString(DPS_TOTAL_MAGIC) .. "\n" .. RealToString(DPS_TOTAL) .. "\n" .. RealToString(DPS_CURRENT) .. "\n" .. RealToString(DPS_PEAK) .. "\n" .. RealToString(time) .. "s")
     end
 
-    local dps_check = function()
-        return DPS_TOTAL <= 0
-    end
-
-    local function DPS_ON_HIT(target, source, amount, amount_after_red, damage_type)
+    local function dps_on_hit(target, source, amount, amount_after_red, damage_type)
         local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
         if GetLocalPlayer() == Player(pid - 1) then
             BlzFrameSetVisible(DPS_FRAME, true)
         end
-        local pt = TimerList[pid]:get('pbag')
 
-        if pt then
-            pt.dur = 10.
-        else
-            pt = TimerList[pid]:add()
-            pt.dur = 10.
-            pt.tag = 'pbag'
-            pt.timer:callDelayed(1., DPS_HIDE_TEXT, pt)
+        if player_reset[pid] then
+            TimerQueue:disableCallback(player_reset[pid])
         end
+        player_reset[pid] = TimerQueue:callDelayed(10., dps_hide_text, pid)
 
         if DPS_TOTAL <= 0 then
             DPS_STOPWATCH:start()
-            TimerQueue:callPeriodically(0.2, dps_check, DPS_UPDATE)
-            TimerQueue:callPeriodically(1., dps_check, DPS_PEAK_UPDATE)
+            DPS_TIMER:reset()
+            DPS_TIMER:callPeriodically(0.2, nil, dps_update)
+            DPS_TIMER:callPeriodically(1., nil, dps_peak_update)
         end
 
         DPS_LAST = amount_after_red
@@ -266,12 +255,26 @@ OnInit.final("Dummy", function(Require)
         DPS_TOTAL = (DPS_TOTAL + DPS_LAST)
 
         DPS_STORAGE:add_timed(DPS_LAST, 1., 0.)
-        DPS_TIMER:reset()
-        DPS_TIMER:callDelayed(7.5, DPS_RESET)
+        if reset then
+            DPS_TIMER:disableCallback(reset)
+        end
+        reset = DPS_TIMER:callDelayed(7.5, DPS_RESET)
         amount.value = 0.
         SetWidgetLife(target, BlzGetUnitMaxHP(target))
     end
 
-    EVENT_ON_STRUCK_FINAL:register_unit_action(PUNCHING_BAG, DPS_ON_HIT)
+    EVENT_ON_STRUCK_FINAL:register_unit_action(PUNCHING_BAG, dps_on_hit)
+
+    local function dps_open_ui(pid, u)
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzFrameSetVisible(PUNCHING_BAG_UI, u == PUNCHING_BAG)
+        end
+    end
+
+    local U = User.first
+    while U do
+        EVENT_ON_SELECT:register_action(U.id, dps_open_ui)
+        U = U.next
+    end
 
 end, Debug and Debug.getLine())
