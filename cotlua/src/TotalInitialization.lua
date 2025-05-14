@@ -1,4 +1,4 @@
-if Debug then Debug.beginFile 'TotalInitialization' else
+if Debug then Debug.beginFile('TotalInitialization') else
     err=true end
 
 --[[——————————————————————————————————————————————————————
