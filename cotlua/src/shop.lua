@@ -14,10 +14,10 @@ OnInit.final("Shop", function(Require)
 
     ITEM_PRICE = array2d(0) ---@type table
 
-    -- Credits:
-    --      Taysen: FDF file
-    --      Hate: Frame border effects
-    --      Chopinski: Original vJass
+        -- Credits:
+        --      Taysen: FDF file
+        --      Hate: Frame border effects
+        --      Chopinski: Original vJass
 
         -- Main window 
         local X                              = -0.04 ---@type number 
@@ -30,6 +30,7 @@ OnInit.final("Shop", function(Require)
         local DETAILED_ROWS                  = 4 ---@type integer 
         local DETAILED_COLUMNS               = 4 ---@type integer 
         local CLOSE_ICON                     = "ReplaceableTextures\\CommandButtons\\BTNCancel.blp" ---@type string 
+        local PURCHASE_ICON                  = "ReplaceableTextures\\CommandButtons\\BTNReturnGoods.blp" ---@type string 
         local CLEAR_ICON                     = "ReplaceableTextures\\CommandButtons\\BTNCancel.blp" ---@type string 
         local LOGIC_ICON                     = "ReplaceableTextures\\CommandButtons\\BTNMagicalSentry.blp" ---@type string 
         local SORT_LEVEL_ICON                = "ReplaceableTextures\\CommandButtons\\BTNHelmutPurple.blp" ---@type string 
@@ -122,7 +123,7 @@ OnInit.final("Shop", function(Require)
             local itm = Profile[pid].hero.items[k]
             if itm and not itm.nocraft then
                 local index = GetItem(itm.id)
-                counter[index] = counter[index] + itm.charges
+                counter[index] = counter[index] + math.max(1, itm.charges)
             end
         end
 
@@ -287,7 +288,7 @@ OnInit.final("Shop", function(Require)
 
                 return self
             else
-                local itm = CreateItem(origid, 30000., 30000.)
+                local itm = CreateItem(origid, 30000., -30000.)
 
                 if itm then
                     if max_level then
@@ -303,7 +304,7 @@ OnInit.final("Shop", function(Require)
                     self.name = GetItemName(itm.obj)
                     self.icon = BlzGetItemIconPath(itm.obj)
                     self.tooltip = itm.alt_tooltip or itm.tooltip
-                    self.charges = math.max(1, GetItemCharges(itm.obj))
+                    self.charges = GetItemCharges(itm.obj)
                     self.recharge = -1
                     self.relation = __jarray(0)
                     self.currency = __jarray(0)
@@ -596,6 +597,7 @@ OnInit.final("Shop", function(Require)
     ---@field components Slot[][]
     ---@field main ShopSlot[]
     ---@field item ShopItem[]
+    ---@field purchase Button
     ---@field used table
     ---@field trigger trigger
     ---@field show function
@@ -615,12 +617,7 @@ OnInit.final("Shop", function(Require)
     ---@field usedIn framehandle
     ---@field horizontalRight framehandle
     ---@field horizontalLeft framehandle
-    ---@field verticalMain framehandle
     ---@field verticalCenter framehandle
-    ---@field verticalLeft1 framehandle
-    ---@field verticalLeft2 framehandle
-    ---@field verticalRight1 framehandle
-    ---@field verticalRight2 framehandle
     ---@field tooltip framehandle
     ---@field scrollFrame framehandle
     Detail = {}
@@ -778,6 +775,12 @@ OnInit.final("Shop", function(Require)
         function thistype:refresh(pid)
             if self.isVisible and self.item[pid] ~= 0 then
                 self:show(self.item[pid], Player(pid - 1))
+
+                local can_buy = self.shop:buy(self.item[pid], Player(pid - 1), true)
+
+                if GetLocalPlayer() == Player(pid - 1) then
+                    self.purchase:enabled(can_buy)
+                end
             end
         end
 
@@ -814,7 +817,7 @@ OnInit.final("Shop", function(Require)
                     local itm = Profile[pid].hero.items[k]
                     if itm and not itm.nocraft then
                         local index = GetItem(itm.id)
-                        counter[index] = counter[index] + itm.charges
+                        counter[index] = counter[index] + math.max(1, itm.charges)
                     end
                 end
 
@@ -907,6 +910,11 @@ OnInit.final("Shop", function(Require)
             self.close:icon(CLOSE_ICON)
             self.close:onClick(thistype.onClick)
             self.close.tooltip:text("Close")
+            self.purchase = Button.create(self.frame, DETAIL_CLOSE_BUTTON_SIZE, DETAIL_CLOSE_BUTTON_SIZE, 0., 0., true)
+            self.purchase:icon(PURCHASE_ICON)
+            self.purchase:onClick(thistype.onPurchase)
+            self.purchase.tooltip:text("Purchase")
+            self.purchase:enabled(false)
             self.left = Button.create(self.scrollFrame, DETAIL_SHIFT_BUTTON_SIZE, DETAIL_SHIFT_BUTTON_SIZE, 0.0050000, - 0.0025000, true)
             self.left:icon(USED_LEFT)
             self.left:onClick(thistype.onClick)
@@ -919,6 +927,7 @@ OnInit.final("Shop", function(Require)
             table[(self.left.frame)][0] = self
             table[(self.right.frame)][0] = self
             table[(self.scrollFrame)][0] = self
+            table[(self.purchase.frame)][0] = self
 
             BlzFrameSetPoint(self.frame, FRAMEPOINT_TOPLEFT, self.shop.main, FRAMEPOINT_TOPLEFT, WIDTH - DETAIL_WIDTH, 0.0000)
             BlzFrameSetPoint(self.scrollFrame, FRAMEPOINT_TOPLEFT, self.frame, FRAMEPOINT_TOPLEFT, 0.022500, - 0.28)
@@ -927,6 +936,7 @@ OnInit.final("Shop", function(Require)
             BlzFrameSetPoint(self.verticalCenter, FRAMEPOINT_TOPLEFT, self.frame, FRAMEPOINT_TOPLEFT, 0.155, - 0.0677)
             BlzFrameSetPoint(self.usedIn, FRAMEPOINT_TOPLEFT, self.scrollFrame, FRAMEPOINT_TOPLEFT, 0.11500, - 0.0025000)
             BlzFrameSetPoint(self.tooltip, FRAMEPOINT_TOPLEFT, self.frame, FRAMEPOINT_TOPLEFT, 0.027500, - 0.135)
+            BlzFrameSetPoint(self.purchase.iconFrame, FRAMEPOINT_TOPLEFT, self.close.iconFrame, FRAMEPOINT_BOTTOMLEFT, 0., 0.)
             BlzFrameSetSize(self.frame, DETAIL_WIDTH, DETAIL_HEIGHT)
             BlzFrameSetSize(self.scrollFrame, 0.26750, 0.06100)
             BlzFrameSetSize(self.topSeparator, 0.252, 0.001)
@@ -1022,6 +1032,24 @@ OnInit.final("Shop", function(Require)
 
                     if not found and frame ~= self.main[pid].button.frame then
                         self.shop:detail(self.used[pid][i], GetTriggerPlayer())
+                    end
+                end
+            end
+        end
+
+        function thistype.onPurchase()
+            local frame     = BlzGetTriggerFrame() ---@type framehandle 
+            local p         = GetTriggerPlayer()
+            local pid       = GetPlayerId(p) + 1
+            local self      = table[(frame)][0] ---@type Detail
+
+            if self then
+                BlzFrameSetEnable(frame, false)
+                BlzFrameSetEnable(frame, true)
+
+                if self.shop:buy(self.main[pid].item, p) then
+                    if GetLocalPlayer() == p then
+                        self.main[pid].button:play(SPRITE_MODEL, SPRITE_SCALE, 0)
                     end
                 end
             end
@@ -1222,6 +1250,7 @@ OnInit.final("Shop", function(Require)
     ---@field sliderFrame framehandle
     ---@field sliderTrigger trigger
     ---@field sliderValue number
+    ---@field refresh function
     Shop = {}
     do
         local thistype = Shop
@@ -1268,8 +1297,9 @@ OnInit.final("Shop", function(Require)
 
         ---@param i ShopItem
         ---@param p player
+        ---@param test boolean
         ---@return boolean
-        function thistype:buy(i, p)
+        function thistype:buy(i, p, test)
             local pid = GetPlayerId(p) + 1
             local canBuy = true
             local hasMoney = true
@@ -1279,7 +1309,7 @@ OnInit.final("Shop", function(Require)
 
             -- Check initial conditions
             if i == 0 or not IsUnitInRange(Hero[pid], self.current[pid], self.aoe) or not self.stock[i.id] then
-                if not GetSoundIsPlaying(self.error) then
+                if not GetSoundIsPlaying(self.error) and not test then
                     StartSoundForPlayerBJ(p, self.error)
                 end
                 return false
@@ -1287,7 +1317,7 @@ OnInit.final("Shop", function(Require)
 
             -- Check if item is buyable
             if not IsBuyable(i.id) then
-                if not GetSoundIsPlaying(self.error) then
+                if not GetSoundIsPlaying(self.error) and not test then
                     StartSoundForPlayerBJ(p, self.error)
                 end
                 return false
@@ -1303,8 +1333,8 @@ OnInit.final("Shop", function(Require)
                 local itm = Profile[pid].hero.items[k]
                 if itm and not itm.nocraft then
                     local index = GetItem(itm.id)
-                    counter[index] = counter[index] + itm.charges
-                    counter_copy[index] = counter_copy[index] + itm.charges
+                    counter[index] = counter[index] + math.max(1, itm.charges)
+                    counter_copy[index] = counter_copy[index] + math.max(1, itm.charges)
                 end
             end
 
@@ -1326,7 +1356,7 @@ OnInit.final("Shop", function(Require)
             end
 
             if not canBuy then
-                if not GetSoundIsPlaying(self.error) then
+                if not GetSoundIsPlaying(self.error) and not test then
                     StartSoundForPlayerBJ(p, self.error)
                 end
                 return false
@@ -1341,11 +1371,13 @@ OnInit.final("Shop", function(Require)
             end
 
             if not hasMoney then
-                if not GetSoundIsPlaying(self.noGold[GetPlayerRace(p)]) then
+                if not GetSoundIsPlaying(self.noGold[GetPlayerRace(p)]) and not test then
                     StartSoundForPlayerBJ(p, self.noGold[GetPlayerRace(p)])
                 end
                 return false
             end
+
+            if not test then
 
             -- Deduct cost from player's currency
             for c = 0, CURRENCY_COUNT - 1 do
@@ -1361,7 +1393,7 @@ OnInit.final("Shop", function(Require)
                     if itm then
                         local index = GetItem(itm.id)
                         if index == i.component[j] and counter_copy[i.component[j]] > 0 then
-                            local count = math.min(itm.charges, counter_copy[i.component[j]])
+                            local count = math.min(math.max(1, itm.charges), counter_copy[i.component[j]])
                             for _ = 1, count do
                                 itm:consumeCharge()
                             end
@@ -1387,6 +1419,8 @@ OnInit.final("Shop", function(Require)
             if self.stock[i.id] ~= -1 then
                 self.stock[i.id] = self.stock[i.id] - 1
                 ShopSlot.refresh(table[self][i.id])
+            end
+
             end
 
             return true
@@ -1784,9 +1818,7 @@ OnInit.final("Shop", function(Require)
             end
         end
 
-        function thistype.onPickup()
-            local u = GetTriggerUnit()
-            local pid = GetPlayerId(GetOwningPlayer(u)) + 1
+        function thistype.refresh(pid)
             local self = table[GetUnitTypeId(thistype.current[pid])][0] ---@type Shop
 
             if self then
@@ -1923,7 +1955,7 @@ OnInit.final("Shop", function(Require)
             end
 
             if SCROLL_DELAY > 0 then
-                TimerStart(thistype.timer[pid], TimerGetRemaining(thistype.timer[pid]), false, thistype.onExpire)
+                TimerStart(thistype.timer[pid], SCROLL_DELAY, false, thistype.onExpire)
             end
         end
 
@@ -1959,6 +1991,7 @@ OnInit.final("Shop", function(Require)
                 end
             end
         end
+        AddToEsc(Shop.onEsc) -- close window hotkey reference
 
         local id
 
@@ -1992,7 +2025,6 @@ OnInit.final("Shop", function(Require)
         TriggerAddCondition(thistype.search, Condition(thistype.onSearch))
         RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_SELECTED, thistype.onSelect)
         RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DESELECTED, thistype.onSelect)
-        RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_PICKUP_ITEM, thistype.onPickup)
     end
 
 end, Debug and Debug.getLine())
