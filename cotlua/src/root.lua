@@ -121,6 +121,8 @@ do
 end
 
 BlzLoadTOCFile("war3mapImported\\FDF.toc")
+
+-- TODO: fix organization for dependency chain
 dofile('debugutils.lua')
 dofile('ingameconsole.lua')
 dofile('TotalInitialization.lua')
