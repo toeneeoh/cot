@@ -2,13 +2,31 @@ OnInit.final("PVP", function(Require)
     Require('Users')
     Require('Events')
 
-    ARENA_FFA = 1
-
-    ArenaQueue = __jarray(0) ---@type integer[] 
-    Arena = {
+    local ARENA_FFA = 1
+    local ArenaQueue = __jarray(0) ---@type integer[] 
+    local Arena = {
         {}, {}, {}
     }
 
+    -- frame setup
+    local exit = SimpleButton.create(BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "war3mapImported\\ExitButton.blp", 0.03, 0.015, FRAMEPOINT_TOP, FRAMEPOINT_TOP, 0., 0.015)
+    BlzFrameClearAllPoints(exit.frame)
+    BlzFrameSetPoint(exit.frame, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_CENTER, 0, -0.154)
+    BlzFrameSetVisible(exit.frame, false)
+    --
+
+    ---@type fun(pid: integer): integer?
+    local function GetArena(pid)
+        for i, v in ipairs(Arena) do
+            if TableHas(v, pid) then
+                return i
+            end
+        end
+
+        return nil
+    end
+
+    local arena_death
     local ArenaSpawn = {
         -- spawn location and associated facing angle
         [2] = {gg_rct_Arena1Spawn1, gg_rct_Arena1Spawn2, 270, 90},
@@ -54,7 +72,32 @@ OnInit.final("PVP", function(Require)
         SetUnitAnimation(killed, "death")
         PauseUnit(killed, true)
         DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", killer, "origin"))
-        ArenaDeath(killed, killer)
+        arena_death(killed, killer)
+    end
+
+    ---@param arena integer
+    local function reset_arena(arena)
+        if not arena or arena == ARENA_FFA then
+            return
+        end
+
+        local U = User.first
+
+        while U do
+            if TableHas(Arena[arena], U.id) then
+                PauseUnit(Hero[U.id], false)
+                UnitRemoveAbility(Hero[U.id], FourCC('Avul'))
+                SetUnitAnimation(Hero[U.id], "stand")
+                MoveHeroLoc(U.id, TOWN_CENTER)
+            end
+
+            U = U.next
+        end
+    end
+
+    local function on_cleanup(pid)
+        reset_arena(GetArena(pid))
+        ArenaQueue[pid] = 0
     end
 
     ---@param spawn1 rect
@@ -62,7 +105,7 @@ OnInit.final("PVP", function(Require)
     ---@param face number
     ---@param face2 number
     ---@param arena integer
-    function SetupDuel(pid, tpid, spawn1, spawn2, face, face2, arena)
+    local function setup_duel(pid, tpid, spawn1, spawn2, face, face2, arena)
         local x  = GetRectCenterX(spawn1) ---@type number 
         local y  = GetRectCenterY(spawn1) ---@type number 
         local x2 = GetRectCenterX(spawn2) ---@type number 
@@ -120,10 +163,13 @@ OnInit.final("PVP", function(Require)
 
         EVENT_ON_FATAL_DAMAGE:register_unit_action(Hero[pid], on_death)
         EVENT_ON_FATAL_DAMAGE:register_unit_action(Hero[tpid], on_death)
+        -- no need to unregister these
+        EVENT_ON_CLEANUP:register_action(pid, on_cleanup)
+        EVENT_ON_CLEANUP:register_action(tpid, on_cleanup)
     end
 
     ---@type fun(arena: integer, killed: unit)
-    function ArenaCleanup(arena, killed)
+    local function arena_cleanup(arena, killed)
 
         if arena == ARENA_FFA then
             local pid = GetPlayerId(GetOwningPlayer(killed)) + 1
@@ -147,7 +193,7 @@ OnInit.final("PVP", function(Require)
 
     ---@param killed unit
     ---@param killer unit
-    function ArenaDeath(killed, killer)
+    arena_death = function(killed, killer)
         local U    = User.first ---@type User 
         local p    = GetOwningPlayer(killed)
         local p2   = GetOwningPlayer(killer)
@@ -186,11 +232,11 @@ OnInit.final("PVP", function(Require)
         end
 
         --timer, cleanup
-        TimerQueue:callDelayed(3., ArenaCleanup, arena, killed)
+        TimerQueue:callDelayed(3., arena_cleanup, arena, killed)
     end
 
     ---@type fun(arena: integer, pid: integer): integer?
-    function FirstOfArena(arena, pid)
+    local function first_of_arena(arena, pid)
         local U = User.first ---@type User 
 
         while U do
@@ -207,7 +253,7 @@ OnInit.final("PVP", function(Require)
     end
 
     ---@type fun(arena: integer): integer
-    function InArenaQueue(arena)
+    local function in_arena_queue(arena)
         local U = User.first ---@type User 
         local count = 0
 
@@ -222,11 +268,34 @@ OnInit.final("PVP", function(Require)
         return count
     end
 
-    function FleeFFA(pid)
+    local function in_queue_range(pid)
+        if ArenaQueue[pid] == 0 then
+            return
+        end
+
+        if IsUnitInRangeXY(Hero[pid], -1900., 1100., 1000.) == false then
+            ArenaQueue[pid] = 0
+            DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 5.0, "You have been removed from the PvP queue.")
+        else
+            TimerQueue:callDelayed(1, in_queue_range, pid)
+        end
+    end
+
+    local function exit_button()
+        local p = GetTriggerPlayer()
+        local pid = GetPlayerId(p) + 1
+
+        DisableBackpackTeleports(pid, false)
+
+        if GetLocalPlayer() == p then
+            BlzFrameSetVisible(exit.frame, false)
+        end
+
         MoveHeroLoc(pid, TOWN_CENTER)
         ArenaQueue[pid] = 0
         TableRemove(Arena[ARENA_FFA], pid)
 
+        local U = User.first
         while U do
                 SetPlayerAllianceStateBJ(U.player, Player(pid - 1), bj_ALLIANCE_ALLIED_VISION)
                 SetPlayerAllianceStateBJ(Player(pid - 1), U.player, bj_ALLIANCE_ALLIED_VISION)
@@ -242,8 +311,9 @@ OnInit.final("PVP", function(Require)
         end
         EVENT_ON_FATAL_DAMAGE:unregister_unit_action(Hero[pid], on_death)
     end
+    exit:onClick(exit_button)
 
-    function EnterPVP()
+    local function enter_pvp()
         local p     = GetTriggerPlayer()
         local pid   = GetPlayerId(p) + 1 ---@type integer 
         local dw    = DialogWindow[pid] ---@type DialogWindow 
@@ -251,8 +321,7 @@ OnInit.final("PVP", function(Require)
 
         if arena > 0 then
 
-            local tpid = FirstOfArena(arena, pid)
-            local num = InArenaQueue(arena)
+            local tpid = first_of_arena(arena, pid)
 
             if not GetArena(pid) then
                 if arena == ARENA_FFA then
@@ -283,18 +352,25 @@ OnInit.final("PVP", function(Require)
                         U = U.next
                     end
 
-                    DisplayTextToPlayer(p, 0, 0, "Type -flee to leave anytime.")
                     EVENT_ON_FATAL_DAMAGE:register_unit_action(Hero[pid], on_death)
+                    if GetLocalPlayer() == p then
+                        BlzFrameSetVisible(exit.frame, true)
+                    end
+                    DisableBackpackTeleports(pid, true)
+                    DisplayTextToPlayer(p, 0, 0, "You may leave at any time by pressing the EXIT button below.")
                 else
                     ArenaQueue[pid] = arena
+                    local num = in_arena_queue(arena)
 
                     if #Arena[arena] > 0 then
                         DisplayTextToPlayer(p, 0, 0, "This arena is occupied already!")
                         ArenaQueue[pid] = 0
                     elseif num == 1 then
                         DisplayTextToPlayer(p, 0, 0, "Waiting for an opponent to join...")
+                        TimerQueue:callDelayed(1., in_queue_range, pid)
                     elseif num == 2 then
-                        SetupDuel(pid, tpid, ArenaSpawn[arena][1], ArenaSpawn[arena][2], ArenaSpawn[arena][3], ArenaSpawn[arena][4], arena)
+                        setup_duel(pid, tpid, ArenaSpawn[arena][1], ArenaSpawn[arena][2], ArenaSpawn[arena][3], ArenaSpawn[arena][4], arena)
+                        DisableBackpackTeleports(pid, true)
                     end
                 end
             end
@@ -304,13 +380,19 @@ OnInit.final("PVP", function(Require)
     end
 
     ITEM_LOOKUP[FourCC('PVPA')] = function(p, pid)
-        local dw = DialogWindow.create(pid, "Choose an arena.", EnterPVP) ---@type DialogWindow
+        local dw = DialogWindow.create(pid, "Choose an arena.", enter_pvp) ---@type DialogWindow
 
         dw:addButton("Wastelands [FFA]")
         dw:addButton("Pandaren Forest [Duel]")
         dw:addButton("Ice Cavern [Duel]")
 
         dw:display()
+    end
+
+    local U = User.first
+    while U do
+        EVENT_ON_CLEANUP:register_action(U.id, on_cleanup)
+        U = U.next
     end
 
 end, Debug and Debug.getLine())
