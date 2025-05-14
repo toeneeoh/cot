@@ -94,20 +94,20 @@ OnInit.final("Training", function(Require)
 
         if increase == true then
             trainerItem.spawn = trainerItem.spawn + 1
-            if UnitData[trainerItem.spawn].chaos ~= flag then
+            if UnitData[UnitData[trainerItem.spawn]].mode ~= flag then
                 trainerItem.spawn = trainerItem.spawn - 1
             end
         else
             trainerItem.spawn = math.max(0, trainerItem.spawn - 1)
-            if UnitData[trainerItem.spawn].chaos ~= flag then
+            if UnitData[UnitData[trainerItem.spawn]].mode ~= flag then
                 trainerItem.spawn = trainerItem.spawn + 1
             end
         end
 
         -- update item info
-        BlzSetItemName(trainerItem.obj, "|cffffcc00" .. GetObjectName(UnitData[flag]) .. "|r")
+        BlzSetItemName(trainerItem.obj, "|cffffcc00" .. GetObjectName(UnitData[trainerItem.spawn]) .. "|r")
         -- blzgetability icon works for units as well
-        BlzSetItemIconPath(trainerItem.obj, BlzGetAbilityIcon(UnitData[flag]))
+        BlzSetItemIconPath(trainerItem.obj, BlzGetAbilityIcon(UnitData[trainerItem.spawn]))
     end
 
     ITEM_LOOKUP[FourCC('I0MV')] = ITEM_LOOKUP[FourCC('I0MU')]
