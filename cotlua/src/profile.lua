@@ -3,19 +3,56 @@
 
     A module that defines the Profile interface which provides
     functions to handle player specific data.
+
+    profile breakdown:
+        save version
+        slot checksums
+        hotkeys
+        total time
+
+    character breakdown:
+        id
+        hardcore
+        prestige
+        level
+        str
+        agi
+        int
+        gold
+        platinum
+        crystal
+        honor
+        faction points
+        time
+            MAX_INVENTORY_SLOTS
+            item_id
+            item_stats
+        teleport
+        reveal
+        skin
+
 ]]
 
 OnInit.global("Profile", function(Require)
+    MAX_SLOTS           = 40 -- profile slots
+    MAX_INVENTORY_SLOTS = 26 ---@type integer 
+    BACKPACK_INDEX      = 9
+    POTION_INDEX        = 7
+
     Require('CodeGen')
     Require('TimerQueue')
+    Require('Hotkeys')
 
-    MAX_TIME_PLAYED     = 10000000  ---@type integer -- ~10 years in minutes
-    MAX_PLAT_CRYS       = 100000 ---@type integer 
-    MAX_GOLD            = 10000000 ---@type integer 
-    MAX_UPGRADE_LEVEL   = 10 ---@type integer 
-    MAX_STATS           = 255000 ---@type integer 
-    MAX_SLOTS           = 40 ---@type integer 
-    MAX_INVENTORY_SLOTS = 24 ---@type integer 
+    local SETUP_X = -690.
+    local SETUP_Y = -238.
+
+    local MAX_TIME_PLAYED     = 10000000 -- ~10 years in minutes
+    local MAX_PLAT_CRYS       = 100000
+    local MAX_GOLD            = 10000000
+    local MAX_HONOR           = 100000
+    local MAX_FACTION         = 100000
+    local MAX_UPGRADE_LEVEL   = 10
+    local MAX_STATS           = 255000
 
     ---@class Profile
     ---@field brand_new boolean
@@ -120,6 +157,8 @@ OnInit.global("Profile", function(Require)
                 thistype[pid].new_char = true
                 thistype[pid]:hero_select()
 
+                SetupDefaultHotkeys(pid)
+
                 dw:destroy()
             end
 
@@ -185,6 +224,9 @@ OnInit.global("Profile", function(Require)
             self.save_timer:reset()
             PlayerCleanup(self.pid)
             self:hero_select()
+
+            self:get_empty_slot()
+            self.new_char = true
         end
 
         ---@type fun(self: Profile)
@@ -219,7 +261,7 @@ OnInit.global("Profile", function(Require)
         function thistype:saveCooldown()
             if self.autosave == true then
                 DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 20, "Your next autosave is in " .. RemainingTimeString(self.save_timer.timer) .. ".")
-            elseif Hardcore[self.pid] then
+            elseif self.hero.hardcore > 0 then
                 DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 20, RemainingTimeString(self.save_timer.timer) .. " until you can save again.")
             end
         end
@@ -251,8 +293,8 @@ OnInit.global("Profile", function(Require)
             if GetClickedButton() == dw.MenuButton[2] then
                 thistype[pid]:get_empty_slot()
 
-                if thistype[pid]:getSlotsUsed() >= 30 then
-                    DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 30.0, "You cannot save more than 30 heroes!")
+                if thistype[pid]:getSlotsUsed() >= MAX_SLOTS then
+                    DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 30.0, "You cannot save more than " .. MAX_SLOTS .. " heroes!")
                     dw.Page = -1
                     dw:display()
                 else
@@ -358,23 +400,33 @@ OnInit.global("Profile", function(Require)
             end
 
             local index = 1
-            local vers = data[index]
+            -- load version
+            local version = data[index]
 
             -- TODO: implement version handling
-            if vers <= SAVE_LOAD_VERSION - 2 or vers >= SAVE_LOAD_VERSION + 2 then
+            if version <= SAVE_LOAD_VERSION - 2 or version >= SAVE_LOAD_VERSION + 2 then
                 DisplayTimedTextToPlayer(p, 0, 0, 30., "Profile data corrupt or version mismatch!")
                 return false
             end
 
-            print("Save Load Version: " .. (vers))
+            print("Save Load Version: " .. (version))
 
             local self = Profile.create(pid)
 
+            -- load slot checksums
             for i = 1, MAX_SLOTS do
                 index = index + 1
                 self.checksums[i] = data[index]
             end
 
+            -- load hotkeys
+            local hotkeys = GetHotkeyTable()
+            for i = 1, #hotkeys do
+                index = index + 1
+                LoadHotkey(pid, data[index], i)
+            end
+
+            -- load total time
             index = index + 1
             self.total_time = data[index]
             self.profile_code = code
@@ -419,14 +471,18 @@ OnInit.global("Profile", function(Require)
 
             data[#data + 1] = SAVE_LOAD_VERSION
 
-            -- TODO: Save hotkeys
-
             for i = 1, MAX_SLOTS do
                 if i == self.current_slot then
                     self.checksums[i] = (self.character_code[i] and StringChecksum(tostring(StringHash(self.character_code[i])))) or 0
                 end
 
                 data[#data + 1] = self.checksums[i]
+            end
+
+            -- save hotkeys to profile
+            local hotkeys = GetHotkeyTable()
+            for i = 1, #hotkeys do
+                data[#data + 1] = SaveHotkey(self.pid, i)
             end
 
             data[#data + 1] = self.total_time
@@ -463,6 +519,8 @@ OnInit.global("Profile", function(Require)
             hero.gold = math.min(GetCurrency(self.pid, GOLD), MAX_GOLD)
             hero.platinum = math.min(GetCurrency(self.pid, PLATINUM), MAX_PLAT_CRYS)
             hero.crystal = math.min(GetCurrency(self.pid, CRYSTAL), MAX_PLAT_CRYS)
+            hero.honor = math.min(GetCurrency(self.pid, HONOR), MAX_HONOR)
+            hero.faction_points = math.min(GetCurrency(self.pid, FACTION), MAX_FACTION)
             hero.teleport = GetUnitAbilityLevel(Backpack[self.pid], TELEPORT_HOME.id)
             hero.reveal = GetUnitAbilityLevel(Backpack[self.pid], FourCC('A0FK'))
             hero.time = math.min(hero.time, MAX_TIME_PLAYED)
@@ -512,34 +570,35 @@ OnInit.global("Profile", function(Require)
         if id ~= ORDER_ID_MOVE then
             local unit = Unit[source]
             unit.busy = true
-            unit.aggro_timer = unit.aggro_timer or TimerQueue.create()
-            unit.aggro_timer:reset()
-            unit.aggro_timer:callDelayed(4, move_expire, unit)
+            if unit.callback then
+                TimerQueue:disableCallback(unit.callback)
+            end
+            unit.callback = TimerQueue:callDelayed(4, move_expire, unit)
         end
     end
 
-    local function backpack_periodic(unit, pid)
-        if unit then
+    local function backpack_periodic(bp, pid)
+        if bp then
             local x = GetUnitX(Hero[pid]) + 50 * Cos((GetUnitFacing(Hero[pid]) - 45) * bj_DEGTORAD)
             local y = GetUnitY(Hero[pid]) + 50 * Sin((GetUnitFacing(Hero[pid]) - 45) * bj_DEGTORAD)
 
-            if IsUnitInRange(Hero[pid], unit.unit, 1000.) == false then
-                SetUnitXBounded(unit.unit, x)
-                SetUnitYBounded(unit.unit, y)
-                BlzUnitClearOrders(unit.unit, false)
-            elseif not unit.busy or IsUnitInRange(Hero[pid], unit.unit, 800.) == false then
-                if IsUnitInRange(Hero[pid], unit.unit, 50.) == false then
-                    IssuePointOrderById(unit.unit, ORDER_ID_MOVE, x, y)
+            if IsUnitInRange(Hero[pid], bp, 1000.) == false then
+                SetUnitXBounded(bp, x)
+                SetUnitYBounded(bp, y)
+                BlzUnitClearOrders(bp, false)
+            elseif not Unit[bp].busy or IsUnitInRange(Hero[pid], bp, 800.) == false then
+                if IsUnitInRange(Hero[pid], bp, 50.) == false then
+                    IssuePointOrderById(bp, ORDER_ID_MOVE, x, y)
                 end
             end
 
-            TimerQueue:callDelayed(0.35, backpack_periodic, unit, pid)
+            TimerQueue:callDelayed(0.35, backpack_periodic, bp, pid)
         end
     end
 
     ---@class HeroData
     ---@field id integer
-    ---@field hardcore integer
+    ---@field hardcore boolean
     ---@field prestige integer
     ---@field level integer
     ---@field str integer
@@ -559,7 +618,7 @@ OnInit.global("Profile", function(Require)
     ---@field values function
     ---@field propagate function
     ---@field load_data function
-    ---@field item_to_drop Button
+    ---@field item_to_drop Item
     HeroData = {}
     do
         local thistype = HeroData
@@ -571,7 +630,7 @@ OnInit.global("Profile", function(Require)
 
         local setter = {
             id = function(pid, value)
-                local hero = CreateUnit(Player(pid - 1), SAVE_UNIT_TYPE[value], 0, 0, 0.)
+                local hero = CreateUnit(Player(pid - 1), SAVE_UNIT_TYPE[value], GetRectCenterX(gg_rct_ChurchSpawn), GetRectCenterY(gg_rct_ChurchSpawn), 0.)
                 local id = SAVE_UNIT_TYPE[value]
                 Hero[pid] = hero
                 HeroID[pid] = id
@@ -582,9 +641,10 @@ OnInit.global("Profile", function(Require)
                 Unit[hero].pm = HeroStats[id].phys_damage
                 Unit[hero].cc_flat = HeroStats[id].crit_chance
                 Unit[hero].cd_flat = HeroStats[id].crit_damage
+                Unit[hero].mana_regen_max = HeroStats[id].mana_regen_max or 0
 
                 -- backpack
-                local backpack = CreateUnit(Player(pid - 1), BACKPACK, 0, 0, 0)
+                local backpack = CreateUnit(Player(pid - 1), BACKPACK, GetRectCenterX(gg_rct_ChurchSpawn), GetRectCenterY(gg_rct_ChurchSpawn), 0)
                 Backpack[pid] = backpack
 
                 -- show backpack hero panel only for player
@@ -608,8 +668,8 @@ OnInit.global("Profile", function(Require)
                 UnitAddAbility(backpack, FourCC('A04M'))
                 UnitAddAbility(backpack, FourCC('A00F')) -- settings
 
+                TimerQueue:callDelayed(0.01, backpack_periodic, backpack, pid)
                 EVENT_ON_ORDER:register_unit_action(backpack, backpack_ai)
-                TimerQueue:callDelayed(0., backpack_periodic, Unit[backpack], pid)
 
                 -- grave
                 HeroGrave[pid] = CreateUnit(Player(pid - 1), GRAVE, 30000, 30000, 270)
@@ -618,11 +678,12 @@ OnInit.global("Profile", function(Require)
 
                 UnitAddAbility(hero, FourCC('A015')) -- hidden spells
                 UnitMakeAbilityPermanent(hero, true, FourCC('A015'))
+                UnitAddAbility(backpack, FourCC('A015')) -- hidden spells
+                UnitMakeAbilityPermanent(backpack, true, FourCC('A015'))
             end,
             hardcore = function(pid, value)
-                Hardcore[pid] = (value > 0)
                 if value > 0 and Profile[pid].new_char then
-                    TimerQueue:callDelayed(0., PlayerAddItemById, pid, FourCC('I03N'))
+                    TimerQueue:callDelayed(0.01, PlayerAddItemById, pid, FourCC('I03N'))
                 end
             end,
             level = function(pid, value)
@@ -654,6 +715,12 @@ OnInit.global("Profile", function(Require)
             end,
             crystal = function(pid, value)
                 SetCurrency(pid, CRYSTAL, value)
+            end,
+            honor = function(pid, value)
+                SetCurrency(pid, HONOR, value)
+            end,
+            faction_points = function(pid, value)
+                SetCurrency(pid, FACTION, value)
             end,
             item_id = function(pid, value)
                 local hero = Profile[pid].hero
@@ -758,7 +825,7 @@ OnInit.global("Profile", function(Require)
     ---@type fun(pid: integer, load: boolean)
     function CharacterSetup(pid, load)
         local hero = Profile[pid].hero
-        local x, y, angle, camera = -690., -238., 0, MAIN_MAP.rect -- outside tavern
+        local x, y, angle, camera = SETUP_X, SETUP_Y, 0, MAIN_MAP.rect -- outside tavern
 
         hero:load_data(pid)
 
@@ -768,6 +835,14 @@ OnInit.global("Profile", function(Require)
         else
             -- new characters can save immediately
             Profile[pid].cannot_load = true
+
+            -- default potions
+            PlayerAddItemById(pid, 'I02F')
+            PlayerAddItemById(pid, 'I00E')
+        end
+
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzSetAbilityPosY(HeroStats[HeroID[pid]].passive, 0)
         end
 
         SetUnitPosition(Hero[pid], x, y)
@@ -781,6 +856,9 @@ OnInit.global("Profile", function(Require)
         -- heal to max
         SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]))
         SetUnitState(Hero[pid], UNIT_STATE_MANA, (HeroID[pid] ~= HERO_VAMPIRE and BlzGetUnitMaxMana(Hero[pid])) or 0)
+
+        EVENT_STAT_CHANGE:register_unit_action(Hero[pid], UpdateSpellTooltips)
+        EVENT_ON_SETUP:trigger(pid)
     end
 
 end, Debug and Debug.getLine())
