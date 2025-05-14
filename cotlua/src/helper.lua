@@ -687,7 +687,7 @@ do
     function DialogWindow.create(pid, s, c)
         --safety
         if thistype[pid] then
-            return nil
+            thistype[pid]:destroy()
         end
 
         ---@diagnostic disable-next-line: missing-fields
@@ -724,12 +724,13 @@ end
 ---@field expire function
 ---@field frame framehandle
 ---@field text framehandle
----@field timer TimerQueue
+---@field timer integer
 ---@field time integer
 ---@field title string
 ---@field trig trigger
 ---@field minimize framehandle
 ---@field minimize_frame framehandle
+---@field playerGroup table
 TimerFrame = {}
 do
     local thistype = TimerFrame
@@ -742,19 +743,23 @@ do
 
     function thistype:run()
         self.time = self.time - 1
-        self:update()
 
         if self.time < 0 then
             self:stop()
         else
-            self.timer:callDelayed(1, thistype.run, self)
+            self:update()
+            self.timer = TimerQueue:callDelayed(1, thistype.run, self)
         end
     end
 
     function thistype:destroy()
+        TimerQueue:disableCallback(self.timer)
         DestroyTrigger(self.trig)
-        BlzFrameSetVisible(minimize, false)
-        self.timer:destroy()
+        local pid = GetPlayerId(GetLocalPlayer()) + 1
+        if TableHas(self.playerGroup, GetLocalPlayer()) or TableHas(self.playerGroup, pid) then
+            BlzFrameSetVisible(minimize, false)
+        end
+        setmetatable(self, nil)
         self = nil
     end
 
@@ -764,16 +769,16 @@ do
     end
 
     function thistype:update()
-        BlzFrameSetText(self.text, self.title .. "|n" .. date("!\x25H:\x25M:\x25S", self.time))
+        BlzFrameSetText(text, self.title .. "|n" .. date("!\x25H:\x25M:\x25S", self.time))
     end
 
     function TimerFrame.create(title, time, onExpire, playerGroup)
         local self = {
             running = true,
             expire = onExpire,
-            timer = TimerQueue.create(),
             time = time,
             title = title,
+            playerGroup = playerGroup,
         }
 
         BlzFrameSetSize(minimize, 0.015, 0.015)
@@ -812,13 +817,13 @@ do
         end
 
         self:update()
-        self.timer:callDelayed(1, thistype.run, self)
+        self.timer = TimerQueue:callDelayed(1, thistype.run, self)
 
         return self
     end
 end
 
---simple priority queue
+-- simple priority queue
 
 ---@class PriorityQueue
 ---@field create function
@@ -888,6 +893,20 @@ do
 end
 
 --misc helper functions
+
+---@type fun(n: integer, t: table): table
+function pickN(n, t)
+    local seen = {}
+    local out = {}
+    while #out < n do
+        local r = math.random(1, #t)
+        if not seen[r] then
+            seen[r] = true
+            out[#out + 1] = t[r]
+        end
+    end
+    return out
+end
 
 ---@type fun(sfx: effect)
 function HideEffect(sfx)
@@ -1079,39 +1098,10 @@ function ItemRepickRemove()
 end
 
 ---@return boolean
-function isspirit()
-    local id = GetUnitTypeId(GetFilterUnit()) ---@type integer 
-    if id == FourCC('n00P') then
-        return true
-    end
-
-    return false
-end
-
----@return boolean
 function ischar()
     local pid = GetPlayerId(GetOwningPlayer(GetFilterUnit())) + 1 ---@type integer 
 
     return (GetFilterUnit() == Hero[pid] and UnitAlive(Hero[pid]))
-end
-
----@return boolean
-function FilterNotHero()
-    local u = GetFilterUnit()
-
-    return (IsUnitType(u, UNIT_TYPE_HERO) == false and UnitAlive(u) and not IsDummy(u))
-end
-
----@return boolean
-function isbase()
-    return (IsUnitType(GetFilterUnit(), UNIT_TYPE_TOWNHALL) == true)
-end
-
----@return boolean
-function isOrc()
-    local uid = GetUnitTypeId(GetFilterUnit()) ---@type integer 
-
-    return (UnitAlive(GetFilterUnit()) and (uid == FourCC('o01I') or uid == FourCC('o008')))
 end
 
 ---@return boolean
@@ -1272,7 +1262,8 @@ function RemovePlayerUnits(pid)
 
     for target in each(ug) do
         if not IsDummy(target) then
-            Buff.dispelAll(target)
+            EVENT:unregister_unit_action(target)
+            Buff.dispelAll(target, true)
             RemoveUnit(target)
         end
     end
@@ -1424,11 +1415,6 @@ function ResetPathing(u)
     SetUnitPathing(u, true)
 end
 
----@type fun(u: unit, time: number)
-function ResetPathingTimed(u, time)
-    TimerQueue:callDelayed(time, ResetPathing, u)
-end
-
 ---@param line integer
 ---@param contents string?
 ---@return string
@@ -1489,54 +1475,6 @@ function GetProfilePath(pid)
     return MAP_NAME .. "\\" .. User[pid - 1].name .. "\\profile.pld"
 end
 
-
----@param arena integer
-function ResetArena(arena)
-    if not arena or arena == ARENA_FFA then
-        return
-    end
-
-    local U = User.first
-
-    while U do
-        if TableHas(Arena[arena], U.id) then
-            PauseUnit(Hero[U.id], false)
-            UnitRemoveAbility(Hero[U.id], FourCC('Avul'))
-            SetUnitAnimation(Hero[U.id], "stand")
-            MoveHeroLoc(U.id, TOWN_CENTER)
-        end
-
-        U = U.next
-    end
-end
-
----@type fun(pid: integer): integer?
-function GetArena(pid)
-    for i, v in ipairs(Arena) do
-        if TableHas(v, pid) then
-            return i
-        end
-    end
-
-    return nil
-end
-
-function ClearStruggle()
-    local ug = CreateGroup()
-
-    GroupEnumUnitsInRect(ug, gg_rct_Infinite_Struggle, Condition(FilterNotHero))
-
-    for target in each(ug) do
-        RemoveUnit(target)
-    end
-
-    DestroyGroup(ug)
-
-    Struggle_WaveN = 0
-    GoldWon_Struggle = 0
-    Struggle_WaveUCN = 0
-end
-
 ---@param p player
 ---@param show boolean
 function ShowHeroCircle(p, show)
@@ -1555,25 +1493,17 @@ function ShowHeroCircle(p, show)
     end
 end
 
---use for any instance of player removal (leave, repick, permanent death, forcesave, afk removal)
+-- use for any instance of player removal (leave, repick, permanent death)
 ---@type fun(pid: integer)
 function PlayerCleanup(pid)
     local p = Player(pid - 1)
 
     Profile[pid].playing = false
 
-    --close actions spellbook
+    -- close actions spellbook
     UnitRemoveAbility(Hero[pid], FourCC('A03C'))
 
-    --clear ashen vat
-    for i = 0, 5 do
-        local itm = Item[UnitRemoveItemFromSlot(ASHEN_VAT, i)]
-        if itm and itm.owner == p then
-            itm:destroy()
-        end
-    end
-
-    --clear cosmetics
+    -- clear cosmetics
     for _, v in ipairs(CosmeticTable.cosmetics) do
         local sfx = v[pid .. v.name] ---@type effect
 
@@ -1582,83 +1512,44 @@ function PlayerCleanup(pid)
         end
     end
 
-    ResetArena(GetArena(pid)) --reset pvp
-
-    if IS_IN_STRUGGLE[pid] then
-        Struggle_Pcount = Struggle_Pcount - 1
-        IS_IN_STRUGGLE[pid] = false
-
-        if Struggle_Pcount == 0 then
-            ClearStruggle()
-        end
-    end
-
-    IS_AUTO_ATTACK_OFF[pid] = false
-    PLAYER_SELECTED_UNIT[pid] = nil
-
     if Profile[pid].autosave == true then
         Profile[pid]:toggleAutoSave()
         Profile[pid].save_timer:reset()
     end
     TimerList[pid]:stopAllTimers()
 
-    -- remove summons from summon group
-    for i = 1, #SummonGroup do
-        if GetOwningPlayer(SummonGroup[i]) == p then
-            SummonGroup[i] = SummonGroup[#SummonGroup]
-            SummonGroup[#SummonGroup] = nil
-            i = i - 1
-        end
-    end
+    PLAYER_SELECTED_UNIT[pid] = nil
+
+    -- TODO: Use this more
+    EVENT_ON_CLEANUP:trigger(pid)
+
+    tempplayer = p
+    EnumItemsInRect(WorldBounds.rect, nil, ItemRepickRemove)
 
     RemovePlayerUnits(pid)
     SetCameraLocked(pid, false)
-
-    BLOODBANK.set(pid, 0)
-
     Hero[pid] = nil
     HeroID[pid] = 0
     Backpack[pid] = nil
+    IS_AUTO_ATTACK_OFF[pid] = false
     IS_CONVERTER_PURCHASED[pid] = false
     IS_CONVERTING_PLAT[pid] = false
     SetCurrency(pid, GOLD, 0)
     SetCurrency(pid, PLATINUM, 0)
     SetCurrency(pid, CRYSTAL, 0)
     ItemGoldRate[pid] = 0
-    hardcoreClicked[pid] = false
-    meatgolem[pid] = nil
-    destroyer[pid] = nil
-    hounds[pid * 10] = nil
-    hounds[pid * 10 + 1] = nil
-    hounds[pid * 10 + 2] = nil
-    hounds[pid * 10 + 3] = nil
-    hounds[pid * 10 + 4] = nil
-    hounds[pid * 10 + 5] = nil
     CustomLighting[pid] = 1
-    LIMITBREAK.flag[pid] = 0
-    LIMITBREAK.max[pid] = 0
     IS_FLEEING[pid] = false
-    SNIPERSTANCE.enabled[pid] = false
-    Hardcore[pid] = false
-    ArenaQueue[pid] = 0
 
     if GetLocalPlayer() == p then
         PLAT_CONVERT_FRAME.tooltip:text("Must purchase a converter to use!")
         PLAT_CONVERT_FRAME:enabled(false)
         BlzFrameSetVisible(DPS_FRAME, false)
-        BlzFrameSetVisible(LimitBreakBackdrop, false)
-        BlzSetAbilityIcon(PARRY.id, "ReplaceableTextures\\CommandButtons\\BTNReflex.blp")
-        BlzSetAbilityIcon(SPINDASH.id, "ReplaceableTextures\\CommandButtons\\BTNComed Fall.blp")
-        BlzSetAbilityIcon(INTIMIDATINGSHOUT.id, "ReplaceableTextures\\CommandButtons\\BTNBattleShout.blp")
-        BlzSetAbilityIcon(WINDSCAR.id, "ReplaceableTextures\\CommandButtons\\BTNimpaledflameswordfinal.blp")
         DisplayCineFilter(false)
 
         -- clear damage log
         BlzFrameSetText(MULTIBOARD.DAMAGE:get(2, 1).frame, " ")
     end
-
-    tempplayer = p
-    EnumItemsInRect(WorldBounds.rect, nil, ItemRepickRemove)
 end
 
 ---@param u1 unit
@@ -1701,41 +1592,11 @@ function ShowHeroPanel(p, p2, show)
     end
 end
 
----@type fun(u: unit, itid: integer): item?
-function GetItemFromUnit(u, itid)
-    local itm ---@type item 
-
-    for i = 0, 5 do
-        itm = UnitItemInSlot(u, i)
-        if itm and GetItemTypeId(itm) == itid then
-            return UnitItemInSlot(u, i)
-        end
-    end
-
-    return nil
-end
-
----@type fun(pid: integer, id: integer):integer
-function PlayerCountItemType(pid, id)
-    local j = 0 ---@type integer 
-
-    for i = 1, MAX_INVENTORY_SLOTS do
-        if Profile[pid].hero.items[i] and Profile[pid].hero.items[i].id == id then
-            if Profile[pid].hero.items[i].charges > 1 then
-                j = j + Profile[pid].hero.items[i].charges
-            else
-                j = j + 1
-            end
-        end
-    end
-
-    return j
-end
-
 ---@type fun(pid: integer, id: integer): boolean
 function PlayerHasItemType(pid, id)
     for i = 1, MAX_INVENTORY_SLOTS do
-        if Profile[pid].hero.items[i] and Profile[pid].hero.items[i].id == id then
+        local itm = Profile[pid].hero.items[i]
+        if itm and itm.id == id then
             return true
         end
     end
@@ -1743,28 +1604,48 @@ function PlayerHasItemType(pid, id)
     return false
 end
 
----@type fun(u: unit, itid: integer): boolean
-function UnitHasItemType(u, itid)
+local dummies = {
+    FourCC('I00D'),
+    FourCC('I00M'),
+    FourCC('I028'),
+    FourCC('I02K'),
+    FourCC('I01B'),
+    FourCC('I027'),
+}
+
+function IsDummyCastItem(id)
+    return TableHas(dummies, id)
+end
+
+function MakeDummyCastItem(u)
+    local index = 0
+
     for i = 0, 5 do
-        if GetItemTypeId(UnitItemInSlot(u, i)) == itid then
-            return true
+        if not UnitItemInSlot(u, i) then
+            index = i + 1
+            break
         end
     end
 
-    return false
+    local itm = OldCreateItem(dummies[index], 30000, 30000)
+    UnitAddItem(u, itm)
+
+    return itm
 end
 
 ---@param pid integer
 ---@param charge boolean
 ---@return Item?
 function GetResurrectionItem(pid, charge)
-    for i = 0, 5 do
-        local itm = Item[UnitItemInSlot(Hero[pid], i)]
+    local items = Profile[pid].hero.items
+
+    for i = 1, 6 do
+        local itm = items[i]
         if itm then
-            if ItemData[itm.id][ITEM_ABILITY * ABILITY_OFFSET] == FourCC('Arrv') or ItemData[itm.id][ITEM_ABILITY * ABILITY_OFFSET] == FourCC('Anrv') then
-                if charge and ItemData[itm.id][ITEM_ABILITY * ABILITY_OFFSET] == FourCC('Arrv') then
+            if itm.abil == FourCC('Arrv') or itm.abil == FourCC('Anrv') then
+                if charge and itm.abil == FourCC('Arrv') then
                     return itm
-                elseif not charge and GetItemCharges(itm.obj) > 0 then
+                elseif not charge and itm.charges > 0 then
                     return itm
                 end
             end
@@ -1772,13 +1653,13 @@ function GetResurrectionItem(pid, charge)
     end
 
     if charge then
-        for i = 0, 5 do
-            local itm = Item[UnitItemInSlot(Backpack[pid], i)]
+        for i = 1, 6 do
+            local itm = items[i]
             if itm then
-                if ItemData[itm.id][ITEM_ABILITY * ABILITY_OFFSET] == FourCC('Arrv') or ItemData[itm.id][ITEM_ABILITY * ABILITY_OFFSET] == FourCC('Anrv') then
-                    if charge and ItemData[itm.id][ITEM_ABILITY * ABILITY_OFFSET] == FourCC('Arrv') then
+                if itm.abil == FourCC('Arrv') or itm.abil == FourCC('Anrv') then
+                    if charge and itm.abil == FourCC('Arrv') then
                         return itm
-                    elseif not charge and GetItemCharges(itm.obj) > 0 then
+                    elseif not charge and itm.charges > 0 then
                         return itm
                     end
                 end
@@ -1811,7 +1692,7 @@ function RealToString(value)
         return tostring(tonumber(value))
     end
 
-    local s = tostring(math.floor(value))
+    local s = tostring(math.floor(value + 0.5))
     local _, _, minus, int = s:find("([-]?)(\x25d+)")
 
     int = int:reverse():gsub("(\x25d\x25d\x25d)", "\x251,")
@@ -1827,7 +1708,7 @@ function HasProficiency(pid, prof)
         return false
     end
 
-    return BlzBitAnd(HeroStats[id].prof, prof) ~= 0 or prof == 0 or prof == PROF_SHIELD
+    return BlzBitAnd(HeroStats[id].prof, prof) ~= 0 or prof == 0 or prof == PROF_SHIELD or prof == PROF_POTION
 end
 
 ---@type fun(id: integer, pid: integer):number
@@ -1842,48 +1723,6 @@ function ItemToIndex(itemid)
     return SAVE_TABLE.KEY_ITEMS[itemid]
 end
 
----@param pid integer
----@param itm Item
-function ItemInfo(pid, itm)
-    local p      = Player(pid - 1)
-    local s      = GetObjectName(itm.id) ---@type string 
-    local cost   = itm:getValue(ITEM_COST, 0) ---@type integer 
-    local maxlvl = ItemData[itm.id][ITEM_UPGRADE_MAX] ---@type integer 
-
-    if itm.level > 0 then
-        s = s .. " [" .. LEVEL_PREFIX[itm.level] .. " +" .. (itm.level) .. "]"
-    end
-
-    if maxlvl > 0 then
-        s = s .. " |cff999999(MAX +" .. (maxlvl) .. ")|r"
-    end
-
-    DisplayTimedTextToPlayer(p, 0, 0, 15., s)
-
-    if cost > 0 then
-        if (cost / 1000000) > 0 then
-            DisplayTimedTextToPlayer(p, 0, 0, 15., "|cffffcc00Cost|r: " .. RealToString(cost / 1000000) .. " |cffe3e2e2Platinum|r and " .. RealToString(ModuloInteger(cost,1000000)) .. " |cffffcc00Gold|r")
-        else
-            DisplayTimedTextToPlayer(p, 0, 0, 15., "|cffffcc00Cost|r: " .. RealToString(cost) .. " |cffffcc00Gold|r")
-        end
-    end
-
-    if ItemProfMod(itm.id, pid) < 1 then
-        DisplayTimedTextToPlayer(p, 0, 0, 15., "|cffbbbbbbProficiency|r: " .. RealToString(ItemProfMod(itm.id, pid) * 100) .. "\x25")
-    end
-
-    for i = 1, ITEM_STAT_TOTAL - 2 do --ignore abilities
-        if ItemData[itm.id][i] ~= 0 and STAT_TAG[i] then
-            s = STAT_TAG[i].item_suffix or STAT_TAG[i].suffix or ""
-
-            DisplayTimedTextToPlayer(p, 0, 0, 15., (STAT_TAG[i].tag or "") .. ": " .. RealToString(itm:getValue(i, 0)) .. s)
-        end
-    end
-
-    if ItemToIndex(itm.id) then --item info cannot be cast on backpacked items
-        DisplayTimedTextToPlayer(p, 0, 0, 15., "|c0000ff33Saveable|r")
-    end
-end
 
 --overrides default UnitAddItemById function
 ---@type fun(u: unit, id: integer): Item
@@ -1895,29 +1734,17 @@ function UnitAddItemById(u, id)
     return itm
 end
 
+---@type fun(pid: integer, itm: Item)
 function PlayerAddItem(pid, itm)
-    local slot = GetEmptyIndex(pid)
     itm.owner = Player(pid - 1)
+    itm.pid = pid
 
     -- power ups are given to hero regardless
     if GetItemType(itm.obj) == ITEM_TYPE_POWERUP then
         UnitAddItem(Hero[pid], itm.obj)
     else
-        -- try to stack first
-        local stack = itm:getValue(ITEM_STACK, 0)
-
-        if itm:stack(pid, stack) == false then
-            if slot ~= -1 then
-                if slot <= 6 then
-                    UnitAddItem(Hero[pid], itm.obj)
-                elseif slot <= 12 then
-                    UnitAddItem(Backpack[pid], itm.obj)
-                else
-                    SetItemPosition(itm.obj, 30000., 30000.)
-                    SetItemVisible(itm.obj, false)
-                    Profile[pid].hero.items[slot] = itm
-                end
-            end
+        if not itm:equip() then
+            SetItemPosition(itm.obj, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]))
         end
     end
 end
@@ -1926,8 +1753,8 @@ end
 function PlayerAddItemById(pid, id)
     local _, origid, level = GetItem(id)
     local itm = CreateItem(origid, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) ---@type Item
-    local slot = GetEmptyIndex(pid)
     itm.owner = Player(pid - 1)
+    itm.pid = pid
 
     -- power ups are given to hero regardless
     if GetItemType(itm.obj) == ITEM_TYPE_POWERUP then
@@ -1937,22 +1764,7 @@ function PlayerAddItemById(pid, id)
             itm:lvl(level)
         end
 
-        -- try to stack first
-        local stack = itm:getValue(ITEM_STACK, 0)
-
-        if itm:stack(pid, stack) == false then
-            if slot ~= -1 then
-                if slot <= 6 then
-                    UnitAddItem(Hero[pid], itm.obj)
-                elseif slot <= 12 then
-                    UnitAddItem(Backpack[pid], itm.obj)
-                else
-                    SetItemPosition(itm.obj, 30000., 30000.)
-                    SetItemVisible(itm.obj, false)
-                    Profile[pid].hero.items[slot] = itm
-                end
-            end
-        end
+        itm:equip()
     end
 
     return itm
@@ -1963,31 +1775,6 @@ function GetEmptyIndex(pid)
     for i = 1, MAX_INVENTORY_SLOTS do
         if Profile[pid].hero.items[i] == nil then
             return i
-        end
-    end
-
-    return -1
-end
-
---used before equip
----@type fun(u: unit): integer
-function GetEmptySlot(u)
-    for i = 1, 6 do
-        if UnitItemInSlot(u, i - 1) == nil then
-            return i
-        end
-    end
-
-    return -1
-end
-
----@type fun(itm: Item, u : unit): integer
-function GetItemSlot(itm, u)
-    if itm then
-        for i = 1, 6 do
-            if UnitItemInSlot(u, i - 1) == itm.obj then
-                return i
-            end
         end
     end
 
@@ -2245,8 +2032,8 @@ function ParseItemTooltip(itm, s)
             contents = contents:gsub("(#.*)", function(capture)
                 local data = capture:sub(7, #capture)
 
-                ItemData[itemid][index * ABILITY_OFFSET] = FourCC(capture:sub(2, 5))
-                ItemData[itemid][index * ABILITY_OFFSET .. "abil"] = data
+                ItemData[itemid][index .. "id"] = FourCC(capture:sub(2, 5))
+                ItemData[itemid][index .. "data"] = data
 
                 -- read sfx data
                 for entry in gmatch(data, "(\x25S+)") do
@@ -2327,16 +2114,17 @@ function CastSpell(u, id, dur, anim, timescale)
     TimerQueue:callDelayed(dur, finish_cast, u)
 end
 
----@param pid integer
-function UpdateSpellTooltips(pid)
+---@param u unit
+function UpdateSpellTooltips(u)
     local i = 0
-    local abil = BlzGetUnitAbilityByIndex(Hero[pid], i)
+    local pid = GetPlayerId(GetOwningPlayer(u)) + 1
+    local abil = BlzGetUnitAbilityByIndex(u, i)
 
     while abil do
         local sid = BlzGetAbilityId(abil)
 
         if Spells[sid] then
-            local mySpell = Spells[sid]:create(Hero[pid], sid) ---@type Spell
+            local mySpell = Spells[sid]:create(u, sid) ---@type Spell
             local tooltip = mySpell:getTooltip()
 
             if GetLocalPlayer() == Player(pid - 1) then
@@ -2346,7 +2134,7 @@ function UpdateSpellTooltips(pid)
         end
 
         i = i + 1
-        abil = BlzGetUnitAbilityByIndex(Hero[pid], i)
+        abil = BlzGetUnitAbilityByIndex(u, i)
     end
 
     SetPlayerAbilityAvailable(PLAYER_CREEP, FourCC('Agyv'), true)
@@ -2505,19 +2293,10 @@ end
 
 ---@type fun(source: unit, mp: number)
 function MP(source, mp)
-    if GetUnitTypeId(source) ~= HERO_VAMPIRE then
+    if not Unit[source].nomanaregen then
         SetUnitState(source, UNIT_STATE_MANA, GetUnitState(source, UNIT_STATE_MANA) + mp)
         FloatingTextUnit(RealToString(mp), source, 2, 50, -70, 10, 0, 255, 255, 0, true)
     end
-end
-
--- TODO: modify for new inventory system
----@param pid integer
----@param disable boolean
-function DisableItems(pid, disable)
-    local i = (disable and 0) or 1
-    BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(Hero[pid], FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, i)
-    BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(Backpack[pid], FourCC("AInv")), ConvertAbilityIntegerLevelField(FourCC('inv5')), 0, i)
 end
 
 ---@type fun(n: integer, k: integer): number
@@ -2910,9 +2689,13 @@ end
 ---@class SimpleButton
 ---@field frame framehandle
 ---@field button framehandle
+---@field tooltip framehandle
 ---@field text_frame framehandle
 ---@field text function
 ---@field onClick function
+---@field makeTooltip function
+---@field icon function
+---@field iconColor function
 SimpleButton = {}
 do
     local thistype = SimpleButton
@@ -2937,7 +2720,7 @@ do
             self:onClick(onClick)
         end
 
-        -- Set up tooltip
+        -- Set up simple tooltip
         if tooltip then
             self.tooltip = FrameAddSimpleTooltip(self.frame, "", tooltip, true, point3, point4, x2, y2)
         end
@@ -2945,15 +2728,57 @@ do
         return self
     end
 
-    function thistype:text(string)
-        --[[if not self.text_frame then
-            self.text_frame = BlzCreateFrame("CurrencyText", self.frame, 0, 0)
-            BlzFrameSetScale(self.text_frame, 0.9)
-            BlzFrameSetTextAlignment(self.text_frame, TEXT_JUSTIFY_MIDDLE, TEXT_JUSTIFY_CENTER)
-            BlzFrameSetTextColor(self.text_frame, BlzConvertColor(255, 255, 255, 255)) -- Tulip
-        end]]
+    function thistype:setTooltipIcon(icon)
+        if self.iconFrame then
+            BlzFrameSetTexture(self.iconFrame, icon, 0, false)
+        end
+    end
 
-        --BlzFrameSetText(self.frame, string)
+    function thistype:setTooltipText(string)
+        BlzFrameSetText(self.tooltip, string)
+    end
+
+    function thistype:setTooltipName(name)
+        if self.nameFrame then
+            BlzFrameSetText(self.nameFrame, name)
+        end
+    end
+
+    function thistype:iconColor(color)
+        BlzFrameSetVertexColor(self.button, color)
+        BlzFrameSetVertexColor(self.frame, color)
+    end
+
+    function thistype:point(p1, p2, x, y)
+        BlzFrameSetPoint(self.tooltip, p1, self.frame, p2, x, y)
+    end
+
+    -- advanced tooltip
+    function thistype:makeTooltip(point, width)
+        self.tooltip_frame = BlzCreateFrame("TooltipBoxFrame", self.frame, 0, 0)
+        self.box = BlzGetFrameByName("TooltipBox", 0)
+        self.line = BlzGetFrameByName("TooltipSeperator", 0)
+        self.tooltip = BlzGetFrameByName("TooltipText", 0)
+        self.iconFrame = BlzGetFrameByName("TooltipIcon", 0)
+        self.nameFrame = BlzGetFrameByName("TooltipName", 0)
+
+        if point == FRAMEPOINT_TOPLEFT then
+            BlzFrameSetPoint(self.tooltip, point, self.frame, FRAMEPOINT_TOPRIGHT, 0.005, -0.05)
+        elseif point == FRAMEPOINT_TOPRIGHT then
+            BlzFrameSetPoint(self.tooltip, point, self.frame, FRAMEPOINT_TOPLEFT, -0.005, -0.05)
+        elseif point == FRAMEPOINT_BOTTOMLEFT then
+            BlzFrameSetPoint(self.tooltip, point, self.frame, FRAMEPOINT_BOTTOMRIGHT, 0.005, 0.0)
+        else
+            BlzFrameSetPoint(self.tooltip, point, self.frame, FRAMEPOINT_BOTTOMLEFT, -0.005, 0.0)
+        end
+
+        BlzFrameSetPoint(self.box, FRAMEPOINT_TOPLEFT, self.iconFrame, FRAMEPOINT_TOPLEFT, -0.005, 0.005)
+        BlzFrameSetPoint(self.box, FRAMEPOINT_BOTTOMRIGHT, self.tooltip, FRAMEPOINT_BOTTOMRIGHT, 0.005, -0.005)
+        BlzFrameSetSize(self.tooltip, width, 0)
+        BlzFrameSetTooltip(self.frame, self.tooltip_frame)
+    end
+
+    function thistype:text(string)
         BlzFrameSetText(self.text_frame, string)
     end
 
@@ -2983,9 +2808,120 @@ do
     end
 
     function thistype:onClick(func)
-        self.click = CreateTrigger()
-        BlzTriggerRegisterFrameEvent(self.click, self.frame, FRAMEEVENT_CONTROL_CLICK)
-        TriggerAddCondition(self.click, Filter(func))
+        DestroyTrigger(self.click)
+        self.click = nil
+
+        if func ~= nil then
+            self.click = CreateTrigger()
+            TriggerAddCondition(self.click, Condition(func))
+            BlzTriggerRegisterFrameEvent(self.click, self.frame, FRAMEEVENT_CONTROL_CLICK)
+        end
+    end
+end
+
+---@class PromptFrame
+PromptFrame = {}
+do
+    local thistype = SimpleButton
+    local prompt_queue = {}
+
+    -- frame setup
+    local main = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
+    BlzFrameSetAbsPoint(main, FRAMEPOINT_TOP, 0.4, 0.48)
+    BlzFrameSetSize(main, 0.25, 0.20)
+    BlzFrameSetEnable(main, false)
+    BlzFrameSetLevel(main, 20)
+
+    local title = BlzCreateFrame("TitleText", main, 0, 0)
+    BlzFrameSetPoint(title, FRAMEPOINT_TOP, main, FRAMEPOINT_TOP, 0., -0.028)
+    BlzFrameSetEnable(title, false)
+
+    local blurb = BlzCreateFrameByType("TEXT", "", main, "", 0)
+    BlzFrameSetPoint(blurb, FRAMEPOINT_TOP, main, FRAMEPOINT_TOP, 0., -0.06)
+    BlzFrameSetEnable(blurb, false)
+    BlzFrameSetSize(blurb, 0.2, 1.0)
+
+    BlzFrameSetVisible(main, false)
+    --
+
+    local function refresh(pid)
+        local q = prompt_queue[pid][1]
+
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzFrameSetText(title, "|cffffffff" .. q.name .. "|r")
+            BlzFrameSetText(blurb, q.desc)
+            BlzFrameSetVisible(main, true)
+        end
+    end
+
+    local close = function(pid)
+        -- shift queue positions
+        local q = prompt_queue[pid]
+        for i = 1, #q do
+            q[i] = q[i + 1]
+        end
+
+        if q[1] then
+            refresh(pid)
+        else
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzFrameSetVisible(main, false)
+            end
+        end
+    end
+
+    local onClose = function()
+        local f = BlzGetTriggerFrame()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1
+
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzFrameSetEnable(f, false)
+            BlzFrameSetEnable(f, true)
+        end
+
+        close(pid)
+
+        return false
+    end
+
+    local onAccept = function()
+        local f = BlzGetTriggerFrame()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1
+
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzFrameSetEnable(f, false)
+            BlzFrameSetEnable(f, true)
+        end
+
+        prompt_queue[pid][1].func(pid)
+        close(pid)
+
+        return false
+    end
+
+    local accept = SimpleButton.create(main, "ReplaceableTextures\\CommandButtons\\BTNcheck.blp", 0.025, 0.025, FRAMEPOINT_TOP, FRAMEPOINT_TOP, 0., -0.15, onAccept)
+    local exit = SimpleButton.create(main, "ReplaceableTextures\\CommandButtons\\BTNCancel.blp", 0.015, 0.015, FRAMEPOINT_TOPRIGHT, FRAMEPOINT_TOPRIGHT, -0.02, -0.02, onClose, "Close", FRAMEPOINT_BOTTOM, FRAMEPOINT_TOP, 0., 0.01)
+
+    ---@type fun(pid: integer, t: table): boolean
+    function PromptFrame.create(pid, t)
+        if not prompt_queue[pid] then
+            prompt_queue[pid] = {}
+        end
+
+        -- ignore duplicate functions
+        local q = prompt_queue[pid]
+        for i = 1, #q do
+            if q[i].func == t.func then
+                return false
+            end
+        end
+
+        -- add to queue
+        prompt_queue[pid][#prompt_queue[pid] + 1] = t
+
+        refresh(pid)
+
+        return true
     end
 end
 
@@ -3025,81 +2961,6 @@ function MovePlayers(tbl, x, y)
     end
 end
 
----@type fun(flag: integer)
-function AdvanceStruggle(flag)
-    local U = User.first
-    local ug = CreateGroup()
-
-    if flag == 1 then
-        TimerQueue:callDelayed(3., SpawnStruggleUnits)
-    end
-
-    while U do
-        if IS_FLEEING[U.id] and IS_IN_STRUGGLE[U.id] then
-            IS_FLEEING[U.id] = false
-            IS_IN_STRUGGLE[U.id] = false
-            Struggle_Pcount = Struggle_Pcount - 1
-            DisableItems(U.id, false)
-            MoveHeroLoc(U.id, TOWN_CENTER)
-            ExperienceControl(U.id)
-            DisplayTextToPlayer(U.player, 0, 0, "You escaped Struggle with your life.")
-            AwardGold(U.id, GoldWon_Struggle, true)
-            RecallSummons(U.id)
-            GroupEnumUnitsInRect(ug, gg_rct_Infinite_Struggle, Condition(FilterNotHero))
-            for target in each(ug) do
-                if GetOwningPlayer(target) == U.player then
-                    RemoveUnit(target)
-                end
-            end
-        end
-        U = U.next
-    end
-
-    DestroyGroup(ug)
-
-    Struggle_WaveN = Struggle_WaveN + 1
-    Struggle_WaveUCN = Struggle_WaveUN[Struggle_WaveN]
-    if Struggle_Pcount == 0 then
-        ClearStruggle()
-    else
-        if Struggle_WaveU[Struggle_WaveN] <= 0 then -- Struggle Won
-            GoldWon_Struggle= R2I(GoldWon_Struggle * 1.5)
-            SetTextTagTextBJ(StruggleText, ("Gold won: " .. (GoldWon_Struggle)), 10.00)
-
-            U = User.first
-
-            while U do
-                if IS_IN_STRUGGLE[U.id] then
-                    IS_IN_STRUGGLE[U.id] = false
-                    Struggle_Pcount = Struggle_Pcount - 1
-                    DisplayTextToPlayer(U.player, 0, 0, "50\x25 bonus gold for victory!")
-                    MoveHeroLoc(U.id, TOWN_CENTER)
-                    DisableItems(U.id, false)
-                    if Struggle_WaveN < 40 then
-                        DisplayTextToPlayer(U.player,0,0, "You received a lesser ring of struggle for completing struggle.")
-                        PlayerAddItemById(U.id, FourCC('I00T'))
-                    else
-                        DisplayTextToPlayer(U.player,0,0, "You received a ring of struggle for completing chaotic struggle.")
-                        PlayerAddItemById(U.id, FourCC('I0D0'))
-                    end
-                    AwardGold(U.id,GoldWon_Struggle,true)
-                    ExperienceControl(U.id)
-                    RecallSummons(U.id)
-                    U = U.next
-                end
-            end
-
-            ClearStruggle()
-        else
-            if Struggle_WaveN > 40 then
-                DoFloatingTextCoords("Wave " .. (Struggle_WaveN - 40), GetRectCenterX(gg_rct_Infinite_Struggle), GetRectCenterY(gg_rct_Infinite_Struggle), 3.80, 32.0, 0, 18.0, 255, 0, 0, 0)
-            else
-                DoFloatingTextCoords("Wave " .. (Struggle_WaveN), GetRectCenterX(gg_rct_Infinite_Struggle), GetRectCenterY(gg_rct_Infinite_Struggle), 3.80, 32.0, 0, 18.0, 255, 0, 0, 0)
-            end
-        end
-    end
-end
-
 -- Handles "I000:0" format item ids (includes level/variation)
 -- Has backwards compatibility for integer item ids
 ---@type fun(id: string|integer)
@@ -3127,7 +2988,7 @@ function GetItemFromPlayer(pid, id, count)
     for i = 1, MAX_INVENTORY_SLOTS do
         local slot = Profile[pid].hero.items[i]
 
-        if slot and slot.id == id and slot.level == lvl then
+        if slot and slot.id == id and (slot.level == lvl or lvl == -1) then
             if count <= 1 then
                 return Profile[pid].hero.items[i]
             else
@@ -3137,49 +2998,6 @@ function GetItemFromPlayer(pid, id, count)
     end
 
     return nil
-end
-
-function ResetVote()
-    VoteYay = 0
-    VoteNay = 0
-
-    for i = 1, PLAYER_CAP do
-        I_VOTED[i] = false
-    end
-end
-
-function Votekick()
-    ResetVote()
-    VOTING_TYPE = 2
-    VoteYay = 1
-    VoteNay = 1
-    DisplayTimedTextToForce(FORCE_PLAYING, 30, "Voting to kick player " + User[votekickPlayer - 1].nameColored .. " has begun.")
-    BlzFrameSetTexture(VOTING_BACKDROP, "war3mapImported\\afkUI_3.dds", 0, true)
-
-    local id = GetPlayerId(GetLocalPlayer()) + 1
-
-    if id ~= votekickPlayer and id ~= votekickingPlayer then
-        BlzFrameSetVisible(VOTING_BACKDROP, true)
-    end
-end
-
----@return boolean
-function VotekickPanelClick()
-    local pid   = GetPlayerId(GetTriggerPlayer()) + 1
-    local dw    = DialogWindow[pid]
-    local index = dw:getClickedIndex(GetClickedButton())
-
-    if index ~= -1 then
-        if VOTING_TYPE == 0 then
-            votekickPlayer = dw.data[index]
-            votekickingPlayer = pid
-            Votekick()
-        end
-
-        dw:destroy()
-    end
-
-    return false
 end
 
 ---@param pid integer
@@ -3275,55 +3093,14 @@ function Roundmana(mana)
     return R2I(mana)
 end
 
---TODO: define these in the spells themselves?
-local mana_costs = {
-    [HERO_ASSASSIN] = function(maxmana, pid)
-        BlzSetUnitAbilityManaCost(Hero[pid], BLADESPIN.id, GetUnitAbilityLevel(Hero[pid], BLADESPIN.id) - 1, Roundmana(maxmana * .075))
-        BlzSetUnitAbilityManaCost(Hero[pid], SHADOWSHURIKEN.id, GetUnitAbilityLevel(Hero[pid], SHADOWSHURIKEN.id) - 1, Roundmana(maxmana * .05))
-        BlzSetUnitAbilityManaCost(Hero[pid], BLINKSTRIKE.id, GetUnitAbilityLevel(Hero[pid], BLINKSTRIKE.id) - 1, Roundmana(maxmana * .15))
-        BlzSetUnitAbilityManaCost(Hero[pid], SMOKEBOMB.id, GetUnitAbilityLevel(Hero[pid], SMOKEBOMB.id) - 1, Roundmana(maxmana * .20))
-        BlzSetUnitAbilityManaCost(Hero[pid], DAGGERSTORM.id, GetUnitAbilityLevel(Hero[pid], DAGGERSTORM.id) - 1, Roundmana(maxmana * .25))
-        BlzSetUnitAbilityManaCost(Hero[pid], PHANTOMSLASH.id, GetUnitAbilityLevel(Hero[pid], PHANTOMSLASH.id) - 1, Roundmana(maxmana * (.1 - 0.025 * GetUnitAbilityLevel(Hero[pid], PHANTOMSLASH.id))))
-    end,
-    [HERO_BARD] = function(maxmana, pid)
-        BlzSetUnitAbilityManaCost(Hero[pid], MELODYOFLIFE.id, GetUnitAbilityLevel(Hero[pid], MELODYOFLIFE.id) - 1, R2I(MELODYOFLIFE.cost(pid)))
-        BlzSetUnitAbilityManaCost(Hero[pid], INSPIRE.id, GetUnitAbilityLevel(Hero[pid], INSPIRE.id) - 1, Roundmana(maxmana * .02))
-        BlzSetUnitAbilityManaCost(Hero[pid], TONEOFDEATH.id, GetUnitAbilityLevel(Hero[pid], TONEOFDEATH.id) - 1, Roundmana(maxmana * .2))
-    end,
-    [HERO_DARK_SAVIOR] = function(maxmana, pid)
-        BlzSetUnitAbilityManaCost(Hero[pid], DARKSEAL.id, GetUnitAbilityLevel(Hero[pid], DARKSEAL.id) - 1, Roundmana(maxmana * .2))
-        BlzSetUnitAbilityManaCost(Hero[pid], MEDEANLIGHTNING.id, GetUnitAbilityLevel(Hero[pid], MEDEANLIGHTNING.id) - 1, Roundmana(maxmana * .1))
-        BlzSetUnitAbilityManaCost(Hero[pid], FREEZINGBLAST.id, GetUnitAbilityLevel(Hero[pid], FREEZINGBLAST.id) - 1, Roundmana(maxmana * .1))
-    end,
-    [HERO_ELEMENTALIST] = function(maxmana, pid)
-        BlzSetUnitAbilityManaCost(Hero[pid], BALLOFLIGHTNING.id, GetUnitAbilityLevel(Hero[pid], BALLOFLIGHTNING.id) - 1, Roundmana(maxmana * .05))
-        BlzSetUnitAbilityManaCost(Hero[pid], FROZENORB.id, GetUnitAbilityLevel(Hero[pid], FROZENORB.id) - 1, Roundmana(maxmana * .15))
-        BlzSetUnitAbilityManaCost(Hero[pid], FLAMEBREATH.id, GetUnitAbilityLevel(Hero[pid], FLAMEBREATH.id) - 1, Roundmana(maxmana * .03))
-        BlzSetUnitAbilityManaCost(Hero[pid], ELEMENTALSTORM.id, GetUnitAbilityLevel(Hero[pid], ELEMENTALSTORM.id) - 1, Roundmana(maxmana * .25))
-    end,
-    [HERO_HIGH_PRIEST] = function(maxmana, pid)
-        BlzSetUnitAbilityManaCost(Hero[pid], DIVINELIGHT.id, GetUnitAbilityLevel(Hero[pid], DIVINELIGHT.id) - 1, Roundmana(maxmana * .05))
-        BlzSetUnitAbilityManaCost(Hero[pid], SANCTIFIEDGROUND.id, GetUnitAbilityLevel(Hero[pid], SANCTIFIEDGROUND.id) - 1, Roundmana(maxmana * .1))
-        BlzSetUnitAbilityManaCost(Hero[pid], HOLYRAYS.id, GetUnitAbilityLevel(Hero[pid], HOLYRAYS.id) - 1, Roundmana(maxmana * .1))
-        BlzSetUnitAbilityManaCost(Hero[pid], PROTECTION.id, GetUnitAbilityLevel(Hero[pid], PROTECTION.id) - 1, Roundmana(maxmana * .5))
-        BlzSetUnitAbilityManaCost(Hero[pid], RESURRECTION.id, GetUnitAbilityLevel(Hero[pid], RESURRECTION.id) - 1, Roundmana(GetUnitState(Hero[pid], UNIT_STATE_MANA)))
-    end,
-    [HERO_THUNDERBLADE] = function(maxmana, pid)
-        BlzSetUnitAbilityManaCost(Hero[pid], OVERLOAD.id, GetUnitAbilityLevel(Hero[pid], OVERLOAD.id) - 1, Roundmana(maxmana * .02))
-    end,
-}
-
-mana_costs[HERO_DARK_SAVIOR_DEMON] = mana_costs[HERO_DARK_SAVIOR]
-
----@type fun(pid: integer)
-function UpdateManaCosts(pid)
-    local id = HeroID[pid]
-
-    if mana_costs[id] then
-        local maxmana = BlzGetUnitMaxMana(Hero[pid])
-
-        mana_costs[id](maxmana, pid)
+function SyncCallback(prefix, func)
+    local t = CreateTrigger()
+    local U = User.first
+    while U do
+        BlzTriggerRegisterPlayerSyncEvent(t, U.player, prefix, false)
+        U = U.next
     end
+    TriggerAddCondition(t, Condition(func))
 end
 
 end, Debug and Debug.getLine())
