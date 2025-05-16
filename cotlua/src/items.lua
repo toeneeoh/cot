@@ -992,13 +992,14 @@ function RechargeItem()
         local gold, plat = dw.data[index][1], dw.data[index][2]
 
         if itm then
-            itm.charges = itm.charges + 1
-
-            -- update charge count in both inventories
-            SetItemCharges(itm.abilities[ITEM_ABILITY], itm.charges)
-            INVENTORY.refresh(itm.pid)
-
+            -- dont assume player has enough resources here
             if GetCurrency(pid, GOLD) >= gold and GetCurrency(pid, PLATINUM) >= plat then
+                itm.charges = itm.charges + 1
+
+                -- update charge count in both inventories
+                SetItemCharges(itm.abilities[ITEM_ABILITY].obj, itm.charges)
+                INVENTORY.refresh(itm.pid)
+
                 AddCurrency(pid, GOLD, -gold)
                 AddCurrency(pid, PLATINUM, -plat)
 
@@ -1010,8 +1011,11 @@ function RechargeItem()
                     message = message .. "\nRecharged " .. GetItemName(itm.obj) .. " for " .. RealToString(gold) .. " Gold."
                 end
                 DisplayTextToPlayer(Player(pid - 1), 0, 0, message)
+
+                -- start recharge cooldown
+                RECHARGE_COOLDOWN[pid] = 180.
+                TimerQueue:callDelayed(1., recharge_cd, pid)
             end
-            TimerQueue:callDelayed(1., recharge_cd, pid)
         end
 
         dw:destroy()
@@ -1029,7 +1033,8 @@ function RechargeDialog(pid, itm)
     local platCost     = GetCurrency(pid, PLATINUM) * percentage ---@type number 
     local dw           = DialogWindow.create(pid, "", RechargeItem) ---@type DialogWindow 
 
-    goldCost = goldCost + (platCost - R2I(platCost)) * 1000000
+    -- must be integers
+    goldCost = R2I(goldCost + (platCost - R2I(platCost)) * 1000000)
     platCost = R2I(platCost)
 
     if platCost > 0 then
@@ -1066,16 +1071,16 @@ function KillQuestHandler(pid, itemid)
         DisplayTimedTextToPlayer(p, 0,0, 10, "You must be level |cffffcc00" .. (min) .. "|r to begin this quest.")
     elseif GetUnitLevel(Hero[pid]) > max then
         DisplayTimedTextToPlayer(p, 0,0, 10, "You are too high level to do this quest.")
-    --Progress
+    -- progress
     elseif KillQuest[index].status == 1 then
         DisplayTimedTextToPlayer(p, 0,0, 10, "Killed " .. (KillQuest[index].count) .. "/" .. (goal) .. " " .. KillQuest[index].name)
         PingMinimap(GetRectCenterX(KillQuest[index].region), GetRectCenterY(KillQuest[index].region), 3)
-    --Start Quest
+    -- start quest
     elseif KillQuest[index].status == 0 then
         KillQuest[index].status = 1
         DisplayTimedTextToPlayer(p, 0, 0, 10, "|cffffcc00QUEST:|r Kill " .. (goal) .. " " .. KillQuest[index].name .. " for a reward.")
         PingMinimap(GetRectCenterX(KillQuest[index].region), GetRectCenterY(KillQuest[index].region), 5)
-    --Completion
+    -- completion
     elseif KillQuest[index].status == 2 then
         while U do
             if Profile[U.id].playing and GetUnitLevel(Hero[U.id]) >= min and GetUnitLevel(Hero[U.id]) <= max then
@@ -1099,12 +1104,12 @@ function KillQuestHandler(pid, itemid)
             U = U.next
         end
 
-        --reset
+        -- reset
         KillQuest[index].status = 1
         KillQuest[index].count = 0
         KillQuest[index].goal = IMinBJ(goal + 3, 100)
 
-        --increase max spawns based on last unit killed (until max goal of 100 is reached)
+        -- increase max spawns based on last unit killed (until max goal of 100 is reached)
         if (KillQuest[index].goal) < 100 and ModuloInteger(KillQuest[index].goal, 2) == 0 then
             myregion = SelectGroupedRegion(UnitData[KillQuest[index].last].spawn)
             repeat
