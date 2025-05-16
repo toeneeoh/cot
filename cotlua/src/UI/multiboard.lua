@@ -15,6 +15,7 @@ OnInit.final("Multiboard", function(Require)
     Require("TimerQueue")
     Require("Dungeons")
     Require("Shop")
+    Require("Users")
 
     ---@class MULTIBOARD
     ---@field lookingAt integer[]
@@ -36,6 +37,8 @@ OnInit.final("Multiboard", function(Require)
     ---@field addRows function
     ---@field get function
     ---@field viewing table
+    ---@field previousMb integer[]
+    ---@field name string
     MULTIBOARD = {}
 
     do
@@ -55,64 +58,113 @@ OnInit.final("Multiboard", function(Require)
 
         -- current mb body a player is looking at
         MB.lookingAt = __jarray(1) ---@type integer[]
+        MB.previousMb = __jarray(1)
+        MB.minimized = __jarray(false)
 
-        -- 1 = main, 2, ready queue, 3 = threat, 4 = damage log
+        -- 1 = main, 2, ready queue, 3 = boss, 4 = damage log
         MB.bodies = {} ---@type table[]
 
-        ---@type fun(columns: integer): table
-        function MB.makeBody(columns)
-            local self = {
-                index = #MB.bodies + 1,
-                frame = BlzCreateFrame("ListBoxWar3", MB.main, 0, 0),
-                available = {}, ---@type boolean[]
-                rows = {},
-                anchors = {},
-                columnCount = columns,
-            }
+        -- method operators for initializing different types of frames
+        local mt = {
+            __newindex = function(column, key, val)
+                local frame, x_offset, y_offset, width, height
 
-            BlzFrameClearAllPoints(self.frame)
-            BlzFrameSetPoint(self.frame, FRAMEPOINT_TOPLEFT, MB.main, FRAMEPOINT_BOTTOMLEFT, 0, 0.01)
-            BlzFrameSetVisible(self.frame, false)
-            BlzFrameSetEnable(self.frame, false)
+                if type(val) == "table" then
+                    x_offset, y_offset, width, height = val[1], val[2], val[3], val[4]
 
-            MB.bodies[self.index] = self
+                    -- set max height of row
+                    local max_height = height - y_offset
+                    column.parent.height = math.max(column.parent.height, max_height)
+                    column.parent.height_backup = column.parent.height
+                end
 
+                if key == "text" then
+                    frame = BlzCreateFrameByType("TEXT", "name", column.parent.parent, "", 0)
+                    BlzFrameSetText(frame, "")
+                    BlzFrameSetEnable(frame, false)
+                elseif key == "textarea" then
+                    frame = BlzCreateFrame("MBTextArea", column.parent.parent, 0, 0)
+                elseif key == "icon" then
+                    frame = BlzCreateFrameByType("BACKDROP", "name", column.parent.parent, "", 0)
+                    BlzFrameSetEnable(frame, false)
+                    BlzFrameSetTexture(frame, "trans32.blp", 0, true)
+                elseif key == "radiobutton" then -- checked by default
+                    frame = BlzCreateFrame("RadioCheckedButton", column.parent.parent, 0, 0)
+                elseif key == "button" then
+                    frame = BlzCreateFrameByType("GLUETEXTBUTTON", "", column.parent.parent, "ScriptDialogButton", 0)
+                    BlzFrameSetScale(frame, 0.7)
+                elseif key == "checkbox" then -- unchecked by default
+                    frame = BlzCreateFrame("EscMenuCheckBoxTemplate", column.parent.parent, 0, 0)
+                elseif key == "bar" then
+                    frame = BlzCreateFrame("EscMenuControlBackdropTemplate", column.parent.parent, 0, 0)
+                    local bar = BlzCreateFrameByType("SIMPLESTATUSBAR", "", frame, "", 0)
+                    BlzFrameSetPoint(bar, FRAMEPOINT_TOPLEFT, frame, FRAMEPOINT_TOPLEFT, 0.006, -0.006)
+                    BlzFrameSetPoint(bar, FRAMEPOINT_BOTTOMRIGHT, frame, FRAMEPOINT_BOTTOMRIGHT, -0.006, 0.006)
+                    BlzFrameSetTexture(bar, "ui\\feedback\\xpbar\\human-bigbar-fill", 0, true)
+                    rawset(column, "bar_value", bar)
+                elseif key == "gluebutton" then
+                    local gb = SimpleButton.create(column.parent.parent, "", width, height, FRAMEPOINT_TOPLEFT, FRAMEPOINT_TOPLEFT, x_offset, y_offset, nil, "View item drops", FRAMEPOINT_TOPRIGHT, FRAMEPOINT_BOTTOMLEFT)
+                    rawset(column, key, gb)
+
+                    return
+                end
+
+                if frame then
+                    BlzFrameSetSize(frame, width, height)
+
+                    -- align frame with row parent using x-offset and y-offset
+                    BlzFrameSetPoint(frame, FRAMEPOINT_TOPLEFT, column.parent.parent, FRAMEPOINT_TOPLEFT, x_offset, y_offset)
+
+                    -- two name references
+                    rawset(column, key, frame)
+                    rawset(column, "frame", frame)
+                else
+                    rawset(column, key, val)
+                end
+            end
+        }
+
+        local body_template = {
             -- returns an element at row, column
             -- 1-indexed
             ---@type fun(self: self, r: integer, c: integer): table
-            function self:get(r, c)
+            get = function(self, r, c)
                 return self.rows[r].columns[c]
-            end
+            end,
 
             -- returns an anchor at row, column (rows that are anchored at the end and climb up)
             ---@type fun(self: self, r: integer, c: integer): table
-            function self:get_anchor(r, c)
+            get_anchor = function(self, r, c)
                 return self.anchors[r].columns[c]
-            end
+            end,
 
             -- displays body to a player
-            function self:display(pid)
+            display = function(self, pid, override)
                 self:refresh()
 
                 local old_body = MB.bodies[MB.lookingAt[pid]]
-                MB.lookingAt[pid] = self.index
 
-                if GetLocalPlayer() == Player(pid - 1) then
-                    BlzFrameSetVisible(old_body.frame, false)
-                    BlzFrameSetVisible(self.frame, true)
-                    BlzFrameSetTexture(MB.minimize_backdrop, "war3mapImported\\minimize.blp", 0, true)
-                    BlzFrameSetText(MB.name, self.title or "")
-                    if old_body.close then
-                        old_body.close()
-                    end
-                    if self.open then
-                        self.open()
+                -- ignore display if already viewing
+                if self ~= old_body or override then
+                    MB.previousMb[pid] = MB.lookingAt[pid]
+                    MB.lookingAt[pid] = self.index
+
+                    if GetLocalPlayer() == Player(pid - 1) then
+                        BlzFrameSetVisible(old_body.frame, false)
+                        BlzFrameSetVisible(self.frame, not MB.minimized[pid])
+                        BlzFrameSetText(MB.name, self.title or "")
+                        if old_body.close then
+                            old_body.close()
+                        end
+                        if self.open and not MB.minimized[pid] then
+                            self.open()
+                        end
                     end
                 end
-            end
+            end,
 
             -- called on display to ensure body is proper dimensions and rows are aligned by height
-            function self:refresh()
+            refresh = function(self)
                 local height = INITIAL_ROW_Y_OFFSET
 
                 for i = 1, #self.rows do
@@ -132,70 +184,10 @@ OnInit.final("Multiboard", function(Require)
                 end
 
                 BlzFrameSetSize(self.frame, 0.3, height + FINAL_ROW_Y_OFFSET)
-            end
-
-            -- method operators for initializing different types of frames
-            local mt = {
-                __newindex = function(column, key, val)
-                    local frame, x_offset, y_offset, width, height
-
-                    if type(val) == "table" then
-                        x_offset, y_offset, width, height = val[1], val[2], val[3], val[4]
-
-                        -- set max height of row
-                        local max_height = height - y_offset
-                        column.parent.height = math.max(column.parent.height, max_height)
-                        column.parent.height_backup = column.parent.height
-                    end
-
-                    if key == "text" then
-                        frame = BlzCreateFrameByType("TEXT", "name", column.parent.parent, "", 0)
-                        BlzFrameSetText(frame, "")
-                        BlzFrameSetEnable(frame, false)
-                    elseif key == "textarea" then
-                        frame = BlzCreateFrame("MBTextArea", column.parent.parent, 0, 0)
-                    elseif key == "icon" then
-                        frame = BlzCreateFrameByType("BACKDROP", "name", column.parent.parent, "", 0)
-                        BlzFrameSetEnable(frame, false)
-                        BlzFrameSetTexture(frame, "trans32.blp", 0, true)
-                    elseif key == "radiobutton" then -- checked by default
-                        frame = BlzCreateFrame("RadioCheckedButton", column.parent.parent, 0, 0)
-                    elseif key == "button" then
-                        frame = BlzCreateFrameByType("GLUETEXTBUTTON", "", column.parent.parent, "ScriptDialogButton", 0)
-                        BlzFrameSetScale(frame, 0.7)
-                    elseif key == "checkbox" then -- unchecked by default
-                        frame = BlzCreateFrame("EscMenuCheckBoxTemplate", column.parent.parent, 0, 0)
-                    elseif key == "bar" then
-                        frame = BlzCreateFrame("EscMenuControlBackdropTemplate", column.parent.parent, 0, 0)
-                        local bar = BlzCreateFrameByType("SIMPLESTATUSBAR", "", frame, "", 0)
-                        BlzFrameSetPoint(bar, FRAMEPOINT_TOPLEFT, frame, FRAMEPOINT_TOPLEFT, 0.006, -0.006)
-                        BlzFrameSetPoint(bar, FRAMEPOINT_BOTTOMRIGHT, frame, FRAMEPOINT_BOTTOMRIGHT, -0.006, 0.006)
-                        BlzFrameSetTexture(bar, "ui\\feedback\\xpbar\\human-bigbar-fill", 0, true)
-                        rawset(column, "bar_value", bar)
-                    elseif key == "gluebutton" then
-                        local gb = SimpleButton.create(column.parent.parent, "", width, height, FRAMEPOINT_TOPLEFT, FRAMEPOINT_TOPLEFT, x_offset, y_offset, nil, "View item drops", FRAMEPOINT_TOPRIGHT, FRAMEPOINT_BOTTOMLEFT)
-                        rawset(column, key, gb)
-
-                        return
-                    end
-
-                    if frame then
-                        BlzFrameSetSize(frame, width, height)
-
-                        -- align frame with row parent using x-offset and y-offset
-                        BlzFrameSetPoint(frame, FRAMEPOINT_TOPLEFT, column.parent.parent, FRAMEPOINT_TOPLEFT, x_offset, y_offset)
-
-                        -- two name references
-                        rawset(column, key, frame)
-                        rawset(column, "frame", frame)
-                    else
-                        rawset(column, key, val)
-                    end
-                end
-            }
+            end,
 
             -- sets the visibility of a specified row index
-            function self:showRow(num, show)
+            showRow = function(self, num, show)
                 local row = self.rows[num]
 
                 BlzFrameSetVisible(row.parent, show)
@@ -205,11 +197,11 @@ OnInit.final("Multiboard", function(Require)
                     row.height = 0
                 end
                 self:refresh()
-            end
+            end,
 
             -- adds set number of rows to a body, if anchor is true the row will tail the end of the multiboard regardless of added / deleted rows
             ---@type fun(self: self, num: integer, anchor: boolean)
-            function self:addRows(num, anchor)
+            addRows = function(self, num, anchor)
                 for _ = 1, num do
                     local row = {
                         width = ROW_WIDTH,
@@ -242,24 +234,45 @@ OnInit.final("Multiboard", function(Require)
                     end
                 end
             end
+        }
+        body_template.__index = body_template
+
+        ---@type fun(columns: integer): table
+        function MB.create(columns)
+            local self = setmetatable({
+                index = #MB.bodies + 1,
+                frame = BlzCreateFrame("ListBoxWar3", MB.main, 0, 0),
+                available = {}, ---@type boolean[]
+                rows = {},
+                anchors = {},
+                columnCount = columns,
+            }, body_template)
+
+            BlzFrameClearAllPoints(self.frame)
+            BlzFrameSetPoint(self.frame, FRAMEPOINT_TOPLEFT, MB.main, FRAMEPOINT_BOTTOMLEFT, 0, 0.01)
+            BlzFrameSetVisible(self.frame, false)
+            BlzFrameSetEnable(self.frame, false)
+
+            MB.bodies[self.index] = self
 
             return self
         end
 
-        -- minimizes the multiboard for a player
-        function MB.minimize(pid)
+        -- toggles minimizing the multiboard for a player
+        local function minimize(pid)
+            MB.minimized[pid] = not MB.minimized[pid]
             local body = MB.bodies[MB.lookingAt[pid]]
 
             if Player(pid - 1) == GetLocalPlayer() then
-                if BlzFrameIsVisible(body.frame) then
+                if MB.minimized[pid] then
                     BlzFrameSetVisible(body.frame, false)
-                    BlzFrameSetTexture(MB.minimize_backdrop, "war3mapImported\\expand.blp", 0, true)
+                    MB.minimize_button:icon("war3mapImported\\expand.blp")
                     if body.close then
                         body.close()
                     end
                 else
                     BlzFrameSetVisible(body.frame, true)
-                    BlzFrameSetTexture(MB.minimize_backdrop, "war3mapImported\\minimize.blp", 0, true)
+                    MB.minimize_button:icon("war3mapImported\\minimize.blp")
                     if body.open then
                         body.open()
                     end
@@ -267,19 +280,20 @@ OnInit.final("Multiboard", function(Require)
             end
         end
 
-        function MB.onMinimize()
+        local function onMinimize()
+            local f = BlzGetTriggerFrame()
             local pid = GetPlayerId(GetTriggerPlayer()) + 1
 
             if GetTriggerPlayer() == GetLocalPlayer() then
-                BlzFrameSetEnable(BlzGetTriggerFrame(), false)
-                BlzFrameSetEnable(BlzGetTriggerFrame(), true)
+                BlzFrameSetEnable(f, false)
+                BlzFrameSetEnable(f, true)
             end
 
-            MB.minimize(pid)
+            minimize(pid)
         end
 
         -- opens the next multiboard page for a player
-        function MB.next(pid)
+        local function next(pid)
             local next_body = MB.lookingAt[pid]
 
             repeat
@@ -289,18 +303,19 @@ OnInit.final("Multiboard", function(Require)
             MB.bodies[next_body]:display(pid)
         end
 
-        function MB.onNext()
+        local function onNext()
+            local f = BlzGetTriggerFrame()
             local pid = GetPlayerId(GetTriggerPlayer()) + 1
 
             if GetTriggerPlayer() == GetLocalPlayer() then
-                BlzFrameSetEnable(BlzGetTriggerFrame(), false)
-                BlzFrameSetEnable(BlzGetTriggerFrame(), true)
+                BlzFrameSetEnable(f, false)
+                BlzFrameSetEnable(f, true)
             end
 
-            MB.next(pid)
+            next(pid)
         end
 
-        -- define multiboard frames
+        -- frame setup
         MB.frame = BlzCreateFrameByType("FRAME", "", BlzGetFrameByName("ConsoleUIBackdrop", 0), "", 0)
         MB.main = BlzCreateFrame("ListBoxWar3", MB.frame, 0, 0)
         BlzFrameSetSize(MB.main, ROW_WIDTH, ROW_HEIGHT)
@@ -311,41 +326,28 @@ OnInit.final("Multiboard", function(Require)
         BlzFrameClearAllPoints(MB.name)
         BlzFrameSetPoint(MB.name, FRAMEPOINT_CENTER, MB.main, FRAMEPOINT_CENTER, 0, 0)
 
-        MB.minimize_button = BlzCreateFrameByType("GLUEBUTTON", "name", MB.main, "ScoreScreenTabButtonTemplate", 0)
-        BlzFrameClearAllPoints(MB.minimize_button)
-        BlzFrameSetPoint(MB.minimize_button, FRAMEPOINT_RIGHT, MB.main, FRAMEPOINT_RIGHT, -0.04, 0)
-        BlzFrameSetSize(MB.minimize_button, 0.015, 0.015)
-        FrameAddSimpleTooltip(MB.minimize_button, "", "Minimize '.'", true, FRAMEPOINT_TOPRIGHT, FRAMEPOINT_BOTTOMLEFT)
+        MB.minimize_button = SimpleButton.create(MB.main, "war3mapImported\\minimize.blp", 0.015, 0.015, FRAMEPOINT_RIGHT, FRAMEPOINT_RIGHT, -0.04, 0., onMinimize, "Minimize '.'", FRAMEPOINT_TOPRIGHT, FRAMEPOINT_BOTTOMLEFT)
+        MB.next_button = SimpleButton.create(MB.main, "war3mapImported\\next.blp", 0.015, 0.015, FRAMEPOINT_RIGHT, FRAMEPOINT_RIGHT, -0.0175, 0., onNext, "Next page '/'", FRAMEPOINT_TOPRIGHT, FRAMEPOINT_BOTTOMLEFT)
 
-        MB.minimize_backdrop = BlzCreateFrameByType("BACKDROP", "name", MB.minimize_button, "", 0)
-        BlzFrameClearAllPoints(MB.minimize_backdrop)
-        BlzFrameSetAllPoints(MB.minimize_backdrop, MB.minimize_button)
-        BlzFrameSetTexture(MB.minimize_backdrop, "war3mapImported\\expand.blp", 0, true)
+        local function next_multiboard(pid, is_down)
+            if is_down then
+                next(pid)
+            end
+        end
+        RegisterHotkeyToFunc('/', "Next Multiboard", next_multiboard, MB.next_button.tooltip.tooltip)
 
-        MB.minimize_trig = CreateTrigger()
-        BlzTriggerRegisterFrameEvent(MB.minimize_trig, MB.minimize_button, FRAMEEVENT_CONTROL_CLICK)
-        TriggerAddAction(MB.minimize_trig, MB.onMinimize)
-
-        MB.next_button = BlzCreateFrameByType("GLUEBUTTON", "name", MB.main, "ScoreScreenTabButtonTemplate", 0)
-        BlzFrameClearAllPoints(MB.next_button)
-        BlzFrameSetPoint(MB.next_button, FRAMEPOINT_RIGHT, MB.main, FRAMEPOINT_RIGHT, -0.0175, 0)
-        BlzFrameSetSize(MB.next_button, 0.015, 0.015)
-        FrameAddSimpleTooltip(MB.next_button, "", "Next page '/'", true, FRAMEPOINT_TOPRIGHT, FRAMEPOINT_BOTTOMLEFT)
-
-        MB.next_backdrop = BlzCreateFrameByType("BACKDROP", "name", MB.next_button, "", 0)
-        BlzFrameClearAllPoints(MB.next_backdrop)
-        BlzFrameSetAllPoints(MB.next_backdrop, MB.next_button)
-        BlzFrameSetTexture(MB.next_backdrop, "war3mapImported\\next.blp", 0, true)
-
-        MB.next_trig = CreateTrigger()
-        BlzTriggerRegisterFrameEvent(MB.next_trig, MB.next_button, FRAMEEVENT_CONTROL_CLICK)
-        TriggerAddAction(MB.next_trig, MB.onNext)
+        local function minimize_multiboard(pid, is_down)
+            if is_down then
+                minimize(pid)
+            end
+        end
+        RegisterHotkeyToFunc('.', "Minimize Multiboard", minimize_multiboard, MB.minimize_button.tooltip.tooltip)
 
         -- create bodies
-        local main = MB.makeBody(6)
-        local queue = MB.makeBody(3)
-        local boss = MB.makeBody(4)
-        local damageLog = MB.makeBody(6)
+        local main = MB.create(6)
+        local queue = MB.create(3)
+        local boss = MB.create(4)
+        local damageLog = MB.create(6)
 
         main:addRows(User.AmountPlaying)
         main.available = __jarray(true)
@@ -358,7 +360,7 @@ OnInit.final("Multiboard", function(Require)
         queue:addRows(User.AmountPlaying)
         -- keep track of player positions
         queue.player_lookup = __jarray(0)
-        queue.last_row = 0
+        queue.last_row = 1
 
         MB.MAIN = main
         MB.QUEUE = queue
@@ -393,14 +395,16 @@ OnInit.final("Multiboard", function(Require)
                 local profile = Profile[pid]
 
                 if u then
+                    local playing = (profile and profile.playing)
+
                     -- main
                     local nameText = (IS_DONATOR[pid] and u.nameColored .. "|r|cffffcc00*|r") or u.nameColored
-                    local hcIcon = (Hardcore[pid] and "ReplaceableTextures\\CommandButtons\\BTNBirial.blp") or "trans32.blp"
-                    local heroIcon = (profile.playing and BlzGetAbilityIcon(HeroID[pid])) or "trans32.blp"
-                    local hp = (profile.playing and GetWidgetLife(Hero[pid]) / BlzGetUnitMaxHP(Hero[pid]) * 100.) or 0
-                    local heroText = (profile.playing and GetObjectName(HeroID[pid])) or ""
-                    local levelText = (profile.playing and "|cff999999[" .. GetHeroLevel(Hero[pid]) .. "]|r") or ""
-                    local hpText = (profile.playing and HealthGradient(hp, true) .. math.ceil(hp) .. "\x25" .. "|r") or ""
+                    local hcIcon = (playing and profile.hero.hardcore > 0 and "ReplaceableTextures\\CommandButtons\\BTNBirial.blp") or "trans32.blp"
+                    local heroIcon = (playing and BlzGetAbilityIcon(HeroID[pid])) or "trans32.blp"
+                    local hp = (playing and GetWidgetLife(Hero[pid]) / BlzGetUnitMaxHP(Hero[pid]) * 100.) or 0
+                    local heroText = (playing and GetObjectName(HeroID[pid])) or ""
+                    local levelText = (playing and "|cff999999[" .. GetHeroLevel(Hero[pid]) .. "]|r") or ""
+                    local hpText = (playing and HealthGradient(hp, true) .. math.ceil(hp) .. "\x25" .. "|r") or ""
                     if u.isPlaying == false then
                         name = "|cff999999" .. u.name .. "|r"
                     end
@@ -678,55 +682,66 @@ OnInit.final("Multiboard", function(Require)
                 items[i] = Button.create(item_drop_container, ICON_SIZE * 2 + 0.004, ICON_SIZE * 2 + 0.004, 0., -(ICON_SIZE * 2. + 0.004) * i, false)
                 items[i].tooltip:point(FRAMEPOINT_TOPRIGHT)
             end
-            item_drops.close = function(p, close)
+            boss.close_items = function(p, close)
                 if GetLocalPlayer() == p then
                     BlzFrameSetVisible(item_drop_container, not close)
                     item_drops:enable(close)
                 end
             end
+            boss.update_items = function(p)
+                local b = boss.viewing[GetPlayerId(p) + 1]
+
+                if b then
+                    local boss_items = {}
+
+                    for i = 1, 10 do
+                        local item = ItemDrops[b.id][i]
+
+                        if item ~= 0 then
+                            boss_items[i] = ShopItem.create(item, 0, true)
+                        else
+                            break
+                        end
+                    end
+
+                    if GetLocalPlayer() == p then
+                        for i = 1, 10 do
+                            if boss_items[i] then
+                                items[i]:visible(true)
+                                items[i]:icon(boss_items[i].icon)
+                                items[i].tooltip:name(boss_items[i].name)
+                                items[i].tooltip:icon(boss_items[i].icon)
+                                items[i].tooltip:text(boss_items[i].tooltip)
+                            else
+                                items[i]:visible(false)
+                            end
+                        end
+                    end
+                end
+            end
             local function onClick()
                 local frame = BlzGetTriggerFrame()
                 local p = GetTriggerPlayer()
-                local b = boss.viewing[GetPlayerId(p) + 1]
-                local boss_items = {}
-
-                for i = 1, 10 do
-                    local item = ItemDrops[b.id][i - 1]
-
-                    if item ~= 0 then
-                        boss_items[i] = ShopItem.create(item, 0, true)
-                    else
-                        break
-                    end
-                end
-
-                item_drops.close(p, not item_drops.enabled)
 
                 if GetLocalPlayer() == p then
                     BlzFrameSetEnable(frame, false)
                     BlzFrameSetEnable(frame, true)
-                    for i = 1, 10 do
-                        if boss_items[i] then
-                            items[i]:visible(true)
-                            items[i]:icon(boss_items[i].icon)
-                            items[i].tooltip:name(boss_items[i].name)
-                            items[i].tooltip:icon(boss_items[i].icon)
-                            items[i].tooltip:text(boss_items[i].tooltip)
-                        else
-                            items[i]:visible(false)
-                        end
-                    end
                 end
+
+                boss.close_items(p, BlzFrameIsVisible(item_drop_container))
             end
             item_drops:onClick(onClick)
         end
 
         -- display main to all
-        local id = GetPlayerId(GetLocalPlayer()) + 1
-        main:display(id)
+        local U = User.first
+        while U do
+            main:display(U.id, true)
 
-        -- toggle bit flag to ensure players can see their own damage instances
-        DAMAGE_LOG_FLAGS[id] = DAMAGE_LOG_FLAGS[id] | (1 << (id - 1))
+            -- toggle bit flag to ensure players can see their own damage instances
+            DAMAGE_LOG_FLAGS[U.id] = DAMAGE_LOG_FLAGS[U.id] | (1 << (U.id - 1))
+            U = U.next
+        end
 
         -- refresh multiboards every second for the rest of the game
         TimerQueue:callPeriodically(1., nil, refresh_multiboard)
