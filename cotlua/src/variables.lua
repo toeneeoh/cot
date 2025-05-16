@@ -67,53 +67,73 @@ OnInit.global("Variables", function()
     PROF_DAGGER                        = 0x80
     PROF_BOW                           = 0x100
     PROF_STAFF                         = 0x200
+    PROF_POTION                        = 0x400
 
     HeroStats = {
         [HERO_PHOENIX_RANGER]   = { prof = PROF_BOW + PROF_LEATHER,
-                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0I6') },
         [HERO_MARKSMAN]         = { prof = PROF_BOW + PROF_LEATHER,
-                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A070') },
         [HERO_MARKSMAN_SNIPER]  = { prof = PROF_BOW + PROF_LEATHER,
                                     phys_resist = 2.0, magic_resist = 1.8, phys_damage = 1.3, crit_chance = 5., crit_damage = 100. },
         [HERO_MASTER_ROGUE]     = { prof = PROF_DAGGER + PROF_LEATHER,
-                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0I1') },
         [HERO_THUNDERBLADE]     = { prof = PROF_DAGGER + PROF_LEATHER,
-                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A039') },
         [HERO_ASSASSIN]         = { prof = PROF_DAGGER + PROF_LEATHER,
-                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.25, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A01N'), mana_regen_max = 2 },
         [HERO_VAMPIRE]          = { prof = PROF_HEAVY + PROF_PLATE + PROF_DAGGER + PROF_LEATHER,
-                                    phys_resist = 1.5, magic_resist = 1.5, phys_damage = 1.25, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.5, magic_resist = 1.5, phys_damage = 1.25, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A05E') },
         [HERO_BLOODZERKER]      = { prof = PROF_HEAVY + PROF_SWORD + PROF_PLATE,
-                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.6, magic_resist = 1.8, phys_damage = 1.2, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A06N') },
         [HERO_WARRIOR]          = { prof = PROF_HEAVY + PROF_SWORD + PROF_PLATE,
-                                    phys_resist = 1.1, magic_resist = 1.5, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.1, magic_resist = 1.5, phys_damage = 1.2, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0IE') },
         [HERO_ROYAL_GUARDIAN]   = { prof = PROF_HEAVY + PROF_SWORD + PROF_PLATE + PROF_FULLPLATE,
-                                    phys_resist = 0.9, magic_resist = 1.5, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 0.9, magic_resist = 1.5, phys_damage = 1.2, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0I5') },
         [HERO_OBLIVION_GUARD]   = { prof = PROF_HEAVY + PROF_PLATE + PROF_FULLPLATE,
-                                    phys_resist = 1.0, magic_resist = 1.3, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.0, magic_resist = 1.3, phys_damage = 1.2, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0HQ') },
         [HERO_CRUSADER]         = { prof = PROF_HEAVY + PROF_FULLPLATE + PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.1, magic_resist = 1.1, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.1, magic_resist = 1.1, phys_damage = 1.2, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0I4') },
         [HERO_DARK_SAVIOR]      = { prof = PROF_SWORD + PROF_PLATE + PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.6, magic_resist = 1.0, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.6, magic_resist = 1.0, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. ,
+                                    passive = FourCC('A0DL') },
         [HERO_DARK_SAVIOR_DEMON]= { prof = PROF_SWORD + PROF_PLATE + PROF_STAFF + PROF_CLOTH,
                                     phys_resist = 1.6, magic_resist = 1.0, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
         [HERO_SAVIOR]           = { prof = PROF_SWORD + PROF_PLATE + PROF_HEAVY + PROF_FULLPLATE,
-                                    phys_resist = 1.2, magic_resist = 1.3, phys_damage = 1.2, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.2, magic_resist = 1.3, phys_damage = 1.2, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0HW') },
         [HERO_DARK_SUMMONER]    = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0I0') },
         [HERO_BARD]             = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0HV') },
         [HERO_ARCANIST]         = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0EY') },
         [HERO_HYDROMANCER]      = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0EC') },
         [HERO_HIGH_PRIEST]      = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0I2') },
         [HERO_ELEMENTALIST]     = { prof = PROF_STAFF + PROF_CLOTH,
-                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100. },
+                                    phys_resist = 1.8, magic_resist = 1.6, phys_damage = 1.0, crit_chance = 5., crit_damage = 100.,
+                                    passive = FourCC('A0I3') },
     }
 
-    -- default stats return 1.
+    -- default stats for other units
     local default_stats = {phys_resist = 1., magic_resist = 1., phys_damage = 1.}
     setmetatable(HeroStats, { __index = function(tbl, key)
         return default_stats
@@ -150,51 +170,58 @@ OnInit.global("Variables", function()
     BOSS_AZAZOTH                       = 27
     BOSS_XALLARATH                     = 28
 
-    -- items
+    -- item variables
     MAX_REINCARNATION_CHARGES          = 3
     ITEM_MIN_LEVEL_VARIANCE            = 8
     ITEM_MAX_LEVEL_VARIANCE            = 11
-    ABILITY_OFFSET                     = 500 -- big enough
     QUALITY_SAVED                      = 7
 
-    -- auto generated tooltips
-    ITEM_HEALTH                        = 2
-    ITEM_MANA                          = 3
-    ITEM_DAMAGE                        = 4
-    ITEM_ARMOR                         = 5
-    ITEM_STRENGTH                      = 6
-    ITEM_AGILITY                       = 7
-    ITEM_INTELLIGENCE                  = 8
-    ITEM_REGENERATION                  = 9
-    ITEM_MANA_REGENERATION             = 10
-    ITEM_DAMAGE_RESIST                 = 11
-    ITEM_MAGIC_RESIST                  = 12
-    ITEM_DAMAGE_MULT                   = 13
-    ITEM_MAGIC_MULT                    = 14
-    ITEM_MOVESPEED                     = 15
-    ITEM_EVASION                       = 16
-    ITEM_SPELLBOOST                    = 17
-    ITEM_CRIT_CHANCE                   = 18
-    ITEM_CRIT_DAMAGE                   = 19
-    ITEM_CRIT_CHANCE_MULT              = 20
-    ITEM_CRIT_DAMAGE_MULT              = 21
-    ITEM_BASE_ATTACK_SPEED             = 22
-    ITEM_GOLD_GAIN                     = 23
-    ITEM_ABILITY                       = 24
-    ITEM_ABILITY2                      = 25
-    ITEM_STAT_TOTAL                    = 25
-
-    -- not auto generated
-    ITEM_TOOLTIP                       = 26
-    ITEM_NOCRAFT                       = 27
-    ITEM_TIER                          = 28
-    ITEM_TYPE                          = 29
-    ITEM_UPGRADE_MAX                   = 30
-    ITEM_LEVEL_REQUIREMENT             = 31
-    ITEM_LIMIT                         = 32
-    ITEM_COST                          = 33
-    ITEM_DISCOUNT                      = 34
-    ITEM_STACK                         = 35
+    enum(
+        -- item stats
+        "ITEM_LEVEL",
+        "ITEM_HEALTH",
+        "ITEM_MANA",
+        "ITEM_DAMAGE",
+        "ITEM_ARMOR",
+        "ITEM_STRENGTH",
+        "ITEM_AGILITY",
+        "ITEM_INTELLIGENCE",
+        "ITEM_REGENERATION",
+        "ITEM_MANA_REGENERATION",
+        "ITEM_DAMAGE_RESIST",
+        "ITEM_MAGIC_RESIST",
+        "ITEM_DAMAGE_MULT",
+        "ITEM_MAGIC_MULT",
+        "ITEM_MOVESPEED",
+        "ITEM_EVASION",
+        "ITEM_SPELLBOOST",
+        "ITEM_CRIT_CHANCE",
+        "ITEM_CRIT_DAMAGE",
+        "ITEM_CRIT_CHANCE_MULT",
+        "ITEM_CRIT_DAMAGE_MULT",
+        "ITEM_BASE_ATTACK_SPEED",
+        "ITEM_GOLD_GAIN",
+        -- potion stats
+        "ITEM_FLAT_HEAL",
+        "ITEM_PERCENT_HEAL",
+        "ITEM_FLAT_MANA",
+        "ITEM_PERCENT_MANA",
+        "ITEM_CHARGES",
+        "ITEM_ABILITY",
+        -- end of item stats
+        "ITEM_ABILITY2",
+        -- not part of body
+        "ITEM_TOOLTIP",
+        "ITEM_NOCRAFT",
+        "ITEM_TIER",
+        "ITEM_TYPE",
+        "ITEM_UPGRADE_MAX",
+        "ITEM_LEVEL_REQUIREMENT",
+        "ITEM_LIMIT",
+        "ITEM_COST",
+        "ITEM_DISCOUNT",
+        "ITEM_STACK"
+    )
 
     CUSTOM_ITEM_OFFSET = FourCC('I000') ---@type integer 
 
@@ -213,7 +240,6 @@ OnInit.global("Variables", function()
     MAIN_MAP.centerX = (MAIN_MAP.minX + MAIN_MAP.maxX) / 2.00
     MAIN_MAP.centerY = (MAIN_MAP.minY + MAIN_MAP.maxY) / 2.00
 
-    ItemMagicRes = __jarray(0) ---@type number[] 
     ItemGoldRate = __jarray(0) ---@type integer[] 
 
     SummonGroup = {} ---@type unit[]
@@ -221,7 +247,6 @@ OnInit.global("Variables", function()
     IS_FLEEING = {} ---@type boolean[]
     PlatTag    = "|cffccccccPlatinum Coins|r: " ---@type string 
     CrystalTag = "|cff6969FFCrystals: |r" ---@type string 
-    Hardcore = {} ---@type boolean[]
     CHAOS_MODE = false ---@type boolean 
     CHAOS_LOADING = false ---@type boolean 
 
@@ -234,24 +259,13 @@ OnInit.global("Variables", function()
     CosmeticTable = array2d(0) ---@type table
     HeroCircle = {}
 
-    ColoCount_main=__jarray(0) ---@type integer[] 
-    ColoEnemyType_main=__jarray(0) ---@type integer[] 
-    ColoCount_sec=__jarray(0) ---@type integer[] 
-    ColoEnemyType_sec=__jarray(0) ---@type integer[] 
-
     ZOOM = __jarray(0) ---@type integer[]
 
     SELECTING_HERO = {} ---@type boolean[] 
     forgottenTypes = __jarray(0) ---@type integer[] 
     forgottenCount         = 0 ---@type integer 
     forgotten_spawner      = nil ---@type unit 
-
-    IS_ALT_DOWN = {} ---@type boolean[]
     charLight={} ---@type effect[] 
-
-    RollBoard=nil ---@type leaderboard 
-
-    colospot={} ---@type location[] 
 
     Hero={} ---@type unit[] 
     HeroGrave={} ---@type unit[] 
@@ -260,11 +274,8 @@ OnInit.global("Variables", function()
     HeroID=__jarray(0) ---@type integer[] 
     prMulti=__jarray(0) ---@type integer[] 
     ShieldCount=__jarray(0) ---@type integer[] 
-    RollChecks=__jarray(0) ---@type integer[] 
     HuntedLevel=__jarray(0) ---@type integer[] 
     CustomLighting=__jarray(0) ---@type integer[] 
-
-    IS_FORCE_SAVING = {} ---@type boolean[] 
 
     BOOST=__jarray(1) ---@type number[] 
     LBOOST=__jarray(1) ---@type number[] 
@@ -272,21 +283,9 @@ OnInit.global("Variables", function()
     TOWN_CENTER = Location(-250., 160.) ---@type location 
     StruggleCenter = Location(28030., 4361.) ---@type location 
     IS_IN_STRUGGLE = {} ---@type boolean[] 
-    StruggleText = CreateTextTag() ---@type texttag 
-    ColoText = CreateTextTag() ---@type texttag 
-    ColoWaveCount = 0 ---@type integer 
 
     DEFAULT_LIGHTING        = "Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx" ---@type string 
 
-    BP_DESELECT = {} ---@type boolean[] 
-
-    Struggle_SpawnR = {} ---@type rect[]
-    Struggle_WaveU = __jarray(0) ---@type integer[]
-    Struggle_WaveUN = __jarray(0) ---@type integer[]
-    Struggle_Wave_SR = __jarray(0) ---@type integer[]
-    StruggleGoldPer = __jarray(0) ---@type integer[]
-
-    ColoPlayerCount         = 0 ---@type integer 
     BOOST_OFF         = false ---@type boolean 
 
     GodsEnterFlag         = false ---@type boolean 
@@ -295,792 +294,7 @@ OnInit.global("Variables", function()
     BANISH_FLAG         = false ---@type boolean 
     GODS_GROUP = {} ---@type player[]
 
-    afkTextVisible = {} ---@type boolean[] 
-    hardcoreClicked = {} ---@type boolean[] 
-    AFK_TEXT = ""
-
     IS_HERO_PANEL_ON = {} ---@type boolean[] 
-
-    Struggle_Pcount = 0
-    Struggle_WaveN = 0
-    Struggle_WaveUCN = 0
-    Struggle_SpawnR[1] = gg_rct_InfiniteStruggleSpawn1
-    Struggle_SpawnR[2] = gg_rct_InfiniteStruggleSpawn2
-    Struggle_SpawnR[3] = gg_rct_InfiniteStruggleSpawn3
-    Struggle_SpawnR[4] = gg_rct_InfiniteStruggleSpawn4
-    -- start setting up units
-    -- WaveU = Unit type of the wave
-    -- WaveUN = Number of units in the wave
-    -- WaveSR = How many units spawn per second during the wave
-    Struggle_WaveU[0] = FourCC('n03Y') --slave
-    Struggle_WaveUN[0] = 140
-    Struggle_Wave_SR[0] = 8
-    StruggleGoldPer[0] = 10
-    Struggle_WaveU[1] = FourCC('n08Q') --lightning revenant
-    Struggle_WaveUN[1] = 170
-    Struggle_Wave_SR[1] = 12
-    StruggleGoldPer[1] = 15
-    Struggle_WaveU[2] = FourCC('n044') --scorpion
-    Struggle_WaveUN[2] = 480
-    Struggle_Wave_SR[2] = 16
-    StruggleGoldPer[2] = 20
-    Struggle_WaveU[3] = FourCC('n08R') --brood mother
-    Struggle_WaveUN[3] = 130
-    Struggle_Wave_SR[3] = 8
-    StruggleGoldPer[3] = 30
-    Struggle_WaveU[4] = FourCC('n08U')
-    Struggle_WaveUN[4] = 300
-    Struggle_Wave_SR[4] = 12
-    StruggleGoldPer[4] = 40
-    Struggle_WaveU[5] = FourCC('n04B')
-    Struggle_WaveUN[5] = 300
-    Struggle_Wave_SR[5] = 12
-    StruggleGoldPer[5] = 40
-    Struggle_WaveU[6] = FourCC('n04C') --monter wolf 7, lvl 21
-    Struggle_WaveUN[6] = 320
-    Struggle_Wave_SR[6] = 16
-    StruggleGoldPer[6] = 50
-    Struggle_WaveU[7] = FourCC('n08P')
-    Struggle_WaveUN[7] = 300
-    Struggle_Wave_SR[7] = 24
-    StruggleGoldPer[7] = 50
-    Struggle_WaveU[8] = FourCC('n061')
-    Struggle_WaveUN[8] = 140
-    Struggle_Wave_SR[8] = 9
-    StruggleGoldPer[8] = 60
-    Struggle_WaveU[9] = FourCC('n064') --green murloc
-    Struggle_WaveUN[9] = 200
-    Struggle_Wave_SR[9] = 12
-    StruggleGoldPer[9] = 80
-    Struggle_WaveU[10] = FourCC('n04U')
-    Struggle_WaveUN[10] = 100
-    Struggle_Wave_SR[10] = 8
-    StruggleGoldPer[10] = 140
-    Struggle_WaveU[11] = FourCC('n058')
-    Struggle_WaveUN[11] = 200
-    Struggle_Wave_SR[11] = 12
-    StruggleGoldPer[11] = 200
-    Struggle_WaveU[12] = FourCC('n059') --blood skeleton
-    Struggle_WaveUN[12] = 200
-    Struggle_Wave_SR[12] = 16
-    StruggleGoldPer[12] = 250
-    Struggle_WaveU[13] = FourCC('n08Y') --ogre overlord 14, lev 52
-    Struggle_WaveUN[13] = 300
-    Struggle_Wave_SR[13] = 16
-    StruggleGoldPer[13] = 700
-    Struggle_WaveU[14] = FourCC('n066') --murlock titan
-    Struggle_WaveUN[14] = 9
-    Struggle_Wave_SR[14] = 3
-    StruggleGoldPer[14] = 600
-    Struggle_WaveU[15] = FourCC('o03H') --tauren
-    Struggle_WaveUN[15] = 120
-    Struggle_Wave_SR[15] = 6
-    StruggleGoldPer[15] = 800
-    Struggle_WaveU[16] = FourCC('n05X') --doom beast 17
-    Struggle_WaveUN[16] = 300
-    Struggle_Wave_SR[16] = 16
-    StruggleGoldPer[16] = 400
-    Struggle_WaveU[17] = FourCC('n05Z') --death beast
-    Struggle_WaveUN[17] = 50
-    Struggle_Wave_SR[17] = 4
-    StruggleGoldPer[17] = 650
-    Struggle_WaveU[18] = FourCC('n04J') --Dragon King 
-    Struggle_WaveUN[18] = 16
-    Struggle_Wave_SR[18] = 4
-    StruggleGoldPer[18] = 1200
-    Struggle_WaveU[19] = FourCC('n066')
-    Struggle_WaveUN[19] = 400
-    Struggle_Wave_SR[19] = 28
-    StruggleGoldPer[19] = 600
-    Struggle_WaveU[20] = FourCC('n05A') --death skeleton 21
-    Struggle_WaveUN[20] = 300
-    Struggle_Wave_SR[20] = 16
-    StruggleGoldPer[20] = 800
-    Struggle_WaveU[21] = FourCC('n093')--nerubian empress 22
-    Struggle_WaveUN[21] = 15
-    Struggle_Wave_SR[21] = 3
-    StruggleGoldPer[21] = 2000
-    Struggle_WaveU[22] = FourCC('n04M') --soul of lightning
-    Struggle_WaveUN[22] = 70
-    Struggle_Wave_SR[22] = 7
-    StruggleGoldPer[22] = 700
-    Struggle_WaveU[23] = FourCC('n093') --nerubian empress
-    Struggle_WaveUN[23] = 70
-    Struggle_Wave_SR[23] = 6
-    StruggleGoldPer[23] = 2000
-    Struggle_WaveU[24] = FourCC('n08Z') --king of ogres
-    Struggle_WaveUN[24] = 40
-    Struggle_Wave_SR[24] = 3
-    StruggleGoldPer[24] = 2000
-    Struggle_WaveU[25] = FourCC('n04O') --soul of death
-    Struggle_WaveUN[25] = 20
-    Struggle_Wave_SR[25] = 4
-    StruggleGoldPer[25] = 2000
-    Struggle_WaveU[26] = FourCC('n08Z') --king of ogres
-    Struggle_WaveUN[26] = 160
-    Struggle_Wave_SR[26] = 8
-    StruggleGoldPer[26] = 4000
-    Struggle_WaveU[27] = 0 --skipped enemy type makes struggle end 
-    Struggle_WaveUN[27] = 0
-    Struggle_WaveU[28] = FourCC('n04O') --soul of death
-    Struggle_WaveUN[28] = 100
-    Struggle_Wave_SR[28] = 12
-    StruggleGoldPer[28] = 2000
-    Struggle_WaveU[29] = FourCC('n06G') --poss god
-    Struggle_WaveUN[29] = 120
-    Struggle_Wave_SR[29] = 10
-    StruggleGoldPer[29] = 4000
-    Struggle_WaveU[30] = FourCC('n00R')
-    Struggle_WaveUN[30] = 130
-    Struggle_Wave_SR[30] = 6
-    StruggleGoldPer[30] = 4500
-    Struggle_WaveU[31] = FourCC('n00T') --tormentress ranged
-    Struggle_WaveUN[31] = 130
-    Struggle_Wave_SR[31] = 6
-    StruggleGoldPer[31] = 5000
-    Struggle_WaveU[32] = FourCC('n09H')
-    Struggle_WaveUN[32] = 100
-    Struggle_Wave_SR[32] = 6
-    StruggleGoldPer[32] = 5500
-    Struggle_WaveU[33] = FourCC('n09I')
-    Struggle_WaveUN[33] = 200
-    Struggle_Wave_SR[33] = 10
-    StruggleGoldPer[33] = 11000
-    Struggle_WaveU[34] = FourCC('n09J')
-    Struggle_WaveUN[34] = 150
-    Struggle_Wave_SR[34] = 10
-    StruggleGoldPer[34] = 9000
-    Struggle_WaveU[35] = FourCC('n09K')
-    Struggle_WaveUN[35] = 200
-    Struggle_Wave_SR[35] = 10
-    StruggleGoldPer[35] = 20000
-    Struggle_WaveU[36] = FourCC('n09L')
-    Struggle_WaveUN[36] = 100
-    Struggle_Wave_SR[36] = 5
-    StruggleGoldPer[36] = 40000
-    Struggle_WaveU[37] = FourCC('n091')  --angel
-    Struggle_WaveUN[37] = 10
-    Struggle_Wave_SR[37] = 2
-    StruggleGoldPer[37] = 30000
-    Struggle_WaveU[38] = FourCC('n09L')
-    Struggle_WaveUN[38] = 100
-    Struggle_Wave_SR[38] = 10
-    StruggleGoldPer[38] = 40000
-    Struggle_WaveU[39] = FourCC('n091')  --angel
-    Struggle_WaveUN[39] = 20
-    Struggle_Wave_SR[39] = 4
-    StruggleGoldPer[39] = 30000
-    Struggle_WaveU[40] = FourCC('n090')
-    Struggle_WaveUN[40] = 12
-    Struggle_Wave_SR[40] = 4
-    StruggleGoldPer[40] = 50000 --god
-    Struggle_WaveU[41] = FourCC('n092')
-    Struggle_WaveUN[41] = 10
-    Struggle_Wave_SR[41] = 1
-    StruggleGoldPer[41] = 300000 --omniscient
-    Struggle_WaveU[42] = 0
-    Struggle_WaveUN[42] = 0
-
-    ColoCount_main[0]=4
-    ColoEnemyType_main[0]=FourCC('n046')
-    ColoCount_main[1]=3
-    ColoEnemyType_main[1]=FourCC('n045')
-    ColoCount_main[2]=3
-    ColoEnemyType_main[2]=FourCC('n046')
-    ColoCount_sec[2]=2
-    ColoEnemyType_sec[2]=FourCC('n047')
-    ColoCount_main[3]=4
-    ColoEnemyType_main[3]=FourCC('n045')
-    ColoCount_sec[3]=2
-    ColoEnemyType_sec[3]=FourCC('n047')
-    ColoCount_main[4]=6
-    ColoEnemyType_main[4]=FourCC('n047')
-    ColoCount_main[5]=5
-    ColoEnemyType_main[5]=FourCC('n045')
-    ColoCount_sec[5]=5
-    ColoEnemyType_sec[5]=FourCC('n047')
-    ColoCount_main[6]=6
-    ColoEnemyType_main[6]=FourCC('n047')
-    ColoCount_sec[6]=1
-    ColoEnemyType_sec[6]=FourCC('n048')
-    ColoCount_main[7]=3
-    ColoEnemyType_main[7]=FourCC('n048')
-    ColoCount_main[8]=11
-    ColoEnemyType_main[8]=FourCC('n047')
-    ColoCount_sec[8]=2
-    ColoEnemyType_sec[8]=FourCC('n048')
-    ColoCount_main[9]=8
-    ColoEnemyType_main[9]=FourCC('n048')
-    ColoCount_main[10]=5
-    ColoEnemyType_main[10]=FourCC('n048')
-    ColoCount_sec[10]=1
-    ColoEnemyType_sec[10]=FourCC('n049')
-    ColoCount_main[11]=7
-    ColoEnemyType_main[11]=FourCC('n05L')
-    ColoCount_main[12]=10
-    ColoEnemyType_main[12]=FourCC('n05L')
-    ColoCount_main[13]=8
-    ColoEnemyType_main[13]=FourCC('n05M')
-    ColoCount_main[14]=10
-    ColoEnemyType_main[14]=FourCC('n05N')
-    ColoCount_main[15]=4
-    ColoEnemyType_main[15]=FourCC('n05O')
-    ColoCount_sec[15]=3
-    ColoEnemyType_sec[15]=FourCC('n05M')
-    ColoCount_main[16]=10
-    ColoEnemyType_main[16]=FourCC('n05L')
-    ColoCount_main[17]=6
-    ColoEnemyType_main[17]=FourCC('n05N')
-    ColoCount_sec[17]=6
-    ColoEnemyType_sec[17]=FourCC('n05L')
-    ColoCount_main[18]=6
-    ColoEnemyType_main[18]=FourCC('n05M')
-    ColoCount_sec[18]=6
-    ColoEnemyType_sec[18]=FourCC('n05O')
-    ColoCount_main[19]=6
-    ColoEnemyType_main[19]=FourCC('n05N')
-    ColoCount_sec[19]=6
-    ColoEnemyType_sec[19]=FourCC('n05L')
-    ColoCount_main[20]=10
-    ColoEnemyType_main[20]=FourCC('n05O')
-    ColoCount_main[21]=10
-    ColoEnemyType_main[21]=FourCC('n05O')
-    ColoCount_sec[21]=1
-    ColoEnemyType_sec[21]=FourCC('n05P')
-    ColoCount_main[22]=4
-    ColoEnemyType_main[22]=FourCC('n049')
-    ColoCount_sec[22]=2
-    ColoEnemyType_sec[22]=FourCC('n05P')
-    ColoCount_main[25]=3
-    ColoEnemyType_main[25]=FourCC('n04A')
-    ColoCount_main[26]=6
-    ColoEnemyType_main[26]=FourCC('n04A')
-    ColoCount_main[27]=3
-    ColoEnemyType_main[27]=FourCC('n04B')
-    ColoCount_sec[27]=2
-    ColoEnemyType_sec[27]=FourCC('n04A')
-    ColoCount_main[28]=8
-    ColoEnemyType_main[28]=FourCC('n04B')
-    ColoCount_main[29]=10
-    ColoEnemyType_main[29]=FourCC('n04A')
-    ColoCount_main[30]=4
-    ColoEnemyType_main[30]=FourCC('n04C')
-    ColoCount_sec[30]=4
-    ColoEnemyType_sec[30]=FourCC('n04B')
-    ColoCount_main[31]=8
-    ColoEnemyType_main[31]=FourCC('n04C')
-    ColoCount_main[32]=9
-    ColoEnemyType_main[32]=FourCC('n04C')
-    ColoCount_sec[32]=2
-    ColoEnemyType_sec[32]=FourCC('n04D')
-    ColoCount_main[33]=8
-    ColoEnemyType_main[33]=FourCC('n04D')
-    ColoCount_main[34]=5
-    ColoEnemyType_main[34]=FourCC('n04D')
-    ColoCount_sec[34]=1
-    ColoEnemyType_sec[34]=FourCC('n04E')
-    ColoCount_main[35]=6
-    ColoEnemyType_main[35]=FourCC('n061')
-    ColoCount_main[36]=10
-    ColoEnemyType_main[36]=FourCC('n061')
-    ColoCount_main[37]=7
-    ColoEnemyType_main[37]=FourCC('n062')
-    ColoCount_main[38]=7
-    ColoEnemyType_main[38]=FourCC('n063')
-    ColoCount_main[39]=7
-    ColoEnemyType_main[39]=FourCC('n064')
-    ColoCount_main[40]=4
-    ColoEnemyType_main[40]=FourCC('n065')
-    ColoCount_main[41]=8
-    ColoEnemyType_main[41]=FourCC('n065')
-    ColoCount_main[42]=10
-    ColoEnemyType_main[42]=FourCC('n063')
-    ColoCount_main[43]=6
-    ColoEnemyType_main[43]=FourCC('n061')
-    ColoCount_sec[43]=6
-    ColoEnemyType_sec[43]=FourCC('n062')
-    ColoCount_main[44]=6
-    ColoEnemyType_main[44]=FourCC('n064')
-    ColoCount_sec[44]=6
-    ColoEnemyType_sec[44]=FourCC('n065')
-    ColoCount_main[45]=8
-    ColoEnemyType_main[45]=FourCC('n065')
-    ColoCount_sec[45]=1
-    ColoEnemyType_sec[45]=FourCC('n066')
-    ColoCount_main[46]=4
-    ColoEnemyType_main[46]=FourCC('n04E')
-    ColoCount_sec[46]=2
-    ColoEnemyType_sec[46]=FourCC('n066')
-    ColoCount_main[49]=3
-    ColoEnemyType_main[49]=FourCC('n04F')
-    ColoCount_main[50]=4
-    ColoEnemyType_main[50]=FourCC('n04G')
-    ColoCount_main[51]=8
-    ColoEnemyType_main[51]=FourCC('n04F')
-    ColoCount_main[52]=6
-    ColoEnemyType_main[52]=FourCC('n04G')
-    ColoCount_main[53]=6
-    ColoEnemyType_main[53]=FourCC('n04H')
-    ColoCount_main[54]=5
-    ColoEnemyType_main[54]=FourCC('n04H')
-    ColoCount_sec[54]=5
-    ColoEnemyType_sec[54]=FourCC('n04G')
-    ColoCount_main[55]=4
-    ColoEnemyType_main[55]=FourCC('n04I')
-    ColoCount_main[56]=11
-    ColoEnemyType_main[56]=FourCC('n04I')
-    ColoCount_main[57]=5
-    ColoEnemyType_main[57]=FourCC('n04F')
-    ColoCount_sec[57]=5
-    ColoEnemyType_sec[57]=FourCC('n04G')
-    ColoCount_main[58]=6
-    ColoEnemyType_main[58]=FourCC('n04H')
-    ColoCount_sec[58]=6
-    ColoEnemyType_sec[58]=FourCC('n04I')
-    ColoCount_main[59]=5
-    ColoEnemyType_main[59]=FourCC('n04I')
-    ColoCount_sec[59]=1
-    ColoEnemyType_sec[59]=FourCC('n04J')
-    ColoCount_main[60]=6
-    ColoEnemyType_main[60]=FourCC('n067')
-    ColoCount_main[61]=10
-    ColoEnemyType_main[61]=FourCC('n067')
-    ColoCount_main[62]=10
-    ColoEnemyType_main[62]=FourCC('n067')
-    ColoCount_main[63]=5
-    ColoEnemyType_main[63]=FourCC('n068')
-    ColoCount_main[64]=9
-    ColoEnemyType_main[64]=FourCC('n068')
-    ColoCount_main[65]=5
-    ColoEnemyType_main[65]=FourCC('n069')
-    ColoCount_main[66]=5
-    ColoEnemyType_main[66]=FourCC('n068')
-    ColoCount_sec[66]=5
-    ColoEnemyType_sec[66]=FourCC('n069')
-    ColoCount_main[67]=10
-    ColoEnemyType_main[67]=FourCC('n069')
-    ColoCount_main[68]=10
-    ColoEnemyType_main[68]=FourCC('n06A')
-    ColoCount_main[69]=10
-    ColoEnemyType_main[69]=FourCC('n06A')
-    ColoCount_sec[69]=1
-    ColoEnemyType_sec[69]=FourCC('n06B')
-    ColoCount_main[70]=4
-    ColoEnemyType_main[70]=FourCC('n04J')
-    ColoCount_sec[70]=2
-    ColoEnemyType_sec[70]=FourCC('n06B')
-    ColoCount_main[73]=5
-    ColoEnemyType_main[73]=FourCC('n04K')
-    ColoCount_main[74]=4
-    ColoEnemyType_main[74]=FourCC('n06C')
-    ColoCount_main[75]=4
-    ColoEnemyType_main[75]=FourCC('n04K')
-    ColoCount_sec[75]=4
-    ColoEnemyType_sec[75]=FourCC('n06C')
-    ColoCount_main[76]=6
-    ColoEnemyType_main[76]=FourCC('n04L')
-    ColoCount_main[77]=5
-    ColoEnemyType_main[77]=FourCC('n06D')
-    ColoCount_main[78]=4
-    ColoEnemyType_main[78]=FourCC('n04L')
-    ColoCount_sec[78]=4
-    ColoEnemyType_sec[78]=FourCC('n06C')
-    ColoCount_main[79]=4
-    ColoEnemyType_main[79]=FourCC('n04K')
-    ColoCount_sec[79]=4
-    ColoEnemyType_sec[79]=FourCC('n06D')
-    ColoCount_main[80]=4
-    ColoEnemyType_main[80]=FourCC('n04L')
-    ColoCount_sec[80]=4
-    ColoEnemyType_sec[80]=FourCC('n06D')
-    ColoCount_main[81]=10
-    ColoEnemyType_main[81]=FourCC('n04M')
-    ColoCount_main[82]=6
-    ColoEnemyType_main[82]=FourCC('n04M')
-    ColoCount_sec[82]=6
-    ColoEnemyType_sec[82]=FourCC('n06C')
-    ColoCount_main[83]=6
-    ColoEnemyType_main[83]=FourCC('n04M')
-    ColoCount_sec[83]=6
-    ColoEnemyType_sec[83]=FourCC('n06D')
-    ColoCount_main[84]=6
-    ColoEnemyType_main[84]=FourCC('n06E')
-    ColoCount_main[85]=7
-    ColoEnemyType_main[85]=FourCC('n04K')
-    ColoCount_sec[85]=5
-    ColoEnemyType_sec[85]=FourCC('n06E')
-    ColoCount_main[86]=6
-    ColoEnemyType_main[86]=FourCC('n04L')
-    ColoCount_sec[86]=5
-    ColoEnemyType_sec[86]=FourCC('n06E')
-    ColoCount_main[87]=5
-    ColoEnemyType_main[87]=FourCC('n04M')
-    ColoCount_sec[87]=6
-    ColoEnemyType_sec[87]=FourCC('n06E')
-    ColoCount_main[88]=5
-    ColoEnemyType_main[88]=FourCC('n04N')
-    ColoCount_main[89]=6
-    ColoEnemyType_main[89]=FourCC('n04N')
-    ColoCount_sec[89]=5
-    ColoEnemyType_sec[89]=FourCC('n06D')
-    ColoCount_main[90]=11
-    ColoEnemyType_main[90]=FourCC('n04N')
-    ColoCount_main[91]=6
-    ColoEnemyType_main[91]=FourCC('n04N')
-    ColoCount_sec[91]=5
-    ColoEnemyType_sec[91]=FourCC('n06E')
-    ColoCount_main[92]=6
-    ColoEnemyType_main[92]=FourCC('n06F')
-    ColoCount_main[93]=6
-    ColoEnemyType_main[93]=FourCC('n04L')
-    ColoCount_sec[93]=4
-    ColoEnemyType_sec[93]=FourCC('n06F')
-    ColoCount_main[94]=5
-    ColoEnemyType_main[94]=FourCC('n04N')
-    ColoCount_sec[94]=5
-    ColoEnemyType_sec[94]=FourCC('n06F')
-    ColoCount_main[95]=2
-    ColoEnemyType_main[95]=FourCC('n04O')
-    ColoCount_sec[95]=5
-    ColoEnemyType_sec[95]=FourCC('n06C')
-    ColoCount_main[96]=5
-    ColoEnemyType_main[96]=FourCC('n04K')
-    ColoCount_sec[96]=2
-    ColoEnemyType_sec[96]=FourCC('n06G')
-    ColoCount_main[97]=4
-    ColoEnemyType_main[97]=FourCC('n04O')
-    ColoCount_sec[97]=6
-    ColoEnemyType_sec[97]=FourCC('n06F')
-    ColoCount_main[98]=5
-    ColoEnemyType_main[98]=FourCC('n04N')
-    ColoCount_sec[98]=2
-    ColoEnemyType_sec[98]=FourCC('n06G')
-    ColoCount_main[99]=4
-    ColoEnemyType_main[99]=FourCC('n04O')
-    ColoCount_sec[99]=3
-    ColoEnemyType_sec[99]=FourCC('n06G')
-    ColoCount_main[100]=5
-    ColoEnemyType_main[100]=FourCC('n04O')
-    ColoCount_sec[100]=5
-    ColoEnemyType_sec[100]=FourCC('n06G')
-    ColoCount_main[103]=5
-    ColoEnemyType_main[103]=FourCC('n06M')
-    ColoCount_main[104]=8
-    ColoEnemyType_main[104]=FourCC('n06M')
-    ColoCount_main[105]=5
-    ColoEnemyType_main[105]=FourCC('n06P')
-    ColoCount_main[106]=4
-    ColoEnemyType_main[106]=FourCC('n06M')
-    ColoCount_sec[106]=3
-    ColoEnemyType_sec[106]=FourCC('n06P')
-    ColoCount_main[107]=8
-    ColoEnemyType_main[107]=FourCC('n06P')
-    ColoCount_main[108]=6
-    ColoEnemyType_main[108]=FourCC('n06M')
-    ColoCount_sec[108]=6
-    ColoEnemyType_sec[108]=FourCC('n06P')
-    ColoCount_main[109]=6
-    ColoEnemyType_main[109]=FourCC('n06N')
-    ColoCount_sec[109]=6
-    ColoEnemyType_sec[109]=FourCC('n06P')
-    ColoCount_main[110]=8
-    ColoEnemyType_main[110]=FourCC('n06Q')
-    ColoCount_main[111]=8
-    ColoEnemyType_main[111]=FourCC('n05G')
-    ColoCount_main[112]=5
-    ColoEnemyType_main[112]=FourCC('n06Q')
-    ColoCount_sec[112]=5
-    ColoEnemyType_sec[112]=FourCC('n05G')
-    ColoCount_main[113]=6
-    ColoEnemyType_main[113]=FourCC('n06Q')
-    ColoCount_sec[113]=6
-    ColoEnemyType_sec[113]=FourCC('n06P')
-    ColoCount_main[114]=6
-    ColoEnemyType_main[114]=FourCC('n05G')
-    ColoCount_sec[114]=6
-    ColoEnemyType_sec[114]=FourCC('n06P')
-    ColoCount_main[115]=8
-    ColoEnemyType_main[115]=FourCC('n05H')
-    ColoCount_main[116]=6
-    ColoEnemyType_main[116]=FourCC('n05H')
-    ColoCount_sec[116]=6
-    ColoEnemyType_sec[116]=FourCC('n06P')
-    ColoCount_main[117]=8
-    ColoEnemyType_main[117]=FourCC('n05I')
-    ColoCount_main[118]=6
-    ColoEnemyType_main[118]=FourCC('n05I')
-    ColoCount_sec[118]=6
-    ColoEnemyType_sec[118]=FourCC('n06P')
-    ColoCount_main[119]=8
-    ColoEnemyType_main[119]=FourCC('n06O')
-    ColoCount_main[120]=6
-    ColoEnemyType_main[120]=FourCC('n05H')
-    ColoCount_sec[120]=6
-    ColoEnemyType_sec[120]=FourCC('n06O')
-    ColoCount_main[121]=6
-    ColoEnemyType_main[121]=FourCC('n05I')
-    ColoCount_sec[121]=6
-    ColoEnemyType_sec[121]=FourCC('n06O')
-    ColoCount_main[122]=8
-    ColoEnemyType_main[122]=FourCC('n05J')
-    ColoCount_main[123]=6
-    ColoEnemyType_main[123]=FourCC('n05J')
-    ColoCount_sec[123]=6
-    ColoEnemyType_sec[123]=FourCC('n06O')
-    ColoCount_main[124]=8
-    ColoEnemyType_main[124]=FourCC('n05K')
-    ColoCount_main[125]=6
-    ColoEnemyType_main[125]=FourCC('n05K')
-    ColoCount_sec[125]=6
-    ColoEnemyType_sec[125]=FourCC('n06O')
-    ColoCount_main[128]=4
-    ColoEnemyType_main[128]=FourCC('n04Q')
-    ColoCount_main[129]=8
-    ColoEnemyType_main[129]=FourCC('n04Q')
-    ColoCount_main[130]=6
-    ColoEnemyType_main[130]=FourCC('n06W')
-    ColoCount_main[131]=6
-    ColoEnemyType_main[131]=FourCC('n04Q')
-    ColoCount_sec[131]=4
-    ColoEnemyType_sec[131]=FourCC('n06W')
-    ColoCount_main[132]=6
-    ColoEnemyType_main[132]=FourCC('n06X')
-    ColoCount_main[133]=5
-    ColoEnemyType_main[133]=FourCC('n04Q')
-    ColoCount_sec[133]=4
-    ColoEnemyType_sec[133]=FourCC('n06X')
-    ColoCount_main[134]=4
-    ColoEnemyType_main[134]=FourCC('n04R')
-    ColoCount_main[135]=5
-    ColoEnemyType_main[135]=FourCC('n04R')
-    ColoCount_sec[135]=4
-    ColoEnemyType_sec[135]=FourCC('n06X')
-    ColoCount_main[136]=5
-    ColoEnemyType_main[136]=FourCC('n04R')
-    ColoCount_sec[136]=4
-    ColoEnemyType_sec[136]=FourCC('n06W')
-    ColoCount_main[137]=6
-    ColoEnemyType_main[137]=FourCC('n06Y')
-    ColoCount_main[138]=5
-    ColoEnemyType_main[138]=FourCC('n04R')
-    ColoCount_sec[138]=4
-    ColoEnemyType_sec[138]=FourCC('n06Y')
-    ColoCount_main[139]=6
-    ColoEnemyType_main[139]=FourCC('n06Z')
-    ColoCount_main[140]=5
-    ColoEnemyType_main[140]=FourCC('n04R')
-    ColoCount_sec[140]=4
-    ColoEnemyType_sec[140]=FourCC('n06Z')
-    ColoCount_main[141]=6
-    ColoEnemyType_main[141]=FourCC('n04S')
-    ColoCount_main[142]=5
-    ColoEnemyType_main[142]=FourCC('n04S')
-    ColoCount_sec[142]=4
-    ColoEnemyType_sec[142]=FourCC('n06Z')
-    ColoCount_main[143]=5
-    ColoEnemyType_main[143]=FourCC('n04S')
-    ColoCount_sec[143]=4
-    ColoEnemyType_sec[143]=FourCC('n06Y')
-    ColoCount_main[144]=6
-    ColoEnemyType_main[144]=FourCC('n070')
-    ColoCount_main[145]=5
-    ColoEnemyType_main[145]=FourCC('n04S')
-    ColoCount_sec[145]=4
-    ColoEnemyType_sec[145]=FourCC('n070')
-    ColoCount_main[146]=6
-    ColoEnemyType_main[146]=FourCC('n04T')
-    ColoCount_main[147]=5
-    ColoEnemyType_main[147]=FourCC('n04T')
-    ColoCount_sec[147]=4
-    ColoEnemyType_sec[147]=FourCC('n070')
-    ColoCount_main[148]=6
-    ColoEnemyType_main[148]=FourCC('n071')
-    ColoCount_main[149]=5
-    ColoEnemyType_main[149]=FourCC('n04S')
-    ColoCount_sec[149]=4
-    ColoEnemyType_sec[149]=FourCC('n071')
-    ColoCount_main[150]=5
-    ColoEnemyType_main[150]=FourCC('n04T')
-    ColoCount_sec[150]=5
-    ColoEnemyType_sec[150]=FourCC('n071')
-    ColoCount_main[153]=3
-    ColoEnemyType_main[153]=FourCC('n07L')
-    ColoCount_main[154]=6
-    ColoEnemyType_main[154]=FourCC('n07L')
-    ColoCount_main[155]=5
-    ColoEnemyType_main[155]=FourCC('n076')
-    ColoCount_main[156]=3
-    ColoEnemyType_main[156]=FourCC('n076')
-    ColoCount_sec[156]=3
-    ColoEnemyType_sec[156]=FourCC('n07L')
-    ColoCount_main[157]=8
-    ColoEnemyType_main[157]=FourCC('n076')
-    ColoCount_main[158]=5
-    ColoEnemyType_main[158]=FourCC('n07M')
-    ColoCount_main[159]=6
-    ColoEnemyType_main[159]=FourCC('n077')
-    ColoCount_main[160]=6
-    ColoEnemyType_main[160]=FourCC('n07M')
-    ColoCount_sec[160]=3
-    ColoEnemyType_sec[160]=FourCC('n076')
-    ColoCount_main[161]=6
-    ColoEnemyType_main[161]=FourCC('n07L')
-    ColoCount_sec[161]=3
-    ColoEnemyType_sec[161]=FourCC('n077')
-    ColoCount_main[162]=6
-    ColoEnemyType_main[162]=FourCC('n07M')
-    ColoCount_sec[162]=5
-    ColoEnemyType_sec[162]=FourCC('n077')
-    ColoCount_main[163]=6
-    ColoEnemyType_main[163]=FourCC('n07O')
-    ColoCount_main[164]=6
-    ColoEnemyType_main[164]=FourCC('n078')
-    ColoCount_main[165]=5
-    ColoEnemyType_main[165]=FourCC('n07O')
-    ColoCount_sec[165]=5
-    ColoEnemyType_sec[165]=FourCC('n077')
-    ColoCount_main[166]=5
-    ColoEnemyType_main[166]=FourCC('n07M')
-    ColoCount_sec[166]=5
-    ColoEnemyType_sec[166]=FourCC('n078')
-    ColoCount_main[167]=5
-    ColoEnemyType_main[167]=FourCC('n07O')
-    ColoCount_sec[167]=5
-    ColoEnemyType_sec[167]=FourCC('n078')
-    ColoCount_main[168]=6
-    ColoEnemyType_main[168]=FourCC('n07P')
-    ColoCount_main[169]=6
-    ColoEnemyType_main[169]=FourCC('n079')
-    ColoCount_main[170]=6
-    ColoEnemyType_main[170]=FourCC('n07P')
-    ColoCount_sec[170]=2
-    ColoEnemyType_sec[170]=FourCC('n078')
-    ColoCount_main[171]=6
-    ColoEnemyType_main[171]=FourCC('n07P')
-    ColoCount_sec[171]=5
-    ColoEnemyType_sec[171]=FourCC('n078')
-    ColoCount_main[172]=6
-    ColoEnemyType_main[172]=FourCC('n07O')
-    ColoCount_sec[172]=5
-    ColoEnemyType_sec[172]=FourCC('n079')
-    ColoCount_main[173]=5
-    ColoEnemyType_main[173]=FourCC('n07P')
-    ColoCount_sec[173]=5
-    ColoEnemyType_sec[173]=FourCC('n079')
-    ColoCount_main[174]=6
-    ColoEnemyType_main[174]=FourCC('n07A')
-    ColoCount_main[175]=6
-    ColoEnemyType_main[175]=FourCC('n07P')
-    ColoCount_sec[175]=2
-    ColoEnemyType_sec[175]=FourCC('n07A')
-    ColoCount_main[176]=5
-    ColoEnemyType_main[176]=FourCC('n07P')
-    ColoCount_sec[176]=5
-    ColoEnemyType_sec[176]=FourCC('n07A')
-    ColoCount_main[177]=6
-    ColoEnemyType_main[177]=FourCC('n07Q')
-    ColoCount_main[178]=5
-    ColoEnemyType_main[178]=FourCC('n07Q')
-    ColoCount_sec[178]=5
-    ColoEnemyType_sec[178]=FourCC('n079')
-    ColoCount_main[179]=6
-    ColoEnemyType_main[179]=FourCC('n07Q')
-    ColoCount_sec[179]=5
-    ColoEnemyType_sec[179]=FourCC('n07A')
-    ColoCount_main[182]=6
-    ColoEnemyType_main[182]=FourCC('n07G')
-    ColoCount_main[183]=6
-    ColoEnemyType_main[183]=FourCC('n07N')
-    ColoCount_main[184]=4
-    ColoEnemyType_main[184]=FourCC('n07G')
-    ColoCount_sec[184]=4
-    ColoEnemyType_sec[184]=FourCC('n07N')
-    ColoCount_main[185]=6
-    ColoEnemyType_main[185]=FourCC('n07H')
-    ColoCount_main[186]=4
-    ColoEnemyType_main[186]=FourCC('n07H')
-    ColoCount_sec[186]=4
-    ColoEnemyType_sec[186]=FourCC('n07N')
-    ColoCount_main[187]=6
-    ColoEnemyType_main[187]=FourCC('n09U')
-    ColoCount_main[188]=4
-    ColoEnemyType_main[188]=FourCC('n07G')
-    ColoCount_sec[188]=4
-    ColoEnemyType_sec[188]=FourCC('n09U')
-    ColoCount_main[189]=4
-    ColoEnemyType_main[189]=FourCC('n07H')
-    ColoCount_sec[189]=4
-    ColoEnemyType_sec[189]=FourCC('n09U')
-    ColoCount_main[190]=7
-    ColoEnemyType_main[190]=FourCC('n07I')
-    ColoCount_main[191]=5
-    ColoEnemyType_main[191]=FourCC('n07I')
-    ColoCount_sec[191]=4
-    ColoEnemyType_sec[191]=FourCC('n09U')
-    ColoCount_main[192]=7
-    ColoEnemyType_main[192]=FourCC('n09V')
-    ColoCount_main[193]=5
-    ColoEnemyType_main[193]=FourCC('n07I')
-    ColoCount_sec[193]=4
-    ColoEnemyType_sec[193]=FourCC('n09V')
-    ColoCount_main[194]=7
-    ColoEnemyType_main[194]=FourCC('n07J')
-    ColoCount_main[195]=5
-    ColoEnemyType_main[195]=FourCC('n07J')
-    ColoCount_sec[195]=5
-    ColoEnemyType_sec[195]=FourCC('n09V')
-    ColoCount_main[196]=7
-    ColoEnemyType_main[196]=FourCC('n09W')
-    ColoCount_main[197]=6
-    ColoEnemyType_main[197]=FourCC('n07J')
-    ColoCount_sec[197]=5
-    ColoEnemyType_sec[197]=FourCC('n09W')
-    ColoCount_main[198]=7
-    ColoEnemyType_main[198]=FourCC('n09X')
-    ColoCount_main[199]=6
-    ColoEnemyType_main[199]=FourCC('n07J')
-    ColoCount_sec[199]=6
-    ColoEnemyType_sec[199]=FourCC('n09X')
-    ColoCount_main[200]=7
-    ColoEnemyType_main[200]=FourCC('n07K')
-    ColoCount_main[201]=6
-    ColoEnemyType_main[201]=FourCC('n07K')
-    ColoCount_sec[201]=6
-    ColoEnemyType_sec[201]=FourCC('n09W')
-    ColoCount_main[202]=6
-    ColoEnemyType_main[202]=FourCC('n07K')
-    ColoCount_sec[202]=6
-    ColoEnemyType_sec[202]=FourCC('n09X')
-    ColoCount_main[203]=7
-    ColoEnemyType_main[203]=FourCC('n09Y')
-    ColoCount_main[204]=6
-    ColoEnemyType_main[204]=FourCC('n07J')
-    ColoCount_sec[204]=6
-    ColoEnemyType_sec[204]=FourCC('n09Y')
-    ColoCount_main[205]=6
-    ColoEnemyType_main[205]=FourCC('n07K')
-    ColoCount_sec[205]=6
-    ColoEnemyType_sec[205]=FourCC('n09Y')
-    ColoCount_main[206]=5
-    ColoEnemyType_main[206]=FourCC('n07R')
-    ColoCount_main[207]=3
-    ColoEnemyType_main[207]=FourCC('n07R')
-    ColoCount_sec[207]=6
-    ColoEnemyType_sec[207]=FourCC('n09X')
-    ColoCount_main[208]=5
-    ColoEnemyType_main[208]=FourCC('n07R')
-    ColoCount_sec[208]=6
-    ColoEnemyType_sec[208]=FourCC('n09Y')
-    ColoCount_main[209]=6
-    ColoEnemyType_main[209]=FourCC('n09Y')
-    ColoCount_main[210]=6
-    ColoEnemyType_main[210]=FourCC('n07K')
-    ColoCount_sec[210]=6
-    ColoEnemyType_sec[210]=FourCC('n09Y')
-    ColoCount_main[211]=6
-    ColoEnemyType_main[211]=FourCC('n07R')
-    ColoCount_sec[211]=6
-    ColoEnemyType_sec[211]=FourCC('n09Y')
 
     --trolls
     local id         = FourCC('n0tb') ---@type integer 
@@ -1303,20 +517,17 @@ OnInit.global("Variables", function()
         0.35 ^ 0.5,
     }
 
-    infoString[0] = "Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Perks\n -info 6, Proficiency\n -info 7, Aggro System"
+    infoString[0] = "Use -info # for see more info about your chosen catagory\n\n -info 1, Unit Respawning\n -info 2, Boss Respawning\n -info 3, Safezone\n -info 4, Hardcore\n -info 5, Perks\n -info 6, Proficiency"
     infoString[1] = "Units in the overworld will attempt to revive where they died 30 seconds after death. If a player hero/unit is within 800 range they will spawn frozen and invulnerable until no players are around."
     infoString[2] = "Bosses respawn after 10 minutes and non-hero bosses respawn after 5 minutes, players may choose to fight a stronger version of the boss after defeating them once.\x25"
     infoString[3] = "The town is protected from enemy invasion and any entering enemy will be teleported back to their original spawn."
     infoString[4] = [[Hardcore players that die without a reincarnation item/spell will be removed from the game and cannot save/load or start a new character. 
     A hardcore hero can only save every 30 minutes- the timer starts upon saving OR upon loading your hardcore hero. 
     Hardcore heroes receive double the bonus from prestiging.
-    If you need to save before the timer expires you can use -forcesave to save immediately, but this deletes your hero, leaving you unable to load again in the current game (same as if your hero died).]]
     infoString[5] = "Perk Points are earned by completing specific trials for the first time on a character and will apply to ALL of your existing characters when spent."
     infoString[6] = [[Most items in this game have a proficiency requirement in their description.
-    While any hero can equip them regardless of proficiency, those lacking proficiency only recieve half stats from the item.
+    While any hero can equip them regardless of proficiency, those lacking proficiency receive 75% of the stats.
     Check your hero's proficiency with -pf.]]
-    infoString[7] = [[Bosses use a threat meter system for each player that increases when attacked or by casting spells. Distance from the boss reduces the threat you 
-    generate significantly when attacking, so melee characters will draw aggro much more quickly-- especially with taunt abilities.]]
 
     prMulti[0] = FourCC('A0A3')
     prMulti[1] = FourCC('A0IW')
@@ -1384,6 +595,10 @@ OnInit.global("Variables", function()
     TYPE_NAME[8] = "Dagger"
     TYPE_NAME[9] = "Bow"
     TYPE_NAME[10] = "Staff"
+    TYPE_NAME[11] = "Potion"
+    TYPE_ALL = 0xFFF
+    TYPE_EQUIPPABLE = 0x3FF
+    TYPE_POTION = 0x400
     --...
     ITEM_MODEL[1] = FourCC('rar1')
     ITEM_MODEL[2] = FourCC('rar1')
@@ -1502,12 +717,13 @@ OnInit.global("Variables", function()
         PROF_DAGGER,
         PROF_BOW,
         PROF_STAFF,
+        PROF_POTION,
     }
     PROF[0] = 0
 
     --priority: 1 - power, 2 - utility, 3 - player only, 4 - hidden
     STAT_TAG = {
-        [1] = { tag = "Level", priority = 1 },
+        [ITEM_LEVEL] = { tag = "Level", priority = 1 },
         [ITEM_HEALTH] = { tag = "|cffff0000Health|r", priority = 1, syntax = "health" },
         [ITEM_MANA] = { tag = "|cff6699ffMana|r", priority = 1, syntax = "mana" },
         [ITEM_DAMAGE] = { tag = "|cffff6600Damage|r", priority = 1, syntax = "damage" },
@@ -1530,6 +746,11 @@ OnInit.global("Variables", function()
         [ITEM_CRIT_DAMAGE_MULT] = { tag = "|cffffcc00Critical Damage Multiplier|r", priority = 4, suffix = "\x25", syntax = "cd_percent" },
         [ITEM_BASE_ATTACK_SPEED] = { tag = "|cff446600Base Attack Speed|r", priority = 1, item_suffix = "\x25", syntax = "bat" },
         [ITEM_GOLD_GAIN] = { tag = "|cffffff00Gold Find|r", priority = 3, suffix = "\x25", syntax = "gold" },
+        [ITEM_FLAT_HEAL] = { tag = "|rHealth Restored", priority = 4, syntax = "fheal" },
+        [ITEM_PERCENT_HEAL] = { tag = "|rPercent Health Restored", priority = 4, syntax = "pheal", suffix = "\x25" },
+        [ITEM_FLAT_MANA] = { tag = "|rMana Restored", priority = 4, syntax = "fmana" },
+        [ITEM_PERCENT_MANA] = { tag = "|rPercent Mana Restored", priority = 4, syntax = "pmana", suffix = "\x25" },
+        [ITEM_CHARGES] = { tag = "|rCharges", priority = 4, syntax = "charges" },
         [ITEM_ABILITY] = { priority = 4, syntax = "abil" },
         [ITEM_ABILITY2] = { priority = 4, syntax = "abiltwo" },
         [ITEM_TOOLTIP] = { priority = 4, syntax = "" },
@@ -1579,22 +800,20 @@ OnInit.global("Variables", function()
 
     --hints
     HINT_TOOLTIP = { ---@type string[]
-        "|cffc0c0c0Every 30 minutes the game will check for AFK players, so if you see a text box appear, type the characters it displays after a hyphen (-????)|r",
         "|cffc0c0c0Did you know?|r |cff9966ffCoT RPG|r |cffc0c0c0has a discord!|r |cff9ebef5https://discord.gg/peSTvTd|r",
         "|cffc0c0c0Game too easy for you? Select|r |cff9966ffHardcore|r |cffc0c0c0on character creation to increase difficulty & increase benefits.|r",
         "|cffc0c0c0Type|r |cff9966ff-info|r |cffc0c0c0or|r check |cff9966ffF9|r |cffc0c0c0to for important game information, especially if you are new.|r",
         "|cffc0c0c0After an item drops it will be removed after 10 minutes, but don’t worry if you’ve already picked it up or bound it with your hero as they will not delete.|r",
         "|cffc0c0c0Game too difficult? We recommend playing with 2+ players. If you are playing solo, consider playing online with friends or others.|r",
         "|cffc0c0c0Enemies that respawn will appear as ghosts if you are too close, however if you walk away they will return to normal.|r",
-        "|cffc0c0c0There’s a few items in game with a significantly lower level requirement, though they are typically harder to acquire.|r",
         "|cffc0c0c0You can type|r |cff9966ff-hints|r or |cff9966ff-nohints|r |cffc0c0c0to toggle these messages on and off.|r",
         "|cffc0c0c0Once you challenge the gods you cannot flee.|r",
         "|cffc0c0c0Some artifacts remain frozen in ice, waiting to be recovered...|r",
         "|cffc0c0c0Spellboost innately affects the damage of your spells by plus or minus 20\x25.|r",
         "|cffc0c0c0Critical strike items and spells can stack their effect, the multipliers are additive.|r",
-        "|cffc0c0c0The Ashen Vat is a mysterious crafting device located in the north-west tower.|r",
-        "|cffc0c0c0The actions menu (Z on your hero) provides many useful settings such as displaying allied hero portraits on the left.|r",
-        "|cffc0c0c0Toggling off your auto attacks with CTRL + A helps reduce the likelihood of drawing aggro, -info 7 for more information.|r",
+        "|cffc0c0c0The settings menu (Q on your backpack) provides many useful features such as displaying allied hero portraits on the left.|r",
+        "|cffc0c0c0You can toggle off your auto attacks with CTRL + A.|r",
+        "|cffc0c0c0Hotkeys for certain things may be changed in the settings menu (Q on your backpack).|r",
         "|cffc0c0c0If you meant to load another hero and you haven't left the church, you can type|r |cff9966ff-repick|r |cffc0c0c0and then|r |cff9966ff-load|r |cffc0c0c0to load another hero.|r",
         "|cffc0c0c0Hold |cff9966ffLeft Alt|r |cffc0c0c0while viewing your abilites to see how they are affected by Spellboost.|r"
     }
