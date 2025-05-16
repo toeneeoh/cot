@@ -112,8 +112,8 @@ OnInit.final("Units", function(Require)
     setup_unit(FourCC('n0tw'), 11, 2, 0) -- tuskarr warrior
     setup_unit(FourCC('n0tc'), 9, 2, 0)  -- tuskarr chieftain
     setup_unit(FourCC('n0ss'), 18, 3, 0) -- spider seer
-    setup_unit(FourCC('n1sl'), 18, 3, 0) -- spider lord
-    setup_unit(FourCC('n1uw'), 35, 4, 0) -- ursa warrior 
+    setup_unit(FourCC('n0sl'), 18, 3, 0) -- spider lord
+    setup_unit(FourCC('n0uw'), 35, 4, 0) -- ursa warrior 
     setup_unit(FourCC('n0us'), 22, 4, 0) -- ursa shaman
     setup_unit(FourCC('n0po'), 20, 5, 0) -- polar bear
     setup_unit(FourCC('n0dm'), 16, 5, 0) -- dire mammoth
@@ -123,7 +123,7 @@ OnInit.final("Units", function(Require)
     setup_unit(FourCC('n0ut'), 15, 7, 0) -- unbroken trickster
     setup_unit(FourCC('n0ud'), 12, 7, 0) -- unbroken darkweaver
     setup_unit(FourCC('n0hs'), 25, 8, 0) -- lesser hellfire
-    setup_unit(FourCC('n0hs'), 30, 8, 0) -- lesser hellhound
+    setup_unit(FourCC('n0hh'), 30, 8, 0) -- lesser hellhound
     setup_unit(FourCC('n027'), 25, 9, 0) -- centaur lancer
     setup_unit(FourCC('n024'), 20, 9, 0) -- centaur ranger
     setup_unit(FourCC('n028'), 15, 9, 0) -- centaur mage
@@ -184,7 +184,6 @@ OnInit.final("Units", function(Require)
                     until IsTerrainWalkable(x, y)
                     local u = CreateUnit(PLAYER_CREEP, id, x, y, GetRandomInt(0, 359))
 
-                    AntiLagUnit(u)
                     -- on death logic
                     EVENT_ON_DEATH:register_unit_action(u, on_death)
 
@@ -194,13 +193,6 @@ OnInit.final("Units", function(Require)
             end
         end
     end
-
-    local x = 0. ---@type number 
-    local y = 0. ---@type number 
-
-    -- velreon guard
-    velreon_guard = CreateUnit(Player(PLAYER_TOWN), FourCC('h04A'), 29919., -2419., 225.)
-    PauseUnit(velreon_guard, true)
 
     -- angel
     god_angel = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n0A1'), -1841., -14858., 325.)
@@ -246,14 +238,15 @@ OnInit.final("Units", function(Require)
     UnitAddItemById(udg_SPONSOR, FourCC('I0MK'))
     UnitAddItemById(udg_SPONSOR, FourCC('I0MG'))
     -- town paladin
-    townpaladin = CreateUnit(Player(PLAYER_TOWN), FourCC('H01T'), -176.3, 666, 90.)
+    local aggro = nil
+    local wander = nil
+    local townpaladin = CreateUnit(Player(PLAYER_TOWN), FourCC('H01T'), -176.3, 666, 90.)
     SetHeroLevel(townpaladin, 100, false)
     BlzSetUnitMaxMana(townpaladin, 0)
 
     local function paladin_enrage(b)
-        local ug = CreateGroup()
-
         if b then
+            local ug = CreateGroup()
             GroupEnumUnitsInRange(ug, GetUnitX(townpaladin), GetUnitY(townpaladin), 250., Condition(isplayerunit))
 
             for target in each(ug) do
@@ -264,71 +257,71 @@ OnInit.final("Units", function(Require)
                 Dummy.create(GetUnitX(townpaladin), GetUnitY(townpaladin), FourCC('A041'), 1):cast(GetOwningPlayer(townpaladin), "bloodlust", townpaladin)
             end
 
+            -- unally all players
+            local U = User.first
+            while U do
+                SetPlayerAllianceStateBJ(U.player, Player(PLAYER_TOWN), bj_ALLIANCE_UNALLIED)
+                SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), U.player, bj_ALLIANCE_UNALLIED)
+                U = U.next
+            end
+
             BlzSetHeroProperName(townpaladin, "|cff990000BUZAN THE FEARLESS|r")
             UnitAddBonus(townpaladin, BONUS_DAMAGE, 5000)
+            DestroyGroup(ug)
         else
+            if aggro then
+                TimerQueue:disableCallback(aggro)
+                aggro = nil
+            end
             UnitRemoveAbility(townpaladin, FourCC('Bblo'))
             BlzSetHeroProperName(townpaladin, "|c00F8A48BBuzan the Fearless|r")
             UnitAddBonus(townpaladin, BONUS_DAMAGE, -5000)
             IssueImmediateOrderById(townpaladin, ORDER_ID_STOP)
-        end
 
-        DestroyGroup(ug)
-    end
-
-    local function paladin_aggro_expire(pt)
-        pt.dur = pt.dur - 0.5
-
-        if pt.dur <= 0 then
-            SetPlayerAllianceStateBJ(Player(pt.pid - 1), Player(PLAYER_TOWN), bj_ALLIANCE_ALLIED)
-            SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), Player(pt.pid - 1), bj_ALLIANCE_ALLIED)
-
-            paladin_enrage(false)
-
-            pt:destroy()
-        else
-            pt.timer:callDelayed(0.5, paladin_aggro_expire, pt)
-        end
-    end
-
-    local function paladin_on_struck(target, source, amount, amount_after_red, damage_type)
-        if amount_after_red >= 100. and math.random(0, 1) == 0 then
-            local pt = TimerList[0]:get('pala', source)
-            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
-
-            if pt then
-                pt.dur = 20.
-            else
-                paladin_enrage(true)
-
-                pt = TimerList[0]:add()
-                pt.dur = 20.
-                pt.source = source
-                pt.tag = 'pala'
-                pt.pid = pid
-
-                SetPlayerAllianceStateBJ(Player(pid - 1), Player(PLAYER_TOWN), bj_ALLIANCE_UNALLIED)
-                SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), Player(pid - 1), bj_ALLIANCE_UNALLIED)
-
-                if GetUnitCurrentOrder(target) ~= OrderId("attack") or GetUnitCurrentOrder(target) ~= OrderId("smart") then
-                    IssueTargetOrder(target, "attack", source)
-                end
-
-                pt.timer:callDelayed(0.5, paladin_aggro_expire, pt)
+            -- ally all players
+            local U = User.first
+            while U do
+                SetPlayerAllianceStateBJ(U.player, Player(PLAYER_TOWN), bj_ALLIANCE_ALLIED)
+                SetPlayerAllianceStateBJ(Player(PLAYER_TOWN), U.player, bj_ALLIANCE_ALLIED)
+                U = U.next
             end
         end
     end
-    local function paladin_on_kill(killer, killed)
-        local pt = TimerList[0]:get('pala', killed)
 
-        if pt then
-            pt.dur = 0.
+    local function paladin_wander()
+        if not aggro then
+            local x = GetRandomReal(GetRectMinX(gg_rct_Town_Vision) + 750, GetRectMaxX(gg_rct_Town_Vision) - 750)
+            local y = GetRandomReal(GetRectMinY(gg_rct_Town_Vision) + 750, GetRectMaxY(gg_rct_Town_Vision) - 750)
+
+            IssuePointOrder(townpaladin, "move", x, y)
+        end
+
+        wander = TimerQueue:callDelayed(15., paladin_wander)
+    end
+
+    local function paladin_on_struck(target, source, amount, amount_after_red, damage_type)
+        if aggro then
+            TimerQueue:disableCallback(aggro)
+            aggro = TimerQueue:callDelayed(10., paladin_enrage, false)
+        elseif amount_after_red >= 100. and math.random(0, 1) == 0 then
+            aggro = TimerQueue:callDelayed(10., paladin_enrage, false)
+            paladin_enrage(true)
+
+            if GetUnitCurrentOrder(target) ~= OrderId("attack") or GetUnitCurrentOrder(target) ~= OrderId("smart") then
+                IssueTargetOrder(target, "attack", source)
+            end
         end
     end
 
+    local function paladin_on_kill(killer, killed)
+        paladin_enrage(false)
+    end
+
+    wander = TimerQueue:callDelayed(15., paladin_wander)
     EVENT_ON_STRUCK_FINAL:register_unit_action(townpaladin, paladin_on_struck)
     EVENT_ON_KILL:register_unit_action(townpaladin, paladin_on_kill)
     EVENT_ON_DEATH:register_unit_action(townpaladin, function(u)
+        TimerQueue:disableCallback(wander)
         CreateItem(FourCC('I01Y'), GetUnitX(u), GetUnitY(u)) -- cheese
     end)
 
@@ -352,21 +345,21 @@ OnInit.final("Units", function(Require)
     -- special prechaos "bosses"
 
     -- pinky
-    pinky = CreateUnit(PLAYER_BOSS, FourCC('O019'), 11528., 8168., 180.)
+    pinky = CreateUnit(PLAYER_CREEP, FourCC('O019'), 11528., 8168., 180.)
     SetHeroLevel(pinky, 100, false)
     UnitAddItemById(pinky, FourCC('I02Y'))
     EVENT_ON_DEATH:register_unit_action(pinky, function(u)
         CreateItem(FourCC('I02Y'), GetUnitX(u), GetUnitY(u)) -- pinky pick
     end)
     -- bryan
-    bryan = CreateUnit(PLAYER_BOSS, FourCC('H043'), 11528., 7880., 180.)
+    bryan = CreateUnit(PLAYER_CREEP, FourCC('H043'), 11528., 7880., 180.)
     SetHeroLevel(bryan, 100, false)
     UnitAddItemById(bryan, FourCC('I02X'))
     EVENT_ON_DEATH:register_unit_action(bryan, function(u)
         CreateItem(FourCC('I02X'), GetUnitX(u), GetUnitY(u)) -- bryan pick
     end)
     -- ice troll
-    ice_troll = CreateUnit(PLAYER_BOSS, FourCC('O00T'), 15833., 4382., 254.)
+    ice_troll = CreateUnit(PLAYER_CREEP, FourCC('O00T'), 15833., 4382., 254.)
     SetHeroLevel(ice_troll, 100, false)
     UnitAddItemById(ice_troll, FourCC('I03Z'))
     EVENT_ON_DEATH:register_unit_action(ice_troll, function(u)
@@ -375,7 +368,7 @@ OnInit.final("Units", function(Require)
     end)
 
     -- kroresh
-    kroresh = CreateUnit(PLAYER_BOSS, FourCC('N01N'), 17000., -19000., 0.)
+    kroresh = CreateUnit(PLAYER_CREEP, FourCC('N01N'), 17000., -19000., 0.)
     SetHeroLevel(kroresh, 120, false)
     UnitAddItemById(kroresh, FourCC('I0BZ'))
     UnitAddItemById(kroresh, FourCC('I064'))
@@ -603,9 +596,9 @@ OnInit.final("Units", function(Require)
         end
     end
 
-    --spawn prechaos enemies
+    -- spawn prechaos enemies
     SpawnCreeps(0)
 
-    --ashen vat
-    ASHEN_VAT = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('h05J'), 20485., -20227., 270.)
+    -- ALICE exclusions
+    ALICE_ExcludeTypes(BACKPACK, GRAVE)
 end, Debug and Debug.getLine())
