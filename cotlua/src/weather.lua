@@ -239,7 +239,7 @@ OnInit.global("Weather", function(Require)
     weatherIterations   = 0
 
 ---@type fun(x: number, y: number)
-function FirestormDamage(x, y)
+local function firestorm_damage(x, y)
     local ug = CreateGroup()
 
     GroupEnumUnitsInRange(ug, x, y, 300, Condition(isplayerAlly))
@@ -252,47 +252,46 @@ function FirestormDamage(x, y)
     DestroyGroup(ug)
 end
 
----@type fun(pt: PlayerTimer)
-function FirestormEffect(pt)
-    local ug = CreateGroup()
-    local x  = 0. ---@type number 
-    local y  = 0. ---@type number 
+local function firestorm_effect(ug, dur)
+    local x = 0.
+    local y = 0.
 
-    pt.dur = pt.dur - 3
+    dur = dur - 3
 
-    if pt.dur > 0 then
+    if dur > 0 then
         for _ = 0, firestormRate do
             repeat
                 x = GetRandomReal(MAIN_MAP.minX, MAIN_MAP.maxX)
                 y = GetRandomReal(MAIN_MAP.minY, MAIN_MAP.maxY)
-                GroupEnumUnitsInRange(ug, x, y, 4000., Condition(isbase))
-            until RectContainsCoords(gg_rct_Town_Main, x, y) == false and BlzGroupGetSize(ug) == 0
-            TimerQueue:callDelayed(1.5, FirestormDamage, x, y)
+            until RectContainsCoords(gg_rct_Town_Main, x, y) == false
+            TimerQueue:callDelayed(1.5, firestorm_damage, x, y)
             DestroyEffect(AddSpecialEffect("Units\\Demon\\Infernal\\InfernalBirth.mdl", x, y))
         end
-    else
-        pt:destroy()
-    end
 
-    DestroyGroup(ug)
+        TimerQueue:callDelayed(3., firestorm_effect, ug, dur)
+    else
+        DestroyGroup(ug)
+    end
 end
 
 ---@type fun(weather: integer)
-function GracePeriod(weather)
+local function grace_period(weather)
     CURRENT_WEATHER = weather
 
-    WeatherTimer:callDelayed(WeatherTable[weather].dur, WeatherPeriodic)
+    local dur = WeatherTable[weather].dur
+    WeatherTimer:callDelayed(dur, WeatherPeriodic)
 
     for i = 1, #WeatherGroup do
-        if GetPlayerId(GetOwningPlayer(WeatherGroup[i])) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
-            WeatherBuff:add(WeatherGroup[i], WeatherGroup[i]):duration(WeatherTable[weather].dur)
+        local u = WeatherGroup[i]
+
+        if GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
+            WeatherBuff:add(u, u):duration(dur)
         end
     end
 
     if CURRENT_WEATHER == WEATHER_FIRESTORM then
-        local pt = TimerList[0]:add() ---@type PlayerTimer
-        pt.dur = WeatherTable[weather].dur
-        pt.timer:callPeriodically(3., nil, FirestormEffect, pt)
+        local ug = CreateGroup()
+        TimerQueue:callDelayed(3., firestorm_effect, ug, dur)
     end
 end
 
@@ -350,7 +349,7 @@ function WeatherPeriodic()
     DisplayTimedTextToForce(FORCE_PLAYING, 30, "|cff6666ff" .. WeatherTable[choice].text .. "|r")
 
     WeatherBuff:removeAll()
-    WeatherTimer:callDelayed(4., GracePeriod, choice)
+    TimerQueue:callDelayed(4., grace_period, choice)
 end
 
     local function WeatherFilter()
@@ -361,7 +360,7 @@ end
                 if not TableHas(WeatherGroup, u) then
                     WeatherGroup[#WeatherGroup + 1] = u
                     if GetPlayerId(GetOwningPlayer(u)) < PLAYER_CAP or WeatherTable[CURRENT_WEATHER].all == 1 then
-                        WeatherBuff:add(u, u):duration(TimerGetRemaining(WeatherTimer.timer))
+                        WeatherBuff:add(u, u):duration(WeatherTable[CURRENT_WEATHER].dur - TimerGetElapsed(WeatherTimer.timer))
                     end
                 end
             else
@@ -379,11 +378,7 @@ end
 
     WeatherTimer:callDelayed(WeatherTable[CURRENT_WEATHER].dur, WeatherPeriodic)
 
-    local ug = CreateGroup()
     local onEnter = CreateTrigger()
-
     TriggerRegisterEnterRegion(onEnter, MAIN_MAP.region, Filter(WeatherFilter))
     TriggerRegisterLeaveRegion(onEnter, MAIN_MAP.region, Filter(WeatherFilter))
-
-    DestroyGroup(ug)
 end, Debug and Debug.getLine())
