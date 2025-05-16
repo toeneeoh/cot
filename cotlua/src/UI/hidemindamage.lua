@@ -25,9 +25,8 @@ OnInit.final("HideMin", function()
         if is_visible(parentA) then
             update(damageA, damageA2)
         end
-
-        TimerQueue:callDelayed(0.05, check)
     end
 
-    TimerQueue:callDelayed(10., check)
+    local t = CreateTimer()
+    TimerStart(t, 0.05, true, check)
 end, Debug and Debug.getLine())
