@@ -9,18 +9,27 @@ OnInit.final("Commands", function(Require)
     Require('Profile')
     Require('Frames')
 
-    VoteYay            = 0
-    VoteNay            = 0
+    local vote_yay  = 0
+    local vote_nay  = 0
+    local vk_target = 0
+    local vk_source = 0
+    local HINT_PLAYERS = {}
+
     IS_AUTO_ATTACK_OFF = {} ---@type boolean[] 
     IS_BASE_DESTROYED  = {} ---@type boolean[] 
-    votekickPlayer     = 0
-    votekickingPlayer  = 0
-    HINT_PLAYERS       = {}
 
-    VOTING_TYPE = 0
-    I_VOTED     = {} ---@type boolean[] 
+    local VOTING_TYPE = 0
+    local I_VOTED     = {} ---@type boolean[] 
 
-    local CMD_LIST = {
+    local CMD_LIST
+    local votekick_panel_click
+    local roll_function
+
+    function GetCommandList() -- TODO: use?
+        return CMD_LIST
+    end
+
+    CMD_LIST = {
         ["-commands"] = function(p, pid, args)
             DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffffcc00Commands are located in F9.|r")
         end,
@@ -29,7 +38,7 @@ OnInit.final("Commands", function(Require)
 
             tpid = tpid or GetPlayerId(p) + 1
 
-            DisplayStatWindow(Hero[tpid] or PLAYER_SELECTED_UNIT[tpid], pid)
+            STAT_WINDOW.display(Hero[tpid] or PLAYER_SELECTED_UNIT[tpid], pid)
         end,
         ["-clear"] = function(p, pid, args)
             if p == GetLocalPlayer() then
@@ -67,12 +76,7 @@ OnInit.final("Commands", function(Require)
             end
         end,
         ["-roll"] = function(p, pid, args)
-            myRoll(pid)
-        end,
-        ["-estats"] = function(p, pid, args)
-            local u = PLAYER_SELECTED_UNIT[pid]
-
-            DisplayStatWindow(u, pid)
+            roll_function(pid)
         end,
         ["-p"] = function(p, pid, args)
             if GetCurrency(pid, PLATINUM) > 0 then
@@ -157,26 +161,9 @@ OnInit.final("Commands", function(Require)
                 Profile[pid]:toggleAutoSave()
             end
         end,
-        ["-cancel"] = function(p, pid, args)
-            if IS_FORCE_SAVING[pid] then
-                IS_FORCE_SAVING[pid] = false
-                Unit[Hero[pid]].busy = false
-                PauseUnit(Hero[pid], false)
-                PauseUnit(Backpack[pid], false)
-                if (GetLocalPlayer() == p) then
-                    ClearTextMessages()
-                end
-                DisplayTimedTextToPlayer(p, 0, 0, 60., "Force save aborted!")
-                local pt = TimerList[pid]:get(FourCC('fsav'))
-
-                if pt then
-                    pt:destroy()
-                end
-            end
-        end,
         ["-votekick"] = function(p, pid, args)
             if VOTING_TYPE == 0 and User.AmountPlaying > 2 then
-                local dw = DialogWindow.create(pid, "", VotekickPanelClick) ---@type DialogWindow
+                local dw = DialogWindow.create(pid, "", votekick_panel_click) ---@type DialogWindow
                 local U = User.first
 
                 while U do
@@ -233,6 +220,49 @@ OnInit.final("Commands", function(Require)
 
     CMD_LIST["-nohints"] = CMD_LIST["-hints"]
 
+local function ResetVote()
+    vote_yay = 0
+    vote_nay = 0
+
+    for i = 1, PLAYER_CAP do
+        I_VOTED[i] = false
+    end
+end
+
+local function votekick()
+    ResetVote()
+    VOTING_TYPE = 2
+    vote_yay = 1
+    vote_nay = 1
+    DisplayTimedTextToForce(FORCE_PLAYING, 30, "Voting to kick player " + User[vk_target - 1].nameColored .. " has begun.")
+    BlzFrameSetTexture(VOTING_BACKDROP, "war3mapImported\\afkUI_3.dds", 0, true)
+
+    local id = GetPlayerId(GetLocalPlayer()) + 1
+
+    if id ~= vk_target and id ~= vk_source then
+        BlzFrameSetVisible(VOTING_BACKDROP, true)
+    end
+end
+
+---@return boolean
+votekick_panel_click = function()
+    local pid   = GetPlayerId(GetTriggerPlayer()) + 1
+    local dw    = DialogWindow[pid]
+    local index = dw:getClickedIndex(GetClickedButton())
+
+    if index ~= -1 then
+        if VOTING_TYPE == 0 then
+            vk_target = dw.data[index]
+            vk_source = pid
+            votekick()
+        end
+
+        dw:destroy()
+    end
+
+    return false
+end
+
 ---@return boolean
 local function VotingMenu()
     local pid = GetPlayerId(GetTriggerPlayer()) + 1 ---@type integer 
@@ -245,14 +275,14 @@ local function VotingMenu()
     return false
 end
 
-function CheckVote()
+local function check_vote()
     if VOTING_TYPE == 2 then
-        if (VoteYay + VoteNay) >= User.AmountPlaying then
+        if (vote_yay + vote_nay) >= User.AmountPlaying then
             VOTING_TYPE = 0
 
-            if VoteYay > VoteNay then
-                DisplayTextToForce(FORCE_PLAYING, User[votekickPlayer - 1].nameColored .. " has been kicked from the game.")
-                CustomDefeatBJ(Player(votekickPlayer - 1), "You were vote kicked.")
+            if vote_yay > vote_nay then
+                DisplayTextToForce(FORCE_PLAYING, User[vk_target - 1].nameColored .. " has been kicked from the game.")
+                CustomDefeatBJ(Player(vk_target - 1), "You were vote kicked.")
             else
                 DisplayTextToForce(FORCE_PLAYING, "Votekick vote failed.")
             end
@@ -261,9 +291,9 @@ function CheckVote()
 end
 
 local function VoteYes()
-    VoteYay = VoteYay + 1
+    vote_yay = vote_yay + 1
 
-    CheckVote()
+    check_vote()
 
     if GetLocalPlayer() == GetTriggerPlayer() then
         BlzFrameSetEnable(BlzGetTriggerFrame(), false)
@@ -273,9 +303,9 @@ local function VoteYes()
 end
 
 local function VoteNo()
-    VoteNay = VoteNay + 1
+    vote_nay = vote_nay + 1
 
-    CheckVote()
+    check_vote()
 
     if GetLocalPlayer() == GetTriggerPlayer() then
         BlzFrameSetEnable(BlzGetTriggerFrame(), false)
@@ -298,35 +328,40 @@ function FleeCommand(p)
         else
             DisplayTimedTextToPlayer(p, 0, 0, 10, "You cannot escape.")
         end
-    elseif TableHas(Arena[ARENA_FFA], pid) then
-        FleeFFA(pid)
     end
 end
 
-function DestroyRB()
-    DestroyLeaderboard(RollBoard)
-    RollChecks[30] = 0
+local rolls = {}
+local roll_cd = nil
+
+local function reset_roll()
+    local results = {}
+
+    for i = 1, PLAYER_CAP do
+        if rolls[i] then
+            results[#results + 1] = {roll = rolls[i], player = i}
+        end
+        rolls[i] = nil
+    end
+
+    table.sort(results, function(a, b) return a.roll > b.roll end)
+
+    DisplayTimedTextToForce(FORCE_PLAYING, 20., "Roll results:")
+    for _, v in ipairs(results) do
+        DisplayTimedTextToForce(FORCE_PLAYING, 20., User[v.player - 1].nameColored .. ": |cffffcc00" .. v.roll .. "|r")
+    end
+    roll_cd = nil
 end
 
 ---@param pid integer
-function myRoll(pid)
-    local i = 0 ---@type integer 
-    if RollChecks[30] == 0 then
-        RollChecks[30] = 1
-        RollBoard = CreateLeaderboardBJ(FORCE_PLAYING, "Rolls")
-        while i <= 8 do
-            RollChecks[i] = 0
-            i = i + 1
-        end
-        LeaderboardSetStyle(RollBoard, true, true, true, false)
-        LeaderboardDisplayBJ(true, RollBoard)
-        TimerQueue:callDelayed(20., DestroyRB)
+roll_function = function(pid)
+    if not rolls[pid] then
+        rolls[pid] = math.random(0, 100)
+        DisplayTimedTextToForce(FORCE_PLAYING, 20., User[pid - 1].nameColored .. " rolled a |cffffcc00" .. rolls[pid] .. "|r!")
     end
 
-    if (RollChecks[30] > 0) and (RollChecks[pid] == 0) then
-        RollChecks[pid] = 1
-        LeaderboardAddItemBJ(Player(pid - 1), RollBoard, GetPlayerName(Player(pid - 1)), GetRandomInt(i, 100))
-        LeaderboardSortItemsBJ(RollBoard, 0, false)
+    if not roll_cd then
+        roll_cd = TimerQueue:callDelayed(20., reset_roll)
     end
 end
 
@@ -344,16 +379,6 @@ local function CustomCommands()
 
     if CMD_LIST[args[1]] then
         CMD_LIST[args[1]](p, pid, args, cmd)
-    end
-
-    --afk text
-    if cmd:sub(2, #cmd) == AFK_TEXT and afkTextVisible[pid] then
-        if GetLocalPlayer() == p then
-            BlzFrameSetVisible(AFK_FRAME_BG, false)
-        end
-
-        afkTextVisible[pid] = false
-        SoundHandler("Sound\\Interface\\GoodJob.wav", false, p)
     end
 
     return false
