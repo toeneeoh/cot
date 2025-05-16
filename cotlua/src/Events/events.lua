@@ -14,38 +14,62 @@ OnInit.final("Events", function()
     ---@field unregister_unit_action function
     EVENT = {}
     do
+        local event_list = {}
         local thistype = EVENT
         local unit_actions_mt = { __mode = 'k' } -- make keys weak for when units are removed
         local event_mt = { __index = thistype }
 
         ---@return EVENT
-        function thistype.create()
+        function EVENT.create()
             local self = setmetatable({
                 unit_actions = setmetatable({}, unit_actions_mt),
             }, event_mt)
 
+            event_list[#event_list + 1] = self
+
             return self
         end
 
-        local recurse = {}
+        local recurse = setmetatable({}, { __mode = "k" })
+        local recurseCount = setmetatable({}, { __mode = "k" })
 
         ---@type fun(self: EVENT, u: unit, ...)
         function thistype:trigger(u, ...)
-            if not u then
+            if not u then return end
+
+            -- grab or create the per‑unit table of in‑flight events
+            local in_flight = recurse[u]
+            if not in_flight then
+                in_flight = {}
+                recurse[u] = in_flight
+                recurseCount[u] = 0
+            end
+
+            -- bail if this event is already running
+            if in_flight[self] then
                 return
             end
 
-            -- prevent actions from triggering the event for a unit again
-            if not recurse[u] then
-                recurse[u] = true
-                -- run any actions registered with this unit
-                local actions = self.unit_actions[u]
-                if actions then
-                    for i = 1, #actions do
-                        actions[i](u, ...)
-                    end
+            -- mark the event
+            in_flight[self] = true
+            recurseCount[u] = recurseCount[u] + 1
+
+            -- run all the associated actions
+            local actions = self.unit_actions[u]
+            if actions then
+                for i = 1, #actions do
+                    actions[i](u, ...)
                 end
+            end
+
+            -- clear the mark
+            in_flight[self] = nil
+            recurseCount[u] = recurseCount[u] - 1
+
+            -- less burden on gc?
+            if recurseCount[u] == 0 then
                 recurse[u] = nil
+                recurseCount[u] = nil
             end
         end
 
@@ -67,6 +91,14 @@ OnInit.final("Events", function()
         end
 
         function thistype:unregister_unit_action(u, func)
+            -- remove all registered functions for unit from every event
+            if self == EVENT then
+                for i = 1, #event_list do
+                    event_list[i]:unregister_unit_action(u)
+                end
+                return
+            end
+
             if not u or not self.unit_actions[u] then
                 return
             end
@@ -95,7 +127,7 @@ OnInit.final("Events", function()
         local event_mt = { __index = thistype }
 
         ---@return PLAYER_EVENT
-        function thistype.create()
+        function PLAYER_EVENT.create()
             local self = setmetatable({
                 actions = {},
             }, event_mt)
@@ -186,5 +218,8 @@ OnInit.final("Events", function()
 
     -- on player repick or leave
     EVENT_ON_CLEANUP = PLAYER_EVENT.create()
+
+    -- on player character setup
+    EVENT_ON_SETUP = PLAYER_EVENT.create()
 
 end, Debug and Debug.getLine())
