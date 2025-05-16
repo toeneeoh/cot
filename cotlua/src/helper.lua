@@ -1532,8 +1532,6 @@ function PlayerCleanup(pid)
     HeroID[pid] = 0
     Backpack[pid] = nil
     IS_AUTO_ATTACK_OFF[pid] = false
-    IS_CONVERTER_PURCHASED[pid] = false
-    IS_CONVERTING_PLAT[pid] = false
     SetCurrency(pid, GOLD, 0)
     SetCurrency(pid, PLATINUM, 0)
     SetCurrency(pid, CRYSTAL, 0)
@@ -1542,8 +1540,6 @@ function PlayerCleanup(pid)
     IS_FLEEING[pid] = false
 
     if GetLocalPlayer() == p then
-        PLAT_CONVERT_FRAME.tooltip:text("Must purchase a converter to use!")
-        PLAT_CONVERT_FRAME:enabled(false)
         BlzFrameSetVisible(DPS_FRAME, false)
         DisplayCineFilter(false)
 
@@ -2689,18 +2685,22 @@ end
 ---@class SimpleButton
 ---@field frame framehandle
 ---@field button framehandle
----@field tooltip framehandle
+---@field tooltip framehandle|table
 ---@field text_frame framehandle
 ---@field text function
 ---@field onClick function
 ---@field makeTooltip function
 ---@field icon function
 ---@field iconColor function
+---@field enable function
+---@field enabled boolean
+---@field texture string
 SimpleButton = {}
 do
     local thistype = SimpleButton
     local mt = { __index = thistype }
 
+    ---@type fun(frame: framehandle, texture: string, width: number, height: number, point1: framepointtype, point2: framepointtype, x: number, y: number, onClick: function?, tooltip: string?, point3: framepointtype?, point4: framepointtype?, x2: number?, y2: number?): SimpleButton
     function SimpleButton.create(frame, texture, width, height, point1, point2, x, y, onClick, tooltip, point3, point4, x2, y2)
         local self = setmetatable({ enabled = true }, mt)
         local inset = 0.004
@@ -3000,31 +3000,6 @@ function GetItemFromPlayer(pid, id, count)
     return nil
 end
 
----@param pid integer
-function UpdateItemTooltips(pid)
-    -- update 6 visible item slot tooltips
-    local modifier = IS_ALT_DOWN[pid]
-    local profile = Profile[pid]
-
-    if profile and profile.hero then
-        for i = 1, 6 do
-            local itm = profile.hero.items[i]
-
-            if itm then
-                if modifier and itm.alt_tooltip then
-                    if GetLocalPlayer() == Player(pid - 1) then
-                        BlzSetItemExtendedTooltip(itm.obj, itm.alt_tooltip)
-                    end
-                elseif itm.tooltip then
-                    if GetLocalPlayer() == Player(pid - 1) then
-                        BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
-                    end
-                end
-            end
-        end
-    end
-end
-
 function UpdateBackpackTooltips(pid)
     local s = ""
     local u = User[pid - 1]
@@ -3067,6 +3042,9 @@ function RevivePlayer(pid, x, y, percenthp, percentmana)
 
     -- reenable backpack teleports
     DisableBackpackTeleports(pid, false)
+
+    -- reenable inventory
+    DisableItems(pid, false)
 
     ReviveHero(Hero[pid], x, y, true)
     SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]) * percenthp)
