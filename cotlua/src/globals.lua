@@ -104,7 +104,6 @@ gg_rct_OgreTauren_Void_6 = nil
 gg_rct_OgreTauren_Void_7 = nil
 gg_rct_PrechaosTraining_Vision = nil
 gg_rct_PrechaosTrainingSpawn = nil
-gg_rct_Rescueable_Worker = nil
 gg_rct_Spider_Horror_1 = nil
 gg_rct_Spider_Horror_2 = nil
 gg_rct_Spider_Horror_3 = nil
