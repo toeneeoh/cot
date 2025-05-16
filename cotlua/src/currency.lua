@@ -26,8 +26,58 @@ OnInit.final("Currency", function(Require)
     Require('Frames')
     Require('Items')
 
-    IS_CONVERTING_PLAT = {} ---@type boolean[]
-    IS_CONVERTER_PURCHASED = {} ---@type boolean[]
+    local IS_CONVERTING_PLAT = {} ---@type boolean[]
+    local IS_CONVERTER_PURCHASED = {} ---@type boolean[]
+
+    local GOLD = GOLD
+    local PLATINUM = PLATINUM
+    local CRYSTAL = CRYSTAL
+    local HONOR = HONOR
+    local FACTION = FACTION
+    local CURRENCY_COUNT = CURRENCY_COUNT
+
+    -- frame setup
+    local converter_frame = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", RESOURCE_BAR, 0, 0)
+    local convert_button
+    BlzFrameSetTexture(converter_frame, "trans32.blp", 0, true)
+    BlzFrameSetSize(converter_frame, 0.006, 0.006)
+    BlzFrameSetPoint(converter_frame, FRAMEPOINT_TOP, RESOURCE_BAR, FRAMEPOINT_TOP, 0, -0.025)
+
+    -- converter button
+    local onConvert = function()
+        local frame = BlzGetTriggerFrame()
+        local pid = GetPlayerId(GetTriggerPlayer()) + 1
+        local enabled = false
+
+        if IS_CONVERTER_PURCHASED[pid] then
+            enabled = not IS_CONVERTING_PLAT[pid]
+            IS_CONVERTING_PLAT[pid] = enabled
+        end
+
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzFrameSetEnable(frame, false)
+            BlzFrameSetEnable(frame, true)
+            convert_button:enable(enabled)
+        end
+    end
+
+    convert_button = SimpleButton.create(converter_frame, "ReplaceableTextures\\CommandButtons\\BTNConvert.blp", 0.017, 0.017, FRAMEPOINT_CENTER, FRAMEPOINT_CENTER, -0.0975, -0.0025, onConvert, "Must purchase a converter to use!", FRAMEPOINT_TOP, FRAMEPOINT_BOTTOM)
+    convert_button:enable(false)
+
+    local function on_cleanup(pid)
+        IS_CONVERTER_PURCHASED[pid] = false
+        IS_CONVERTING_PLAT[pid] = false
+        if GetLocalPlayer() == Player(pid - 1) then
+            BlzFrameSetText(convert_button.tooltip.tooltip, "Must purchase a converter to use!")
+            convert_button:enable(false)
+        end
+    end
+    local U = User.first
+    while U do
+        EVENT_ON_CLEANUP:register_action(U.id, on_cleanup)
+        U = U.next
+    end
+    --
 
     -- purchase auto converter
     local function BuyConverter()
@@ -37,14 +87,12 @@ OnInit.final("Currency", function(Require)
 
         -- converter
         if index == 0 then
-            if GetCurrency(pid, PLATINUM) >= 4 then
+            local price = dw.data[index]
+            if ChargePlayer(pid, price, "You have purchased a Currency Converter.") then
                 IS_CONVERTER_PURCHASED[pid] = true
-                AddCurrency(pid, PLATINUM, -4)
                 if GetLocalPlayer() == GetTriggerPlayer() then
-                    PLAT_CONVERT_FRAME.tooltip:text("Convert gold to platinum automatically")
+                    BlzFrameSetText(convert_button.tooltip.tooltip, "Convert gold to platinum automatically")
                 end
-            else
-                DisplayTimedTextToPlayer(Player(pid - 1), 0, 0, 10, "You cannot afford this!")
             end
 
             dw:destroy()
@@ -58,7 +106,7 @@ OnInit.final("Currency", function(Require)
         if not IS_CONVERTER_PURCHASED[pid] then
             local dw = DialogWindow.create(pid, "Purchase cost: |n|cffffffff4 |cffe3e2e2Platinum|r", BuyConverter)
 
-            dw:addButton("Purchase")
+            dw:addButton("Purchase", 4000000)
 
             dw:display()
         end
@@ -113,6 +161,7 @@ OnInit.final("Currency", function(Require)
         amount = math.max(0, amount)
         CURRENCY[pid * CURRENCY_COUNT + index] = amount
         setter[index](pid, amount)
+        Shop.refresh(pid)
     end
 
     ---@type fun(pid: integer, index: integer):integer
@@ -123,7 +172,6 @@ OnInit.final("Currency", function(Require)
     ---@type fun(pid: integer, index: integer, amount: integer)
     function AddCurrency(pid, index, amount)
         SetCurrency(pid, index, GetCurrency(pid, index) + amount)
-        Shop.refresh(pid)
     end
 
     ---@type fun(pid: integer, goldawarded: number, displaymessage: boolean)
@@ -164,25 +212,33 @@ OnInit.final("Currency", function(Require)
         end
     end
 
+    local PLAT_VALUE = 1000000
+
     ---@type fun(pid: integer, price: number, successMsg: string): boolean
     function ChargePlayer(pid, price, successMsg)
-        local g = GetCurrency(pid, GOLD)
-        local p = GetCurrency(pid, PLATINUM)
-        local total = g + p * 1000000
+        local gold = GetCurrency(pid, GOLD)
+        local plat = GetCurrency(pid, PLATINUM)
 
-        if total < price then
-            DisplayTextToPlayer(Player(pid-1), 0., 0., "You do not have enough funds!")
+        -- not enough total
+        if gold + plat * PLAT_VALUE < price then
+            DisplayTextToPlayer(Player(pid - 1), 0, 0, "You do not have enough funds!")
             return false
         end
 
-        local newTotal = total - price
-        local newP = newTotal // 1000000
-        local newG = math.fmod(newTotal, 1000000)
+        if gold >= price then
+            -- all in gold
+            SetCurrency(pid, GOLD, gold - price)
+        else
+            -- spend all gold, then cover the rest with platinum
+            local shortage = price - gold
+            local neededPlat = (shortage + PLAT_VALUE - 1) // PLAT_VALUE
+            local leftoverGold = neededPlat * PLAT_VALUE - shortage
 
-        AddCurrency(pid, PLATINUM, newP - p)
-        AddCurrency(pid, GOLD,     newG - g)
+            SetCurrency(pid, PLATINUM, plat - neededPlat)
+            SetCurrency(pid, GOLD,     leftoverGold)
+        end
 
-        DisplayTextToPlayer(Player(pid - 1), 0., 0., successMsg)
+        DisplayTextToPlayer(Player(pid - 1), 0, 0, successMsg)
         return true
     end
 
@@ -238,12 +294,12 @@ OnInit.final("Currency", function(Require)
     end
 
     local convert = CreateTrigger()
-    local u = User.first ---@type User 
+    U = User.first ---@type User 
 
-    while u do
-        TriggerRegisterPlayerStateEvent(convert, u.player, PLAYER_STATE_RESOURCE_GOLD, GREATER_THAN_OR_EQUAL, 0.)
-        TriggerRegisterPlayerStateEvent(convert, u.player, PLAYER_STATE_RESOURCE_LUMBER, GREATER_THAN_OR_EQUAL, 0.)
-        u = u.next
+    while U do
+        TriggerRegisterPlayerStateEvent(convert, U.player, PLAYER_STATE_RESOURCE_GOLD, GREATER_THAN_OR_EQUAL, 0.)
+        TriggerRegisterPlayerStateEvent(convert, U.player, PLAYER_STATE_RESOURCE_LUMBER, GREATER_THAN_OR_EQUAL, 0.)
+        U = U.next
     end
 
     TriggerAddCondition(convert, Filter(CurrencyConverter))
