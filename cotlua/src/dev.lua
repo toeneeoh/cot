@@ -831,6 +831,6 @@ modifiers:
     end
 
     --- start somewhere
-    -- TimerQueue:callDelayed(1.5, setup, 0, 0)
+    TimerQueue:callDelayed(1.5, setup, 0, 0)
 
 end, Debug and Debug.getLine())
