@@ -48,6 +48,7 @@ OnInit.final("SpellView", function()
         [FourCC('A04M')] = 1,
         [FourCC('A0KX')] = 1,
         [FourCC('A04N')] = 1,
+        [FourCC('A0KB')] = 1,
 
         --hero utilities
         [FourCC('A08Y')] = 1,
