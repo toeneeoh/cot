@@ -12,7 +12,7 @@ OnInit.final("Mouse", function(Require)
     PLAYER_SELECTED_UNIT = {} ---@type unit[] 
 
     local player_selected_unit = PLAYER_SELECTED_UNIT
-    local event_unit_select, event_select = EVENT_ON_UNIT_SELECT, EVENT_ON_SELECT
+    local event_on_unit_select, event_on_select = EVENT_ON_UNIT_SELECT, EVENT_ON_SELECT
 
     function GetMouseX(pid)
         return mouse_x[pid]
@@ -22,25 +22,13 @@ OnInit.final("Mouse", function(Require)
         return mouse_y[pid]
     end
 
-    ---@type fun(pid: integer)
-    local function UnselectBP(pid)
-        local p = Player(pid - 1)
-
-        if IsUnitSelected(Hero[pid], p) and IsUnitSelected(Backpack[pid], p) then
-            if GetLocalPlayer() == p then
-                SelectUnit(Backpack[pid], false)
-            end
-        end
-    end
-
     local function select_delay(pid)
-        if BP_DESELECT[pid] then
-            UnselectBP(pid)
-        end
-
         local u = GetMainSelectedUnit()
-        BlzFrameSetVisible(HIDE_HEALTH_FRAME, (u and Unit[u] and Unit[u].hidehp))
-        BlzFrameSetVisible(PUNCHING_BAG_UI, u == PUNCHING_BAG)
+        if u then
+            BlzFrameSetVisible(HIDE_HEALTH_FRAME, (u and Unit[u] and Unit[u].hidehp))
+            event_on_unit_select:trigger(u, pid)
+            event_on_select:trigger(pid, u)
+        end
     end
 
     ---@return boolean
@@ -108,8 +96,6 @@ OnInit.final("Mouse", function(Require)
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
         player_selected_unit[pid] = u
-        event_unit_select:trigger(u, pid)
-        event_select:trigger(pid, u)
 
         return false
     end
