@@ -226,7 +226,8 @@ OnInit.final("Damage", function(Require)
         EVENT_ON_STRUCK_FINAL:trigger(target, source, amount, amount_after_red, damage_type)
 
         -- fatal damage
-        if GetWidgetLife(target) - amount_after_red <= MIN_LIFE then
+        -- TODO: Investigate whether this could be bugged?
+        if GetWidgetLife(target) - amount_after_red < MIN_LIFE then
             EVENT_ON_FATAL_DAMAGE:trigger(target, source, amount, damage_type)
         end
 
