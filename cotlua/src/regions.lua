@@ -8,7 +8,6 @@
 OnInit.final("Regions", function(Require)
     Require('WorldBounds')
 
-    GUARD_CAPTURED = false ---@type boolean 
     AREAS          = { ---@type rect[]
         MAIN_MAP.rect,
         gg_rct_Tavern,
@@ -55,7 +54,7 @@ OnInit.final("Regions", function(Require)
     REGION_DATA[REGION_DATA[3]]  = { x = 22191., y = 3441., facing = 180., extra = function(pid, p) ShowHeroCircle(p, false) end }
     REGION_DATA[REGION_DATA[4]]  = { x = -690., y = -238., facing = 0., extra = function(pid, p) ShowHeroCircle(p, true) end }
     REGION_DATA[REGION_DATA[5]]  = { x = 27145., y = -5489., facing = 0.}
-    REGION_DATA[REGION_DATA[6]]  = { x = -15245., y = -14100., facing = 0., exception = function(u, x, y) if u == velreon_guard then SetUnitPosition(u, x, y) end end }
+    REGION_DATA[REGION_DATA[6]]  = { x = -15245., y = -14100., facing = 0., }
     REGION_DATA[REGION_DATA[7]]  = { x = 19709., y = -20237., facing = 0.}
     REGION_DATA[REGION_DATA[8]]  = { x = -15426., y = 9535., facing = 225.}
     REGION_DATA[REGION_DATA[9]]  = { x = 20353., y = 11426., facing = 270.}
@@ -183,7 +182,8 @@ OnInit.final("Regions", function(Require)
     local function LeaveRegions()
         local u = GetFilterUnit() ---@type unit 
 
-        if u == udg_SPONSOR or u == townpaladin then --prevent paladin and sponsor from leaving
+        -- prevent town units from leaving
+        if GetOwningPlayer(u) == Player(PLAYER_TOWN) then
             IssuePointOrderLoc(u, "move", TOWN_CENTER)
         end
     end
@@ -201,16 +201,6 @@ OnInit.final("Regions", function(Require)
             return false
         end
 
-        -- TODO: velreon guard rework
-        if NearbyRect(gg_rct_Town_Main, x, y) and u == velreon_guard then --rescue guard
-            DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Velreon Scholar:|r Excellent work, traveler. Perhaps you would be interested in the ancient tales of the |cffffcc00Medean Empire|r...")
-            while U do
-                SetPlayerTechResearched(U.player, FourCC('R018'), 1)
-                U = U.next
-            end
-            RemoveUnit(velreon_guard)
-        end
-
         return false
     end
 
@@ -222,14 +212,6 @@ OnInit.final("Regions", function(Require)
         local pid = GetPlayerId(p) + 1 ---@type integer 
 
         if u == Hero[pid] then
-            if NearbyRect(gg_rct_Rescueable_Worker, x, y) and GUARD_CAPTURED == false then --guard
-                if UnitAlive(velreon_guard) then
-                    GUARD_CAPTURED = true
-                    DisplayTextToForce(FORCE_PLAYING, "|cffffcc00Velreon Scholar:|r Thank the lords! If you could escort me back to town I will be able to share the wealth of knowledge I have obtained.")
-                    SetUnitOwner(velreon_guard, p, true)
-                    PauseUnit(velreon_guard, false)
-                end
-            end
         end
     end
 
@@ -294,8 +276,6 @@ OnInit.final("Regions", function(Require)
     TriggerRegisterEnterRegion(enterTrigger, REGION_DATA[10], nil)
 
     TriggerAddCondition(enterTrigger, Condition(EnterArea))
-
-    RegionAddRect(specialRegion, gg_rct_Rescueable_Worker)
 
     RegionAddRect(safeRegion, gg_rct_Town_Main)
     RegionAddRect(leaveRegion, gg_rct_Town_Boundry_2)
