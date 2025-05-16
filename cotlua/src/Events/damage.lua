@@ -174,10 +174,6 @@ OnInit.final("Damage", function(Require)
 
             -- main hero damage taken
             if target == Hero[tpid] then
-                -- cancel force save
-                if IS_FORCE_SAVING[tpid] then
-                    IS_FORCE_SAVING[tpid] = false
-                end
             end
 
             -- armor pen
@@ -230,7 +226,7 @@ OnInit.final("Damage", function(Require)
         EVENT_ON_STRUCK_FINAL:trigger(target, source, amount, amount_after_red, damage_type)
 
         -- fatal damage
-        if amount_after_red >= GetWidgetLife(target) then
+        if GetWidgetLife(target) - amount_after_red <= MIN_LIFE then
             EVENT_ON_FATAL_DAMAGE:trigger(target, source, amount, damage_type)
         end
 
