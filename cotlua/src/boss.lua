@@ -48,19 +48,20 @@ OnInit.final("Boss", function(Require)
                 boss = IsBoss(boss)
             end
 
-            local mb = MULTIBOARD.BOSS ---@type MULTIBOARD
+            local mb = MULTIBOARD.BOSS
             local U = User.first
             local found_player
 
             while U do
-                if UnitAlive(boss.unit) and IsUnitInRange(Hero[U.id], boss.unit, NEARBY_BOSS_RANGE) then
+                if (UnitAlive(boss.unit) and IsUnitInRange(Hero[U.id], boss.unit, NEARBY_BOSS_RANGE)) then
                     mb.viewing[U.id] = boss
+                    mb.update_items(U.player)
                     if not mb.available[U.id] then
                         mb.available[U.id] = true
                         mb:display(U.id)
                     end
                     found_player = true
-                elseif not PLAYER_SELECTED_UNIT[U.id] == boss.unit then
+                elseif PLAYER_SELECTED_UNIT[U.id] ~= boss.unit then
                     if mb.viewing[U.id] == boss then
                         mb.viewing[U.id] = nil
                     end
@@ -75,18 +76,6 @@ OnInit.final("Boss", function(Require)
             end
         end
 
-        local function on_click(boss, pid)
-            boss = IsBoss(boss)
-            local mb = MULTIBOARD.BOSS
-            if not mb.viewing[pid] or not IsUnitInRange(Hero[pid], mb.viewing[pid].unit, NEARBY_BOSS_RANGE) then
-                mb:get_anchor(1, 1).gluebutton.close(Player(pid - 1), true)
-                mb.viewing[pid] = boss
-                mb.available[pid] = true
-                mb:display(pid)
-                mb:update()
-            end
-        end
-
         local function start_boss_threat(boss, unit)
             boss = IsBoss(boss)
 
@@ -97,6 +86,8 @@ OnInit.final("Boss", function(Require)
                 boss.target = Unit[unit]
                 mb.viewing[pid] = boss
                 mb.available[pid] = false
+                mb.update_items(Player(pid - 1))
+                mb.close_items(Player(pid - 1), true)
                 check_multiboard(boss)
                 mb:threat(boss)
             else
@@ -300,8 +291,6 @@ OnInit.final("Boss", function(Require)
             EVENT_ON_STRUCK_FINAL:register_unit_action(self.unit, BossAI)
             EVENT_ON_DEATH:register_unit_action(self.unit, on_boss_death)
 
-            -- on select or aggro show multiboard
-            EVENT_ON_UNIT_SELECT:register_unit_action(self.unit, on_click)
             EVENT_ON_AGGRO:register_unit_action(self.unit, start_boss_threat)
 
             -- safe zone logic
@@ -311,6 +300,35 @@ OnInit.final("Boss", function(Require)
             self:setup_range_event()
 
             return self.unit
+        end
+
+        local function on_click(pid, boss)
+            boss = IsBoss(boss)
+            local mb = MULTIBOARD
+            local boss_mb = mb.BOSS
+            if boss then
+                if not boss_mb.viewing[pid] or boss_mb.viewing[pid].unit ~= boss.unit then
+                    boss_mb.viewing[pid] = boss
+                    boss_mb.available[pid] = true
+                    boss_mb.update_items(Player(pid - 1))
+                    boss_mb.close_items(Player(pid - 1), true)
+                    boss_mb:display(pid)
+                    boss_mb:update()
+                end
+            elseif mb.lookingAt[pid] == boss_mb.index then
+                if boss_mb.viewing[pid] and not IsUnitInRange(Hero[pid], boss_mb.viewing[pid].unit, NEARBY_BOSS_RANGE) then
+                    boss_mb.viewing[pid] = nil
+                    boss_mb.available[pid] = false
+                    mb.bodies[mb.previousMb[pid]]:display(pid)
+                end
+            end
+        end
+
+        local U = User.first
+        while U do
+            -- on select show multiboard
+            EVENT_ON_SELECT:register_action(U.id, on_click)
+            U = U.next
         end
 
         local function valid_target()
@@ -684,15 +702,6 @@ OnInit.final("Boss", function(Require)
             until LineContainsRect(x2, y2, x, y, -4000, -3000, 4000, 5000) == false and IsTerrainWalkable(x, y) and DistanceCoords(x, y, x2, y2) > 2500.
 
             IssuePointOrder(Boss[id].unit, "patrol", x, y)
-        end
-
-        if UnitAlive(townpaladin) then
-            if not TimerList[0]:has('pala') or (DistanceCoords(GetUnitX(townpaladin), GetUnitY(townpaladin), GetRectCenterX(gg_rct_Town_Main), GetRectCenterY(gg_rct_Town_Main)) > 3000.) then
-                x = GetRandomReal(GetRectMinX(gg_rct_Town_Main) + 500, GetRectMaxX(gg_rct_Town_Main) - 500)
-                y = GetRandomReal(GetRectMinY(gg_rct_Town_Main) + 500, GetRectMaxY(gg_rct_Town_Main) - 500)
-
-                IssuePointOrder(townpaladin, "move", x, y)
-            end
         end
 
         if UnitAlive(udg_SPONSOR) then
