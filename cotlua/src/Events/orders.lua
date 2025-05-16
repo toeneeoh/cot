@@ -41,14 +41,16 @@ OnInit.final("Orders", function(Require)
 
         -- issued faeriefire on order (devour)
         [852150] = function(id, source, p, pid)
-            local pt = TimerList[pid]:get('blif', nil, source)
-            if pt then
-                pt:destroy()
+            if TableHas(SummonGroup, source) then
+                local pt = TimerList[pid]:get('blif', nil, source)
+                if pt then
+                    pt:destroy()
+                end
+                pt = TimerList[pid]:add()
+                pt.tag = 'dvou'
+                pt.target = source
+                pt.timer:callDelayed(1., DEVOUR.autocast, pt, "faeriefire")
             end
-            pt = TimerList[pid]:add()
-            pt.tag = 'dvou'
-            pt.target = source
-            pt.timer:callDelayed(1., DEVOUR.autocast, pt, "faeriefire")
         end,
 
         -- issued faeriefire off order (devour)
@@ -58,14 +60,16 @@ OnInit.final("Orders", function(Require)
 
         -- issued bloodlust on order (borrowed life)
         [852102] = function(id, source, p, pid)
-            local pt = TimerList[pid]:get('dvou', nil, source)
-            if pt then
-                pt:destroy()
+            if TableHas(SummonGroup, source) then
+                local pt = TimerList[pid]:get('dvou', nil, source)
+                if pt then
+                    pt:destroy()
+                end
+                pt = TimerList[pid]:add()
+                pt.tag = 'blif'
+                pt.target = source
+                pt.timer:callDelayed(1., DEVOUR.autocast, pt, "bloodlust")
             end
-            pt = TimerList[pid]:add()
-            pt.tag = 'blif'
-            pt.target = source
-            pt.timer:callDelayed(1., DEVOUR.autocast, pt, "bloodlust")
         end,
 
         -- issued bloodlust off order (borrowed life)
@@ -127,7 +131,7 @@ OnInit.final("Orders", function(Require)
                 local x, y = GetMouseX(pid), GetMouseY(pid)
 
                 if x ~= 0 and y ~= 0 and not PHANTOMSLASH.slashing[pid] then
-                    local spell = PHANTOMSLASH:create(source) ---@type PHANTOMSLASH
+                    local spell = PHANTOMSLASH:create(source)
                     spell.caster = source
                     spell.targetX = x
                     spell.targetY = y
@@ -209,7 +213,7 @@ OnInit.final("Orders", function(Require)
                 u.orderY = targetY or y
             end
 
-            if pid <= PLAYER_CAP and IsUnitEnemy(target, p) then
+            if pid <= PLAYER_CAP and target and IsUnitEnemy(target, p) then
                 u.target = target
             end
         end
@@ -220,7 +224,7 @@ OnInit.final("Orders", function(Require)
         if itm then
             -- prevent other units from attacking a bound item
             if id == ORDER_ID_ATTACK and (itm.owner and itm.owner ~= Player(pid - 1)) then
-                TimerQueue:callDelayed(0., IssueImmediateOrderById, source, ORDER_ID_HOLD_POSITION)
+                IssueImmediateOrderById(source, ORDER_ID_HOLD_POSITION)
             end
         end
     end
