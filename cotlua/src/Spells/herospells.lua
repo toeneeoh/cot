@@ -12,11 +12,15 @@ OnInit.final("HeroSpells", function(Require)
     masterElement       = __jarray(0) ---@type integer[] 
     lastCast            = __jarray(0) ---@type integer[] 
 
-    destroyer   = {} ---@type unit[] 
-    meatgolem   = {} ---@type unit[] 
-    hounds      = {} ---@type unit[] 
-
     local FPS_32 = FPS_32
+
+    -- TODO: Does a CAT exist for this?
+    local function distance(missile, _)
+        missile.dist = missile.dist - missile.speed * ALICE_Config.MIN_INTERVAL
+        if missile.dist < 0 then
+            ALICE_Kill(missile)
+        end
+    end
 
     --savior
 
@@ -66,34 +70,52 @@ OnInit.final("HeroSpells", function(Require)
     do
         local thistype = DIVINEJUDGEMENT
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.2 + 0.3 * ablev) * (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + GetHeroStr(Hero[pid], true) + BlzGetUnitBaseDamage(Hero[pid], 0)) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.2 + 0.3 * ablev) * (GetHeroStr(Hero[pid], true) + Unit[Hero[pid]].damage) end,
         }
 
-        function thistype:onCast()
-            local missile = Missiles:create(self.x, self.y, 25., self.x + 1000. * Cos(self.angle), self.y + 1000. * Sin(self.angle), 25.) ---@type Missiles
-            missile:model("war3mapImported\\Valiant Charge Holy.mdl")
-            missile:scale(1.1)
-            missile:speed(1300)
-            missile.source = self.caster
-            missile.owner = Player(self.pid - 1)
-            missile:vision(400)
-            missile.collision = 90
-            missile.damage = self.dmg * BOOST[self.pid]
-
-            missile.onHit = function(enemy)
-                if IsHittable(enemy, missile.owner) then
-                    local pt = TimerList[self.pid]:get(LIGHTSEAL.id, missile.source)
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveAutoHeight, CAT_Orient2D, distance
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck2D,
+            },
+            identifier = "missile",
+            visualZ = 25.,
+            speed = 1300,
+            collisionRadius = 90,
+            friendlyFire = false,
+            onUnitCollision = CAT_UnitPassThrough2D,
+            onUnitCallback = {
+                other = function(self, enemy, cx, cy, perpSpeed, parSpeed, totalSpeed, comVx, comVy)
+                    local pt = TimerList[self.pid]:get(LIGHTSEAL.id, self.source)
 
                     if pt and IsUnitInRangeXY(enemy, pt.x, pt.y, 450.) then
-                        local b = LightSealBuff:add(missile.source, missile.source)
+                        local b = LightSealBuff:add(self.source, self.source)
                         b:addStack((IsBoss(enemy) and 5) or 1)
                     end
 
-                    DamageTarget(missile.source, enemy, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    DamageTarget(self.source, enemy, self.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
-            end
+            },
+        }
+        missile_template.__index = missile_template
 
-            missile:launch()
+        function thistype:onCast()
+            local missile = setmetatable({}, missile_template)
+            missile.source = self.caster
+            missile.pid = self.pid
+            missile.owner = Player(self.pid - 1)
+            missile.x = self.x
+            missile.y = self.y
+            missile.dist = 1000
+            missile.vx = missile.speed * Cos(self.angle)
+            missile.vy = missile.speed * Sin(self.angle)
+            missile.damage = self.dmg * BOOST[self.pid]
+            missile.visual = AddSpecialEffect("war3mapImported\\Valiant Charge Holy.mdl", self.x, self.y)
+            BlzSetSpecialEffectScale(missile.visual, 1.1)
+
+            ALICE_Create(missile)
         end
     end
 
@@ -147,7 +169,7 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = HOLYBASH
         thistype.stundur = 2.
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return ablev * (GetHeroStr(Hero[pid], true) + (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + BlzGetUnitBaseDamage(Hero[pid], 0)) * .4) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return ablev * (GetHeroStr(Hero[pid], true) + Unit[Hero[pid]].damage * .4) end,
             aoe = 600.,
             heal = function(pid) return 25 + 0.5 * GetHeroStr(Hero[pid], true) end,
         }
@@ -206,7 +228,7 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = THUNDERCLAP
 
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 0.25 * (ablev + 1) * (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + GetHeroStr(Hero[pid], true) + BlzGetUnitBaseDamage(Hero[pid], 0)) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 0.25 * (ablev + 1) * (GetHeroStr(Hero[pid], true) + Unit[Hero[pid]].damage) end,
             aoe = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (200. + 50 * ablev) end,
         }
 
@@ -258,7 +280,7 @@ OnInit.final("HeroSpells", function(Require)
             local ug = CreateGroup()
             local angle = 0. ---@type number 
 
-            b.dmg = self.attack
+            b.dmg = 20 + 20 * self.ablev
             b.armor = self.armor
             b = b:check(self.caster, self.caster)
             b:duration(self.dur * LBOOST[self.pid])
@@ -342,13 +364,18 @@ OnInit.final("HeroSpells", function(Require)
         local function on_death(killed)
             local pid = GetPlayerId(GetOwningPlayer(killed)) + 1
 
-            if SNIPERSTANCE.enabled[pid] then
+            if thistype.enabled[pid] then
                 toggle(pid, killed)
             end
         end
 
+        local function on_cleanup(pid)
+            thistype.enabled[pid] = false
+        end
+
         function thistype:setup(u)
             EVENT_ON_DEATH:register_unit_action(u, on_death)
+            EVENT_ON_CLEANUP:register_action(Unit[u].pid, on_cleanup)
         end
     end
 
@@ -360,73 +387,65 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = TRIROCKET
 
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (ablev * GetHeroAgi(Hero[pid], true) + (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + BlzGetUnitBaseDamage(Hero[pid], 0)) * ablev * .1) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (ablev * GetHeroAgi(Hero[pid], true) + Unit[Hero[pid]].damage * ablev * .1) end,
             cooldown = function(pid) return SNIPERSTANCE.enabled[pid] and 3. or 6. end,
         }
 
-        ---@type fun(pt: PlayerTimer)
-        local function periodic(pt)
-            pt.dur = pt.dur - 50.
+        local missile_template = {
+            interactions = {
+                unit = CAT_UnitCollisionCheck3D,
+                self = {
+                    CAT_Orient3D,
+                    CAT_MoveBallistic,
+                    CAT_CheckTerrainCollision
+                }
+            },
+            identifier = "missile",
+            speed = 1600,
+            collisionRadius = 75,
+            friendlyFire = false,
+            onUnitCollision = CAT_UnitImpact3D,
+            destroy = function(self)
+                local ug = CreateGroup()
 
-            if pt.dur > 0. then
-                local x = GetUnitX(Hero[pt.pid]) + 50. * Cos(bj_DEGTORAD * pt.angle)
-                local y = GetUnitY(Hero[pt.pid]) + 50. * Sin(bj_DEGTORAD * pt.angle)
+                MakeGroupInRange(self.pid, ug, self.x, self.y, 175. * LBOOST[self.pid], Condition(FilterEnemy))
 
-                if IsTerrainWalkable(x, y) then
-                    SetUnitXBounded(Hero[pt.pid], x)
-                    SetUnitYBounded(Hero[pt.pid], y)
-                    pt.timer:callDelayed(FPS_32, periodic, pt)
-                else
-                    pt:destroy()
+                for target in each(ug) do
+                    DamageTarget(self.source, target, self.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
-            else
-                pt:destroy()
+
+                DestroyEffect(self.visual)
+                DestroyGroup(ug)
             end
-        end
+        }
+        missile_template.__index = missile_template
 
         function thistype:onCast()
             SoundHandler("Units\\Human\\SteamTank\\SteamTankAttack1.flac", true, Player(self.pid - 1), self.caster)
 
             for i = 0, 2 do
                 local angle = self.angle + 0.175 * i - 0.175
-                local missile = Missiles:create(self.x, self.y, 20., self.x + 700. * Cos(angle), self.y + 700. * Sin(angle), 0.) ---@type Missiles
-                missile:model("Abilities\\Weapons\\GyroCopter\\GyroCopterMissile.mdl")
-                missile:scale(1.1)
-                missile:speed(1500)
+                local missile = setmetatable({}, missile_template)
                 missile.source = self.caster
+                missile.pid = self.pid
                 missile.owner = Player(self.pid - 1)
-                missile:vision(400)
-                missile.collision = 90
                 missile.damage = self.dmg * BOOST[self.pid]
+                missile.x = self.x
+                missile.y = self.y
+                missile.z = GetUnitZ(self.caster) + 80.
+                missile.vx = missile.speed * Cos(angle)
+                missile.vy = missile.speed * Sin(angle)
+                missile.vz = 180
+                missile.damage = self.dmg * BOOST[self.pid]
+                missile.visual = AddSpecialEffect("Abilities\\Weapons\\GyroCopter\\GyroCopterMissile.mdl", self.x, self.y)
+                BlzSetSpecialEffectScale(missile.visual, 1.2)
 
-                missile.onHit = function(enemy)
-                    if IsHittable(enemy, missile.owner) then
-                        local ug = CreateGroup()
-                        local pid = GetPlayerId(missile.owner) + 1
-
-                        DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\GyroCopter\\GyroCopterMissile.mdl", missile.x, missile.y))
-                        MakeGroupInRange(pid, ug, missile.x, missile.y, 150. * LBOOST[pid], Condition(FilterEnemy))
-
-                        for target in each(ug) do
-                            DamageTarget(missile.source, target, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                        end
-
-                        DestroyGroup(ug)
-
-                        return true
-                    end
-
-                    return false
-                end
-
-                missile:launch()
+                ALICE_Create(missile)
             end
 
-            --movement
-            local pt = TimerList[self.pid]:add()
-            pt.dur = 250.
-            pt.angle = (bj_RADTODEG * self.angle - 180)
-            pt.timer:callDelayed(FPS_32, periodic, pt)
+            CAT_Knockback(self.caster, 500 * Cos(self.angle + bj_PI), 500 * Sin(self.angle + bj_PI), 0)
+            CAT_UnitEnableFriction(self.caster, true)
+            TimerQueue:callDelayed(1., CAT_UnitEnableFriction, self.caster, false)
         end
     end
 
@@ -441,9 +460,29 @@ OnInit.final("HeroSpells", function(Require)
 
         thistype.values = {
             cd = function(pid) return (1.25 - (0.25 * GetUnitAbilityLevel(Hero[pid], thistype.id))) / (LBOOST[pid] ^ 2) end,
-            dmg = function(pid) return 0.35 * (BlzGetUnitBaseDamage(Hero[pid], 0) + GetHeroAgi(Hero[pid], true) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end,
+            dmg = function(pid) return 0.35 * (Unit[Hero[pid]].damage + GetHeroAgi(Hero[pid], true)) end,
             dur = 30.,
         }
+
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveArcedHoming, CAT_Orient3D
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck3D,
+            },
+            identifier = "missile",
+            onlyTarget = true,
+            collisionRadius = 10.,
+            onUnitCollision = CAT_UnitImpact3D,
+            onUnitCallback = {
+                other = function(self, enemy, cx, cy, perpSpeed, parSpeed, totalSpeed, comVx, comVy)
+                    DamageTarget(self.source, self.target, self.damage, ATTACK_TYPE_NORMAL, MAGIC, "Cluster Rockets")
+                end
+            },
+            arc = 0.2,
+        }
+        missile_template.__index = missile_template
 
         local function cluster_rocket(pt)
             local to_remove = {}
@@ -459,7 +498,7 @@ OnInit.final("HeroSpells", function(Require)
                 GroupRemoveUnit(pt.ug, to_remove[i])
             end
 
-            local x, y, z = GetUnitX(pt.source), GetUnitY(pt.source), GetUnitFlyHeight(pt.source)
+            local x, y, z = GetUnitX(pt.source), GetUnitY(pt.source), GetUnitZ(pt.source)
 
             --single shot
             if SNIPERSTANCE.enabled[pt.pid] then
@@ -469,44 +508,35 @@ OnInit.final("HeroSpells", function(Require)
                     target = Unit[Hero[pt.pid]].target
                 end
 
-                local missile = Missiles:create(x, y, z, GetUnitX(target), GetUnitY(target), BlzGetUnitZ(target)) ---@type Missiles
-                missile:model("war3mapImported\\HighSpeedProjectile_ByEpsilon.mdx")
-                missile:scale(1.1)
-                missile:speed(1800)
-                missile:arc(math.random(5, 15))
+                local missile = setmetatable({}, missile_template)
+                missile.x = x
+                missile.y = y
+                missile.z = z
+                missile.visual = AddSpecialEffect("war3mapImported\\HighSpeedProjectile_ByEpsilon.mdx", x, y)
+                BlzSetSpecialEffectScale(missile.visual, 1.1)
+                missile.speed = 1800
                 missile.source = Hero[pt.pid]
                 missile.target = target
                 missile.owner = Player(pt.pid - 1)
-                missile:vision(400)
                 missile.damage = pt.dmg * 2.5 * pt.boost
 
-                missile.onFinish = function()
-                    DamageTarget(missile.source, missile.target, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, "Cluster Rockets")
-
-                    return true
-                end
-
-                missile:launch()
+                ALICE_Create(missile)
             --multi shot
             else
                 for enemy in each(pt.ug) do
-                    local missile = Missiles:create(x, y, z, GetUnitX(enemy), GetUnitY(enemy), BlzGetUnitZ(enemy)) ---@type Missiles
-                    missile:model("Abilities\\Spells\\Other\\TinkerRocket\\TinkerRocketMissile.mdl")
-                    missile:scale(1.1)
-                    missile:speed(1400)
+                    local missile = setmetatable({}, missile_template)
+                    missile.x = x
+                    missile.y = y
+                    missile.z = z
+                    missile.visual = AddSpecialEffect("Abilities\\Spells\\Other\\TinkerRocket\\TinkerRocketMissile.mdl", x, y)
+                    BlzSetSpecialEffectScale(missile.visual, 1.1)
+                    missile.speed = 1400
                     missile.source = Hero[pt.pid]
                     missile.target = enemy
                     missile.owner = Player(pt.pid - 1)
-                    missile:vision(400)
                     missile.damage = pt.dmg * pt.boost
 
-                    missile.onFinish = function()
-                        DamageTarget(missile.source, missile.target, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, "Cluster Rockets")
-
-                        return true
-                    end
-
-                    missile:launch()
+                    ALICE_Create(missile)
                 end
             end
         end
@@ -531,8 +561,8 @@ OnInit.final("HeroSpells", function(Require)
 
             -- prioritize facing target hero is attacking
             local target = Unit[Hero[pt.pid]].target
-            if target and UnitAlive(target.unit) then
-                SetUnitFacing(pt.source, bj_RADTODEG * Atan2(GetUnitY(target.unit) - GetUnitY(pt.source), GetUnitX(target.unit) - GetUnitX(pt.source)))
+            if target and UnitAlive(target) then
+                SetUnitFacing(pt.source, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(pt.source), GetUnitX(target) - GetUnitX(pt.source)))
             end
 
             -- acquire helicopter targets near hero
@@ -597,7 +627,7 @@ OnInit.final("HeroSpells", function(Require)
         function thistype:onCast()
             self.x = self.x + 80. * Cos(GetUnitFacing(self.caster) * bj_DEGTORAD)
             self.y = self.y + 80. * Sin(GetUnitFacing(self.caster) * bj_DEGTORAD)
-            self.angle = Atan2(GetMouseY[self.pid] - self.y, GetMouseX(self.pid) - self.x) * bj_RADTODEG
+            self.angle = Atan2(GetMouseY(self.pid) - self.y, GetMouseX(self.pid) - self.x) * bj_RADTODEG
             local newangle = (180. - RAbsBJ(RAbsBJ(self.angle - GetUnitFacing(self.caster)) - 180.)) * 0.5
             self.angle = bj_DEGTORAD * (self.angle + GetRandomReal(-(newangle), newangle))
 
@@ -634,94 +664,122 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = HANDGRENADE
 
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + BlzGetUnitBaseDamage(Hero[pid], 0)) * (0.4 + 0.1 * ablev) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (Unit[Hero[pid]].damage) * (0.4 + 0.1 * ablev) end,
             aoe = 300,
-            dmg2 = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) * (0.9 + 0.1 * ablev) end,
+            dmg2 = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (Unit[Hero[pid]].damage) * (0.9 + 0.1 * ablev) end,
             aoe2 = 400.,
         }
 
-        local function rocket(pt, boost)
-            local missile = Missiles:create(GetUnitX(pt.source), GetUnitY(pt.source), GetUnitFlyHeight(pt.source), pt.x, pt.y, 0) ---@type Missiles
-            missile:model("war3mapImported\\Rocket.mdx")
-            missile:scale(1.2)
-            missile:speed(1500)
-            missile:arc(math.random(1, 2))
-            missile.source = Hero[pt.pid]
-            missile.owner = Player(pt.pid - 1)
-            missile:vision(400)
-
-            missile.onFinish = function()
+        local grenade_template = {
+            interactions = {
+                self = {
+                    CAT_OrientProjectile,
+                    CAT_MoveBallistic,
+                    CAT_CheckTerrainCollision,
+                    CAT_Decay
+                }
+            },
+            identifier = "missile",
+            speed = 800,
+            collisionRadius = 20,
+            onTerrainCollision = CAT_TerrainBounce,
+            elasticity = 0.3,
+            friction = 950,
+            lifetime = 4.,
+            onExpire = function(self)
                 local ug = CreateGroup()
-                --explode
-                DestroyEffect(AddSpecialEffect("war3mapImported\\NewMassiveEX.mdx", pt.x, pt.y))
-                MakeGroupInRange(pt.pid, ug, missile.x, missile.y, thistype.aoe2 * boost, Condition(FilterEnemy))
+
+                MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
                 for target in each(ug) do
-                    StunUnit(pt.pid, target, 4.)
-                    DamageTarget(missile.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    StunUnit(self.pid, target, 3.)
+                    DamageTarget(self.source, target, self.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
+                local sfx = AddSpecialEffect("war3mapImported\\Eto_Boom.mdx", self.x, self.y)
+                BlzSetSpecialEffectScale(sfx, 1.2)
+                DestroyEffect(sfx)
                 DestroyGroup(ug)
+            end,
+        }
+        grenade_template.__index = grenade_template
 
-                return false
+        local rocket_template = {
+            selfInteractions = {
+                CAT_MoveArced,
+                CAT_Orient3D,
+                CAT_CheckTerrainCollision,
+            },
+            identifier = "missile",
+            collisionRadius = 10.,
+            speed = 1500,
+            destroy = function(self)
+                local ug = CreateGroup()
+                --explode
+                DestroyEffect(AddSpecialEffect("war3mapImported\\NewMassiveEX.mdx", self.x, self.y))
+                MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
+
+                for target in each(ug) do
+                    StunUnit(self.pid, target, 4.)
+                    DamageTarget(self.source, target, self.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                end
+
+                DestroyEffect(self.visual)
+                DestroyGroup(ug)
+            end,
+            arc = 0.2,
+        }
+        rocket_template.__index = rocket_template
+
+        local function rocket(heli, self)
+            if heli and heli.source then
+                local missile = setmetatable({}, rocket_template)
+                missile.x = GetUnitX(heli.source)
+                missile.y = GetUnitY(heli.source)
+                missile.z = GetUnitZ(heli.source)
+                missile.visual = AddSpecialEffect("war3mapImported\\Rocket.mdx", missile.x, missile.y)
+                BlzSetSpecialEffectScale(missile.visual, 1.2)
+                missile.targetX = self.targetX
+                missile.targetY = self.targetY
+                missile.source = Hero[self.pid]
+                missile.owner = Player(self.pid - 1)
+                missile.damage = self.dmg2 * heli.boost
+                missile.aoe = self.aoe2
+                missile.pid = self.pid
+
+                SoundHandler("Units\\Human\\Gyrocopter\\GyrocopterPissed1.flac", true, nil, self.source)
+
+                ALICE_Create(missile)
             end
-
-            missile:launch()
-
-            SoundHandler("Units\\Human\\Gyrocopter\\GyrocopterPissed1.flac", true, nil, pt.source)
-
-            pt:destroy()
         end
 
         function thistype:onCast()
-            local pt, heli = TimerList[self.pid]:add(), TimerList[self.pid]:get(ASSAULTHELICOPTER.id)
+            local heli = TimerList[self.pid]:get(ASSAULTHELICOPTER.id)
 
             if heli then
                 DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Flare\\FlareCaster.mdl", self.x, self.y))
                 DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Flare\\FlareTarget.mdl", self.targetX, self.targetY))
-                pt.x = self.targetX
-                pt.y = self.targetY
-                pt.dur = 3.
-                pt.dmg = self.dmg2 * heli.boost
-                pt.source = heli.source
 
-                pt.timer:callDelayed(2., rocket, pt, heli.boost)
+                TimerQueue:callDelayed(2., rocket, heli, self)
             else
                 SoundHandler("war3mapImported\\grenade pin.mp3", true, nil, self.caster)
-                local missile = Missiles:create(self.x, self.y, 30., self.targetX, self.targetY, -10) ---@type Missiles
-                missile:model("war3mapImported\\PotatoMasher.mdl")
-                missile:scale(1.5)
-                missile:speed(800)
-                missile:arc(math.random(60, 65))
+                local missile = setmetatable({}, grenade_template)
+                missile.visual = AddSpecialEffect("war3mapImported\\PotatoMasher.mdl", self.x, self.y)
+                BlzSetSpecialEffectScale(missile.visual, 1.5)
+                missile.x = self.x
+                missile.y = self.y
+                missile.z = GetUnitZ(self.caster)
+                local vx, vy, vz = CAT_GetBallisticLaunchSpeedFromAngle(missile.x, missile.y, missile.z, self.targetX, self.targetY, GetTerrainZ(self.targetX, self.targetY), 70 * bj_DEGTORAD)
+                missile.vx = vx * 0.85
+                missile.vy = vy * 0.85
+                missile.vz = vz * 0.85
                 missile.source = self.caster
                 missile.owner = Player(self.pid - 1)
-                missile:vision(400)
                 missile.damage = self.dmg * BOOST[self.pid]
+                missile.pid = self.pid
+                missile.aoe = self.aoe
 
-                missile.onFinish = function()
-                    missile:pause(true)
-                    TimerQueue:callDelayed(2., function() missile:pause(false) end)
-
-                    return false
-                end
-
-                missile.onResume = function()
-                    local ug = CreateGroup()
-
-                    MakeGroupInRange(self.pid, ug, missile.x, missile.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
-
-                    for target in each(ug) do
-                        StunUnit(self.pid, target, 3.)
-                        DamageTarget(missile.source, target, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                    end
-
-                    DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", missile.x, missile.y))
-                    DestroyGroup(ug)
-
-                    return true
-                end
-
-                missile:launch()
+                ALICE_Create(missile)
             end
         end
     end
@@ -739,7 +797,7 @@ OnInit.final("HeroSpells", function(Require)
         thistype.charges = __jarray(0)
         thistype.values = {
             aoe = 300.,
-            dmg = function(pid) return 0.2 * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end,
+            dmg = function(pid) return 0.2 * (Unit[Hero[pid]].damage) end,
             dur = 15.,
             cd = function(pid) return 42. - 2 * GetUnitAbilityLevel(Hero[pid], thistype.id) end,
         }
@@ -829,8 +887,13 @@ OnInit.final("HeroSpells", function(Require)
             OverloadBuff:add(self.caster, self.caster)
         end
 
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.02))
+        end
+
         function thistype.onLearn(source, ablev, pid)
             OverloadBuff:refresh(source, source)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -848,13 +911,61 @@ OnInit.final("HeroSpells", function(Require)
             aoe = 260.,
         }
 
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveAutoHeight, CAT_Orient2D, distance
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck2D,
+            },
+            identifier = "missile",
+            visualZ = 15.,
+            speed = 1120,
+            collisionRadius = 75,
+            friendlyFire = false,
+            onUnitCollision = CAT_UnitPassThrough2D,
+            onUnitCallback = {
+                other = function(self, enemy, cx, cy, perpSpeed, parSpeed, totalSpeed, comVx, comVy)
+                    if self.dist >= 200 then
+                        ALICE_Kill(self)
+                    end
+                end
+            },
+            destroy = function(self)
+                for i = -1, 1 do
+                    for j = -1, 1 do
+                        if (i == 0 and j == 0) or (i ~= 0 and j ~= 0) then
+                            DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", self.x + 140 * i, self.y + 140 * j))
+                            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", self.x + 100 * i, self.y + 100 * j))
+                        end
+                    end
+                end
+
+                local ug = CreateGroup()
+                MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe, Condition(FilterEnemy))
+
+                for target in each(ug) do
+                    DamageTarget(self.source, target, self.damage, ATTACK_TYPE_NORMAL, MAGIC, THUNDERDASH.tag)
+                end
+
+                UnitRemoveAbility(self.source, FourCC('Avul'))
+                ShowUnit(self.source, true)
+                reselect(self.source)
+                SetUnitPathing(self.source, true)
+                BlzUnitClearOrders(self.source, false)
+                SetUnitXBounded(self.source, self.x)
+                SetUnitYBounded(self.source, self.y)
+
+                DestroyEffect(self.visual)
+                DestroyGroup(ug)
+            end
+        }
+        missile_template.__index = missile_template
+
         function thistype:onCast()
             TimerList[self.pid]:stopAllTimers(OMNISLASH.id)
 
-            local range = self.range * LBOOST[self.pid]
-            local angle = self.angle
-
-            --reset omnislash visual
+            -- reset omnislash visual
             SetUnitVertexColor(self.caster, 255, 255, 255, 255)
             SetUnitTimeScale(self.caster, 1.)
 
@@ -862,75 +973,23 @@ OnInit.final("HeroSpells", function(Require)
             UnitAddAbility(self.caster, FourCC('Avul'))
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl", self.caster, "chest"))
 
-            local missile = Missiles:create(self.x, self.y, 100., self.x + range * Cos(angle), self.y + range * Sin(angle), 100.) ---@type Missiles
-            missile:model("war3mapImported\\LightningSphere_FX.mdl")
-            missile:scale(1.5)
-            missile:speed(1120)
+            local range = self.range * LBOOST[self.pid]
+            local missile = setmetatable({}, missile_template)
+            missile.x = self.x
+            missile.y = self.y
+            missile.vx = missile.speed * Cos(self.angle)
+            missile.vy = missile.speed * Sin(self.angle)
+            missile.visual = AddSpecialEffect("war3mapImported\\blue electric orb.mdl", self.x, self.y)
+            BlzSetSpecialEffectScale(missile.visual, 1.)
             missile.source = self.caster
             missile.owner = Player(self.pid - 1)
-            missile:vision(400)
-            missile.collision = 80
             missile.damage = self.dmg * BOOST[self.pid]
             missile.aoe = self.aoe * LBOOST[self.pid]
             missile.pid = self.pid
+            missile.range = range
+            missile.dist = 0
 
-            --unit impact
-            missile.onHit = function(enemy)
-                if IsHittable(enemy, missile.owner) and missile.travel >= 200 then
-                    missile.impacted = true
-                end
-
-                return false
-            end
-
-            missile.onRemove = function()
-                UnitRemoveAbility(missile.source, FourCC('Avul'))
-                ShowUnit(missile.source, true)
-                reselect(missile.source)
-                SetUnitPathing(missile.source, true)
-                BlzUnitClearOrders(missile.source, false)
-            end
-
-            missile.onPeriod = function()
-                local stopped = false
-
-                if not UnitAlive(missile.source) then
-                    stopped = true
-                else
-                    SetUnitXBounded(missile.source, missile.x)
-                    SetUnitYBounded(missile.source, missile.y)
-
-                    --terrain impact
-                    if not IsTerrainWalkable(missile.x, missile.y) then
-                        missile.impacted = true
-                    end
-
-                    if missile.travel >= 200 and missile.impacted then
-                        for i = -1, 1 do
-                            for j = -1, 1 do
-                                if (i == 0 and j == 0) or (i ~= 0 and j ~= 0) then
-                                    DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", missile.x + 140 * i, missile.y + 140 * j))
-                                    DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", missile.x + 100 * i, missile.y + 100 * j))
-                                end
-                            end
-                        end
-                        local ug = CreateGroup()
-                        MakeGroupInRange(missile.pid, ug, missile.x, missile.y, missile.aoe, Condition(FilterEnemy))
-
-                        for target in each(ug) do
-                            DamageTarget(missile.source, target, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, THUNDERDASH.tag)
-                        end
-
-                        DestroyGroup(ug)
-
-                        stopped = true
-                    end
-                end
-
-                return stopped
-            end
-
-            missile:launch()
+            ALICE_Create(missile)
         end
     end
 
@@ -1343,31 +1402,55 @@ OnInit.final("HeroSpells", function(Require)
             dur = 10.,
         }
 
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveBallistic,
+                CAT_Orient3D,
+                CAT_CheckTerrainCollision,
+            },
+            identifier = "missile",
+            collisionRadius = 10.,
+            destroy = function(self)
+                local ug = CreateGroup()
+
+                MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
+
+                for enemy in each(ug) do
+                    NerveGasDebuff:add(self.source, enemy):duration(self.dur * LBOOST[self.pid])
+                end
+
+                local sfx = AddSpecialEffect("war3mapImported\\Radioactivecloud.mdx", self.x, self.y)
+                BlzSetSpecialEffectScale(sfx, 0.8)
+                TimerQueue:callDelayed(1., DestroyEffect, sfx)
+                DestroyEffect(self.visual)
+                DestroyGroup(ug)
+            end
+        }
+        missile_template.__index = missile_template
+
         function thistype:onCast()
             AddUnitAnimationProperties(self.caster, "alternate", false)
 
-            local missile = Missiles:create(self.x, self.y, 60, self.targetX, self.targetY, 0) ---@type Missiles
-            missile:model("Abilities\\Spells\\Other\\AcidBomb\\BottleMissile.mdl")
-            missile:scale(1.1)
-            missile:speed(900)
-            missile:arc(40)
-            missile:vision(400)
+            local missile = setmetatable({}, missile_template)
+            missile.x = self.x
+            missile.y = self.y
+            missile.z = GetUnitZ(self.caster) + 50.
+            missile.visual = AddSpecialEffect("Abilities\\Spells\\Other\\AcidBomb\\BottleMissile.mdl", self.x, self.y)
+            BlzSetSpecialEffectScale(missile.visual, 1.1)
+            local vx, vy, vz = CAT_GetBallisticLaunchSpeedFromVelocity(missile.x, missile.y, missile.z, self.targetX, self.targetY, GetTerrainZ(self.targetX, self.targetY), 1200., true)
+            if not vx then
+                vx, vy, vz = CAT_GetBallisticLaunchSpeedFromAngle(missile.x, missile.y, missile.z, self.targetX, self.targetY, GetTerrainZ(self.targetX, self.targetY), 65 * bj_DEGTORAD)
+            end
+            missile.vx = vx
+            missile.vy = vy
+            missile.vz = vz
             missile.source = self.caster
             missile.owner = Player(self.pid - 1)
+            missile.pid = self.pid
+            missile.dur = self.dur
+            missile.aoe = self.aoe
 
-            missile.onFinish = function()
-                local ug = CreateGroup()
-
-                MakeGroupInRange(self.pid, ug, missile.x, missile.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
-
-                for enemy in each(ug) do
-                    NerveGasDebuff:add(missile.source, enemy):duration(self.dur * LBOOST[self.pid])
-                end
-
-                return true
-            end
-
-            missile:launch()
+            ALICE_Create(missile)
         end
     end
 
@@ -1378,7 +1461,7 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = BACKSTAB
 
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (GetHeroAgi(Hero[pid], true) * 0.16 + (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) * .03) * ablev end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (GetHeroAgi(Hero[pid], true) * 0.16 + (Unit[Hero[pid]].damage) * .03) * ablev end,
         }
 
         local function onHit(source, target)
@@ -1674,7 +1757,6 @@ OnInit.final("HeroSpells", function(Require)
     PHOENIXFLIGHT = Spell.define("A0FT")
     do
         local thistype = PHOENIXFLIGHT
-        thistype.preCast = DASH_PRECAST
 
         thistype.values = {
             range = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 350. + ablev * 150. end,
@@ -1682,50 +1764,81 @@ OnInit.final("HeroSpells", function(Require)
             aoe = 250.,
         }
 
-        function thistype:onCast()
-            local range = math.min(self.range * LBOOST[self.pid], math.max(17., DistanceCoords(self.x, self.y, self.targetX, self.targetY)))
+        thistype.preCast = function(pid, tpid, caster, target, x, y, targetX, targetY)
+            local r = GetRectFromCoords(x, y)
+            local r2 = GetRectFromCoords(targetX, targetY)
+            local angle = Atan2(targetY - y, targetX - x)
+            local range = math.min(thistype.values.range(pid) * LBOOST[pid], math.max(17., DistanceCoords(x, y, targetX, targetY)))
 
-            local missile = Missiles:create(self.x, self.y, 200., self.x + range * Cos(self.angle), self.y + range * Sin(self.angle), 200.) ---@type Missiles
-            missile:model("units\\human\\phoenix\\phoenix.mdl")
-            missile:scale(1.5)
-            missile:speed(1000)
-            missile.source = self.caster
-            missile.owner = Player(self.pid - 1)
-            missile:vision(400)
-            missile.collision = self.aoe * LBOOST[self.pid]
-            missile.damage = self.dmg
-            missile.pid = self.pid
-            BlzSetSpecialEffectTimeScale(missile.effect.effect, 2.)
-            BlzPlaySpecialEffect(missile.effect.effect, ANIM_TYPE_BIRTH)
+            targetX = x + range * Cos(angle)
+            targetY = y + range * Sin(angle)
 
-            -- unit impact
-            missile.onHit = function(enemy)
-                if IsHittable(enemy, missile.owner) then
+            if not IsTerrainWalkable(targetX, targetY) or r2 ~= r then
+                IssueImmediateOrderById(caster, ORDER_ID_STOP)
+                DisplayTextToPlayer(Player(pid - 1), 0, 0, INVALID_TARGET_MESSAGE)
+            end
+        end
+
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveAutoHeight,
+                CAT_Orient2D,
+                distance,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck2D,
+            },
+            identifier = "missile",
+            speed = 1000,
+            visualZ = 200.,
+            friendlyFire = false,
+            onUnitCollision = CAT_UnitPassThrough2D,
+            onUnitCallback = {
+                other = function(self, enemy)
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\PhoenixMissile\\Phoenix_Missile.mdl", enemy, "chest"))
-                    DamageTarget(missile.source, enemy, missile.damage * BOOST[missile.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    DamageTarget(self.source, enemy, self.damage * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
 
                     local b = IgniteDebuff:get(nil, enemy)
                     if b then
                         b:dispel()
-                        SEARINGARROWS.ignite(missile.source, enemy)
+                        SEARINGARROWS.ignite(self.source, enemy)
                     end
                 end
+            },
+            destroy = function(self)
+                DestroyEffect(self.visual)
+                UnitRemoveAbility(self.source, FourCC('Avul'))
+                SetUnitXBounded(self.source, self.x)
+                SetUnitYBounded(self.source, self.y)
+                ShowUnit(self.source, true)
+                reselect(self.source)
+            end,
+        }
+        missile_template.__index = missile_template
 
-                return false
-            end
+        function thistype:onCast()
+            local range = math.min(self.range * LBOOST[self.pid], math.max(17., DistanceCoords(self.x, self.y, self.targetX, self.targetY)))
 
-            missile.onFinish = function()
-                UnitRemoveAbility(missile.source, FourCC('Avul'))
-                SetUnitXBounded(missile.source, missile.x)
-                SetUnitYBounded(missile.source, missile.y)
-                ShowUnit(missile.source, true)
-                reselect(missile.source)
-            end
+            local missile = setmetatable({}, missile_template)
+            missile.x = self.x
+            missile.y = self.y
+            missile.vx = missile.speed * Cos(self.angle)
+            missile.vy = missile.speed * Sin(self.angle)
+            missile.visual = AddSpecialEffect("units\\human\\phoenix\\phoenix.mdl", self.x, self.y)
+            BlzSetSpecialEffectScale(missile.visual, 1.5)
+            missile.source = self.caster
+            missile.owner = Player(self.pid - 1)
+            missile.collisionRadius = self.aoe * LBOOST[self.pid]
+            missile.damage = self.dmg
+            missile.pid = self.pid
+            missile.dist = range
+            BlzSetSpecialEffectTimeScale(missile.visual, 2.)
+            BlzPlaySpecialEffect(missile.visual, ANIM_TYPE_BIRTH)
 
             UnitAddAbility(self.caster, FourCC('Avul'))
             ShowUnit(self.caster, false)
 
-            missile:launch()
+            ALICE_Create(missile)
         end
     end
 
@@ -1735,7 +1848,7 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = FIERYARROWS
         thistype.values = {
             chance = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 2 * ablev end,
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroAgi(Hero[pid], true) * ablev + BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroAgi(Hero[pid], true) * ablev + Unit[Hero[pid]].damage * 0.3 end,
         }
 
         local function onHit(source, target)
@@ -1743,7 +1856,7 @@ OnInit.final("HeroSpells", function(Require)
             local ablev = GetUnitAbilityLevel(source, thistype.id)
 
             if math.random() * 100. < ablev * 2 * LBOOST[pid] then
-                DamageTarget(source, target, (((UnitGetBonus(source, BONUS_DAMAGE) + GetHeroAgi(source, true)) * .3 + GetHeroAgi(source, true) * ablev)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, FLAMINGBOW.tag)
+                DamageTarget(source, target, (((UnitGetBonus(source, BONUS_DAMAGE) + GetHeroAgi(source, true)) * .3 + GetHeroAgi(source, true) * ablev)) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 DestroyEffect(AddSpecialEffect("Abilities\\Weapons\\PhoenixMissile\\Phoenix_Missile.mdl", GetUnitX(target),GetUnitY(target)))
 
                 local b = IgniteDebuff:get(nil, target)
@@ -1772,8 +1885,8 @@ OnInit.final("HeroSpells", function(Require)
 
         thistype.values = {
             aoe = 900.,
-            dmg = function(pid) return UnitGetBonus(Hero[pid], BONUS_DAMAGE) + BlzGetUnitBaseDamage(Hero[pid], 0) end,
-            dot = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.05 + ablev * 0.05) * (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + BlzGetUnitBaseDamage(Hero[pid], 0)) end,
+            dmg = function(pid) return Unit[Hero[pid]].damage end,
+            dot = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.05 + ablev * 0.05) * (Unit[Hero[pid]].damage) end,
         }
 
         ---@type fun(pt: PlayerTimer)
@@ -1793,7 +1906,8 @@ OnInit.final("HeroSpells", function(Require)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             local pt = TimerList[pid]:add()
 
-            TimerQueue:callDelayed(5., HideEffect, AddSpecialEffectTarget("war3mapImported\\FireNormal1.mdl", target, "chest"))
+            local sfx = AddSpecialEffectTarget("war3mapImported\\Real Fire2.mdx", target, "origin")
+            TimerQueue:callDelayed(5., DestroyEffect, sfx)
 
             pt.dmg = thistype.dot(pid) * BOOST[pid]
             pt.dur = 5.
@@ -1803,37 +1917,46 @@ OnInit.final("HeroSpells", function(Require)
             pt.timer:callDelayed(1., burn, pt)
         end
 
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveArcedHoming,
+                CAT_Orient3D,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck3D,
+            },
+            identifier = "missile",
+            collisionRadius = 10.,
+            friendlyFire = false,
+            visualZ = 50.,
+            speed = 1000,
+            arc = 0.65,
+            onUnitCollision = CAT_UnitImpact3D,
+            onUnitCallback = function(self, enemy)
+                IgniteDebuff:add(self.source, enemy):duration(5.)
+                DamageTarget(self.source, enemy, self.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+            end,
+        }
+        missile_template.__index = missile_template
+
         function thistype:onCast()
             local ug = CreateGroup()
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
 
             for target in each(ug) do
-                local missile = Missiles:create(self.x, self.y, 40., 0, 0, 0) ---@type Missiles
-                missile:model("Abilities\\Weapons\\SearingArrow\\SearingArrowMissile.mdl")
-                missile:scale(1.)
-                missile:speed(850)
-                missile:arc(6)
+                local missile = setmetatable({}, missile_template)
+                missile.x = self.x
+                missile.y = self.y
+                missile.z = GetUnitZ(self.caster)
+                missile.visual = AddSpecialEffect("Abilities\\Weapons\\SearingArrow\\SearingArrowMissile.mdl", self.x, self.y)
+                BlzSetSpecialEffectScale(missile.visual, 1.15)
                 missile.source = self.caster
                 missile.target = target
                 missile.owner = Player(self.pid - 1)
-                missile.collision = 50
-                missile:vision(400)
                 missile.damage = self.dmg * BOOST[self.pid]
 
-                missile.onHit = function(enemy)
-                    if IsHittable(enemy, missile.owner) then
-                        --apply debuff
-                        IgniteDebuff:add(missile.source, enemy):duration(5.)
-                        DamageTarget(missile.source, enemy, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-
-                        return true
-                    end
-
-                    return false
-                end
-
-                missile:launch()
+                ALICE_Create(missile)
             end
 
             DestroyGroup(ug)
@@ -1851,19 +1974,26 @@ OnInit.final("HeroSpells", function(Require)
         thistype.values = {
             pierce = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 10. + 1. * ablev end,
             bonus = function(pid)
-                local b = FlamingBowBuff:get(Hero[pid], Hero[pid])
-                local adjust = (b and b.attack) or 0
-                return 0.5 * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE) - adjust) end,
+                local untouched_damage = BlzGetUnitBaseDamage(Hero[pid], 0) + Unit[Hero[pid]].bonus_damage
+                return 0.5 * untouched_damage
+            end,
             total = function(pid)
                 local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id)
-                local b = FlamingBowBuff:get(Hero[pid], Hero[pid])
-                local adjust = (b and b.attack) or 0
-                return (0.8 + 0.02 * ablev) * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE) - adjust) end,
+                local untouched_damage = BlzGetUnitBaseDamage(Hero[pid], 0) + Unit[Hero[pid]].bonus_damage
+                return (0.8 + 0.02 * ablev) * untouched_damage end,
             dur = 15.,
         }
 
         function thistype:onCast()
             FlamingBowBuff:add(self.caster, self.caster):duration(self.dur * LBOOST[self.pid])
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            if ablev == 1 then
+                Unit[source].armor_pen_percent = Unit[source].armor_pen_percent + thistype.pierce(pid)
+            else
+                Unit[source].armor_pen_percent = Unit[source].armor_pen_percent + 1
+            end
         end
     end
 
@@ -1888,7 +2018,7 @@ OnInit.final("HeroSpells", function(Require)
         thistype.preCast = DASH_PRECAST
 
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.4 + 0.4 * ablev) * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.4 + 0.4 * ablev) * (Unit[Hero[pid]].damage) end,
             aoe = 300.,
         }
 
@@ -2007,7 +2137,7 @@ OnInit.final("HeroSpells", function(Require)
         thistype.values = {
             chance = 20.,
             aoe = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 195. + 5. * ablev end,
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.45 + 0.05 * ablev) * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.45 + 0.05 * ablev) * (Unit[Hero[pid]].damage) end,
         }
 
         local function onHit(source, target)
@@ -2087,44 +2217,40 @@ OnInit.final("HeroSpells", function(Require)
             return thistype.regen[pid]
         end
 
-        local function attack(pid)
-            local hp = GetWidgetLife(Hero[pid])
+        -- updates bonus attack and regen periodically
+        local function refresh(pid, ratio)
+            local u = Unit[Hero[pid]]
+            local untouched_damage = BlzGetUnitBaseDamage(Hero[pid], 0) + Unit[Hero[pid]].bonus_damage
+
+            u.damage_percent = u.damage_percent - ratio
+            u.regen_flat = u.regen_flat - thistype.regen[pid]
+
             local maxhp = BlzGetUnitMaxHP(Hero[pid])
-            local base = BlzGetUnitBaseDamage(Hero[pid], 0)
-            local bonus = UnitGetBonus(Hero[pid], BONUS_DAMAGE)
-            thistype.attack[pid] = R2I((base + bonus) - (hp / maxhp) * (base + bonus))
-            return thistype.attack[pid]
-        end
+            local hp = GetWidgetLife(Hero[pid])
+            ratio = 1. - (hp / maxhp)
 
-        --updates bonus attack and regen periodically
-        local function refresh(pid)
-            local u = Hero[pid]
+            thistype.attack[pid] = untouched_damage * ratio
 
-            if Profile[pid].playing then
-                UnitAddBonus(u, BONUS_DAMAGE, -thistype.attack[pid])
-                Unit[u].regen_flat = Unit[u].regen_flat - thistype.regen[pid]
-            else
-                thistype.attack[pid] = 0
-                thistype.regen[pid] = 0
-                thistype.timer[pid]:destroy()
-                thistype.timer[pid] = nil
-                return
-            end
+            u.damage_percent = u.damage_percent + ratio
+            u.regen_flat = u.regen_flat + regen(pid)
 
-            UnitAddBonus(u, BONUS_DAMAGE, attack(pid))
-            Unit[u].regen_flat = Unit[u].regen_flat + regen(pid)
-
-            thistype.timer[pid]:callDelayed(0.25, refresh, pid)
+            thistype.timer[pid] = TimerQueue:callDelayed(0.25, refresh, pid, ratio)
         end
 
         function thistype:onCast()
             UndyingRageBuff:add(self.caster, self.caster):duration(self.dur * LBOOST[self.pid])
         end
 
+        local function on_cleanup(pid)
+            if thistype.timer[pid] then
+                TimerQueue:disableCallback(thistype.timer[pid])
+            end
+        end
+
         function thistype.onLearn(source, ablev, pid)
-            if not thistype.timer[pid] then
-                thistype.timer[pid] = TimerQueue.create()
-                thistype.timer[pid]:callDelayed(0.01, refresh, pid)
+            if ablev == 1 then
+                EVENT_ON_CLEANUP:register_action(pid, on_cleanup)
+                refresh(pid, 0)
             end
         end
 
@@ -2148,7 +2274,7 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = PARRY
 
         thistype.values = {
-            dmg = function(pid) return 1. * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end,
+            dmg = function(pid) return 1. * (Unit[Hero[pid]].damage) end,
         }
     end
 
@@ -2175,7 +2301,7 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.7 + 0.2 * ablev) * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.7 + 0.2 * ablev) * (Unit[Hero[pid]].damage) end,
         }
 
         ---@type fun(pt: PlayerTimer)
@@ -2227,6 +2353,7 @@ OnInit.final("HeroSpells", function(Require)
 
         function thistype:onCast()
             local pt = TimerList[self.pid]:get(ADAPTIVESTRIKE.id)
+            local sfx
             UnitDisableAbility(self.caster, ADAPTIVESTRIKE.id, false)
 
             if LIMITBREAK.flag[self.pid] & 0x10 > 0 and not pt then
@@ -2288,6 +2415,11 @@ OnInit.final("HeroSpells", function(Require)
             AddUnitAnimationProperties(self.caster, "spin", true)
             SetUnitPathing(self.caster, false)
 
+            if LIMITBREAK.flag[self.pid] & 0x2 > 0 then
+                pt.sfx = AddSpecialEffectTarget("war3mapImported\\Red White Tornado.mdx", self.caster, "origin")
+                BlzPlaySpecialEffectWithTimeScale(pt.sfx, ANIM_TYPE_STAND, 2.)
+            end
+
             pt.timer:callDelayed(FPS_32, periodic, pt)
         end
     end
@@ -2346,7 +2478,7 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = WINDSCAR
 
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.7 + 0.1 * ablev) * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.7 + 0.1 * ablev) * (Unit[Hero[pid]].damage) end,
         }
 
         ---@type fun(pt: PlayerTimer)
@@ -2452,7 +2584,7 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:get(ADAPTIVESTRIKE.id)  
+            local pt = TimerList[self.pid]:get(ADAPTIVESTRIKE.id)
             UnitDisableAbility(self.caster, ADAPTIVESTRIKE.id, false)
 
             if LIMITBREAK.flag[self.pid] & 0x10 > 0 and not pt then
@@ -2504,7 +2636,7 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = ADAPTIVESTRIKE
 
         thistype.values = {
-            spindmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (1. + 0.2 * ablev) * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end,
+            spindmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (1. + 0.2 * ablev) * (Unit[Hero[pid]].damage) end,
             spinaoe = 400.,
             spinheal = function(pid) return 10. * Unit[Hero[pid]].regen end,
 
@@ -2513,7 +2645,7 @@ OnInit.final("HeroSpells", function(Require)
             shoutaoe = 900.,
             shoutdur = 4.,
 
-            tornadodmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.35 + 0.05 * ablev) * (BlzGetUnitBaseDamage(Hero[pid], 0) + UnitGetBonus(Hero[pid], BONUS_DAMAGE)) end,
+            tornadodmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.35 + 0.05 * ablev) * (Unit[Hero[pid]].damage) end,
             tornadodur = 3.,
         }
 
@@ -2672,7 +2804,7 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         -- upgrade UI
-        LimitBreakBackdrop = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
+        LimitBreakBackdrop = BlzCreateFrame("QuestButtonDisabledBackdropTemplate", BlzGetFrameByName("ConsoleUIBackdrop", 0), 0, 0)
         BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_TOPLEFT, 0.61 - 0.0434, 0.212)
         BlzFrameSetAbsPoint(LimitBreakBackdrop, FRAMEPOINT_BOTTOMRIGHT, 0.795, 0.158)
 
@@ -2683,6 +2815,19 @@ OnInit.final("HeroSpells", function(Require)
             SimpleButton.create(LimitBreakBackdrop, "ReplaceableTextures\\CommandButtons\\BTNWindScarLimitBreak.blp", 0.036, 0.036, FRAMEPOINT_TOPLEFT, FRAMEPOINT_TOPLEFT, 0.136, -0.008, nil, "|cffffcc00Wind Scar|r|n|nWind projectiles instead orbit around you for |cffffcc003|r seconds.", FRAMEPOINT_BOTTOM, FRAMEPOINT_TOP, 0., 0.01),
             SimpleButton.create(LimitBreakBackdrop, "ReplaceableTextures\\CommandButtons\\BTNAdaptiveStrikeLimitBreak.blp", 0.036, 0.036, FRAMEPOINT_TOPLEFT, FRAMEPOINT_TOPLEFT, 0.178, -0.008, nil, "|cffffcc00Adaptive Strike|r|n|nPassive cooldown reset chance increased to |cffffcc0050\x25|r.|nNow automatically casts after using a skill when available.", FRAMEPOINT_BOTTOM, FRAMEPOINT_TOP, 0., 0.01),
         }
+
+        local function on_cleanup(pid)
+            thistype.flag[pid] = 0
+            thistype.max[pid] = 0
+            thistype.points[pid] = 0
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzFrameSetVisible(LimitBreakBackdrop, false)
+                BlzSetAbilityIcon(PARRY.id, "ReplaceableTextures\\CommandButtons\\BTNReflex.blp")
+                BlzSetAbilityIcon(SPINDASH.id, "ReplaceableTextures\\CommandButtons\\BTNComed Fall.blp")
+                BlzSetAbilityIcon(INTIMIDATINGSHOUT.id, "ReplaceableTextures\\CommandButtons\\BTNBattleShout.blp")
+                BlzSetAbilityIcon(WINDSCAR.id, "ReplaceableTextures\\CommandButtons\\BTNimpaledflameswordfinal.blp")
+            end
+        end
 
         function thistype.onLearn(source, ablev, pid)
             if thistype.max[pid] < 2 then
@@ -2696,6 +2841,8 @@ OnInit.final("HeroSpells", function(Require)
             if GetLocalPlayer() == GetOwningPlayer(source) then
                 BlzFrameSetVisible(LimitBreakBackdrop, true)
             end
+
+            EVENT_ON_CLEANUP:register_action(pid, on_cleanup)
         end
 
         local skill_enum = {
@@ -2782,52 +2929,62 @@ OnInit.final("HeroSpells", function(Require)
             dur = 4.,
         }
 
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveHoming3D,
+                CAT_Orient3D,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck3D,
+            },
+            identifier = "missile",
+            collisionRadius = 10.,
+            onlyTarget = true,
+            friendlyFire = false,
+            speed = 1200.,
+            onUnitCollision = CAT_UnitImpact3D,
+            onUnitCallback = function(self, enemy)
+                local ug = CreateGroup()
+                MakeGroupInRange(self.pid, ug, GetUnitX(enemy), GetUnitY(enemy), FROSTBLAST.aoe * LBOOST[self.pid], Condition(FilterEnemy))
+
+                local b = InfusedWaterBuff:get(nil, self.source)
+                if b then
+                    b:dispel()
+                    self.damage = self.damage * 2
+                end
+
+                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", GetUnitX(enemy), GetUnitY(enemy)))
+
+                for target in each(ug) do
+                    if enemy == target then
+                        Freeze:add(self.source, enemy):duration(FROSTBLAST.dur * LBOOST[self.pid])
+                        DamageTarget(self.source, target, self.damage * (GetUnitAbilityLevel(target, FourCC('B01G')) + 1.), ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    else
+                        Freeze:add(self.source, enemy):duration(FROSTBLAST.dur * 0.5 * LBOOST[self.pid])
+                        DamageTarget(self.source, target, self.damage / (2. - (GetUnitAbilityLevel(target, FourCC('B01G')))), ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    end
+                end
+
+                DestroyGroup(ug)
+            end,
+        }
+        missile_template.__index = missile_template
+
         function thistype:onCast()
-            local missile = Missiles:create(self.x, self.y, 30., 0, 0, 0) ---@type Missiles
-            missile:model("Abilities\\Spells\\Other\\FrostBolt\\FrostBoltMissile.mdl")
-            missile:scale(1.1)
-            missile:speed(1200)
+            local missile = setmetatable({}, missile_template)
+            missile.x = self.x
+            missile.y = self.y
+            missile.z = GetUnitZ(self.caster) + 50.
+            missile.visual = AddSpecialEffect("Abilities\\Spells\\Other\\FrostBolt\\FrostBoltMissile.mdl", self.x, self.y)
+            BlzSetSpecialEffectScale(missile.visual, 1.1)
             missile.source = self.caster
             missile.target = self.target
             missile.owner = Player(self.pid - 1)
-            missile:vision(400)
-            missile.collision = 50
             missile.damage = self.dmg * BOOST[self.pid]
             missile.collideZ = true
+            missile.pid = self.pid
 
-            missile.onHit = function(target)
-                if target == missile.target then
-                    local ug = CreateGroup()
-                    local pid = GetPlayerId(missile.owner) + 1
-                    MakeGroupInRange(pid, ug, GetUnitX(target), GetUnitY(target), FROSTBLAST.aoe * LBOOST[pid], Condition(FilterEnemy))
-
-                    local b = InfusedWaterBuff:get(nil, missile.source)
-                    if b then
-                        b:dispel()
-                        missile.damage = missile.damage * 2
-                    end
-
-                    DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", GetUnitX(target), GetUnitY(target)))
-
-                    for enemy in each(ug) do
-                        if enemy == target then
-                            Freeze:add(missile.source, target):duration(FROSTBLAST.dur * LBOOST[pid])
-                            DamageTarget(missile.source, enemy, missile.damage * (GetUnitAbilityLevel(enemy, FourCC('B01G')) + 1.), ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                        else
-                            Freeze:add(missile.source, target):duration(FROSTBLAST.dur * 0.5 * LBOOST[pid])
-                            DamageTarget(missile.source, enemy, missile.damage / (2. - (GetUnitAbilityLevel(enemy, FourCC('B01G')))), ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                        end
-                    end
-
-                    DestroyGroup(ug)
-
-                    return true
-                end
-
-                return false
-            end
-
-            missile:launch()
+            ALICE_Create(missile)
         end
     end
 
@@ -3279,9 +3436,14 @@ OnInit.final("HeroSpells", function(Require)
             thistype.add(pid, thistype.gain(pid))
         end
 
+        local function on_cleanup(pid)
+            thistype.set(pid, 0)
+        end
+
         function thistype:setup(u)
             EVENT_ON_HIT:register_unit_action(u, onHit)
             EVENT_STAT_CHANGE:register_unit_action(u, thistype.refresh)
+            EVENT_ON_CLEANUP:register_action(Unit[u].pid, on_cleanup)
             Unit[u].nomanaregen = true
         end
     end
@@ -3563,6 +3725,14 @@ OnInit.final("HeroSpells", function(Require)
             HP(self.caster, self.target, (self.heal + BlzGetUnitMaxHP(self.target) * 0.05) * BOOST[self.pid], thistype.tag)
             DivineLightBuff:add(self.caster, self.target):duration(3.)
         end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.05))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+        end
     end
 
     ---@class SANCTIFIEDGROUND : Spell
@@ -3624,6 +3794,14 @@ OnInit.final("HeroSpells", function(Require)
 
             pt.timer:callDelayed(0.5, periodic, pt)
         end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.1))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+        end
     end
 
     ---@class HOLYRAYS : Spell
@@ -3662,6 +3840,14 @@ OnInit.final("HeroSpells", function(Require)
                 end
             end
         end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.1))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+        end
     end
 
     ---@class PROTECTION : Spell
@@ -3689,6 +3875,14 @@ OnInit.final("HeroSpells", function(Require)
                 shield.add(target, self.shield * BOOST[self.pid], 20 + 10 * self.ablev):color(4)
             end
         end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.5))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+        end
     end
 
     ---@class RESURRECTION : Spell
@@ -3714,15 +3908,14 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype:onCast()
-            local size = 0.
+            HideEffect(REVIVE_INDICATOR[self.tpid])
 
             DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", self.targetX, self.targetY))
             ResurrectionRevival[self.tpid] = self.pid
             UnitAddAbility(HeroGrave[self.tpid], thistype.spell)
-
-            BlzSetSpecialEffectScale(REVIVE_INDICATOR[self.tpid], size)
-            DestroyEffect(REVIVE_INDICATOR[self.tpid])
             REVIVE_INDICATOR[self.tpid] = AddSpecialEffect("UI\\Feedback\\Target\\Target.mdx", self.targetX, self.targetY)
+
+            local size = 0.
 
             if GetLocalPlayer() == Player(self.tpid - 1) then
                 size = 15.
@@ -3744,8 +3937,14 @@ OnInit.final("HeroSpells", function(Require)
             end
         end
 
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(GetUnitState(u, UNIT_STATE_MANA)))
+        end
+
         function thistype.onLearn(source)
             EVENT_ON_DEATH:register_unit_action(source, on_death)
+            EVENT_ON_CAST:register_unit_action(source, manacost)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -3942,7 +4141,7 @@ OnInit.final("HeroSpells", function(Require)
     do
         local thistype = ELEMENTICE
         thistype.value = 2 ---@type integer 
-        
+
         local function periodic(pid)
             if masterElement[pid] == thistype.value then
                 local ug = CreateGroup()
@@ -3950,7 +4149,7 @@ OnInit.final("HeroSpells", function(Require)
 
                 for enemy in each(ug) do
                     if not UnitIsSleeping(enemy) then
-                        IceElementSlow:add(Hero[U.id], enemy):duration(1.)
+                        IceElementSlow:add(Hero[pid], enemy):duration(1.)
                     end
                 end
 
@@ -4012,54 +4211,49 @@ OnInit.final("HeroSpells", function(Require)
             dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (5. + ablev) * GetHeroInt(Hero[pid], true) end,
         }
 
-        ---@type fun(pt: PlayerTimer)
-        local function periodic(pt)
-            pt.dur = pt.dur - pt.speed
-
-            if pt.dur > 0. then
-                local ug = CreateGroup()
-                local x = GetUnitX(pt.target) ---@type number 
-                local y = GetUnitY(pt.target) ---@type number 
-
-                MakeGroupInRange(pt.pid, ug, x, y, pt.aoe, Condition(FilterEnemy))
-
-                --ball movement
-                SetUnitXBounded(pt.target, x + pt.speed * Cos(pt.angle))
-                SetUnitYBounded(pt.target, y + pt.speed * Sin(pt.angle))
-
-                local target = FirstOfGroup(ug)
-
-                if target then
-                    DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdl", target, "origin"))
-                    DamageTarget(Hero[pt.pid], target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-
-                    pt.dur = 0.
-                end
-
-                DestroyGroup(ug)
-
-                pt.timer:callDelayed(FPS_32, periodic, pt)
-            else
-                SetUnitAnimation(pt.target, "death")
-                pt:destroy()
-            end
-        end
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveAutoHeight,
+                CAT_Orient2D,
+                distance,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck2D,
+            },
+            identifier = "missile",
+            friendlyFire = false,
+            collisionRadius = 100.,
+            visualZ = 60.,
+            onUnitCollision = CAT_UnitImpact2D,
+            onUnitCallback = function(self, enemy)
+                DamageTarget(self.source, enemy, self.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+            end,
+        }
+        missile_template.__index = missile_template
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()
+            local missile = setmetatable({}, missile_template)
+            missile.x = self.x
+            missile.y = self.y
+            missile.visual = AddSpecialEffect("Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl", self.x, self.y)
+            BlzSetSpecialEffectScale(missile.visual, 1. + .2 * self.ablev)
+            missile.speed = 900. + 100. * self.ablev
+            missile.vx = missile.speed * Cos(self.angle)
+            missile.vy = missile.speed * Sin(self.angle)
+            missile.source = self.caster
+            missile.owner = Player(self.pid - 1)
+            missile.damage = self.dmg * BOOST[self.pid]
+            missile.dist = self.range
 
-            pt.angle = self.angle
-            pt.target = Dummy.create(self.x + 25. * Cos(pt.angle), self.y + 25. * Sin(pt.angle), 0, 0, 5.).unit
-            pt.aoe = 150.
-            pt.dur = self.range
-            pt.speed = 25. + 2. * self.ablev
-            pt.dmg = self.dmg * BOOST[self.pid]
+            ALICE_Create(missile)
+        end
 
-            BlzSetUnitSkin(pt.target, FourCC('h070'))
-            SetUnitFlyHeight(pt.target, 50., 0)
-            SetUnitScale(pt.target, 1. + .2 * self.ablev, 1. + .2 * self.ablev, 1. + .2 * self.ablev)
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.05))
+        end
 
-            pt.timer:callDelayed(FPS_32, periodic, pt)
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -4071,8 +4265,7 @@ OnInit.final("HeroSpells", function(Require)
     ---@field orbdmg function
     ---@field orbaoe number
     ---@field freeze number
-    ---@field missile Missiles[]
-    ---@field icecd boolean[]
+    ---@field missile table[]
     FROZENORB = Spell.define("A011", "A01W")
     do
         local thistype = FROZENORB
@@ -4087,34 +4280,80 @@ OnInit.final("HeroSpells", function(Require)
             freeze = 3.,
         }
         thistype.missile = {}
-        thistype.icecd = {}
 
-        ---@type fun(pid: number, missile: Missiles)
+        local icicle_template = {
+            selfInteractions = {
+                CAT_MoveHoming3D,
+                CAT_Orient3D,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck3D
+            },
+            identifier = "missile",
+            onlyTarget = true,
+            friendlyFire = false,
+            collisionRadius = 5.,
+            speed = 1000,
+            onUnitCollision = CAT_UnitImpact3D,
+            onUnitCallback = function(self, enemy)
+                DamageTarget(self.source, enemy, thistype.icedmg(self.pid) * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+            end,
+        }
+        icicle_template.__index = icicle_template
+
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveAutoHeight,
+                CAT_Orient2D,
+                distance,
+            },
+            identifier = "missile",
+            speed = 200.,
+            visualZ = 75.,
+
+            destroy = function(self)
+                -- show original cast
+                UnitRemoveAbility(self.source, thistype.id2)
+                BlzUnitHideAbility(self.source, thistype.id, false)
+
+                -- orb shatter
+                local ug = CreateGroup()
+                MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe * LBOOST[self.pid], Condition(FilterEnemy))
+
+                for target in each(ug) do
+                    Freeze:add(self.source, target):duration(self.freeze * LBOOST[self.pid])
+                    DamageTarget(self.source, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                end
+
+                DestroyGroup(ug)
+
+                DestroyEffect(self.visual)
+                DestroyEffect(AddSpecialEffect("war3mapImported\\FrostNova.mdx", self.x, self.y))
+                thistype.missile[self.pid] = nil
+            end
+        }
+        missile_template.__index = missile_template
+
+        ---@type fun(pid: number, self: table)
         local function spawn_icicle(pid, missile)
-            thistype.icecd[pid] = true
-
-            if missile.allocated then
+            if thistype.missile[pid] then
                 local ug = CreateGroup()
 
                 MakeGroupInRange(pid, ug, missile.x, missile.y, thistype.iceaoe * LBOOST[pid], Condition(FilterEnemy))
 
                 for target in each(ug) do
-                    local icicle = Missiles:create(missile.x, missile.y, 70., 0, 0, 0) ---@type Missiles
-                    icicle:model("war3mapImported\\BlizMissile.mdl")
-                    icicle:scale(0.6)
-                    icicle:speed(1000)
+                    local icicle = setmetatable({}, icicle_template)
+                    icicle.x = missile.x
+                    icicle.y = missile.y
+                    icicle.z = missile.z
+                    icicle.visual = AddSpecialEffect("war3mapImported\\BlizMissile.mdl", missile.x, missile.y)
+                    BlzSetSpecialEffectScale(icicle.visual, 0.6)
                     icicle.source = missile.source
                     icicle.owner = missile.owner
                     icicle.target = target
-                    icicle:vision(400)
+                    icicle.pid = pid
 
-                    icicle.onFinish = function()
-                        DamageTarget(icicle.source, icicle.target, thistype.icedmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-
-                        return true
-                    end
-
-                    icicle:launch()
+                    ALICE_Create(icicle)
                 end
 
                 DestroyGroup(ug)
@@ -4128,49 +4367,42 @@ OnInit.final("HeroSpells", function(Require)
 
             --recast
             if missile then
-                missile:onFinish()
-                missile:terminate()
+                ALICE_Kill(missile)
             else
-                missile = Missiles:create(self.x + 75. * Cos(self.angle), self.y + 75. * Sin(self.angle), 70., ---@type Missiles
-                self.x + self.orbrange * Cos(self.angle), self.y + self.orbrange * Sin(self.angle), 70.)
-                missile:model("war3mapImported\\FrostOrb.mdl")
-                missile:scale(1.3)
-                missile:speed(200)
+                missile = setmetatable({}, missile_template)
+                missile.x = self.x
+                missile.y = self.y
+                missile.vx = missile.speed * Cos(self.angle)
+                missile.vy = missile.speed * Sin(self.angle)
+                missile.launchOffset = 75.
+                missile.visual = AddSpecialEffect("war3mapImported\\FrostOrb.mdl", self.x, self.y)
+                BlzSetSpecialEffectScale(missile.visual, 1.3)
                 missile.source = self.caster
                 missile.owner = Player(self.pid - 1)
-                missile:vision(self.iceaoe * LBOOST[self.pid])
+                missile.dist = self.orbrange
+                missile.freeze = self.freeze
+                missile.aoe = self.orbaoe
+                missile.dmg = self.orbdmg
+                missile.pid = self.pid
 
-                missile.onFinish = function()
-                    -- show original cast
-                    UnitRemoveAbility(missile.source, thistype.id2)
-                    BlzUnitHideAbility(missile.source, thistype.id, false)
+                ALICE_Create(missile)
 
-                    -- orb shatter
-                    local ug = CreateGroup()
-                    MakeGroupInRange(self.pid, ug, missile.x, missile.y, self.orbaoe * LBOOST[self.pid], Condition(FilterEnemy))
-
-                    for target in each(ug) do
-                        Freeze:add(missile.source, target):duration(self.freeze * LBOOST[self.pid])
-                        DamageTarget(missile.source, target, self.orbdmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                    end
-
-                    DestroyGroup(ug)
-
-                    DestroyEffect(AddSpecialEffect("war3mapImported\\FrostNova.mdx", missile.x, missile.y))
-                    thistype.missile[self.pid] = nil
-
-                    return true
-                end
-
-                missile:launch()
                 thistype.missile[self.pid] = missile
                 TimerQueue:callDelayed(0.5, spawn_icicle, self.pid, missile)
 
                 -- show second cast
-                BlzUnitHideAbility(self.caster, FROZENORB.id, true)
-                UnitAddAbility(self.caster, FROZENORB.id2)
-                SetUnitAbilityLevel(self.caster, FROZENORB.id2, self.ablev)
+                BlzUnitHideAbility(self.caster, thistype.id, true)
+                UnitAddAbility(self.caster, thistype.id2)
+                SetUnitAbilityLevel(self.caster, thistype.id2, self.ablev)
             end
+        end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.15))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -4358,6 +4590,14 @@ OnInit.final("HeroSpells", function(Require)
 
             pt.timer:callDelayed(0.5, periodic, pt)
         end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.03))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+        end
     end
 
     ---@class ELEMENTALSTORM : Spell
@@ -4472,6 +4712,14 @@ OnInit.final("HeroSpells", function(Require)
 
             pt.timer:callDelayed(0.4, periodic, pt)
         end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.25))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+        end
     end
 
     --dark summoner
@@ -4536,25 +4784,6 @@ OnInit.final("HeroSpells", function(Require)
         end
     end
 
-    -- emulates timed life using hero XP (perhaps make general purpose custom frame for this later)
-    ---@type fun(pt: PlayerTimer)
-    local function summon_timed_life_bar(pt)
-        local lev = GetHeroLevel(pt.target) ---@type integer 
-
-        if Unit[pt.target].borrowed_life <= 0 then
-            pt.dur = pt.dur - 0.5
-        else
-            Unit[pt.target].borrowed_life = math.max(0, Unit[pt.target].borrowed_life - 0.5)
-        end
-
-        if pt.dur <= 0 then
-            SummonExpire(pt.target)
-        else
-            UnitStripHeroLevel(pt.target, 1)
-            SetHeroXP(pt.target, R2I(RequiredXP(lev) + ((lev + 1) * pt.dur * 100. / pt.time) - 100), false)
-        end
-    end
-
     local is_destroyer_sacrificed = {} ---@type boolean[] 
 
     ---@class SUMMONDEMONHOUND : Spell
@@ -4565,6 +4794,7 @@ OnInit.final("HeroSpells", function(Require)
     SUMMONDEMONHOUND = Spell.define("A0KF")
     do
         local thistype = SUMMONDEMONHOUND
+        local hounds = {} ---@type unit[][]
 
         thistype.values = {
             hounds = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 2 + ablev end,
@@ -4572,6 +4802,30 @@ OnInit.final("HeroSpells", function(Require)
             agi = function(pid) return 0.075 * GetHeroInt(Hero[pid], true) end,
             int = function(pid) return 0.25 * GetHeroInt(Hero[pid], true) end,
         }
+
+        local function hound_duration(pt)
+            local summons = hounds[pt.pid]
+            pt.dur = pt.dur - 0.5
+
+            if pt.dur > 0 then
+                for _, hound in ipairs(summons) do
+                    SetUnitState(hound, UNIT_STATE_MANA, BlzGetUnitMaxMana(hound) * pt.dur / pt.time)
+                end
+                pt.timer:callDelayed(0.5, hound_duration, pt)
+            else
+                for _, hound in ipairs(summons) do
+                    SummonExpire(hound)
+                end
+                pt:destroy()
+            end
+        end
+
+        local function on_cleanup(pid)
+            for i = 1, 6 do
+                TableRemove(SummonGroup, hounds[pid * PLAYER_CAP + i])
+                hounds[pid * PLAYER_CAP + i] = nil
+            end
+        end
 
         local function onHit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
@@ -4596,18 +4850,19 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype:onCast()
-            local pt
-            local offset = self.pid * PLAYER_CAP ---@type integer 
+            if not hounds[self.pid] then
+                hounds[self.pid] = {}
+            end
 
             self.angle = GetUnitFacing(self.caster)
             self.x = self.x + 150 * Cos(bj_DEGTORAD * self.angle)
             self.y = self.y + 150 * Sin(bj_DEGTORAD * self.angle)
 
-            for i = 0, self.hounds do
-                local summon = hounds[offset + i]
+            for i = 1, self.hounds do
+                local summon = hounds[self.pid][i]
 
                 if summon then
-                    TimerList[self.pid]:stopAllTimers(summon)
+                    TimerList[self.pid]:stopAllTimers(SUMMON_HOUND)
                     ShowUnit(summon, true)
                     ReviveHero(summon, self.x, self.y, false)
                     SetWidgetLife(summon, BlzGetUnitMaxHP(summon))
@@ -4620,16 +4875,9 @@ OnInit.final("HeroSpells", function(Require)
                     SetUnitAbilityLevel(summon, FourCC('A06F'), 1)
                 else
                     summon = CreateUnit(Player(self.pid - 1), SUMMON_HOUND, self.x, self.y, self.angle)
-                    hounds[offset + i] = summon
+                    hounds[self.pid][i] = summon
+                    Unit[summon].nomanaregen = true
                 end
-
-                pt = TimerList[self.pid]:add()
-                pt.x = self.x
-                pt.y = self.y
-                pt.dur = 60.
-                pt.time = 60.
-                pt.tag = summon
-                pt.target = summon
 
                 TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl", summon, "origin"))
 
@@ -4649,11 +4897,19 @@ OnInit.final("HeroSpells", function(Require)
                 end
                 SummonGroup[#SummonGroup + 1] = summon
                 EVENT_ON_FATAL_DAMAGE:register_unit_action(summon, SummonExpire)
+                EVENT_ON_CLEANUP:register_action(self.pid, on_cleanup)
+                SetHeroLevel(summon, GetHeroLevel(self.caster), false)
 
-                SetHeroXP(hounds[offset + i], R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
-
-                pt.timer:callPeriodically(0.5, nil, summon_timed_life_bar, pt)
+                -- heal fully
+                SetWidgetLife(summon, BlzGetUnitMaxHP(summon))
             end
+
+            local pt = TimerList[self.pid]:add()
+            pt.dur = 60.
+            pt.time = 60.
+            pt.tag = SUMMON_HOUND
+            pt.count = self.hounds
+            pt.timer:callDelayed(0.5, hound_duration, pt)
         end
     end
 
@@ -4663,14 +4919,19 @@ OnInit.final("HeroSpells", function(Require)
     SUMMONMEATGOLEM = Spell.define("A0KH")
     do
         local thistype = SUMMONMEATGOLEM
+        local meatgolem = {} ---@type unit[] 
 
         thistype.values = {
             str = function(pid) return 0.4 * (GetHeroInt(Hero[pid], true) + GetHeroStr(Hero[pid], true)) end,
             agi = function(pid) return 0.6 * GetHeroInt(Hero[pid], true) end,
         }
 
+        local function on_cleanup(pid)
+            TableRemove(SummonGroup, meatgolem[pid])
+            meatgolem[pid] = nil
+        end
+
         function thistype:onCast()
-            local pt
             local summon = meatgolem[self.pid]
 
             TimerList[self.pid]:stopAllTimers('dvou')
@@ -4678,7 +4939,7 @@ OnInit.final("HeroSpells", function(Require)
             self.x = self.x + 150 * Cos(bj_DEGTORAD * self.angle)
             self.y = self.y + 150 * Sin(bj_DEGTORAD * self.angle)
 
-            if not summon then
+            if summon then
                 TimerList[self.pid]:stopAllTimers(summon)
                 ShowUnit(summon, true)
                 ReviveHero(summon, self.x, self.y, false)
@@ -4698,14 +4959,6 @@ OnInit.final("HeroSpells", function(Require)
                 meatgolem[self.pid] = summon
             end
 
-            pt = TimerList[self.pid]:add()
-            pt.x = self.x
-            pt.y = self.y
-            pt.dur = 180.
-            pt.time = 180.
-            pt.tag = summon
-            pt.target = summon
-
             Buff.dispelAll(summon)
             Unit[summon].devour_stacks = 0
             Unit[summon].borrowed_life = 0
@@ -4716,10 +4969,11 @@ OnInit.final("HeroSpells", function(Require)
             TimerQueue:callDelayed(2., DestroyEffect, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Darksummoning\\DarkSummonTarget.mdl", summon, "origin"))
             SummonGroup[#SummonGroup + 1] = summon
             EVENT_ON_FATAL_DAMAGE:register_unit_action(summon, SummonExpire)
+            EVENT_ON_CLEANUP:register_action(self.pid, on_cleanup)
+            SetHeroLevel(summon, GetHeroLevel(self.caster), false)
 
-            SetHeroXP(summon, R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
-
-            pt.timer:callPeriodically(0.5, nil, summon_timed_life_bar, pt)
+            -- heal fully
+            SetWidgetLife(summon, BlzGetUnitMaxHP(summon))
         end
     end
 
@@ -4731,12 +4985,18 @@ OnInit.final("HeroSpells", function(Require)
     SUMMONDESTROYER = Spell.define("A0KG")
     do
         local thistype = SUMMONDESTROYER
+        local destroyer = {} ---@type unit[] 
 
         thistype.values = {
             str = function(pid) return 0.0666 * (GetHeroInt(Hero[pid], true) + GetHeroStr(Hero[pid], true)) end,
             agi = function(pid) return 0.005 * GetHeroInt(Hero[pid], true) end,
             int = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 0.5 * GetHeroInt(Hero[pid], true) * ablev end,
         }
+
+        local function on_cleanup(pid)
+            TableRemove(SummonGroup, destroyer[pid])
+            destroyer[pid] = nil
+        end
 
         local function onHit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
@@ -4770,7 +5030,6 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype:onCast()
-            local pt
             local summon = destroyer[self.pid]
 
             TimerList[self.pid]:stopAllTimers('blif')
@@ -4802,14 +5061,6 @@ OnInit.final("HeroSpells", function(Require)
                 destroyer[self.pid] = summon
             end
 
-            pt = TimerList[self.pid]:add()
-            pt.x = self.x
-            pt.y = self.y
-            pt.dur = 180.
-            pt.time = 180.
-            pt.tag = summon
-            pt.target = summon
-
             Buff.dispelAll(summon)
             Unit[summon].borrowed_life = 0
             Unit[summon].devour_stacks = 0
@@ -4833,10 +5084,11 @@ OnInit.final("HeroSpells", function(Require)
             SummonGroup[#SummonGroup + 1] = summon
             EVENT_ON_FATAL_DAMAGE:register_unit_action(summon, SummonExpire)
             EVENT_ON_HIT:register_unit_action(summon, onHit)
+            EVENT_ON_CLEANUP:register_action(self.pid, on_cleanup)
+            SetHeroLevel(summon, GetHeroLevel(self.caster), false)
 
-            SetHeroXP(summon, R2I(RequiredXP(GetHeroLevel(Hero[self.pid]) - 1) + ((GetHeroLevel(Hero[self.pid]) + 1) * pt.dur * 100 / pt.time) - 1), false)
-
-            pt.timer:callPeriodically(0.5, nil, summon_timed_life_bar, pt)
+            -- heal fully
+            SetWidgetLife(summon, BlzGetUnitMaxHP(summon))
         end
     end
 
@@ -5090,6 +5342,26 @@ OnInit.final("HeroSpells", function(Require)
     PROTECTOR = Spell.define("A0HS")
     do
         local thistype = PROTECTOR
+
+        local function periodic(u, pid, ug)
+            if Profile[pid].playing then
+                MakeGroupInRange(pid, ug, x, y, 900. * LBOOST[pid], Condition(FilterAlly))
+
+                for target in each(ug) do
+                    ProtectedBuff:add(u, target):duration(2.)
+                end
+
+                TimerQueue:callDelayed(1., periodic, pid, ug)
+            else
+                DestroyGroup(ug)
+            end
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            local ug = CreateGroup()
+
+            TimerQueue:callDelayed(1., periodic, source, pid, ug)
+        end
     end
 
     --assassin
@@ -5101,85 +5373,85 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = SHADOWSHURIKEN
 
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (GetHeroAgi(Hero[pid], true) + UnitGetBonus(Hero[pid], BONUS_DAMAGE) + BlzGetUnitBaseDamage(Hero[pid], 0)) * (ablev + 5.) * 0.25 end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (GetHeroAgi(Hero[pid], true) + Unit[Hero[pid]].damage) * (ablev + 5.) * 0.25 end,
         }
 
-        ---@type fun(pt: PlayerTimer)
-        local function periodic(pt)
-            if pt.dur > 0. then
-                SetUnitXBounded(pt.target, GetUnitX(pt.target) + pt.speed * Cos(pt.angle))
-                SetUnitYBounded(pt.target, GetUnitY(pt.target) + pt.speed * Sin(pt.angle))
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveAutoHeight,
+                CAT_Orient2D,
+                distance,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck2D,
+            },
+            visualZ = 75.,
+            identifier = "missile",
+            friendlyFire = false,
+            collisionRadius = 100.,
+            speed = 1800.,
+            onUnitCollision = CAT_UnitPassThrough2D,
+            onUnitCallback = function(self, enemy)
+                DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", enemy, "chest"))
+                local debuff = MarkedForDeathDebuff:get(nil, enemy) ---@type Buff
 
-                pt.dur = pt.dur - pt.speed
+                if debuff and self.mana < 50 then
+                    local mana = 6  ---@type integer --percent mana restored per unit hit
+                    local percentcap = 50 ---@type integer 
 
-                local ug = CreateGroup()
+                    --mana restore from bosses
+                    if IsUnitType(enemy, UNIT_TYPE_HERO) then
+                        mana = 25
+                    end
 
-                MakeGroupInRange(pt.pid, ug, GetUnitX(pt.target), GetUnitY(pt.target), pt.aoe, Condition(FilterEnemy))
+                    debuff:dispel()
 
-                for target in each(ug) do
-                    if IsUnitInGroup(target, pt.ug) == false then
-                        GroupAddUnit(pt.ug, target)
-                        DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", target, "chest"))
-                        local debuff = MarkedForDeathDebuff:get(nil, target) ---@type Buff
+                    self.mana = self.mana + mana
+                    if self.mana > percentcap then
+                        mana = ModuloInteger(self.mana, percentcap)
+                    end
 
-                        if debuff and pt.mana < 50 then
-                            local mana = 6  ---@type integer --percent mana restored per unit hit
-                            local percentcap = 50 ---@type integer 
+                    SetUnitState(self.source, UNIT_STATE_MANA, GetUnitState(self.source, UNIT_STATE_MANA) + BlzGetUnitMaxMana(self.source) * mana * 0.01)
+                    SetUnitPathing(enemy, true)
 
-                            --mana restore from bosses
-                            if IsUnitType(target, UNIT_TYPE_HERO) then
-                                mana = 25
-                            end
-
-                            debuff:dispel()
-
-                            pt.mana = pt.mana + mana
-
-                            if pt.mana > percentcap then
-                                mana = ModuloInteger(pt.mana,percentcap)
-                            end
-
-                            SetUnitState(Hero[pt.pid], UNIT_STATE_MANA, GetUnitState(Hero[pt.pid], UNIT_STATE_MANA) + BlzGetUnitMaxMana(Hero[pt.pid]) * mana * 0.01)
-                            SetUnitPathing(target, true)
-                            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIma\\AImaTarget.mdl", Hero[pt.pid], "origin"))
-                        end
-                        DamageTarget(Hero[pt.pid], target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    if not self.mana_effect then
+                        self.mana_effect = true
+                        DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIma\\AImaTarget.mdl", self.source, "origin"))
                     end
                 end
-
-                DestroyGroup(ug)
-
-                pt.timer:callDelayed(FPS_32, periodic, pt)
-            else
-                SetUnitAnimation(pt.target, "death")
-                pt:destroy()
-            end
-        end
+                DamageTarget(self.source, enemy, self.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+            end,
+        }
+        missile_template.__index = missile_template
 
         function thistype:onCast()
             --change blade spin to active
             UnitAddAbility(self.caster, BLADESPIN.id)
             UnitDisableAbility(self.caster, BLADESPIN.id2, true)
-            UpdateManaCosts(self.pid)
 
-            local pt = TimerList[self.pid]:add()
-            pt.target = Dummy.create(self.x, self.y, 0, 0).unit
-            pt.ug = CreateGroup()
-            pt.dur = 750.
-            pt.aoe = 200.
-            pt.speed = 60.
-            pt.mana = 0
-            pt.angle = self.angle
-            pt.dmg = self.dmg * BOOST[self.pid]
+            local missile = setmetatable({}, missile_template)
+            missile.x = self.x
+            missile.y = self.y
+            missile.vx = missile.speed * Cos(self.angle)
+            missile.vy = missile.speed * Sin(self.angle)
+            missile.visual = AddSpecialEffect("Abilities\\Weapons\\GlaiveMissile\\GlaiveMissile.mdl", self.x, self.y)
+            BlzSetSpecialEffectScale(missile.visual, 1.1)
+            BlzSetSpecialEffectColor(missile.visual, 100, 100, 100)
+            missile.source = self.caster
+            missile.owner = Player(self.pid - 1)
+            missile.dmg = self.dmg * BOOST[self.pid]
+            missile.dist = 750
+            missile.mana = 0
 
-            BlzSetUnitSkin(pt.target, FourCC('h00F'))
-            SetUnitScale(pt.target, 1.1, 1.1, 1.1)
-            SetUnitVertexColor(pt.target, 50, 50, 50, 255)
-            UnitAddAbility(pt.target, FourCC('Amrf'))
-            SetUnitFlyHeight(pt.target, 75.00, 0.00)
-            BlzSetUnitFacingEx(pt.target, bj_RADTODEG * pt.angle)
+            ALICE_Create(missile)
+        end
 
-            pt.timer:callDelayed(FPS_32, periodic, pt)
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.05))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -5192,7 +5464,7 @@ OnInit.final("HeroSpells", function(Require)
         thistype.preCast = DASH_PRECAST
 
         thistype.values = {
-            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return ablev * (0.5 * GetHeroAgi(Hero[pid], true) + 0.25 * (UnitGetBonus(Hero[pid], BONUS_DAMAGE) + BlzGetUnitBaseDamage(Hero[pid], 0))) end,
+            dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return ablev * (0.5 * GetHeroAgi(Hero[pid], true) + 0.25 * (Unit[Hero[pid]].damage)) end,
             aoe = 200.,
         }
 
@@ -5202,7 +5474,6 @@ OnInit.final("HeroSpells", function(Require)
             --change blade spin to active
             UnitAddAbility(self.caster, BLADESPIN.id)
             UnitDisableAbility(self.caster, BLADESPIN.id2, true)
-            UpdateManaCosts(self.pid)
 
             for i = 0, 11 do
                 self.angle = 0.1666 * bj_PI * i
@@ -5230,6 +5501,14 @@ OnInit.final("HeroSpells", function(Require)
             SetUnitYBounded(self.caster, self.targetY)
 
             DestroyGroup(ug)
+        end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.15))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -5273,7 +5552,6 @@ OnInit.final("HeroSpells", function(Require)
             --change blade spin to active
             UnitAddAbility(self.caster, BLADESPIN.id)
             UnitDisableAbility(self.caster, BLADESPIN.id2, true)
-            UpdateManaCosts(self.pid)
 
             local pt = TimerList[self.pid]:add()
             pt.x = self.targetX
@@ -5284,6 +5562,14 @@ OnInit.final("HeroSpells", function(Require)
             pt.sfx = AddSpecialEffect("war3mapImported\\GreySmoke.mdx", self.targetX, self.targetY)
             BlzSetSpecialEffectScale(pt.sfx, LBOOST[self.pid])
             pt.timer:callDelayed(0.5, periodic, pt)
+        end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.2))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -5299,45 +5585,54 @@ OnInit.final("HeroSpells", function(Require)
             num = 30.,
         }
 
-        local function periodic(pt)
-            local i = 1
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveAutoHeight,
+                CAT_Orient2D,
+                distance,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck2D,
+            },
+            visualZ = 70.,
+            identifier = "missile",
+            friendlyFire = false,
+            collisionRadius = 50.,
+            speed = 1500.,
+            onUnitCollision = CAT_UnitPassThrough2D,
+            onUnitCallback = function(self, enemy)
+                DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", enemy, "origin"))
+                DamageTarget(self.source, enemy, self.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                self.damage = self.damage - (self.damage * 0.05)
+            end,
+        }
+        missile_template.__index = missile_template
 
-            if pt.count > 0 then
-                pt.count = pt.count - 3
+        local function periodic(self)
+            if self.count > 0 then
+                self.count = self.count - 3
 
                 for _ = 0, 2 do
-                    i = -i
-                    local spawnangle = pt.angle + bj_PI + GetRandomReal(bj_PI * -0.15, bj_PI * 0.15) ---@type number
-                    local x = pt.x + GetRandomReal(70., 200.) * Cos(spawnangle) ---@type number
-                    local y = pt.y + GetRandomReal(70., 200.) * Sin(spawnangle) ---@type number
-                    local moveangle = Atan2(pt.targetY - y, pt.targetX - x)
-                    local missile = Missiles:create(x, y, 70, x + 1150. * Cos(moveangle), y + 1150. * Sin(moveangle), 0) ---@type Missiles
-                    missile:model("Abilities\\Weapons\\WardenMissile\\WardenMissile.mdl")
-                    missile:scale(1.1)
-                    missile:speed(1400)
-                    missile:arc(GetRandomReal(5, 15))
-                    missile.source = pt.source
-                    missile.owner = Player(pt.pid - 1)
-                    missile:vision(400)
-                    missile.collision = 50
-                    missile.damage = pt.dmg * BOOST[pt.pid]
+                    local spawnangle = self.angle + bj_PI + GetRandomReal(bj_PI * -0.15, bj_PI * 0.15) ---@type number
+                    local x = self.x + GetRandomReal(70., 200.) * Cos(spawnangle) ---@type number
+                    local y = self.y + GetRandomReal(70., 200.) * Sin(spawnangle) ---@type number
+                    local moveangle = Atan2(self.targetY - y, self.targetX - x)
+                    local missile = setmetatable({}, missile_template)
+                    missile.x = x
+                    missile.y = y
+                    missile.vx = missile.speed * Cos(moveangle)
+                    missile.vy = missile.speed * Sin(moveangle)
+                    missile.visual = AddSpecialEffect("Abilities\\Weapons\\WardenMissile\\WardenMissile.mdl", x, y)
+                    BlzSetSpecialEffectScale(missile.visual, 1.15)
+                    missile.source = self.caster
+                    missile.owner = Player(self.pid - 1)
+                    missile.damage = self.dmg * BOOST[self.pid]
+                    missile.dist = 1000 + DistanceCoords(self.x, self.y, x, y)
 
-                    missile.onHit = function(enemy)
-                        if IsHittable(enemy, missile.owner) then
-                            DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Other\\Stampede\\StampedeMissileDeath.mdl", enemy, "origin"))
-                            DamageTarget(missile.source, enemy, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                            missile.damage = missile.damage - missile.damage * 0.05
-                        end
-
-                        return false
-                    end
-
-                    missile:launch()
+                    ALICE_Create(missile)
                 end
 
-                pt.timer:callDelayed(FPS_32, periodic, pt)
-            else
-                pt:destroy()
+                TimerQueue:callDelayed(FPS_32, periodic, self)
             end
         end
 
@@ -5345,19 +5640,18 @@ OnInit.final("HeroSpells", function(Require)
             --change blade spin to active
             UnitAddAbility(self.caster, BLADESPIN.id)
             UnitDisableAbility(self.caster, BLADESPIN.id2, true)
-            UpdateManaCosts(self.pid)
 
-            local pt = TimerList[self.pid]:add()
-            pt.count = self.num
-            pt.dmg = self.dmg
-            pt.source = self.caster
-            pt.angle = self.angle
-            pt.x = self.x
-            pt.y = self.y
-            pt.targetX = self.targetX
-            pt.targetY = self.targetY
+            self.count = self.num
 
-            pt.timer:callDelayed(FPS_32, periodic, pt)
+            periodic(self)
+        end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.25))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -5428,9 +5722,15 @@ OnInit.final("HeroSpells", function(Require)
             thistype.count[pid] = thistype.count[pid] + 1
         end
 
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.075))
+        end
+
         function thistype:setup(u)
             EVENT_ON_HIT:register_unit_action(u, onHit)
             UnitRemoveAbility(u, thistype.id)
+
+            EVENT_STAT_CHANGE:register_unit_action(u, manacost)
         end
     end
 
@@ -5521,6 +5821,15 @@ OnInit.final("HeroSpells", function(Require)
             TimerQueue:callDelayed(2., HideEffect, sfx)
             BlzPlaySpecialEffectWithTimeScale(sfx, ANIM_TYPE_ATTACK, 1.5)
         end
+
+        local manacost = function(u)
+            local ablev = GetUnitAbilityLevel(u, thistype.id)
+            BlzSetUnitAbilityManaCost(u, thistype.id, ablev - 1, R2I(BlzGetUnitMaxMana(u) * (.1 - 0.025 * ablev)))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+        end
     end
 
     --arcanist
@@ -5567,69 +5876,45 @@ OnInit.final("HeroSpells", function(Require)
         }
         thistype.cooldown = 3.
 
-        ---@type fun(pt: PlayerTimer)
-        local function expire(pt)
+        local function comet_land(self, x, y, aoe)
             local ug = CreateGroup()
 
-            MakeGroupInRange(pt.pid, ug, pt.x, pt.y, pt.aoe, Condition(FilterEnemy))
+            MakeGroupInRange(self.pid, ug, x, y, aoe, Condition(FilterEnemy))
 
             for target in each(ug) do
-                DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                DamageTarget(self.caster, target, self.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             end
-
-            pt:destroy()
 
             DestroyGroup(ug)
         end
 
-        ---@type fun(pt: PlayerTimer)
-        local function spawn(pt)
-            pt.count = pt.count - 1
+        local function spawn(self, count)
+            local pt = TimerList[self.pid]:get(ARCANOSPHERE.id)
 
-            if pt.count >= 0 then
-                local ug = CreateGroup()
+            if pt then
+                count = count - 1
 
-                MakeGroupInRange(pt.pid, ug, pt.x, pt.y, 800., Condition(FilterEnemy))
+                if count >= 0 then
+                    MakeGroupInRange(self.pid, self.ug, pt.x, pt.y, 800., Condition(FilterEnemy))
 
-                local count = BlzGroupGetSize(ug)
+                    for enemy in each(pt.ug) do
+                        local x = GetUnitX(enemy)
+                        local y = GetUnitY(enemy)
 
-                if count > 0 then
-                    local target = BlzGroupUnitAt(ug, GetRandomInt(0, count - 1))
-                    local x = GetUnitX(target)
-                    local y = GetUnitY(target)
+                        local sfx = AddSpecialEffect("war3mapImported\\Voidfall Medium.mdx", x, y)
+                        BlzPlaySpecialEffectWithTimeScale(sfx, ANIM_TYPE_STAND, 1.5)
+                        TimerQueue:callDelayed(2., DestroyEffect, sfx)
+                        TimerQueue:callDelayed(0.6, comet_land, self, x, y, pt.aoe)
+                    end
 
-                    local pt2 = TimerList[pt.pid]:add()
-                    pt2.x = x
-                    pt2.y = y
-                    pt2.dmg = pt.dmg
-                    pt2.aoe = pt.aoe
-                    pt2.source = pt.source
-
-                    local sfx = AddSpecialEffect("war3mapImported\\Voidfall Medium.mdx", x, y)
-                    BlzPlaySpecialEffectWithTimeScale(sfx, ANIM_TYPE_STAND, 1.5)
-                    TimerQueue:callDelayed(2., DestroyEffect, sfx)
-
-                    pt2.timer:callDelayed(0.6, expire, pt2)
+                    TimerQueue:callDelayed(0.2, spawn, self, count)
                 end
-
-                DestroyGroup(ug)
-
-                pt.timer:callDelayed(0.2, spawn, pt)
-            else
-                pt:destroy()
             end
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()
-            pt.source = self.caster
-            pt.count = self.ablev + 2
-            pt.dmg = self.dmg * BOOST[self.pid]
-            pt.aoe = self.aoe * LBOOST[self.pid]
-            pt.x = self.x
-            pt.y = self.y
-
-            pt.timer:callDelayed(0.2, spawn, pt)
+            self.ug = CreateGroup()
+            spawn(self, self.ablev + 2)
         end
     end
 
@@ -5646,58 +5931,61 @@ OnInit.final("HeroSpells", function(Require)
         }
         thistype.cooldown = 5.
 
-        ---@type fun(pt: PlayerTimer)
-        local function spawn(pt)
-            pt.dur = pt.dur - 1
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveAutoHeight,
+                CAT_Orient2D,
+                distance,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck2D,
+            },
+            identifier = "missile",
+            collisionRadius = 100.,
+            friendlyFire = false,
+            speed = 1400.,
+            visualZ = 60.,
+            onUnitCollision = CAT_UnitImpact2D,
+            onUnitCallback = function(self, enemy)
+                local ug = CreateGroup()
+                MakeGroupInRange(self.pid, ug, self.x, self.y, self.aoe, Condition(FilterEnemy))
 
-            if pt.dur >= 0 then
-                local x = GetUnitX(pt.source) ---@type number 
-                local y = GetUnitY(pt.source) ---@type number 
-                local missile = Missiles:create(x, y, 20., pt.x, pt.y, 20.) ---@type Missiles
-                missile:model("ArcaneRocketProjectile.mdl")
-                missile:scale(1.4)
-                missile:speed(1400)
-                missile.source = pt.source
-                missile.owner = Player(pt.pid - 1)
-                missile:vision(400)
-                missile.collision = 100
-                missile.damage = pt.dmg * BOOST[pt.pid]
-
-                missile.onHit = function(target)
-                    if IsHittable(target, missile.owner) then
-                        local ug = CreateGroup()
-                        MakeGroupInRange(GetPlayerId(missile.owner) + 1, ug, missile.x, missile.y, ARCANEBOLTS.aoe, Condition(FilterEnemy))
-
-                        for enemy in each(ug) do
-                            DamageTarget(missile.source, enemy, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                        end
-
-                        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", missile.x, missile.y))
-
-                        return true
-                    end
-
-                    return false
+                for target in each(ug) do
+                    DamageTarget(self.source, target, self.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
 
-                missile:launch()
+                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", self.x, self.y))
+                DestroyGroup(ug)
+            end,
+        }
+        missile_template.__index = missile_template
 
-                pt.timer:callDelayed(0.2, spawn, pt)
-            else
-                pt:destroy()
+        local function spawn(self, dur)
+            dur = dur - 1
+
+            if dur >= 0 then
+                local missile = setmetatable({}, missile_template)
+                missile.x = GetUnitX(self.caster)
+                missile.y = GetUnitY(self.caster)
+                missile.vx = missile.speed * Cos(self.angle)
+                missile.vy = missile.speed * Sin(self.angle)
+                missile.visual = AddSpecialEffect("ArcaneRocketProjectile.mdl", self.x, self.y)
+                BlzSetSpecialEffectScale(missile.visual, 1.4)
+                missile.source = self.caster
+                missile.owner = Player(self.pid - 1)
+                missile.damage = self.dmg * BOOST[self.pid]
+                missile.dist = 1000.
+                missile.aoe = self.aoe * LBOOST[self.pid]
+                missile.pid = self.pid
+
+                ALICE_Create(missile)
+
+                TimerQueue:callDelayed(0.2, spawn, self, dur)
             end
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()
-            pt.dur = self.ablev + 2
-            pt.angle = self.angle
-            pt.source = self.caster
-            pt.dmg = self.dmg * BOOST[self.pid]
-            pt.aoe = self.aoe * LBOOST[self.pid]
-            pt.x = self.x + 1000. * Cos(pt.angle)
-            pt.y = self.y + 1000. * Sin(pt.angle)
-            pt.timer:callDelayed(0., spawn, pt)
+            spawn(self, self.ablev + 2)
         end
     end
 
@@ -5714,6 +6002,27 @@ OnInit.final("HeroSpells", function(Require)
             dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroInt(Hero[pid], true) * (ablev + 1.) end,
             cooldown = function(pid) return TimerList[pid]:has(ARCANOSPHERE.id) and 3. or 5. end,
         }
+
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveHoming3D,
+                CAT_Orient3D,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck3D,
+            },
+            identifier = "missile",
+            collisionRadius = 2.,
+            friendlyFire = false,
+            onlyTarget = true,
+            speed = 750.,
+            visualZ = 50.,
+            onUnitCollision = CAT_UnitImpact3D,
+            onUnitCallback = function(self, enemy)
+                DamageTarget(self.source, enemy, self.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+            end,
+        }
+        missile_template.__index = missile_template
 
         function thistype:onCast()
             ArcaneBarrageBuff:add(self.caster, self.caster):duration(3)
@@ -5736,28 +6045,19 @@ OnInit.final("HeroSpells", function(Require)
                     if not singletarget then
                         target = BlzGroupUnitAt(ug, i)
                     end
-                    self.targetX = self.x + 40. * Cos(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
-                    self.targetY = self.y + 40. * Sin(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
 
-                    local missile = Missiles:create(self.targetX, self.targetY, 50., 0, 0, 20.) ---@type Missiles
-                    missile:model("war3mapImported\\TinkerRocketMissileModified2.mdl")
-                    missile:scale(1.1)
-                    missile:speed(750)
+                    local missile = setmetatable({}, missile_template)
+                    missile.x = self.x + 40. * Cos(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
+                    missile.y = self.y + 40. * Sin(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
+                    missile.z = GetUnitZ(self.caster)
+                    missile.visual = AddSpecialEffect("war3mapImported\\TinkerRocketMissileModified2.mdl", self.x, self.y)
+                    BlzSetSpecialEffectScale(missile.visual, 1.1)
                     missile.source = self.caster
                     missile.owner = Player(self.pid - 1)
                     missile.target = target
-                    missile:vision(400)
-                    missile.collision = 10
-                    missile.collideZ = true
                     missile.damage = self.dmg * BOOST[self.pid]
 
-                    missile.onFinish = function()
-                        DamageTarget(missile.source, missile.target, missile.damage, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-
-                        return true
-                    end
-
-                    missile:launch()
+                    ALICE_Create(missile)
                 end
             end
 
@@ -5778,14 +6078,12 @@ OnInit.final("HeroSpells", function(Require)
 
         ---@type fun(pt: PlayerTimer)
         local function periodic(pt)
-            local ug = CreateGroup()
-
-            MakeGroupInRange(pt.pid, ug, pt.x, pt.y, pt.aoe, Condition(FilterEnemy))
+            MakeGroupInRange(pt.pid, pt.ug, pt.x, pt.y, pt.aoe, Condition(FilterEnemy))
 
             pt.dur = pt.dur - 0.5
 
             if pt.dur > 0. then
-                for target in each(ug) do
+                for target in each(pt.ug) do
                     ArcanosphereDebuff:add(pt.source, target):duration(1.)
                 end
 
@@ -5802,8 +6100,6 @@ OnInit.final("HeroSpells", function(Require)
                 BlzSetUnitAbilityCooldown(pt.source, ARCANEBARRAGE.id, GetUnitAbilityLevel(pt.source, ARCANEBARRAGE.id) - 1, 5.)
                 pt:destroy()
             end
-
-            DestroyGroup(ug)
         end
 
         function thistype:onCast()
@@ -5815,6 +6111,7 @@ OnInit.final("HeroSpells", function(Require)
             pt.y = self.targetY
             pt.source = self.caster
             pt.tag = thistype.id
+            pt.ug = CreateGroup()
 
             pt.target = Dummy.create(self.targetX, self.targetY, 0, 0, pt.dur + 1.5).unit
             BlzSetUnitSkin(pt.target, FourCC('e00M'))
@@ -5931,7 +6228,7 @@ OnInit.final("HeroSpells", function(Require)
                         SetUnitPathing(target, false)
                         SetUnitXBounded(target, pt.x)
                         SetUnitYBounded(target, pt.y)
-                        ResetPathingTimed(target, 2.)
+                        TimerQueue:callDelayed(2., ResetPathing, target)
                     end
                     DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", GetUnitX(target), GetUnitY(target)))
                     DamageTarget(pt.source, target, pt.dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
@@ -6014,6 +6311,14 @@ OnInit.final("HeroSpells", function(Require)
             b.y = self.targetY
             SetUnitXBounded(b.sfx, b.x)
             SetUnitYBounded(b.sfx, b.y)
+        end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.2))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -6109,6 +6414,14 @@ OnInit.final("HeroSpells", function(Require)
 
             pt.timer:callDelayed(1., periodic, pt)
         end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.1))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+        end
     end
 
     ---@class FREEZINGBLAST : Spell
@@ -6152,6 +6465,14 @@ OnInit.final("HeroSpells", function(Require)
                     DamageTarget(self.caster, target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
             end
+        end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.1))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -6232,8 +6553,7 @@ OnInit.final("HeroSpells", function(Require)
         for target in each(ug) do
             if IsUnitAlly(target, Player(pt.pid - 1)) then
                 if (BARD_SONG[pt.pid] == SONG_WAR and IsUnitInRange(target, pt.caster, 900.)) or (pt2 and pt2.song == SONG_WAR and IsUnitInRangeXY(target, pt2.x, pt2.y, pt2.aoe)) then
-                    SongOfWarBuff:add(pt.caster, target)
-                    SongOfWarBuff:refresh(pt.caster, target, 2.)
+                    SongOfWarBuff:add(pt.caster, target):duration(2.)
                 end
                 if (BARD_SONG[pt.pid] == SONG_PEACE and IsUnitInRange(target, pt.caster, 900.)) or (pt2 and pt2.song == SONG_PEACE and IsUnitInRangeXY(target, pt2.x, pt2.y, pt2.aoe)) then
                     SongOfPeaceBuff:add(pt.caster, target):duration(2.)
@@ -6273,7 +6593,7 @@ OnInit.final("HeroSpells", function(Require)
                 DestroyEffect(songeffect[this.pid])
             end
 
-            pt.timer:callDelayed(0., song_periodic, pt)
+            song_periodic(pt)
         end
 
         BARD_SONG[self.pid] = song
@@ -6411,7 +6731,7 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = MELODYOFLIFE
 
         thistype.values = {
-            cost = function(pid) return Roundmana(GetUnitState(Hero[pid], UNIT_STATE_MANA) * .1) end,
+            cost = function(pid) return GetUnitState(Hero[pid], UNIT_STATE_MANA) * .1 end,
             heal = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return thistype.cost(pid) * (.25 + .25 * ablev) end,
         }
 
@@ -6426,6 +6746,16 @@ OnInit.final("HeroSpells", function(Require)
                 HP(self.caster, self.target, heal, thistype.tag)
                 DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", self.targetX, self.targetY))
             end
+        end
+
+        local manacost = function(u)
+            local pid = GetPlayerId(GetOwningPlayer(u)) + 1
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(thistype.values.cost(pid)))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_CAST:register_unit_action(source, manacost)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
@@ -6520,6 +6850,14 @@ OnInit.final("HeroSpells", function(Require)
         function thistype:onCast()
             InspireBuff:add(self.caster, self.caster)
         end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.02))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+        end
     end
 
     ---@class TONEOFDEATH : Spell
@@ -6598,6 +6936,14 @@ OnInit.final("HeroSpells", function(Require)
             SetUnitScale(pt.target, 0.5, 0.5, 0.5)
 
             pt.timer:callDelayed(FPS_32, periodic, pt)
+        end
+
+        local manacost = function(u)
+            BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.2))
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
     end
 
