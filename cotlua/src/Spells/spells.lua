@@ -21,7 +21,7 @@ OnInit.final("Spells", function(Require)
     SONG_FATIGUE = FourCC('A00N') ---@type integer 
 
     --storage for spell definitions
-    Spells = {}
+    Spells = {} ---@type Spell[]
     INVALID_TARGET_MESSAGE = "|cffff0000Cannot target there!|r" ---@type string 
 
     ---@class Spell
@@ -40,6 +40,9 @@ OnInit.final("Spells", function(Require)
     ---@field values table
     ---@field create function
     ---@field destroy function
+    ---@field onEquip function
+    ---@field onUnequip function
+    ---@field setup function
     ---@field tag string
     ---@field define function
     ---@field getTooltip function
@@ -47,6 +50,8 @@ OnInit.final("Spells", function(Require)
     ---@field onCast function
     ---@field onLearn function
     ---@field TOOLTIPS string[][]
+    ---@field ACTIVE boolean
+    ---@field cooldown number
     Spell = {}
     do
         local thistype = Spell
@@ -100,6 +105,7 @@ OnInit.final("Spells", function(Require)
 
             self.id = FourCC(id)
             self.tag = GetObjectName(self.id) -- lazy tag generation
+            self.ACTIVE = true -- determines if ability is given to dummy item
 
             setmetatable(self, mt)
 
@@ -121,6 +127,45 @@ OnInit.final("Spells", function(Require)
             return self
         end
 
+        -- TODO: get key status function in hotkeys?
+        local alt_down = {} ---@type boolean[]
+
+        ---@param pid integer
+        local function UpdateItemTooltips(pid)
+            -- update 6 visible item slot tooltips
+            local modifier = alt_down[pid]
+            local profile = Profile[pid]
+
+            if profile and profile.hero then
+                for i = 1, 6 do
+                    local itm = profile.hero.items[i]
+
+                    if itm then
+                        if modifier and itm.alt_tooltip then
+                            if GetLocalPlayer() == Player(pid - 1) then
+                                BlzSetItemExtendedTooltip(itm.obj, itm.alt_tooltip)
+                            end
+                        elseif itm.tooltip then
+                            if GetLocalPlayer() == Player(pid - 1) then
+                                BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        local function extended_spell_tooltip(pid, is_down)
+            if alt_down[pid] ~= is_down then
+                alt_down[pid] = is_down
+                UpdateSpellTooltips(Hero[pid])
+                UpdateItemTooltips(pid)
+            end
+        end
+
+        RegisterHotkeyToFunc('ALT', nil, extended_spell_tooltip, nil, true)
+        RegisterHotkeyToFunc('ALT+ALT', nil, extended_spell_tooltip, nil, true)
+
         local curr
         --[[
             >: no color
@@ -132,7 +177,7 @@ OnInit.final("Spells", function(Require)
         ]]
         local function parse_brackets(defaultflag, colorflag, prefix, tag, content)
             local color = (colorflag ~= ">" and true) or false
-            local alt = IS_ALT_DOWN[curr.pid] or defaultflag == "~"
+            local alt = alt_down[curr.pid] or defaultflag == "~"
 
             if alt then
                 local v = curr[tag]
@@ -174,11 +219,10 @@ OnInit.final("Spells", function(Require)
         -- Stub methods
         function thistype.preCast(pid, tpid, caster, target, x, y, targetX, targetY) end
         function thistype.onCast() end
-        function thistype.onLearn(source, ablev, pid) end
-        -- function thistype.onHit() end
         function thistype.onUnequip(itm, id, index) end
         function thistype.onEquip(itm, id, index) end
-        function thistype.setup(u) end
+        --function thistype.onLearn(source, ablev, pid) end
+        --function thistype.setup(source) end
     end
 
     local function SpellCast()
@@ -232,11 +276,10 @@ OnInit.final("Spells", function(Require)
             abil = BlzGetUnitAbilityByIndex(source, i)
         end
 
-        -- remove bracket indicators
-        UpdateSpellTooltips(pid)
+        UpdateSpellTooltips(source)
 
         -- execute onlearn function
-        if Spells[sid] then
+        if Spells[sid] and Spells[sid].onLearn then
             Spells[sid].onLearn(source, ablev, pid)
         end
 
@@ -247,7 +290,7 @@ OnInit.final("Spells", function(Require)
         local caster = GetTriggerUnit() ---@type unit 
         local target = GetSpellTargetUnit() ---@type unit 
         local p      = GetOwningPlayer(caster)
-        local itm    = GetSpellTargetItem() ---@type item?
+        --local itm  = GetSpellTargetItem() ---@type item?
         local sid    = GetSpellAbilityId() ---@type integer 
         local pid    = GetPlayerId(p) + 1 ---@type integer 
         local tpid   = GetPlayerId(GetOwningPlayer(target)) + 1 ---@type integer 
@@ -256,7 +299,6 @@ OnInit.final("Spells", function(Require)
         local y      = GetUnitY(caster) ---@type number 
         local targetX = GetSpellTargetX() ---@type number 
         local targetY = GetSpellTargetY() ---@type number 
-        local spell   = nil
 
         EVENT_ON_CAST:trigger(caster, sid, ablev)
 
@@ -267,7 +309,7 @@ OnInit.final("Spells", function(Require)
 
         -- check existing spell definition
         if Spells[sid] then
-            spell = Spells[sid]:create(caster, sid)
+            local spell = Spells[sid]:create(caster, sid)
             spell.sid = sid
             spell.tpid = tpid
             spell.caster = caster
@@ -280,39 +322,8 @@ OnInit.final("Spells", function(Require)
             spell.angle = Atan2(spell.targetY - y, spell.targetX - x)
 
             spell:onCast()
-
         elseif UNIT_SPELLS[sid] then
             UNIT_SPELLS[sid](caster, pid)
-
-        -- backpack consumeable spells
-        elseif POTIONS[sid] then
-            local used = false
-
-            for i = 1, MAX_INVENTORY_SLOTS do
-                local pot = Profile[pid].hero.items[i]
-
-                if pot then
-                    local abil = ItemData[pot.id][ITEM_ABILITY * ABILITY_OFFSET]
-
-                    if POTIONS[sid][abil] then
-                        POTIONS[sid][abil](pid, pot)
-                        used = true
-                        break
-                    end
-                end
-            end
-
-            if not used then
-                DisplayTextToPlayer(p, 0, 0, "You do not have a consumable of this type.")
-            end
-        end
-
-        -- on cast aggro
-        if spell then
-            if Unit[caster].aggro_timer then
-                Unit[caster].aggro_timer:reset()
-                Unit[caster].aggro_timer:callDelayed(3., DropAggro, Unit[caster])
-            end
         end
 
         return false
@@ -326,14 +337,20 @@ OnInit.final("Spells", function(Require)
         if not IsTerrainWalkable(targetX, targetY) or r2 ~= r then
             IssueImmediateOrderById(caster, ORDER_ID_STOP)
             DisplayTextToPlayer(Player(pid - 1), 0, 0, INVALID_TARGET_MESSAGE)
+            return false
         end
+
+        return true
     end
 
     TERRAIN_PRECAST = function(pid, tpid, caster, target, x, y, targetX, targetY)
         if not IsTerrainWalkable(targetX, targetY) then
             IssueImmediateOrderById(caster, ORDER_ID_STOP)
             DisplayTextToPlayer(Player(pid - 1), 0, 0, INVALID_TARGET_MESSAGE)
+            return false
         end
+
+        return true
     end
 
     for k = 0, bj_MAX_PLAYER_SLOTS do
