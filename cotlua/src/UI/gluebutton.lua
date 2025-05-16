@@ -4,7 +4,9 @@
     A module that provides button and tooltip functionality for shops and other UI.
 ]]
 
-OnInit.final("Gluebutton", function()
+OnInit.final("Gluebutton", function(Require)
+    Require('TimerQueue')
+
     local TOOLTIP_SIZE       = 0.2 ---@type number 
     local SCROLL_DELAY       = 0.01 ---@type number 
     local DOUBLE_CLICK_DELAY = 0.25 ---@type number 
@@ -205,6 +207,15 @@ OnInit.final("Gluebutton", function()
     ---@field highlightFrame framehandle
     ---@field displayFrame framehandle
     ---@field spriteFrame framehandle
+    ---@field chargeFrame framehandle
+    ---@field chargeText framehandle
+    ---@field charges integer
+    ---@field cooldownText framehandle
+    ---@field cooldownFrame framehandle
+    ---@field cooldown_time number[]
+    ---@field charge function
+    ---@field cooldown function
+    ---@field use_cooldowns function
     Button = {}
     do
         local thistype = Button
@@ -373,6 +384,41 @@ OnInit.final("Gluebutton", function()
             end
         end
 
+        local FPS_32 = FPS_32
+        local format = string.format
+
+        local function cooldown_periodic(self, total_time, pid)
+            local p = GetLocalPlayer()
+            if self.cooldown_time[pid] <= 0 then
+                if p == Player(pid - 1) then
+                    BlzFrameSetVisible(self.cooldownFrame, false)
+                end
+            else
+                if p == Player(pid - 1) then
+                    BlzFrameSetText(self.cooldownText, format("\x25.1f", self.cooldown_time[pid]))
+                    BlzFrameSetValue(self.cooldownFrame, 100 - (self.cooldown_time[pid] / total_time) * 100)
+                end
+                self.cooldown_time[pid] = self.cooldown_time[pid] - FPS_32
+
+                TimerQueue:callDelayed(FPS_32, cooldown_periodic, self, total_time, pid)
+            end
+        end
+
+        function thistype:use_cooldowns()
+            self.cooldown_time = __jarray(0)
+        end
+
+        function thistype:cooldown(time, pid)
+            self.cooldown_time[pid] = time
+            if GetLocalPlayer() == Player(pid - 1) then
+                BlzFrameSetText(self.cooldownText, format("\x25.1f", tostring(time)))
+                BlzFrameSetValue(self.cooldownFrame, 0)
+                BlzFrameSetVisible(self.cooldownFrame, true)
+            end
+
+            TimerQueue:callDelayed(FPS_32, cooldown_periodic, self, time, pid)
+        end
+
         ---@param model string
         ---@param scale number
         ---@param animation integer
@@ -385,6 +431,14 @@ OnInit.final("Gluebutton", function()
                 BlzFrameSetScale(self.spriteFrame, scale)
                 BlzFrameSetSpriteAnimate(self.spriteFrame, animation, 0)
             end
+        end
+
+        function thistype:charge(n)
+            BlzFrameSetVisible(self.chargeFrame, n >= 1 and true or false)
+            BlzFrameSetVisible(self.chargeText, n >= 1 and true or false)
+            BlzFrameSetText(self.chargeText, tostring(n))
+
+            self.charges = n
         end
 
         ---@type fun(self: Button, model: string, width: number, height: number, scale: number, point: framepointtype, relativePoint: framepointtype, offsetX: number, offsetY: number)
@@ -408,6 +462,7 @@ OnInit.final("Gluebutton", function()
             self.parent = owner
             self.xPos = x
             self.yPos = y
+            self.charges = 0
             self.widthSize = width
             self.heightSize = height
             self.isVisible = true
@@ -415,12 +470,15 @@ OnInit.final("Gluebutton", function()
             self.isChecked = false
             self.isHighlighted = false
             self.iconFrame = BlzCreateFrameByType("BACKDROP", "", owner, "", 0)
+            self.chargeFrame = BlzCreateFrameByType("BACKDROP", "", self.iconFrame, "", 0)
+            self.chargeText = BlzCreateFrameByType("TEXT", "", self.chargeFrame, "", 0)
             self.availableFrame = BlzCreateFrameByType("BACKDROP", "", self.iconFrame, "", 0)
             self.checkedFrame = BlzCreateFrameByType("BACKDROP", "", self.iconFrame, "", 0)
             self.highlightFrame = BlzCreateFrame("HighlightFrame", self.iconFrame, 0, 0)
             self.frame = BlzCreateFrame("IconButtonTemplate", self.iconFrame, 0, 0)
             self.displayFrame = BlzCreateFrameByType("SPRITE", "", self.frame, "WarCraftIIILogo", 0)
             self.spriteFrame = BlzCreateFrameByType("SPRITE", "", self.frame, "", 0)
+
             self.tooltip = Tooltip.create(self.iconFrame, TOOLTIP_SIZE, FRAMEPOINT_TOPLEFT, simpleTooltip)
             thistype.table[(self.frame)] = self
 
@@ -432,6 +490,23 @@ OnInit.final("Gluebutton", function()
             BlzFrameSetVisible(self.availableFrame, false)
             BlzFrameSetAllPoints(self.checkedFrame, self.iconFrame)
             BlzFrameSetVisible(self.checkedFrame, false)
+
+            self.cooldownFrame = BlzCreateFrame("ButtonCooldown", self.iconFrame, 0, 0)
+            self.cooldownText = BlzCreateFrameByType("TEXT", "", self.cooldownFrame, "", 0)
+            BlzFrameSetScale(self.cooldownFrame, 0.8)
+            BlzFrameSetAllPoints(self.cooldownFrame, self.iconFrame)
+            BlzFrameSetVisible(self.cooldownFrame, false)
+            BlzFrameSetPoint(self.cooldownText, FRAMEPOINT_CENTER, self.iconFrame, FRAMEPOINT_CENTER, 0., 0.)
+            BlzFrameSetScale(self.cooldownText, 1.5)
+
+            BlzFrameSetPoint(self.chargeFrame, FRAMEPOINT_BOTTOMRIGHT, self.iconFrame, FRAMEPOINT_BOTTOMRIGHT, -0.003, 0.003)
+            BlzFrameSetSize(self.chargeFrame, width * 0.35, height * 0.35)
+            BlzFrameSetPoint(self.chargeText, FRAMEPOINT_CENTER, self.chargeFrame, FRAMEPOINT_CENTER, 0., 0.)
+            BlzFrameSetVisible(self.chargeText, false)
+            BlzFrameSetScale(self.chargeText, 0.85)
+            BlzFrameSetText(self.chargeText, "1")
+            BlzFrameSetTexture(self.chargeFrame, "war3mapImported\\itemchargeframe.blp", 0, true)
+            BlzFrameSetVisible(self.chargeFrame, false)
             BlzFrameSetPoint(self.highlightFrame, FRAMEPOINT_TOPLEFT, self.iconFrame, FRAMEPOINT_TOPLEFT, - 0.0040000, 0.0045000)
             BlzFrameSetSize(self.highlightFrame, width + 0.0085, height + 0.0085)
             BlzFrameSetVisible(self.highlightFrame, false)
@@ -460,7 +535,7 @@ OnInit.final("Gluebutton", function()
             end
 
             if SCROLL_DELAY > 0 then
-                TimerStart(thistype.timer[i], TimerGetRemaining(thistype.timer[i]), false, thistype.onExpire)
+                TimerStart(thistype.timer[i], SCROLL_DELAY, false, thistype.onExpire)
             end
         end
 
