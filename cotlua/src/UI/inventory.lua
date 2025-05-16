@@ -1,6 +1,12 @@
+--[[
+    inventory.lua
+
+    A library for recreating an inventory system using custom frames
+]]
 OnInit.final("Inventory", function(Require)
     Require('Users')
     Require('Frames')
+    Require('Currency')
 
     local INVENTORY_WIDTH   = 0.1981
     local INVENTORY_GAPY    = 0.0312

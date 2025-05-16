@@ -12,11 +12,11 @@ OnInit.final("Dev", function(Require)
     BUDDHA_MODE         = {} ---@type boolean[] 
     DEBUG_COUNT         = 0 ---@type integer 
     WEATHER_OVERRIDE    = 0 ---@type integer 
+
+    Require('GameStatus')
     GAME_STATE          = (GAME_STATE == 0) and 2 or GAME_STATE -- keep game state as replay if replay
 
     Require('TimerQueue')
-    Require("Orders")
-
     local pack, find, lower = string.pack, string.find, string.lower
     local searchable = {} ---@type boolean[] 
     local dev_cmds, wipe_item_stats, find_item, event_setup
@@ -831,6 +831,6 @@ modifiers:
     end
 
     --- start somewhere
-    TimerQueue:callDelayed(1.5, setup, 0, 0)
+    -- TimerQueue:callDelayed(1.5, setup, 0, 0)
 
 end, Debug and Debug.getLine())

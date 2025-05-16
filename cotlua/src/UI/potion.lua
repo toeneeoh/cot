@@ -6,7 +6,8 @@
 
 OnInit.final("Potion", function(Require)
     Require('Hotkeys')
-    Require('Items')
+    Require('ItemLookup')
+
     local potion_button = {} ---@type Button[]
     local icon_size = 0.032
 
