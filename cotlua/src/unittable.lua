@@ -9,13 +9,18 @@ OnInit.final("UnitTable", function(Require)
     Require('TimerQueue')
     Require('WorldBounds')
     Require('Events')
+    Require('Spells')
 
     ---@class Unit
     ---@field owner player
     ---@field pid integer
     ---@field unit unit
     ---@field create function
+    ---@field destroy function
     ---@field attackCount integer
+    ---@field damage integer
+    ---@field bonus_damage integer
+    ---@field damage_percent number
     ---@field evasion integer
     ---@field regen number
     ---@field regen_percent number
@@ -25,8 +30,16 @@ OnInit.final("UnitTable", function(Require)
     ---@field mana_regen_max number
     ---@field noregen boolean
     ---@field dr number
+    ---@field dm number
     ---@field pr number
     ---@field mr number
+    ---@field pm number
+    ---@field mm number
+    ---@field cc number
+    ---@field cd number
+    ---@field borrowed_life number
+    ---@field devour_stacks number
+    ---@field regen_flat number
     ---@field movespeed number
     ---@field overmovespeed number
     ---@field ms_flat number
@@ -34,10 +47,35 @@ OnInit.final("UnitTable", function(Require)
     ---@field armor_pen_percent number
     ---@field x number
     ---@field y number
+    ---@field original_x number
+    ---@field original_y number
     ---@field orderX number
     ---@field orderY number
     ---@field taunt function
-    Unit = {}
+    ---@field target Unit
+    ---@field can_attack boolean
+    ---@field hp number
+    ---@field mana number
+    ---@field mana_regen_flat number
+    ---@field str number
+    ---@field agi number
+    ---@field int number
+    ---@field bat number
+    ---@field bonus_str number
+    ---@field bonus_int number
+    ---@field bonus_agi number
+    ---@field bonus_bat number
+    ---@field cd_flat number
+    ---@field spellboost number
+    ---@field ghost effect
+    ---@field proxy table
+    ---@field hidehp boolean
+    ---@field busy boolean
+    ---@field casting boolean
+    ---@field aggro_timer integer
+    ---@field boss Boss
+    ---@field nomanaregen boolean
+    Unit = {}  ---@type Unit | Unit[]
     do
         local thistype = Unit
 
@@ -59,65 +97,101 @@ OnInit.final("UnitTable", function(Require)
             self.casting = false
         end
 
-        -- dot method get operators
-        local get_operators = {
-            str = function(tbl, key)
-                return GetHeroStr(tbl.unit, false)
-            end,
-            agi = function(tbl, key)
-                return GetHeroAgi(tbl.unit, false)
-            end,
-            int = function(tbl, key)
-                return GetHeroInt(tbl.unit, false)
-            end,
-            hp = function(tbl, key)
-                return tbl.bonus_hp + tbl.base_hp + 25 * (tbl.str + tbl.bonus_str)
-            end,
-            mana = function(tbl, key)
-                return tbl.bonus_mana + tbl.base_mana + 20 * (tbl.int + tbl.bonus_int)
-            end,
-            regen = function(tbl, key)
-                return (tbl.noregen == true and 0) or (tbl.regen_flat + tbl.regen_max * tbl.hp * 0.01) * tbl.regen_percent
-            end,
-            mana_regen = function(tbl, key)
-                return (tbl.nomanaregen == true and 0) or (tbl.mana_regen_flat + GetHeroInt(tbl.unit, true) * 0.05 + tbl.mana_regen_max * tbl.mana * 0.01) * tbl.mana_regen_percent
-            end,
-            bat = function(tbl, key)
-                return tbl.base_bat * tbl.bonus_bat
-            end,
-        }
-
         -- dot method set operators
         local set_operators = {
-            bonus_hp = function(tbl, val)
-                BlzSetUnitMaxHP(tbl.unit, tbl.hp)
-            end,
-            bonus_mana = function(tbl, val)
-                BlzSetUnitMaxMana(tbl.unit, tbl.mana)
-            end,
             str = function(tbl, val)
                 UnitSetBonus(tbl.unit, BONUS_HERO_BASE_STR, val)
-                BlzSetUnitMaxHP(tbl.unit, tbl.hp)
-            end,
-            agi = function(tbl, val)
-                UnitSetBonus(tbl.unit, BONUS_HERO_BASE_AGI, val)
-            end,
-            int = function(tbl, val)
-                UnitSetBonus(tbl.unit, BONUS_HERO_BASE_INT, val)
-                BlzSetUnitMaxMana(tbl.unit, tbl.mana)
-                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, tbl.mana_regen)
+
+                -- recalc HP
+                local hp = tbl.base_hp + tbl.proxy.bonus_hp + 25 * (val + tbl.proxy.bonus_str)
+                BlzSetUnitMaxHP(tbl.unit, hp)
+                rawset(tbl.proxy, "hp", hp)
+
+                -- recalc DAMAGE (uses bonus_damage + damage_percent)
+                local damage = (BlzGetUnitBaseDamage(tbl.unit, 0) + tbl.proxy.bonus_damage) * tbl.proxy.damage_percent
+                UnitSetBonus(tbl.unit, BONUS_DAMAGE, damage - BlzGetUnitBaseDamage(tbl.unit, 0))
+                rawset(tbl.proxy, "damage", damage)
             end,
             bonus_str = function(tbl, val)
                 UnitSetBonus(tbl.unit, BONUS_HERO_STR, val)
-                BlzSetUnitMaxHP(tbl.unit, tbl.hp)
+
+                -- same HP & DAMAGE logic as above
+                local hp = tbl.base_hp + tbl.proxy.bonus_hp + 25 * (tbl.proxy.str + val)
+                BlzSetUnitMaxHP(tbl.unit, hp)
+                rawset(tbl.proxy, "hp", hp)
+
+                local damage = (BlzGetUnitBaseDamage(tbl.unit, 0) + tbl.proxy.bonus_damage) * tbl.proxy.damage_percent
+                UnitSetBonus(tbl.unit, BONUS_DAMAGE, damage - BlzGetUnitBaseDamage(tbl.unit, 0))
+                rawset(tbl.proxy, "damage", damage)
+            end,
+            agi = function(tbl, val)
+                UnitSetBonus(tbl.unit, BONUS_HERO_BASE_AGI, val)
+
+                local damage = (BlzGetUnitBaseDamage(tbl.unit, 0) + tbl.proxy.bonus_damage) * tbl.proxy.damage_percent
+                UnitSetBonus(tbl.unit, BONUS_DAMAGE, damage - BlzGetUnitBaseDamage(tbl.unit, 0))
+                rawset(tbl.proxy, "damage", damage)
             end,
             bonus_agi = function(tbl, val)
                 UnitSetBonus(tbl.unit, BONUS_HERO_AGI, val)
+
+                local damage = (BlzGetUnitBaseDamage(tbl.unit, 0) + tbl.proxy.bonus_damage) * tbl.proxy.damage_percent
+                UnitSetBonus(tbl.unit, BONUS_DAMAGE, damage - BlzGetUnitBaseDamage(tbl.unit, 0))
+                rawset(tbl.proxy, "damage", damage)
+            end,
+            int = function(tbl, val)
+                UnitSetBonus(tbl.unit, BONUS_HERO_BASE_INT, val)
+
+                -- recalc MANA
+                local mana = tbl.base_mana + tbl.proxy.bonus_mana + 20 * (val + tbl.proxy.bonus_int)
+                BlzSetUnitMaxMana(tbl.unit, mana)
+                rawset(tbl.proxy, "mana", mana)
+
+                -- recalc MANA_REGEN
+                local mregen = (tbl.proxy.nomanaregen and 0) or (tbl.proxy.mana_regen_flat + val * 0.05 + tbl.proxy.mana_regen_max * mana * 0.01) * tbl.proxy.mana_regen_percent
+                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, mregen)
+                rawset(tbl.proxy, "mana_regen", mregen)
             end,
             bonus_int = function(tbl, val)
                 UnitSetBonus(tbl.unit, BONUS_HERO_INT, val)
-                BlzSetUnitMaxMana(tbl.unit, tbl.mana)
-                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, tbl.mana_regen)
+
+                -- same MANA & MANA_REGEN logic
+                local mana = tbl.base_mana + tbl.proxy.bonus_mana + 20 * (tbl.proxy.int + val)
+                BlzSetUnitMaxMana(tbl.unit, mana)
+                rawset(tbl.proxy, "mana", mana)
+
+                local mregen = (tbl.proxy.nomanaregen and 0) or (tbl.proxy.mana_regen_flat + tbl.proxy.int * 0.05 + tbl.proxy.mana_regen_max * mana * 0.01) * tbl.proxy.mana_regen_percent
+                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, mregen)
+                rawset(tbl.proxy, "mana_regen", mregen)
+            end,
+            bonus_mana = function(tbl, val)
+                local mana = tbl.base_mana + val + 20 * (tbl.proxy.int + tbl.proxy.bonus_int)
+                BlzSetUnitMaxMana(tbl.unit, mana)
+                rawset(tbl.proxy, "mana", mana)
+            end,
+            base_bat = function(tbl, val)
+                local bat = val * tbl.proxy.bonus_bat
+                BlzSetUnitAttackCooldown(tbl.unit, bat, 0)
+                rawset(tbl.proxy, "bat", bat)
+            end,
+            bonus_bat = function(tbl, val)
+                local bat = tbl.proxy.base_bat * val
+                BlzSetUnitAttackCooldown(tbl.unit, bat, 0)
+                rawset(tbl.proxy, "bat", bat)
+            end,
+            bonus_damage = function(tbl, val)
+                local new_dmg = (BlzGetUnitBaseDamage(tbl.unit, 0) + val) * tbl.proxy.damage_percent
+                UnitSetBonus(tbl.unit, BONUS_DAMAGE, new_dmg - BlzGetUnitBaseDamage(tbl.unit, 0))
+                rawset(tbl.proxy, "damage", new_dmg)
+            end,
+            damage_percent = function(tbl, val)
+                local new_dmg = (BlzGetUnitBaseDamage(tbl.unit, 0) + tbl.proxy.bonus_damage) * val
+                UnitSetBonus(tbl.unit, BONUS_DAMAGE, new_dmg - BlzGetUnitBaseDamage(tbl.unit, 0))
+                rawset(tbl.proxy, "damage", new_dmg)
+            end,
+            bonus_hp = function(tbl, val)
+                local hp = tbl.base_hp + val + 25 * (tbl.proxy.str + tbl.proxy.bonus_str)
+                BlzSetUnitMaxHP(tbl.unit, hp)
+                rawset(tbl.proxy, "hp", hp)
             end,
             x = function(tbl, val)
                 SetUnitXBounded(tbl.unit, val)
@@ -138,35 +212,49 @@ OnInit.final("UnitTable", function(Require)
                 tbl.cd = tbl.proxy.cd_flat * val
             end,
             ms_flat = function(tbl, val)
-                tbl.movespeed = val * tbl.proxy.ms_percent
+                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED.SOFTCAP, math.ceil(val * tbl.proxy.ms_percent))
+                UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, tbl.proxy.movespeed)
             end,
             ms_percent = function(tbl, val)
-                tbl.movespeed = tbl.proxy.ms_flat * val
+                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED.SOFTCAP, math.ceil(tbl.proxy.ms_flat * val))
+                UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, tbl.proxy.movespeed)
             end,
             overmovespeed = function(tbl, val)
-                tbl.movespeed = val or tbl.proxy.ms_flat * tbl.proxy.ms_percent
-            end,
-            movespeed = function(tbl, val)
-                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED.SOFTCAP, math.ceil(val))
+                tbl.proxy.movespeed = val or math.min(MOVESPEED.SOFTCAP, math.ceil(tbl.proxy.ms_flat * tbl.proxy.ms_percent))
                 UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, tbl.proxy.movespeed)
             end,
             regen_flat = function(tbl, val)
-                UnitSetBonus(tbl.unit, BONUS_LIFE_REGEN, tbl.regen)
+                local new_regen = (tbl.proxy.noregen and 0) or ( val + tbl.proxy.regen_max * tbl.proxy.hp * 0.01) * tbl.proxy.regen_percent
+                UnitSetBonus(tbl.unit, BONUS_LIFE_REGEN, new_regen)
+                rawset(tbl.proxy, "regen", new_regen)
             end,
+
             regen_percent = function(tbl, val)
-                UnitSetBonus(tbl.unit, BONUS_LIFE_REGEN, tbl.regen)
+                local new_regen = (tbl.proxy.noregen and 0) or ( tbl.proxy.regen_flat + tbl.proxy.regen_max * tbl.proxy.hp * 0.01) * val
+                UnitSetBonus(tbl.unit, BONUS_LIFE_REGEN, new_regen)
+                rawset(tbl.proxy, "regen", new_regen)
             end,
+
             regen_max = function(tbl, val)
-                UnitSetBonus(tbl.unit, BONUS_LIFE_REGEN, tbl.regen)
+                local new_regen = (tbl.proxy.noregen and 0) or ( tbl.proxy.regen_flat + val * tbl.proxy.hp * 0.01) * tbl.proxy.regen_percent
+                UnitSetBonus(tbl.unit, BONUS_LIFE_REGEN, new_regen)
+                rawset(tbl.proxy, "regen", new_regen)
             end,
             mana_regen_flat = function(tbl, val)
-                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, tbl.mana_regen)
+                local m = (tbl.proxy.nomanaregen and 0) or ( val + tbl.proxy.int * 0.05 + tbl.proxy.mana_regen_max * tbl.proxy.mana * 0.01) * tbl.proxy.mana_regen_percent
+                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, m)
+                rawset(tbl.proxy, "mana_regen", m)
             end,
+
             mana_regen_percent = function(tbl, val)
-                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, tbl.mana_regen)
+                local m = (tbl.proxy.nomanaregen and 0) or ( tbl.proxy.mana_regen_flat + tbl.proxy.int * 0.05 + tbl.proxy.mana_regen_max * tbl.proxy.mana * 0.01) * val
+                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, m)
+                rawset(tbl.proxy, "mana_regen", m)
             end,
             mana_regen_max = function(tbl, val)
-                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, tbl.mana_regen)
+                local m = (tbl.proxy.nomanaregen and 0) or ( tbl.proxy.mana_regen_flat + tbl.proxy.int * 0.05 + val * tbl.proxy.mana * 0.01) * tbl.proxy.mana_regen_percent
+                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, m)
+                rawset(tbl.proxy, "mana_regen", m)
             end,
             attack = function(tbl, val)
                 rawset(tbl, "can_attack", val)
@@ -180,12 +268,6 @@ OnInit.final("UnitTable", function(Require)
 
                 TimerQueue:callDelayed(val, finish_cast, tbl)
             end,
-            base_bat = function(tbl, val)
-                BlzSetUnitAttackCooldown(tbl.unit, tbl.bat, 0)
-            end,
-            bonus_bat = function(tbl, val)
-                BlzSetUnitAttackCooldown(tbl.unit, tbl.bat, 0)
-            end,
             hidehp = function(tbl, val)
                 if GetMainSelectedUnit() == tbl.unit then
                     BlzFrameSetVisible(HIDE_HEALTH_FRAME, val)
@@ -195,20 +277,22 @@ OnInit.final("UnitTable", function(Require)
 
         local mt = {
                 __index = function(tbl, key)
-                    if get_operators[key] then
-                        return get_operators[key](tbl, key)
-                    else
-                        return (rawget(thistype, key) or rawget(tbl.proxy, key))
-                    end
+                    return (rawget(thistype, key) or rawget(tbl.proxy, key))
                 end,
                 __newindex = function(tbl, key, val)
-                    rawset(tbl.proxy, key, val)
                     if set_operators[key] then
+                        if math.type(val) == "float" then
+                            -- round to 3 decimals
+                            val = math.floor(val * 1000 + 0.5) / 1000.
+                        end
+                        rawset(tbl.proxy, key, val)
                         set_operators[key](tbl, val)
-                    end
 
-                    -- trigger stat change event
-                    EVENT_STAT_CHANGE:trigger(tbl.unit)
+                        -- trigger stat change event
+                        EVENT_STAT_CHANGE:trigger(tbl.unit)
+                    else
+                        rawset(tbl, key, val)
+                    end
                 end,
             }
 
@@ -225,8 +309,24 @@ OnInit.final("UnitTable", function(Require)
             self.base_hp = BlzGetUnitMaxHP(u)
             self.base_mana = BlzGetUnitMaxMana(u)
             self.proxy = { -- used for __newindex behavior
+                damage = BlzGetUnitBaseDamage(u, 0),
+                bonus_damage = UnitGetBonus(u, BONUS_DAMAGE),
+                damage_percent = 1.,
+                hp = self.base_hp,
                 bonus_hp = 0,
+                regen_flat = BlzGetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE),
+                regen_percent = 1.,
+                regen_max = 0, -- percent of max health (0-100)
+                regen = BlzGetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE),
+                noregen = false,
+                hidehp = false,
+                mana = self.base_mana,
                 bonus_mana = 0,
+                mana_regen_flat = BlzGetUnitRealField(u, UNIT_RF_MANA_REGENERATION),
+                mana_regen_percent = 1.,
+                mana_regen_max = 0.,
+                mana_regen = BlzGetUnitRealField(u, UNIT_RF_MANA_REGENERATION),
+                nomanaregen = false,
                 evasion = 0,
                 str = GetHeroStr(u, false),
                 agi = GetHeroAgi(u, false),
@@ -246,18 +346,10 @@ OnInit.final("UnitTable", function(Require)
                 cd_percent = 1.,
                 cc = 0.,
                 cd = 1.,
-                regen_flat = BlzGetUnitRealField(u, UNIT_RF_HIT_POINTS_REGENERATION_RATE),
-                regen_percent = 1.,
-                regen_max = 0, -- percent of max health (0-100)
-                noregen = false,
-                hidehp = false,
-                nomanaregen = false,
-                mana_regen_flat = BlzGetUnitRealField(u, UNIT_RF_MANA_REGENERATION),
-                mana_regen_percent = 1.,
-                mana_regen_max = 0.,
                 ms_flat = GetUnitMoveSpeed(u),
                 ms_percent = 1.,
                 movespeed = GetUnitMoveSpeed(u),
+                bat = BlzGetUnitAttackCooldown(u, 0),
                 base_bat = BlzGetUnitAttackCooldown(u, 0),
                 bonus_bat = 1.,
                 x = GetUnitX(u),
@@ -275,19 +367,28 @@ OnInit.final("UnitTable", function(Require)
             return self
         end
 
-        function thistype:taunt(enemy)
+        function Unit:taunt(enemy)
             local boss = IsBoss(enemy.unit)
             enemy.target = self
             self.taunted = self.taunted or CreateGroup()
-            self.aggro_timer = self.aggro_timer or TimerQueue.create()
-            if not boss then -- bosses do not use standard deaggro behavior
+
+            if not boss then
                 GroupAddUnit(self.taunted, enemy.unit)
                 IssueTargetOrder(enemy.unit, "smart", self.unit)
-            else
+            else -- use boss deaggro behavior
                 boss:switch_target(self)
             end
-            self.aggro_timer:reset()
-            self.aggro_timer:callDelayed(3., DropAggro, self)
+
+            if self.aggro_timer then
+                -- the act of taunting retains aggro
+                TimerQueue:disableCallback(self.aggro_timer)
+            end
+
+            if UnitAlive(self.unit) then
+                self.aggro_timer = TimerQueue:callDelayed(3., DropAggro, self)
+            else
+                self.aggro_timer = nil
+            end
         end
 
         function thistype:destroy()
@@ -296,7 +397,7 @@ OnInit.final("UnitTable", function(Require)
             end
 
             if self.aggro_timer then
-                self.aggro_timer:destroy()
+                TimerQueue:disableCallback(self.aggro_timer)
             end
         end
     end
@@ -310,7 +411,7 @@ OnInit.final("UnitTable", function(Require)
 
             while abil do
                 local id = BlzGetAbilityId(abil)
-                if Spells[id] then
+                if Spells[id] and Spells[id].setup then
                     Spells[id]:setup(u)
                 end
 
