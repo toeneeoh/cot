@@ -10,9 +10,9 @@ OnInit.final("Level", function(Require)
     local old_set_level = SetHeroLevel
     SetHeroLevel = function(u, lvl, eye_candy)
         old_set_level(u, lvl, eye_candy)
-        Unit[u].str = Unit[u].str
-        Unit[u].agi = Unit[u].agi
-        Unit[u].int = Unit[u].int
+        Unit[u].str = GetHeroStr(u, false)
+        Unit[u].agi = GetHeroAgi(u, false)
+        Unit[u].int = GetHeroInt(u, false)
         SetWidgetLife(u, BlzGetUnitMaxHP(u))
         SetUnitState(u, UNIT_STATE_MANA, BlzGetUnitMaxMana(u))
     end
@@ -50,7 +50,7 @@ OnInit.final("Level", function(Require)
             SuspendHeroXP(Backpack[pid], true)
 
             -- update restricted items
-            for i = 7, MAX_INVENTORY_SLOTS do
+            for i = BACKPACK_INDEX, MAX_INVENTORY_SLOTS do
                 local itm = Profile[pid].hero.items[i]
 
                 if itm then
@@ -61,15 +61,14 @@ OnInit.final("Level", function(Require)
             end
 
             -- update stats TODO: remove built in stat gain?
-            Unit[u].str = Unit[u].str
-            Unit[u].agi = Unit[u].agi
-            Unit[u].int = Unit[u].int
+            Unit[u].str = GetHeroStr(u, false)
+            Unit[u].agi = GetHeroAgi(u, false)
+            Unit[u].int = GetHeroInt(u, false)
 
             -- trigger stat change event
             EVENT_STAT_CHANGE:trigger(u)
 
             ExperienceControl(pid)
-            UpdateSpellTooltips(pid)
         end
 
         return false
