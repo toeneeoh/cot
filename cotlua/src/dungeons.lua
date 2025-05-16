@@ -95,7 +95,7 @@ OnInit.final("Dungeons", function(Require)
         -- dungeon end ui
         function thistype:endDungeon()
 
-            -- reenable items for players
+            -- reenable items immediately for players
             for i = 1, #self.players do
                 local pid = self.players[i]
                 DisableItems(pid, false)
@@ -143,6 +143,8 @@ OnInit.final("Dungeons", function(Require)
             for i = 1, #QUEUE_GROUP do
                 MoveHero(QUEUE_GROUP[i], self.entrance_x, self.entrance_y)
                 self.players[#self.players + 1] = QUEUE_GROUP[i]
+
+                -- disable items / teleports
                 DisableItems(QUEUE_GROUP[i], true)
                 DisableBackpackTeleports(QUEUE_GROUP[i], true)
 
