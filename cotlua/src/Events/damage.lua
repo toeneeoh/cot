@@ -9,7 +9,6 @@ OnInit.final("Damage", function(Require)
     Require('Variables')
     Require('UnitTable')
     Require('Events')
-    Require('Boss')
 
     ATTACK_CHAOS     = 5 ---@type integer 
     ARMOR_CHAOS      = 6 ---@type integer 
@@ -236,10 +235,9 @@ OnInit.final("Damage", function(Require)
 
         -- attack count based health
         if Unit[target].attackCount > 0 then
-            local count = (IsBoss(source) and 2) or 1
-            Unit[target].attackCount = Unit[target].attackCount - count
+            Unit[target].attackCount = Unit[target].attackCount - 1
             BlzSetEventDamage(0.00)
-            SetWidgetLife(target, GetWidgetLife(target) - count)
+            SetWidgetLife(target, GetWidgetLife(target) - 1)
         end
 
         return false

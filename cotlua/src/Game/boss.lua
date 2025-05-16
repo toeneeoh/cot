@@ -257,6 +257,14 @@ OnInit.final("Boss", function(Require)
             SetUnitYBounded(u, GetLocationY(boss.loc))
         end
 
+        -- bosses deal an additional 1 damage to attack count based units
+        local function on_boss_hit(source, target)
+            if Unit[target].attackCount > 0 then
+                Unit[target].attackCount = Unit[target].attackCount - 1
+                SetWidgetLife(target, GetWidgetLife(target) - 1)
+            end
+        end
+
         ---@type fun(index: integer, loc: location, facing: number, id: integer, name: string, level: integer, crystal: integer, leash: number): unit
         function Boss.create(index, loc, facing, id, name, level, crystal, leash)
             local self = setmetatable({
@@ -292,6 +300,8 @@ OnInit.final("Boss", function(Require)
             EVENT_ON_DEATH:register_unit_action(self.unit, on_boss_death)
 
             EVENT_ON_AGGRO:register_unit_action(self.unit, start_boss_threat)
+
+            EVENT_ON_HIT_FINAL:register_unit_action(self.unit, on_boss_hit)
 
             -- safe zone logic
             EVENT_ON_ENTER_SAFE_AREA:register_unit_action(self.unit, boss_safe_zone)
