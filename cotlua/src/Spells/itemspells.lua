@@ -22,19 +22,10 @@ OnInit.final("ItemSpells", function(Require)
 
         function thistype.onEquip(itm, id, index)
             BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_CHANCE_TO_BASH, 0, itm:getValue(index, 0))
-            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_DURATION_NORMAL, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
-            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_DURATION_HERO, 0, ItemData[itm.id][index * ABILITY_OFFSET + 1])
+            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_DURATION_NORMAL, 0, ItemData[itm.id][index .. "data" .. 1])
+            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_DURATION_HERO, 0, ItemData[itm.id][index .. "data" .. 1])
 
             return true
-        end
-    end
-
-    local HEALING_POTION = Spell.define('HPOT')
-    do
-        local thistype = HEALING_POTION
-
-        function thistype.onEquip(itm, id, index)
-            BlzSetAbilityIntegerLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_ILF_HIT_POINTS_GAINED_IHPG, 0, itm:getValue(index, 0))
         end
     end
 
@@ -215,22 +206,26 @@ OnInit.final("ItemSpells", function(Require)
                     s = "|c0000ff40"
                 end
 
-                local s2 = "|cffff5050Chaotic Quest|r\n|c00ff0000Level Requirement: |r190\n\n|cff0099ffBlood Accumulated:|r (" .. s .. (IMinBJ(2000, itm.blood)) .. "/2000|r)\n\n|cff808080Deal or take damage to fill the heart with blood (Level 170+ enemies).\n|cffff0000WARNING! This item does not save!\n|cff808080Limit: 1|r"
+                local abil_text = "|cff0099ffBlood Accumulated:|r (" .. s .. (IMinBJ(2000, itm.blood)) .. "/2000|r)"
+                local s2 = "|cffff5050Chaotic Quest|r\n|c00ff0000Level Requirement: |r190\n\n" .. abil_text .. "\n\n|cff808080Deal or take damage to fill the heart with blood (Level 170+ enemies).\n|cffff0000WARNING! This item does not save!\n|cff808080Limit: 1|r"
 
                 itm.tooltip = s2
                 itm.alt_tooltip = s2
 
                 BlzSetItemDescription(itm.obj, itm.tooltip)
                 BlzSetItemExtendedTooltip(itm.obj, itm.tooltip)
+                BlzSetItemExtendedTooltip(itm.abilities[ITEM_ABILITY].obj, abil_text)
+
+                INVENTORY.refresh(itm.pid)
             end
         end
 
         local function onHit(source, target)
             if GetUnitLevel(target) >= 170 then
                 local pid = GetPlayerId(GetOwningPlayer(source)) + 1
-                local itm = Item[GetItemFromUnit(Hero[pid], FourCC('I04Q'))]
+                local itm = GetItemFromPlayer(pid, 'I04Q')
 
-                itm.blood = (itm.blood or 0) + 1
+                itm.blood = itm.blood + 1
                 update_tooltip(itm)
             end
         end
@@ -238,9 +233,9 @@ OnInit.final("ItemSpells", function(Require)
         local function onStruck(target, source, amount)
             if amount.value > 0.00 and GetUnitLevel(source) >= 170 then
                 local pid = GetPlayerId(GetOwningPlayer(target)) + 1
-                local itm = Item[GetItemFromUnit(Hero[pid], FourCC('I04Q'))]
+                local itm = GetItemFromPlayer(pid, 'I04Q')
 
-                itm.blood = (itm.blood or 0) + 1
+                itm.blood = itm.blood + 1
                 update_tooltip(itm)
             end
         end
@@ -263,6 +258,8 @@ OnInit.final("ItemSpells", function(Require)
                     EVENT_ON_HIT:register_unit_action(v, onHit)
                 end
             end
+            itm.blood = itm.blood or 0
+            update_tooltip(itm)
         end
     end
 
@@ -271,7 +268,7 @@ OnInit.final("ItemSpells", function(Require)
         local thistype = THANATOS_WINGS
 
         function thistype:onCast()
-            local wings = Item[GetItemFromUnit(self.caster, FourCC('I04E'))]
+            local wings = GetItemFromPlayer(self.pid, 'I04E:-1')
 
             if wings then
                 local max = wings:getValue(ITEM_ABILITY, 0)
@@ -300,7 +297,7 @@ OnInit.final("ItemSpells", function(Require)
         end
     end
 
-    local SHORT_BLINK = Spell.define('A03D', 'A061')
+    local SHORT_BLINK = Spell.define('A03D', 'A061', 'AIbk')
     do
         local thistype = SHORT_BLINK
 
@@ -362,7 +359,7 @@ OnInit.final("ItemSpells", function(Require)
             itm.sfx = AddSpecialEffectTarget(tbl[1].path, itm.holder, tbl[1].attach)
             itm.sfx2 = AddSpecialEffectTarget(tbl[2].path, itm.holder, tbl[2].attach)
 
-            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.obj, id), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
+            BlzSetAbilityRealLevelField(BlzGetUnitAbility(itm.holder, id), ABILITY_RLF_MAXIMUM_RANGE, 0, itm:getValue(index, 0))
 
             return true
         end
@@ -386,26 +383,39 @@ OnInit.final("ItemSpells", function(Require)
     do
         local thistype = INSTILL_FEAR
 
-        function thistype:onCast()
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveHoming3D,
+                CAT_Orient3D,
+            },
+            interactions = {
+                unit = CAT_UnitCollisionCheck3D,
+            },
+            visualZ = 70.,
+            identifier = "missile",
+            collisionRadius = 1.,
+            onlyTarget = true,
+            speed = 1400.,
+            onUnitCollision = CAT_UnitImpact3D,
+            onUnitCallback = function(self, enemy)
+                InstillFearDebuff:add(self.source, enemy):duration(7.)
+            end,
+        }
+        missile_template.__index = missile_template
 
+        function thistype:onCast()
             if HasProficiency(self.pid, PROF_DAGGER) then
-                local missile = Missiles:create(self.x + 50. * Cos(self.angle), self.y + 50. * Sin(self.angle), 70., 0, 0, 70.) ---@type Missiles
-                missile:model("Abilities\\Spells\\NightElf\\shadowstrike\\ShadowStrikeMissile.mdl")
-                missile:scale(1.1)
-                missile:speed(1400)
+                local missile = setmetatable({}, missile_template)
+                missile.x = self.x
+                missile.y = self.y
+                missile.z = GetUnitZ(self.caster)
+                missile.visual = AddSpecialEffect("Abilities\\Spells\\NightElf\\shadowstrike\\ShadowStrikeMissile.mdl", self.x, self.y)
+                BlzSetSpecialEffectScale(missile.visual, 1.1)
                 missile.source = self.caster
                 missile.target = self.target
                 missile.owner = Player(self.pid - 1)
-                missile:vision(400)
 
-                missile.onFinish = function()
-                    -- apply debuff
-                    InstillFearDebuff:add(missile.source, missile.target):duration(7.)
-
-                    return true
-                end
-
-                missile:launch()
+                ALICE_Create(missile)
             else
                 DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 15., "You do not have the proficiency to use this spell!")
             end
@@ -516,7 +526,7 @@ OnInit.final("ItemSpells", function(Require)
         local thistype = EMPYREAN_SONG
 
         local function periodic(itm, holder)
-            if itm and itm.holder == holder then
+            if itm and itm.holder then
                 local ug = CreateGroup()
                 MakeGroupInRange(itm.pid, ug, GetUnitX(holder), GetUnitY(holder), 900. * LBOOST[itm.pid], Condition(FilterAlly))
 
@@ -540,7 +550,7 @@ OnInit.final("ItemSpells", function(Require)
         local thistype = UNHOLY_AURA
 
         local function periodic(itm, holder)
-            if itm and itm.holder == holder then
+            if itm and itm.holder then
                 local ug = CreateGroup()
                 MakeGroupInRange(itm.pid, ug, GetUnitX(holder), GetUnitY(holder), 900. * LBOOST[itm.pid], Condition(FilterAlly))
 
@@ -558,5 +568,58 @@ OnInit.final("ItemSpells", function(Require)
             return true
         end
     end
+
+    local REINCARNATION_NORECHARGE = Spell.define('Anrv')
+    do
+        local thistype = REINCARNATION_NORECHARGE
+        thistype.ACTIVE = false
+
+        function thistype:onCast(itm)
+            local heal = itm:getValue(ITEM_ABILITY, 0) * 0.01
+
+            itm:consumeCharge()
+
+            local dummy = itm.abilities[ITEM_ABILITY].obj
+
+            RevivePlayer(itm.pid, GetUnitX(HeroGrave[itm.pid]), GetUnitY(HeroGrave[itm.pid]), heal, heal)
+            SetItemCharges(dummy, itm.charges)
+            INVENTORY.refresh(itm.pid)
+        end
+
+        function thistype.onEquip(itm, id, index)
+            SetItemCharges(itm.abilities[index].obj, itm.charges)
+            return true
+        end
+    end
+
+    local REINCARNATION_RECHARGE = Spell.define('Arrv')
+    do
+        local thistype = REINCARNATION_RECHARGE
+        thistype.ACTIVE = false
+
+        function thistype:onCast(itm)
+            local heal = itm:getValue(ITEM_ABILITY, 0) * 0.01
+
+            itm.charges = itm.charges - 1
+            local dummy = itm.abilities[ITEM_ABILITY].obj
+
+            RevivePlayer(itm.pid, GetUnitX(HeroGrave[itm.pid]), GetUnitY(HeroGrave[itm.pid]), heal, heal)
+            SetItemCharges(dummy, itm.charges)
+            INVENTORY.refresh(itm.pid)
+        end
+
+        function thistype.onEquip(itm, id, index)
+            SetItemCharges(itm.abilities[index].obj, itm.charges)
+            return true
+        end
+    end
+
+    local DETECTION = Spell.define('Adt1')
+    local ENDURANCE_AURA = Spell.define('A03F')
+    local VAMPIRIC_AURA = Spell.define('A03H')
+    local WAR_DRUM_AURA = Spell.define('AIcd')
+    local CRYSTAL_BALL = Spell.define('AIta')
+    local SEA_WARDS = Spell.define('A0E2')
+    local JEWEL_OF_THE_HORDE = Spell.define('A0D3')
 
 end, Debug and Debug.getLine())
