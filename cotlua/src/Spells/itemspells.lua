@@ -440,7 +440,7 @@ OnInit.final("ItemSpells", function(Require)
                 local pt = TimerList[self.pid]:add()
                 pt.source = self.caster
                 pt.dmg = 40 * GetHeroInt(self.caster, true) * BOOST[self.pid]
-                pt.angle = bj_RADTODEG * Atan2(self.targetY - self.y, self.targetX - self.x)
+                pt.angle = bj_RADTODEG * math.atan(self.targetY - self.y, self.targetX - self.x)
                 pt.time = 4
 
                 pt.timer:callDelayed(0., ASTRAL_FREEZE.periodic, pt)
@@ -461,15 +461,15 @@ OnInit.final("ItemSpells", function(Require)
 
             for i = 1, 12 do
                 if i < 7 then
-                    x = self.x + 200 * Cos(60.00 * i * bj_DEGTORAD)
-                    y = self.y + 200 * Sin(60.00 * i * bj_DEGTORAD)
+                    x = self.x + 200 * math.cos(60.00 * i * bj_DEGTORAD)
+                    y = self.y + 200 * math.sin(60.00 * i * bj_DEGTORAD)
                     DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", x, y))
                 end
-                x = self.x + 400 * Cos(60.00 * i * bj_DEGTORAD)
-                y = self.y + 400 * Sin(60.00 * i * bj_DEGTORAD)
+                x = self.x + 400 * math.cos(60.00 * i * bj_DEGTORAD)
+                y = self.y + 400 * math.sin(60.00 * i * bj_DEGTORAD)
                 DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", x, y))
-                x = self.x + 600 * Cos(60.00 * i * bj_DEGTORAD)
-                y = self.y + 600 * Sin(60.00 * i * bj_DEGTORAD)
+                x = self.x + 600 * math.cos(60.00 * i * bj_DEGTORAD)
+                y = self.y + 600 * math.sin(60.00 * i * bj_DEGTORAD)
                 DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", x, y))
             end
 
