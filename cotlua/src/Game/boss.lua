@@ -293,7 +293,6 @@ OnInit.final("Boss", function(Require)
 
             SetHeroLevel(self.unit, level, false)
             SetUnitCreepGuard(self.unit, true)
-            SetWidgetLife(self.unit, Unit[self.unit].hp)
 
             -- boss spell casting
             EVENT_ON_STRUCK_FINAL:register_unit_action(self.unit, BossAI)
@@ -566,7 +565,6 @@ OnInit.final("Boss", function(Require)
                 Buff.dispelAll(self.unit)
                 Unit[self.unit].mm = 2.
             end
-            SetWidgetLife(self.unit, BlzGetUnitMaxHP(self.unit))
             DisplayTimedTextToForce(FORCE_PLAYING, 20, "|cffffcc00" .. self.name .. " has revived.|r")
 
             -- reset multiboard data
@@ -744,8 +742,8 @@ OnInit.final("Boss", function(Require)
             local rand = GetRandomInt(0, 359)
 
             repeat
-                x2 = x + (700 - j) * Cos(bj_DEGTORAD * rand)
-                y2 = y + (700 - j) * Sin(bj_DEGTORAD * rand)
+                x2 = x + (700 - j) * math.cos(bj_DEGTORAD * rand)
+                y2 = y + (700 - j) * math.sin(bj_DEGTORAD * rand)
 
                 rand = GetRandomInt(0, 359)
                 count = count + 1
@@ -759,17 +757,17 @@ OnInit.final("Boss", function(Require)
             SetUnitYBounded(Boss[BOSS_LEGION].unit, y2)
             SetUnitPathing(Boss[BOSS_LEGION].unit, false)
             SetUnitPathing(Boss[BOSS_LEGION].unit, true)
-            BlzSetUnitFacingEx(Boss[BOSS_LEGION].unit, bj_RADTODEG * Atan2(y2 - y, x2 - x))
+            BlzSetUnitFacingEx(Boss[BOSS_LEGION].unit, bj_RADTODEG * math.atan(y2 - y, x2 - x))
             IssuePointOrder(Boss[BOSS_LEGION].unit, "attack", x, y)
 
             for i = 1, #illusions do
                 local target = illusions[i]
-                x2 = x + (700 - j) * Cos(bj_DEGTORAD * (rand + i * 45))
-                y2 = y + (700 - j) * Sin(bj_DEGTORAD * (rand + i * 45))
+                x2 = x + (700 - j) * math.cos(bj_DEGTORAD * (rand + i * 45))
+                y2 = y + (700 - j) * math.sin(bj_DEGTORAD * (rand + i * 45))
 
                 SetUnitXBounded(target, x2)
                 SetUnitYBounded(target, y2)
-                BlzSetUnitFacingEx(target, bj_RADTODEG * Atan2(y2 - y, x2 - x))
+                BlzSetUnitFacingEx(target, bj_RADTODEG * math.atan(y2 - y, x2 - x))
                 IssuePointOrder(target, "attack", x, y)
             end
         end
