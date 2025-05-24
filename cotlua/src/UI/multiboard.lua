@@ -399,7 +399,7 @@ OnInit.final("Multiboard", function(Require)
 
                     -- main
                     local nameText = (IS_DONATOR[pid] and u.nameColored .. "|r|cffffcc00*|r") or u.nameColored
-                    local hcIcon = (playing and profile.hero.hardcore > 0 and "ReplaceableTextures\\CommandButtons\\BTNBirial.blp") or "trans32.blp"
+                    local hcIcon = (playing and profile.hero.hardcore > 0 and "ReplaceableTextures\\CommandButtons\\BTNHardcore.blp") or "trans32.blp"
                     local heroIcon = (playing and BlzGetAbilityIcon(HeroID[pid])) or "trans32.blp"
                     local hp = (playing and GetWidgetLife(Hero[pid]) / BlzGetUnitMaxHP(Hero[pid]) * 100.) or 0
                     local heroText = (playing and GetObjectName(HeroID[pid])) or ""
