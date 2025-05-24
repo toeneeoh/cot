@@ -5,7 +5,8 @@
 ]]
 
 OnInit.final("HeroSpells", function(Require)
-    Require("Spells")
+    Require('Spells')
+    Require('Orders')
 
     DMG_NUMBERS         = __jarray(0) ---@type integer[] 
     ResurrectionRevival = __jarray(0) ---@type integer[] 
@@ -13,6 +14,7 @@ OnInit.final("HeroSpells", function(Require)
     lastCast            = __jarray(0) ---@type integer[] 
 
     local FPS_32 = FPS_32
+    local atan = math.atan
 
     -- TODO: Does a CAT exist for this?
     local function distance(missile, _)
@@ -109,8 +111,8 @@ OnInit.final("HeroSpells", function(Require)
             missile.x = self.x
             missile.y = self.y
             missile.dist = 1000
-            missile.vx = missile.speed * Cos(self.angle)
-            missile.vy = missile.speed * Sin(self.angle)
+            missile.vx = missile.speed * math.cos(self.angle)
+            missile.vy = missile.speed * math.sin(self.angle)
             missile.damage = self.dmg * BOOST[self.pid]
             missile.visual = AddSpecialEffect("war3mapImported\\Valiant Charge Holy.mdl", self.x, self.y)
             BlzSetSpecialEffectScale(missile.visual, 1.1)
@@ -175,7 +177,7 @@ OnInit.final("HeroSpells", function(Require)
         }
         thistype.count = __jarray(0)
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
             thistype.count[pid] = thistype.count[pid] + 1
@@ -214,8 +216,33 @@ OnInit.final("HeroSpells", function(Require)
             end
         end
 
+        local function on_attack(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+
+            if GetUnitAbilityLevel(source, thistype.id) > 0 and thistype.count[pid] == 9 then
+                local targetX = GetUnitX(target)
+                local targetY = GetUnitY(target)
+                local pt = TimerList[pid]:get(LIGHTSEAL.id, source)
+                local sfx
+
+                if pt then
+                    sfx = AddSpecialEffect("war3mapImported\\Judgement NoHive.mdx", pt.x, pt.y)
+                    BlzSetSpecialEffectScale(sfx, 1.8)
+                else
+                    sfx = AddSpecialEffect("war3mapImported\\Judgement NoHive.mdx", targetX, targetY)
+                    BlzSetSpecialEffectScale(sfx, 0.8)
+                end
+
+                thistype.count[pid] = 10
+                BlzSetSpecialEffectTimeScale(sfx, 1.5)
+                BlzSetSpecialEffectTime(sfx, 0.7)
+                TimerQueue:callDelayed(1.5, DestroyEffect, sfx)
+            end
+        end
+
         function thistype.onLearn(source, ablev, pid)
-            EVENT_ON_HIT:register_unit_action(source, onHit)
+            EVENT_ON_HIT:register_unit_action(source, on_hit)
+            EVENT_ON_ATTACK:register_unit_action(source, on_attack)
         end
 
     end
@@ -280,7 +307,7 @@ OnInit.final("HeroSpells", function(Require)
             local ug = CreateGroup()
             local angle = 0. ---@type number 
 
-            b.dmg = 20 + 20 * self.ablev
+            b.dmg = 0.2 + 0.2 * self.ablev
             b.armor = self.armor
             b = b:check(self.caster, self.caster)
             b:duration(self.dur * LBOOST[self.pid])
@@ -297,7 +324,7 @@ OnInit.final("HeroSpells", function(Require)
 
             for i = 1, 24 do
                 angle = 2 * bj_PI * i / 24.
-                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", self.x + 500 * Cos(angle), self.y + 500 * Sin(angle)))
+                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectCaster.mdl", self.x + 500 * math.cos(angle), self.y + 500 * math.sin(angle)))
             end
 
             MakeGroupInRange(self.pid, ug, self.x, self.y, 500 * LBOOST[self.pid], Condition(FilterEnemy))
@@ -433,8 +460,8 @@ OnInit.final("HeroSpells", function(Require)
                 missile.x = self.x
                 missile.y = self.y
                 missile.z = GetUnitZ(self.caster) + 80.
-                missile.vx = missile.speed * Cos(angle)
-                missile.vy = missile.speed * Sin(angle)
+                missile.vx = missile.speed * math.cos(angle)
+                missile.vy = missile.speed * math.sin(angle)
                 missile.vz = 180
                 missile.damage = self.dmg * BOOST[self.pid]
                 missile.visual = AddSpecialEffect("Abilities\\Weapons\\GyroCopter\\GyroCopterMissile.mdl", self.x, self.y)
@@ -443,7 +470,7 @@ OnInit.final("HeroSpells", function(Require)
                 ALICE_Create(missile)
             end
 
-            CAT_Knockback(self.caster, 500 * Cos(self.angle + bj_PI), 500 * Sin(self.angle + bj_PI), 0)
+            CAT_Knockback(self.caster, 500 * math.cos(self.angle + bj_PI), 500 * math.sin(self.angle + bj_PI), 0)
             CAT_UnitEnableFriction(self.caster, true)
             TimerQueue:callDelayed(1., CAT_UnitEnableFriction, self.caster, false)
         end
@@ -546,8 +573,8 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         local function attack(pt)
-            local x = GetUnitX(Hero[pt.pid]) + 60. * Cos(bj_DEGTORAD * (pt.angle + GetUnitFacing(Hero[pt.pid])))
-            local y = GetUnitY(Hero[pt.pid]) + 60. * Sin(bj_DEGTORAD * (pt.angle + GetUnitFacing(Hero[pt.pid])))
+            local x = GetUnitX(Hero[pt.pid]) + 60. * math.cos(bj_DEGTORAD * (pt.angle + GetUnitFacing(Hero[pt.pid])))
+            local y = GetUnitY(Hero[pt.pid]) + 60. * math.sin(bj_DEGTORAD * (pt.angle + GetUnitFacing(Hero[pt.pid])))
 
             -- leash
             if UnitDistance(Hero[pt.pid], pt.source) > 700. then
@@ -562,7 +589,7 @@ OnInit.final("HeroSpells", function(Require)
             -- prioritize facing target hero is attacking
             local target = Unit[Hero[pt.pid]].target
             if target and UnitAlive(target) then
-                SetUnitFacing(pt.source, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(pt.source), GetUnitX(target) - GetUnitX(pt.source)))
+                SetUnitFacing(pt.source, bj_RADTODEG * atan(GetUnitY(target) - GetUnitY(pt.source), GetUnitX(target) - GetUnitX(pt.source)))
             end
 
             -- acquire helicopter targets near hero
@@ -586,7 +613,7 @@ OnInit.final("HeroSpells", function(Require)
         function thistype:onCast()
             local pt = TimerList[self.pid]:add()
             local tag = CreateTextTag()
-            pt.source = CreateUnit(Player(self.pid - 1), type[self.ablev], self.x + 75. * Cos(self.angle), self.y + 75. * Sin(self.angle), bj_RADTODEG * self.angle)
+            pt.source = CreateUnit(Player(self.pid - 1), type[self.ablev], self.x + 75. * math.cos(self.angle), self.y + 75. * math.sin(self.angle), bj_RADTODEG * self.angle)
             SoundHandler("Units\\Human\\Gyrocopter\\GyrocopterWhat" .. (GetRandomInt(1,5)) .. ".flac", true, nil, pt.source)
             SetUnitFlyHeight(pt.source, 1100., 0.)
             SetUnitFlyHeight(pt.source, 300., 500.)
@@ -605,7 +632,7 @@ OnInit.final("HeroSpells", function(Require)
             pt.timer:callDelayed(self.dur * LBOOST[self.pid], PlayerTimer.destroy, pt)
             pt.onRemove = function()
                 SoundHandler("Units\\Human\\Gyrocopter\\GyrocopterPissed6.flac", true, nil, pt.source)
-                IssuePointOrder(pt.source, "move", GetUnitX(Hero[pt.pid]) + 1000. * Cos(bj_DEGTORAD * GetUnitFacing(Hero[pt.pid])), GetUnitY(Hero[pt.pid]) + 1000. * Sin(bj_DEGTORAD * GetUnitFacing(Hero[pt.pid])))
+                IssuePointOrder(pt.source, "move", GetUnitX(Hero[pt.pid]) + 1000. * math.cos(bj_DEGTORAD * GetUnitFacing(Hero[pt.pid])), GetUnitY(Hero[pt.pid]) + 1000. * math.sin(bj_DEGTORAD * GetUnitFacing(Hero[pt.pid])))
                 TimerQueue:callDelayed(2., RemoveUnit, pt.source)
                 Fade(pt.source, 2., true)
                 DestroyTextTag(tag)
@@ -625,13 +652,13 @@ OnInit.final("HeroSpells", function(Require)
         }
 
         function thistype:onCast()
-            self.x = self.x + 80. * Cos(GetUnitFacing(self.caster) * bj_DEGTORAD)
-            self.y = self.y + 80. * Sin(GetUnitFacing(self.caster) * bj_DEGTORAD)
-            self.angle = Atan2(GetMouseY(self.pid) - self.y, GetMouseX(self.pid) - self.x) * bj_RADTODEG
+            self.x = self.x + 80. * math.cos(GetUnitFacing(self.caster) * bj_DEGTORAD)
+            self.y = self.y + 80. * math.sin(GetUnitFacing(self.caster) * bj_DEGTORAD)
+            self.angle = atan(GetMouseY(self.pid) - self.y, GetMouseX(self.pid) - self.x) * bj_RADTODEG
             local newangle = (180. - RAbsBJ(RAbsBJ(self.angle - GetUnitFacing(self.caster)) - 180.)) * 0.5
             self.angle = bj_DEGTORAD * (self.angle + GetRandomReal(-(newangle), newangle))
 
-            Dummy.create(self.x, self.y, FourCC('A05J'), 1, 1.):lightning(self.x + 1500. * Cos(self.angle), self.y + 1500. * Sin(self.angle))
+            Dummy.create(self.x, self.y, FourCC('A05J'), 1, 1.):lightning(self.x + 1500. * math.cos(self.angle), self.y + 1500. * math.sin(self.angle))
             SoundHandler("war3mapImported\\xm1014-3.wav", false, Player(self.pid - 1))
 
             local ug = CreateGroup()
@@ -646,8 +673,8 @@ OnInit.final("HeroSpells", function(Require)
                     SingleShotDebuff:add(self.caster, target):duration(3.)
                 end
 
-                self.x = self.x + 50 * Cos(self.angle)
-                self.y = self.y + 50 * Sin(self.angle)
+                self.x = self.x + 50 * math.cos(self.angle)
+                self.y = self.y + 50 * math.sin(self.angle)
             end
 
             DestroyGroup(ug)
@@ -819,7 +846,7 @@ OnInit.final("HeroSpells", function(Require)
             end
         end
 
-        local function onHit(source, target, amount)
+        local function on_hit(source, target, amount)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             local ug = CreateGroup()
 
@@ -836,7 +863,7 @@ OnInit.final("HeroSpells", function(Require)
         function thistype:onCast()
             local turret = CreateUnit(Player(self.pid - 1), FourCC("o003"), self.targetX, self.targetY, GetUnitFacing(self.caster))
             UnitApplyTimedLife(turret, FourCC('Bhwd'), self.dur * LBOOST[self.pid])
-            EVENT_ON_HIT_MULTIPLIER:register_unit_action(turret, onHit)
+            EVENT_ON_HIT_MULTIPLIER:register_unit_action(turret, on_hit)
             Unit[turret].attackCount = 8
             SoundHandler("Units\\Creeps\\HeroTinkerRobot\\ClockwerkGoblinReady1.flac", true, nil, turret)
             DestroyEffect(AddSpecialEffect("UI\\Feedback\\TargetPreSelected\\TargetPreSelected.mdl", self.targetX, self.targetY))
@@ -891,9 +918,16 @@ OnInit.final("HeroSpells", function(Require)
             BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.02))
         end
 
+        local function on_order(source, target, id)
+            if id == ORDER_ID_UNIMMOLATION and IsUnitPaused(source) == false and IsUnitLoaded(source) == false then
+                OverloadBuff:dispel(source, source)
+            end
+        end
+
         function thistype.onLearn(source, ablev, pid)
             OverloadBuff:refresh(source, source)
             EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+            EVENT_ON_ORDER:register_unit_action(source, on_order)
         end
     end
 
@@ -977,8 +1011,8 @@ OnInit.final("HeroSpells", function(Require)
             local missile = setmetatable({}, missile_template)
             missile.x = self.x
             missile.y = self.y
-            missile.vx = missile.speed * Cos(self.angle)
-            missile.vy = missile.speed * Sin(self.angle)
+            missile.vx = missile.speed * math.cos(self.angle)
+            missile.vy = missile.speed * math.sin(self.angle)
             missile.visual = AddSpecialEffect("war3mapImported\\blue electric orb.mdl", self.x, self.y)
             BlzSetSpecialEffectScale(missile.visual, 1.)
             missile.source = self.caster
@@ -1059,7 +1093,7 @@ OnInit.final("HeroSpells", function(Require)
             dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroAgi(Hero[pid],true) * (ablev + 2.) end,
         }
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
             DamageTarget(source, target, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
@@ -1077,7 +1111,7 @@ OnInit.final("HeroSpells", function(Require)
                 if math.random() * 100 < thistype.chance * LBOOST[pt.pid] and BlzGroupGetSize(ug) > 0 then
                     local enemy = BlzGroupUnitAt(ug, GetRandomInt(0, BlzGroupGetSize(ug) - 1))
                     local dummy = Dummy.create(GetUnitX(Hero[pt.pid]), GetUnitY(Hero[pt.pid]), FourCC('A01Y'), 1, 2.)
-                    dummy:attack(enemy, Hero[pt.pid], onHit)
+                    dummy:attack(enemy, Hero[pt.pid], on_hit)
                 end
 
                 for target in each(ug) do
@@ -1133,8 +1167,8 @@ OnInit.final("HeroSpells", function(Require)
 
                 if target then
                     SetUnitAnimation(pt.source, "Attack Slam")
-                    SetUnitXBounded(pt.source, GetUnitX(target) + 60. * Cos(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
-                    SetUnitYBounded(pt.source, GetUnitY(target) + 60. * Sin(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
+                    SetUnitXBounded(pt.source, GetUnitX(target) + 60. * math.cos(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
+                    SetUnitYBounded(pt.source, GetUnitY(target) + 60. * math.sin(bj_DEGTORAD * (GetUnitFacing(target) - 180.)))
                     BlzSetUnitFacingEx(pt.source, GetUnitFacing(target))
                     DamageTarget(pt.source, target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                     DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", Hero[pt.pid], "chest"))
@@ -1167,8 +1201,8 @@ OnInit.final("HeroSpells", function(Require)
 
             SetUnitTimeScale(self.caster, 2.5)
             SetUnitVertexColorBJ(self.caster, 100, 100, 100, 50.00)
-            SetUnitXBounded(self.caster, GetUnitX(self.target) + 60. * Cos(bj_DEGTORAD * (GetUnitFacing(self.target) - 180.)))
-            SetUnitYBounded(self.caster, GetUnitY(self.target) + 60. * Sin(bj_DEGTORAD * (GetUnitFacing(self.target) - 180.)))
+            SetUnitXBounded(self.caster, GetUnitX(self.target) + 60. * math.cos(bj_DEGTORAD * (GetUnitFacing(self.target) - 180.)))
+            SetUnitYBounded(self.caster, GetUnitY(self.target) + 60. * math.sin(bj_DEGTORAD * (GetUnitFacing(self.target) - 180.)))
             BlzSetUnitFacingEx(self.caster, GetUnitFacing(self.target))
             DamageTarget(self.caster, self.target, self.dmg * BOOST[self.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", self.caster, "chest"))
@@ -1209,8 +1243,8 @@ OnInit.final("HeroSpells", function(Require)
                 repeat
                     MakeGroupInRange(pt.pid, ug, x, y, 125., Condition(FilterEnemy))
 
-                    x = x + 50. * Cos(pt.angle)
-                    y = y + 50. * Sin(pt.angle)
+                    x = x + 50. * math.cos(pt.angle)
+                    y = y + 50. * math.sin(pt.angle)
 
                     dist = dist + 50.
                     if ModuloReal(dist, 750.) == 0. then
@@ -1266,7 +1300,7 @@ OnInit.final("HeroSpells", function(Require)
 
             pt.angle = self.angle
             pt.source = self.caster
-            pt.target = Dummy.create(self.x + 65. * Cos(pt.angle), self.y + 65. * Sin(pt.angle), 0, 0).unit
+            pt.target = Dummy.create(self.x + 65. * math.cos(pt.angle), self.y + 65. * math.sin(pt.angle), 0, 0).unit
             pt.dur = 4.
 
             BlzSetUnitSkin(pt.target, FourCC('h072'))
@@ -1325,8 +1359,8 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype:onCast()
-            local x = GetUnitX(self.target) - 60 * Cos(GetUnitFacing(self.target) * bj_DEGTORAD) ---@type number 
-            local y = GetUnitY(self.target) - 60 * Sin(GetUnitFacing(self.target) * bj_DEGTORAD) ---@type number 
+            local x = GetUnitX(self.target) - 60 * math.cos(GetUnitFacing(self.target) * bj_DEGTORAD) ---@type number 
+            local y = GetUnitY(self.target) - 60 * math.sin(GetUnitFacing(self.target) * bj_DEGTORAD) ---@type number 
 
             AddUnitAnimationProperties(self.caster, "alternate", false)
 
@@ -1339,7 +1373,7 @@ OnInit.final("HeroSpells", function(Require)
                 SetUnitXBounded(self.caster, x)
                 SetUnitYBounded(self.caster, y)
                 SetUnitPathing(self.caster, true)
-                BlzSetUnitFacingEx(self.caster, Atan2(GetUnitY(self.target) - y, GetUnitX(self.target) - x))
+                BlzSetUnitFacingEx(self.caster, atan(GetUnitY(self.target) - y, GetUnitX(self.target) - x))
             end
 
             DestroyEffect(AddSpecialEffectTarget("war3mapImported\\Coup de Grace.mdx", self.target, "origin"))
@@ -1464,9 +1498,9 @@ OnInit.final("HeroSpells", function(Require)
             dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (GetHeroAgi(Hero[pid], true) * 0.16 + (Unit[Hero[pid]].damage) * .03) * ablev end,
         }
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
-            local angle = Atan2(GetUnitY(source) - GetUnitY(target), GetUnitX(source) - GetUnitX(target)) - (bj_DEGTORAD * (GetUnitFacing(target) - 180))
+            local angle = atan(GetUnitY(source) - GetUnitY(target), GetUnitX(source) - GetUnitX(target)) - (bj_DEGTORAD * (GetUnitFacing(target) - 180))
 
             if angle > bj_PI then
                 angle = angle - 2 * bj_PI
@@ -1482,7 +1516,7 @@ OnInit.final("HeroSpells", function(Require)
 
         function thistype.onLearn(source, ablev, pid)
             if ablev == 1 then
-                EVENT_ON_HIT:register_unit_action(source, onHit)
+                EVENT_ON_HIT:register_unit_action(source, on_hit)
             end
         end
     end
@@ -1494,15 +1528,15 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = PIERCINGSTRIKE
         thistype.pen = function(pid) return (30 + GetUnitAbilityLevel(Hero[pid], PIERCINGSTRIKE.id)) end
 
-        function thistype.onLearn(source, ablev, pid)
-            EVENT_ON_HIT:register_unit_action(source, thistype.onHit)
-        end
-
-        function thistype.onHit(source)
-            if GetRandomInt(0, 99) < 20 then
+        local function on_hit(source)
+            if math.random(0, 99) < 20 then
                 PiercingStrikeBuff:add(source, source):duration(3.)
                 SetUnitAnimation(source, "spell slam")
             end
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_HIT:register_unit_action(source, on_hit)
         end
     end
 
@@ -1542,7 +1576,7 @@ OnInit.final("HeroSpells", function(Require)
             end
         end
 
-        local function onHit(target, source, amount, amount_after_red, damage_type)
+        local function on_hit(target, source, amount, amount_after_red, damage_type)
             local ablev = GetUnitAbilityLevel(target, BODYOFFIRE.id)
             if ablev > 0 and damage_type == PHYSICAL and IsUnitEnemy(target, GetOwningPlayer(source)) then
                 local tpid = GetPlayerId(GetOwningPlayer(target)) + 1
@@ -1559,7 +1593,7 @@ OnInit.final("HeroSpells", function(Require)
                 BlzSetAbilityIcon(thistype.id, "ReplaceableTextures\\CommandButtons\\BTNBodyOfFire" .. (thistype.charges[pid]) .. ".blp")
             end
 
-            EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(u, onHit)
+            EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(u, on_hit)
         end
     end
 
@@ -1635,8 +1669,15 @@ OnInit.final("HeroSpells", function(Require)
             MagneticStanceBuff:add(self.caster, self.caster)
         end
 
+        local function on_order(source, target, id)
+            if id == ORDER_ID_UNIMMOLATION and IsUnitPaused(source) == false and IsUnitLoaded(source) == false then
+                MagneticStanceBuff:dispel(source, source)
+            end
+        end
+
         function thistype.onLearn(source, ablev, pid)
             MagneticStanceBuff:refresh(source, source)
+            EVENT_ON_ORDER:register_unit_action(source, on_order)
         end
     end
 
@@ -1726,7 +1767,38 @@ OnInit.final("HeroSpells", function(Require)
     MULTISHOT = Spell.define("A05R")
     do
         local thistype = MULTISHOT
-        thistype.enabled = __jarray(false)
+        thistype.enabled = setmetatable({}, {__mode = 'k'}) -- weak keys for units
+
+        local function on_order(source, target, id)
+            local p = GetOwningPlayer(source)
+
+            if id == ORDER_ID_IMMOLATION then
+                if not thistype.enabled[source] then
+                    SetPlayerAbilityAvailable(p, prMulti[IMinBJ(5, GetHeroLevel(source) // 50)], true)
+                    thistype.enabled[source] = true
+                    Unit[source].pm = Unit[source].pm * 0.6
+                end
+            elseif id == ORDER_ID_UNIMMOLATION then
+                if thistype.enabled[source] then
+                    for i = 0, 5 do
+                        SetPlayerAbilityAvailable(p, prMulti[i], false)
+                    end
+                    thistype.enabled[source] = false
+                    Unit[source].pm = Unit[source].pm / 0.6
+                end
+            end
+        end
+
+        local function on_revive(u)
+            if MULTISHOT.enabled[u] then
+                IssueImmediateOrder(u, "immolation")
+            end
+        end
+
+        function thistype:setup(u)
+            EVENT_ON_ORDER:register_unit_action(u, on_order)
+            EVENT_ON_REVIVE:register_unit_action(u, on_revive)
+        end
     end
 
     ---@class REINCARNATION : Spell
@@ -1767,11 +1839,11 @@ OnInit.final("HeroSpells", function(Require)
         thistype.preCast = function(pid, tpid, caster, target, x, y, targetX, targetY)
             local r = GetRectFromCoords(x, y)
             local r2 = GetRectFromCoords(targetX, targetY)
-            local angle = Atan2(targetY - y, targetX - x)
+            local angle = atan(targetY - y, targetX - x)
             local range = math.min(thistype.values.range(pid) * LBOOST[pid], math.max(17., DistanceCoords(x, y, targetX, targetY)))
 
-            targetX = x + range * Cos(angle)
-            targetY = y + range * Sin(angle)
+            targetX = x + range * math.cos(angle)
+            targetY = y + range * math.sin(angle)
 
             if not IsTerrainWalkable(targetX, targetY) or r2 ~= r then
                 IssueImmediateOrderById(caster, ORDER_ID_STOP)
@@ -1822,8 +1894,8 @@ OnInit.final("HeroSpells", function(Require)
             local missile = setmetatable({}, missile_template)
             missile.x = self.x
             missile.y = self.y
-            missile.vx = missile.speed * Cos(self.angle)
-            missile.vy = missile.speed * Sin(self.angle)
+            missile.vx = missile.speed * math.cos(self.angle)
+            missile.vy = missile.speed * math.sin(self.angle)
             missile.visual = AddSpecialEffect("units\\human\\phoenix\\phoenix.mdl", self.x, self.y)
             BlzSetSpecialEffectScale(missile.visual, 1.5)
             missile.source = self.caster
@@ -1851,7 +1923,7 @@ OnInit.final("HeroSpells", function(Require)
             dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroAgi(Hero[pid], true) * ablev + Unit[Hero[pid]].damage * 0.3 end,
         }
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             local ablev = GetUnitAbilityLevel(source, thistype.id)
 
@@ -1868,7 +1940,7 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype.onLearn(source, ablev, pid)
-            EVENT_ON_HIT:register_unit_action(source, onHit)
+            EVENT_ON_HIT:register_unit_action(source, on_hit)
         end
 
     end
@@ -2029,8 +2101,8 @@ OnInit.final("HeroSpells", function(Require)
                 local y = GetUnitY(pt.target)
                 local accel = pt.dur / pt.dist
                 --movement
-                SetUnitXBounded(pt.target, x + (pt.speed / (1 + accel)) * Cos(pt.angle))
-                SetUnitYBounded(pt.target, y + (pt.speed / (1 + accel)) * Sin(pt.angle))
+                SetUnitXBounded(pt.target, x + (pt.speed / (1 + accel)) * math.cos(pt.angle))
+                SetUnitYBounded(pt.target, y + (pt.speed / (1 + accel)) * math.sin(pt.angle))
                 pt.dur = pt.dur - (pt.speed / (1 + accel))
 
                 if pt.dur <= pt.dist - 120 and pt.dur >= pt.dist - 160 then -- sick animation
@@ -2076,8 +2148,8 @@ OnInit.final("HeroSpells", function(Require)
             --minimum distance
             local dur = math.max(DistanceCoords(self.x, self.y, self.targetX, self.targetY), 400.) ---@type number 
 
-            self.x = self.x + dur * Cos(self.angle)
-            self.y = self.y + dur * Sin(self.angle)
+            self.x = self.x + dur * math.cos(self.angle)
+            self.y = self.y + dur * math.sin(self.angle)
 
             pt.angle = self.angle
             pt.dur = dur
@@ -2140,7 +2212,7 @@ OnInit.final("HeroSpells", function(Require)
             dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.45 + 0.05 * ablev) * (Unit[Hero[pid]].damage) end,
         }
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             local chance = BLOODCLEAVE.chance
             local double = 1
@@ -2176,7 +2248,7 @@ OnInit.final("HeroSpells", function(Require)
 
         function thistype.onLearn(source, ablev, pid)
             if ablev == 1 then
-                EVENT_ON_HIT:register_unit_action(source, onHit)
+                EVENT_ON_HIT:register_unit_action(source, on_hit)
             end
         end
     end
@@ -2188,8 +2260,20 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = RAMPAGE
         thistype.pen = function(pid) return (5 * GetUnitAbilityLevel(Hero[pid], RAMPAGE.id)) end
 
+        local function on_order(source, target, id)
+            if id == ORDER_ID_UNIMMOLATION then
+                if IsUnitPaused(source) == false and IsUnitLoaded(source) == false then
+                    RampageBuff:dispel(source, source)
+                end
+            end
+        end
+
         function thistype:onCast()
             RampageBuff:add(self.caster, self.caster)
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_ORDER:register_unit_action(source, on_order)
         end
     end
 
@@ -2209,6 +2293,16 @@ OnInit.final("HeroSpells", function(Require)
             attack = __jarray(0),
         }
         thistype.timer = {}
+
+        function thistype.onHit(target, source, amount, amount_after_red, damage_type)
+            --undying rage delayed damage
+            buff = UndyingRageBuff:get(nil, target)
+
+            if buff then
+                amount.value = 0.
+                buff:addRegen(-amount_after_red)
+            end
+        end
 
         local function regen(pid)
             local hp = GetWidgetLife(Hero[pid])
@@ -2253,16 +2347,6 @@ OnInit.final("HeroSpells", function(Require)
                 refresh(pid, 0)
             end
         end
-
-        function thistype.onHit(target, source, amount, amount_after_red, damage_type)
-            --undying rage delayed damage
-            buff = UndyingRageBuff:get(nil, target)
-
-            if buff then
-                amount.value = 0.
-                buff:addRegen(-amount_after_red)
-            end
-        end
     end
 
     --warrior
@@ -2274,8 +2358,39 @@ OnInit.final("HeroSpells", function(Require)
         local thistype = PARRY
 
         thistype.values = {
-            dmg = function(pid) return 1. * (Unit[Hero[pid]].damage) end,
+            dmg = function(pid, u) return 1. * (Unit[u].damage) end,
         }
+
+        local function on_order(source, target, id)
+            if id == ORDER_ID_MANA_SHIELD and GetUnitAbilityLevel(source, thistype.id) > 0 then
+                local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+                UnitDisableAbility(source, thistype.id, true)
+                UnitDisableAbility(source, thistype.id, false)
+                BlzStartUnitAbilityCooldown(source, thistype.id, 4.)
+                lastCast[pid] = thistype.id
+
+                local pt = TimerList[pid]:get(ADAPTIVESTRIKE.id)
+                UnitDisableAbility(source, ADAPTIVESTRIKE.id, false)
+
+                if LIMITBREAK.flag[pid] & 0x10 > 0 and not pt then
+                    ADAPTIVESTRIKE.effect(source, GetUnitX(source), GetUnitY(source))
+                    UnitDisableAbility(source, ADAPTIVESTRIKE.id, true)
+                    BlzUnitHideAbility(source, ADAPTIVESTRIKE.id, false)
+                elseif pt then
+                    BlzStartUnitAbilityCooldown(source, ADAPTIVESTRIKE.id, TimerGetRemaining(pt.timer.timer))
+                end
+
+                if LIMITBREAK.flag[pid] & 0x1 > 0 then
+                    ParryBuff:add(source, source):duration(1.)
+                else
+                    ParryBuff:add(source, source):duration(0.5)
+                end
+            end
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_ORDER:register_unit_action(source, on_order)
+        end
     end
 
     ---@class SPINDASH : Spell
@@ -2319,8 +2434,8 @@ OnInit.final("HeroSpells", function(Require)
             if pt.dur > 0. and IsUnitInRangeXY(pt.source, pt.x, pt.y, pt.dur + 50.) then
                 local x = GetUnitX(pt.source)
                 local y = GetUnitY(pt.source)
-                SetUnitXBounded(pt.source, x + pt.speed * Cos(pt.angle))
-                SetUnitYBounded(pt.source, y + pt.speed * Sin(pt.angle))
+                SetUnitXBounded(pt.source, x + pt.speed * math.cos(pt.angle))
+                SetUnitYBounded(pt.source, y + pt.speed * math.sin(pt.angle))
 
                 local ug = CreateGroup()
 
@@ -2370,7 +2485,7 @@ OnInit.final("HeroSpells", function(Require)
             if pt then
                 self.targetX = pt.x
                 self.targetY = pt.y
-                self.angle = Atan2(pt.y - self.y, pt.x - self.x)
+                self.angle = atan(pt.y - self.y, pt.x - self.x)
                 SetUnitPropWindow(pt.source, bj_DEGTORAD * 60.)
                 SetUnitTimeScale(pt.source, 1.)
                 AddUnitAnimationProperties(pt.source, "spin", false)
@@ -2506,8 +2621,8 @@ OnInit.final("HeroSpells", function(Require)
 
                 if pt.limitbreak then
                     pt.angle = pt.angle + bj_PI * 0.045
-                    SetUnitXBounded(pt.target, GetUnitX(pt.source) + 150. * Cos(pt.angle))
-                    SetUnitYBounded(pt.target, GetUnitY(pt.source) + 150. * Sin(pt.angle))
+                    SetUnitXBounded(pt.target, GetUnitX(pt.source) + 150. * math.cos(pt.angle))
+                    SetUnitYBounded(pt.target, GetUnitY(pt.source) + 150. * math.sin(pt.angle))
                     BlzSetUnitFacingEx(pt.target, bj_RADTODEG * (pt.angle + bj_PI * 0.5))
                 else
                     pt.curve:calcT(pt.dur)
@@ -2533,7 +2648,7 @@ OnInit.final("HeroSpells", function(Require)
                     pt2.aoe = 120.
                     pt2.angle = 2. * bj_PI / 3. * i
                     pt2.source = pt.source
-                    pt2.target = Dummy.create(GetUnitX(pt.source) + 150. * Cos(pt2.angle), GetUnitY(pt.source) + 150. * Sin(pt2.angle), 0, 0).unit
+                    pt2.target = Dummy.create(GetUnitX(pt.source) + 150. * math.cos(pt2.angle), GetUnitY(pt.source) + 150. * math.sin(pt2.angle), 0, 0).unit
                     pt2.dmg = thistype.dmg(pt.pid)
                     pt2.limitbreak = true
 
@@ -2556,7 +2671,7 @@ OnInit.final("HeroSpells", function(Require)
                     pt2.ug = CreateGroup()
                     pt2.aoe = 150.
                     pt2.angle = angle + i / 4. * bj_PI
-                    pt2.target = Dummy.create(GetUnitX(pt.source) + 100. * Cos(pt2.angle), GetUnitY(pt.source) + 100. * Sin(pt2.angle), 0, 0).unit
+                    pt2.target = Dummy.create(GetUnitX(pt.source) + 100. * math.cos(pt2.angle), GetUnitY(pt.source) + 100. * math.sin(pt2.angle), 0, 0).unit
                     pt2.x = GetUnitX(pt2.target)
                     pt2.y = GetUnitY(pt2.target)
                     pt2.speed = 700.
@@ -2565,8 +2680,8 @@ OnInit.final("HeroSpells", function(Require)
                     pt2.limitbreak = false
                     --add bezier points
                     pt2.curve:addPoint(pt2.x, pt2.y)
-                    pt2.curve:addPoint(pt2.x + pt2.speed * 0.6 * Cos(pt2.angle), pt2.y + pt2.speed * 0.6 * Sin(pt2.angle))
-                    pt2.curve:addPoint(pt2.x + pt2.speed * Cos(angle), pt2.y + pt2.speed * Sin(angle))
+                    pt2.curve:addPoint(pt2.x + pt2.speed * 0.6 * math.cos(pt2.angle), pt2.y + pt2.speed * 0.6 * math.sin(pt2.angle))
+                    pt2.curve:addPoint(pt2.x + pt2.speed * math.cos(angle), pt2.y + pt2.speed * math.sin(angle))
 
                     BlzSetUnitSkin(pt2.target, FourCC('h044'))
                     SetUnitScale(pt2.target, 1., 1., 1.)
@@ -2661,7 +2776,7 @@ OnInit.final("HeroSpells", function(Require)
                 local x = GetUnitX(pt.target)
                 local y = GetUnitY(pt.target)
 
-                IssuePointOrder(pt.target, "move", x + 75. * Cos(pt.angle), y + 75. * Sin(pt.angle))
+                IssuePointOrder(pt.target, "move", x + 75. * math.cos(pt.angle), y + 75. * math.sin(pt.angle))
 
                 if ModuloReal(pt.time + 0.5, 1.) == 0. then
                     local ug = CreateGroup()
@@ -2736,7 +2851,7 @@ OnInit.final("HeroSpells", function(Require)
                 for i = 0, 4 do
                     pt = TimerList[pid]:add()
                     pt.angle = bj_PI * 0.4 * i
-                    pt.target = Dummy.create(x + 75. * Cos(pt.angle), y + 75 * Sin(pt.angle), 0, 0).unit
+                    pt.target = Dummy.create(x + 75. * math.cos(pt.angle), y + 75 * math.sin(pt.angle), 0, 0).unit
                     pt.dmg = thistype.tornadodmg(pid)
                     pt.dur = thistype.tornadodur * LBOOST[pid]
 
@@ -2745,7 +2860,7 @@ OnInit.final("HeroSpells", function(Require)
                     SetUnitMoveSpeed(pt.target, 100.)
                     SetUnitScale(pt.target, 0.5, 0.5, 0.5)
                     UnitAddAbility(pt.target, FourCC('Amrf'))
-                    IssuePointOrder(pt.target, "move", x + 225. * Cos(pt.angle), y + 225. * Sin(pt.angle))
+                    IssuePointOrder(pt.target, "move", x + 225. * math.cos(pt.angle), y + 225. * math.sin(pt.angle))
 
                     pt.timer:callDelayed(0.5, tornado, pt)
                 end
@@ -3019,12 +3134,12 @@ OnInit.final("HeroSpells", function(Require)
 
                 for target in each(ug) do
                     --movement effects
-                    angle = Atan2(pt.y - GetUnitY(target), pt.x - GetUnitX(target))
+                    angle = atan(pt.y - GetUnitY(target), pt.x - GetUnitX(target))
 
-                    if IsUnitType(target, UNIT_TYPE_HERO) == false and GetUnitMoveSpeed(target) > 0 and IsTerrainWalkable(GetUnitX(target) + (17. + 30. / (DistanceCoords(pt.x, GetUnitX(target), pt.y, GetUnitY(target)) + 1)) * Cos(angle), GetUnitY(target) + (17. + 30. / (DistanceCoords(pt.x, GetUnitX(target), pt.y, GetUnitY(target)) + 1)) * Sin(angle)) then
+                    if IsUnitType(target, UNIT_TYPE_HERO) == false and GetUnitMoveSpeed(target) > 0 and IsTerrainWalkable(GetUnitX(target) + (17. + 30. / (DistanceCoords(pt.x, GetUnitX(target), pt.y, GetUnitY(target)) + 1)) * math.cos(angle), GetUnitY(target) + (17. + 30. / (DistanceCoords(pt.x, GetUnitX(target), pt.y, GetUnitY(target)) + 1)) * math.sin(angle)) then
                         SetUnitPathing(target, false)
-                        SetUnitXBounded(target, GetUnitX(target) + (17. + 30. / (DistanceCoords(pt.x, GetUnitX(target), pt.y, GetUnitY(target)) + 1)) * Cos(angle))
-                        SetUnitYBounded(target, GetUnitY(target) + (17. + 30. / (DistanceCoords(pt.x, GetUnitX(target), pt.y, GetUnitY(target)) + 1)) * Sin(angle))
+                        SetUnitXBounded(target, GetUnitX(target) + (17. + 30. / (DistanceCoords(pt.x, GetUnitX(target), pt.y, GetUnitY(target)) + 1)) * math.cos(angle))
+                        SetUnitYBounded(target, GetUnitY(target) + (17. + 30. / (DistanceCoords(pt.x, GetUnitX(target), pt.y, GetUnitY(target)) + 1)) * math.sin(angle))
                     end
                     SetUnitPathing(target, true)
 
@@ -3095,15 +3210,15 @@ OnInit.final("HeroSpells", function(Require)
 
         ---@type fun(pt: PlayerTimer)
         local function periodic(pt)
-            local Ax = pt.x + 250. * Cos(pt.angle + bj_PI * 5. / 8.)
-            local Bx = pt.x + 250. * Cos(pt.angle + bj_PI * 3. / 8.)
-            local Cx = pt.x + 250. * Cos(pt.angle - bj_PI * 3. / 8.)
-            local Dx = pt.x + 250. * Cos(pt.angle - bj_PI * 5. / 8.)
+            local Ax = pt.x + 250. * math.cos(pt.angle + bj_PI * 5. / 8.)
+            local Bx = pt.x + 250. * math.cos(pt.angle + bj_PI * 3. / 8.)
+            local Cx = pt.x + 250. * math.cos(pt.angle - bj_PI * 3. / 8.)
+            local Dx = pt.x + 250. * math.cos(pt.angle - bj_PI * 5. / 8.)
 
-            local Ay = pt.y + 250. * Sin(pt.angle + bj_PI * 5. / 8.)
-            local By = pt.y + 250. * Sin(pt.angle + bj_PI * 3. / 8.)
-            local Cy = pt.y + 250. * Sin(pt.angle - bj_PI * 3. / 8.)
-            local Dy = pt.y + 250. * Sin(pt.angle - bj_PI * 5. / 8.)
+            local Ay = pt.y + 250. * math.sin(pt.angle + bj_PI * 5. / 8.)
+            local By = pt.y + 250. * math.sin(pt.angle + bj_PI * 3. / 8.)
+            local Cy = pt.y + 250. * math.sin(pt.angle - bj_PI * 3. / 8.)
+            local Dy = pt.y + 250. * math.sin(pt.angle - bj_PI * 5. / 8.)
 
             local AB = 0.
             local BC = 0.
@@ -3123,8 +3238,8 @@ OnInit.final("HeroSpells", function(Require)
                 local ug = CreateGroup()
                 MakeGroupInRange(pt.pid, ug, pt.x, pt.y, 600., Condition(FilterEnemy))
 
-                pt.x = pt.x + 20 * Cos(pt.angle)
-                pt.y = pt.y + 20 * Sin(pt.angle)
+                pt.x = pt.x + 20 * math.cos(pt.angle)
+                pt.y = pt.y + 20 * math.sin(pt.angle)
                 SetUnitXBounded(pt.target, pt.x)
                 SetUnitYBounded(pt.target, pt.y)
 
@@ -3143,8 +3258,8 @@ OnInit.final("HeroSpells", function(Require)
                     if (AB >= 0 and BC >= 0 and CD >= 0 and DA >= 0) or (AB <= 0 and BC <= 0 and CD <= 0 and DA <= 0) then
                         if IsUnitType(target, UNIT_TYPE_STRUCTURE) == false and GetUnitMoveSpeed(target) > 0 and IsTerrainWalkable(x, y) then
                             DestroyEffect(AddSpecialEffect("war3mapImported\\SlideWater.mdx", GetUnitX(target), GetUnitY(target)))
-                            SetUnitXBounded(target, x + 17. * Cos(pt.angle))
-                            SetUnitYBounded(target, y + 17. * Sin(pt.angle))
+                            SetUnitXBounded(target, x + 17. * math.cos(pt.angle))
+                            SetUnitYBounded(target, y + 17. * math.sin(pt.angle))
                         end
 
                         SoakedDebuff:add(Hero[pt.pid], target):duration(5.)
@@ -3217,7 +3332,7 @@ OnInit.final("HeroSpells", function(Require)
             dur = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return ablev + 3 end,
         }
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             local pt = TimerList[pid]:get(BLIZZARD.id, source)
 
@@ -3255,7 +3370,7 @@ OnInit.final("HeroSpells", function(Require)
             end
 
             IssuePointOrder(pt.source, "blizzard", self.targetX, self.targetY)
-            EVENT_DUMMY_ON_HIT:register_unit_action(pt.source, onHit)
+            EVENT_DUMMY_ON_HIT:register_unit_action(pt.source, on_hit)
 
             pt.timer:callDelayed(pt.dur, PlayerTimer.destroy, pt)
         end
@@ -3282,7 +3397,7 @@ OnInit.final("HeroSpells", function(Require)
                 SetUnitXBounded(pt.source, pt.curve.X)
                 SetUnitYBounded(pt.source, pt.curve.Y)
                 pt.curve:calcT(pt.time + 0.01)
-                local angle = Atan2(pt.curve.Y - GetUnitY(pt.source), pt.curve.X - GetUnitX(pt.source))
+                local angle = atan(pt.curve.Y - GetUnitY(pt.source), pt.curve.X - GetUnitX(pt.source))
                 BlzSetUnitFacingEx(pt.source, bj_RADTODEG * angle)
 
                 if pt.time < 0.28 then
@@ -3316,10 +3431,10 @@ OnInit.final("HeroSpells", function(Require)
             if pt.time <= pt.dur then
                 local x = GetUnitX(pt.source)
                 local y = GetUnitY(pt.source)
-                local angle = Atan2(GetUnitY(pt.target) - y, GetUnitX(pt.target) - x) + bj_DEGTORAD * (180 + GetRandomInt(-60, 60))
+                local angle = atan(GetUnitY(pt.target) - y, GetUnitX(pt.target) - x) + bj_DEGTORAD * (180 + GetRandomInt(-60, 60))
 
                 local pt2 = TimerList[pt.pid]:add()
-                pt2.source = Dummy.create(x + 100. * Cos(angle), y + 100. * Sin(angle), 0, 0).unit
+                pt2.source = Dummy.create(x + 100. * math.cos(angle), y + 100. * math.sin(angle), 0, 0).unit
                 pt2.target = pt.target
                 pt2.dmg = thistype.dmg(pt.pid)
                 pt2.infused = pt.infused
@@ -3330,8 +3445,8 @@ OnInit.final("HeroSpells", function(Require)
 
                 pt2.curve = BezierCurve.create()
                 --add bezier points
-                pt2.curve:addPoint(x + 100. * Cos(angle), y + 100. * Sin(angle))
-                pt2.curve:addPoint(x + 600. * Cos(angle), y + 600. * Sin(angle))
+                pt2.curve:addPoint(x + 100. * math.cos(angle), y + 100. * math.sin(angle))
+                pt2.curve:addPoint(x + 600. * math.cos(angle), y + 600. * math.sin(angle))
                 pt2.curve:addPoint(GetUnitX(pt.target), GetUnitY(pt.target))
 
                 pt.timer:callDelayed(0.05, thistype.onSpawn, pt)
@@ -3368,7 +3483,6 @@ OnInit.final("HeroSpells", function(Require)
     ---@field set function
     ---@field get function
     ---@field add function
-    ---@field onHit function
     ---@field bank integer[]
     ---@field refresh function
     BLOODBANK = Spell.define("A07K")
@@ -3431,7 +3545,7 @@ OnInit.final("HeroSpells", function(Require)
             return thistype.bank[pid]
         end
 
-        function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             thistype.add(pid, thistype.gain(pid))
         end
@@ -3441,7 +3555,7 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_HIT:register_unit_action(u, onHit)
+            EVENT_ON_HIT:register_unit_action(u, on_hit)
             EVENT_STAT_CHANGE:register_unit_action(u, thistype.refresh)
             EVENT_ON_CLEANUP:register_action(Unit[u].pid, on_cleanup)
             Unit[u].nomanaregen = true
@@ -3567,6 +3681,20 @@ OnInit.final("HeroSpells", function(Require)
             cost = function(pid) return 16. * GetHeroInt(Hero[pid], true) end,
             heal = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.25 + 0.25 * ablev) * GetHeroStr(Hero[pid], true) + thistype.cost(pid) * 0.15 end,
         }
+
+        function thistype:onCast()
+            BloodMistBuff:add(self.caster, self.caster)
+        end
+
+        local function on_order(source, target, id)
+            if id == ORDER_ID_UNIMMOLATION and GetUnitAbilityLevel(source, thistype.id) > 0 and IsUnitPaused(source) == false and IsUnitLoaded(source) == false then
+                BloodMistBuff:dispel(source, source)
+            end
+        end
+
+        function thistype.onLearn(source, ablev, pid)
+            EVENT_ON_ORDER:register_unit_action(source, on_order)
+        end
     end
 
     ---@class BLOODNOVA : Spell
@@ -3818,7 +3946,7 @@ OnInit.final("HeroSpells", function(Require)
             dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 2. * ablev * GetHeroInt(Hero[pid], true) end,
         }
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
             DamageTarget(source, target, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
@@ -3836,7 +3964,7 @@ OnInit.final("HeroSpells", function(Require)
                     dummy:attack(target)
                     HP(self.caster, target, self.heal * BOOST[self.pid], thistype.tag)
                 else
-                    dummy:attack(target, self.caster, onHit)
+                    dummy:attack(target, self.caster, on_hit)
                 end
             end
         end
@@ -4119,6 +4247,8 @@ OnInit.final("HeroSpells", function(Require)
 
     --elementalist
 
+    local MASTEROFELEMENTS = Spell.define('A0J5')
+
     ---@class ELEMENTFIRE : Spell
     ---@field value integer
     ---@field reset function
@@ -4238,8 +4368,8 @@ OnInit.final("HeroSpells", function(Require)
             missile.visual = AddSpecialEffect("Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl", self.x, self.y)
             BlzSetSpecialEffectScale(missile.visual, 1. + .2 * self.ablev)
             missile.speed = 900. + 100. * self.ablev
-            missile.vx = missile.speed * Cos(self.angle)
-            missile.vy = missile.speed * Sin(self.angle)
+            missile.vx = missile.speed * math.cos(self.angle)
+            missile.vy = missile.speed * math.sin(self.angle)
             missile.source = self.caster
             missile.owner = Player(self.pid - 1)
             missile.damage = self.dmg * BOOST[self.pid]
@@ -4372,8 +4502,8 @@ OnInit.final("HeroSpells", function(Require)
                 missile = setmetatable({}, missile_template)
                 missile.x = self.x
                 missile.y = self.y
-                missile.vx = missile.speed * Cos(self.angle)
-                missile.vy = missile.speed * Sin(self.angle)
+                missile.vx = missile.speed * math.cos(self.angle)
+                missile.vy = missile.speed * math.sin(self.angle)
                 missile.launchOffset = 75.
                 missile.visual = AddSpecialEffect("war3mapImported\\FrostOrb.mdl", self.x, self.y)
                 BlzSetSpecialEffectScale(missile.visual, 1.3)
@@ -4417,12 +4547,12 @@ OnInit.final("HeroSpells", function(Require)
             shield = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return GetHeroInt(Hero[pid], true) * (0.5 + 0.5 * ablev) end,
         }
 
-        local onHit
+        local on_hit
 
         ---@type fun(pt: PlayerTimer)
         local function fatal_cooldown(pt)
             if GetUnitAbilityLevel(pt.source, thistype.id) >= 1 then
-                EVENT_ON_FATAL_DAMAGE:register_unit_action(pt.source, onHit)
+                EVENT_ON_FATAL_DAMAGE:register_unit_action(pt.source, on_hit)
 
                 UnitAddAbility(pt.source, thistype.id2)
                 BlzUnitHideAbility(pt.source, thistype.id2, true)
@@ -4441,10 +4571,10 @@ OnInit.final("HeroSpells", function(Require)
                 for target in each(pt.ug) do
                     x = GetUnitX(target)
                     y = GetUnitY(target)
-                    angle = Atan2(y - GetUnitY(Hero[pt.pid]), x - GetUnitX(Hero[pt.pid]))
-                    if IsTerrainWalkable(x + pt.speed * Cos(angle), y + pt.speed * Sin(angle)) then
-                        SetUnitXBounded(target, x + pt.speed * Cos(angle))
-                        SetUnitYBounded(target, y + pt.speed * Sin(angle))
+                    angle = atan(y - GetUnitY(Hero[pt.pid]), x - GetUnitX(Hero[pt.pid]))
+                    if IsTerrainWalkable(x + pt.speed * math.cos(angle), y + pt.speed * math.sin(angle)) then
+                        SetUnitXBounded(target, x + pt.speed * math.cos(angle))
+                        SetUnitYBounded(target, y + pt.speed * math.sin(angle))
                     end
                 end
                 pt.timer:callDelayed(FPS_32, fatal_push, pt)
@@ -4454,11 +4584,11 @@ OnInit.final("HeroSpells", function(Require)
         end
 
 
-        onHit = function(target, source, amount, damage_type)
+        on_hit = function(target, source, amount, damage_type)
             local tpid = GetPlayerId(GetOwningPlayer(target)) + 1
             local pt = TimerList[tpid]:add()
 
-            EVENT_ON_FATAL_DAMAGE:unregister_unit_action(target, onHit)
+            EVENT_ON_FATAL_DAMAGE:unregister_unit_action(target, on_hit)
             amount.value = 0
             HP(target, target, BlzGetUnitMaxHP(target) * 0.2 * GetUnitAbilityLevel(target, GAIAARMOR.id), GAIAARMOR.tag)
             MP(target, BlzGetUnitMaxMana(target) * 0.2 * GetUnitAbilityLevel(target, GAIAARMOR.id))
@@ -4501,7 +4631,7 @@ OnInit.final("HeroSpells", function(Require)
 
         function thistype.onLearn(source, ablev, pid)
             if ablev == 1 and not TimerList[pid]:has(thistype.id2) then
-                EVENT_ON_FATAL_DAMAGE:register_unit_action(source, onHit)
+                EVENT_ON_FATAL_DAMAGE:register_unit_action(source, on_hit)
                 UnitAddAbility(source, thistype.id2)
                 BlzUnitHideAbility(source, thistype.id2, true)
             end
@@ -4529,14 +4659,14 @@ OnInit.final("HeroSpells", function(Require)
             local y      = GetUnitY(Hero[pt.pid]) ---@type number 
 
             --trapezoid
-            local Ax      = x + 50 * Cos(pt.angle + bj_PI * 0.5) ---@type number 
-            local Ay      = y + 50 * Sin(pt.angle + bj_PI * 0.5) ---@type number 
-            local Bx      = x + 50 * Cos(pt.angle - bj_PI * 0.5) ---@type number 
-            local By      = y + 50 * Sin(pt.angle - bj_PI * 0.5) ---@type number 
-            local Cx      = Bx + pt.aoe * Cos(pt.angle - bj_PI * 0.125) * LBOOST[pt.pid] ---@type number 
-            local Cy      = By + pt.aoe * Sin(pt.angle - bj_PI * 0.125) * LBOOST[pt.pid] ---@type number 
-            local Dx      = Ax + pt.aoe * Cos(pt.angle + bj_PI * 0.125) * LBOOST[pt.pid] ---@type number 
-            local Dy      = Ay + pt.aoe * Sin(pt.angle + bj_PI * 0.125) * LBOOST[pt.pid] ---@type number 
+            local Ax      = x + 50 * math.cos(pt.angle + bj_PI * 0.5) ---@type number 
+            local Ay      = y + 50 * math.sin(pt.angle + bj_PI * 0.5) ---@type number 
+            local Bx      = x + 50 * math.cos(pt.angle - bj_PI * 0.5) ---@type number 
+            local By      = y + 50 * math.sin(pt.angle - bj_PI * 0.5) ---@type number 
+            local Cx      = Bx + pt.aoe * math.cos(pt.angle - bj_PI * 0.125) * LBOOST[pt.pid] ---@type number 
+            local Cy      = By + pt.aoe * math.sin(pt.angle - bj_PI * 0.125) * LBOOST[pt.pid] ---@type number 
+            local Dx      = Ax + pt.aoe * math.cos(pt.angle + bj_PI * 0.125) * LBOOST[pt.pid] ---@type number 
+            local Dy      = Ay + pt.aoe * math.sin(pt.angle + bj_PI * 0.125) * LBOOST[pt.pid] ---@type number 
             local AB ---@type number 
             local BC ---@type number 
             local CD ---@type number 
@@ -4580,7 +4710,7 @@ OnInit.final("HeroSpells", function(Require)
 
             local pt = TimerList[self.pid]:add()
             pt.angle = self.angle
-            pt.sfx = AddSpecialEffect("war3mapImported\\flamebreath.mdx", self.x + 75 * Cos(pt.angle), self.y + 75 * Sin(pt.angle))
+            pt.sfx = AddSpecialEffect("war3mapImported\\flamebreath.mdx", self.x + 75 * math.cos(pt.angle), self.y + 75 * math.sin(pt.angle))
             pt.tag = thistype.id
             pt.aoe = self.aoe
             pt.dmg = self.dmg
@@ -4621,8 +4751,8 @@ OnInit.final("HeroSpells", function(Require)
             local rand = GetRandomInt(1, 4) ---@type integer 
             local angle = GetRandomInt(0, 359) * bj_DEGTORAD ---@type number 
             local dist = GetRandomInt(50, 200) ---@type integer 
-            local x2 = pt.x + dist * Cos(angle) ---@type number 
-            local y2 = pt.y + dist * Sin(angle) ---@type number 
+            local x2 = pt.x + dist * math.cos(angle) ---@type number 
+            local y2 = pt.y + dist * math.sin(angle) ---@type number 
 
             --guarantee the first 6 strikes are your chosen element
             if pt.dur >= 6 then
@@ -4827,7 +4957,7 @@ OnInit.final("HeroSpells", function(Require)
             end
         end
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
             --deadly bite
@@ -4855,8 +4985,8 @@ OnInit.final("HeroSpells", function(Require)
             end
 
             self.angle = GetUnitFacing(self.caster)
-            self.x = self.x + 150 * Cos(bj_DEGTORAD * self.angle)
-            self.y = self.y + 150 * Sin(bj_DEGTORAD * self.angle)
+            self.x = self.x + 150 * math.cos(bj_DEGTORAD * self.angle)
+            self.y = self.y + 150 * math.sin(bj_DEGTORAD * self.angle)
 
             for i = 1, self.hounds do
                 local summon = hounds[self.pid][i]
@@ -4883,7 +5013,7 @@ OnInit.final("HeroSpells", function(Require)
 
                 Buff.dispelAll(summon)
                 SUMMONINGIMPROVEMENT.apply(self.pid, summon, R2I(self.str * BOOST[self.pid]), R2I(self.agi * BOOST[self.pid]), R2I(self.int * BOOST[self.pid]))
-                EVENT_ON_HIT:register_unit_action(summon, onHit)
+                EVENT_ON_HIT:register_unit_action(summon, on_hit)
 
                 if is_destroyer_sacrificed[self.pid] then
                     SetUnitVertexColor(summon, 90, 90, 230, 255)
@@ -4936,8 +5066,8 @@ OnInit.final("HeroSpells", function(Require)
 
             TimerList[self.pid]:stopAllTimers('dvou')
             self.angle = GetUnitFacing(self.caster)
-            self.x = self.x + 150 * Cos(bj_DEGTORAD * self.angle)
-            self.y = self.y + 150 * Sin(bj_DEGTORAD * self.angle)
+            self.x = self.x + 150 * math.cos(bj_DEGTORAD * self.angle)
+            self.y = self.y + 150 * math.sin(bj_DEGTORAD * self.angle)
 
             if summon then
                 TimerList[self.pid]:stopAllTimers(summon)
@@ -4993,12 +5123,35 @@ OnInit.final("HeroSpells", function(Require)
             int = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return 0.5 * GetHeroInt(Hero[pid], true) * ablev end,
         }
 
+        local function on_attack(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            local pt = TimerList[pid]:get('datk')
+
+            if not pt or pt.target ~= target then
+                TimerList[pid]:stopAllTimers('datk')
+                pt = TimerList[pid]:add()
+                pt.x = x
+                pt.y = y
+                pt.target = target
+                pt.tag = 'datk'
+
+                Unit[source].agi = 0
+                if Unit[source].devour_stacks == 5 then
+                    Unit[source].agi = 400
+                elseif Unit[source].devour_stacks >= 3 then
+                    Unit[source].agi = 200
+                end
+
+                pt.timer:callDelayed(1., SUMMONDESTROYER.periodic, pt)
+            end
+        end
+
         local function on_cleanup(pid)
             TableRemove(SummonGroup, destroyer[pid])
             destroyer[pid] = nil
         end
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             local chance = (15 and Unit[source].devour_stacks >= 4) or 10
 
@@ -5034,8 +5187,8 @@ OnInit.final("HeroSpells", function(Require)
 
             TimerList[self.pid]:stopAllTimers('blif')
             self.angle = GetUnitFacing(self.caster) + 180
-            self.x = self.x + 150 * Cos(bj_DEGTORAD * self.angle)
-            self.y = self.y + 150 * Sin(bj_DEGTORAD * self.angle)
+            self.x = self.x + 150 * math.cos(bj_DEGTORAD * self.angle)
+            self.y = self.y + 150 * math.sin(bj_DEGTORAD * self.angle)
 
             if summon then
                 TimerList[self.pid]:stopAllTimers(summon)
@@ -5083,7 +5236,8 @@ OnInit.final("HeroSpells", function(Require)
 
             SummonGroup[#SummonGroup + 1] = summon
             EVENT_ON_FATAL_DAMAGE:register_unit_action(summon, SummonExpire)
-            EVENT_ON_HIT:register_unit_action(summon, onHit)
+            EVENT_ON_HIT:register_unit_action(summon, on_hit)
+            EVENT_ON_ATTACK:register_unit_action(summon, on_attack)
             EVENT_ON_CLEANUP:register_action(self.pid, on_cleanup)
             SetHeroLevel(summon, GetHeroLevel(self.caster), false)
 
@@ -5202,8 +5356,8 @@ OnInit.final("HeroSpells", function(Require)
                 local ug = CreateGroup()
 
                 BlzSetUnitFacingEx(Hero[pid], bj_RADTODEG * angle)
-                SetUnitXBounded(Hero[pid], GetUnitX(Hero[pid]) + speed * Cos(angle))
-                SetUnitYBounded(Hero[pid], GetUnitY(Hero[pid]) + speed * Sin(angle))
+                SetUnitXBounded(Hero[pid], GetUnitX(Hero[pid]) + speed * math.cos(angle))
+                SetUnitYBounded(Hero[pid], GetUnitY(Hero[pid]) + speed * math.sin(angle))
                 SetUnitAnimationByIndex(Hero[pid], 0)
 
                 MakeGroupInRange(pid, ug, GetUnitX(Hero[pid]), GetUnitY(Hero[pid]), 150., Condition(FilterEnemy))
@@ -5432,8 +5586,8 @@ OnInit.final("HeroSpells", function(Require)
             local missile = setmetatable({}, missile_template)
             missile.x = self.x
             missile.y = self.y
-            missile.vx = missile.speed * Cos(self.angle)
-            missile.vy = missile.speed * Sin(self.angle)
+            missile.vx = missile.speed * math.cos(self.angle)
+            missile.vy = missile.speed * math.sin(self.angle)
             missile.visual = AddSpecialEffect("Abilities\\Weapons\\GlaiveMissile\\GlaiveMissile.mdl", self.x, self.y)
             BlzSetSpecialEffectScale(missile.visual, 1.1)
             BlzSetSpecialEffectColor(missile.visual, 100, 100, 100)
@@ -5477,7 +5631,7 @@ OnInit.final("HeroSpells", function(Require)
 
             for i = 0, 11 do
                 self.angle = 0.1666 * bj_PI * i
-                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Orc\\FeralSpirit\\feralspiritdone.mdl", self.targetX + 190. * Cos(self.angle), self.targetY + 190. * Sin(self.angle)))
+                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Orc\\FeralSpirit\\feralspiritdone.mdl", self.targetX + 190. * math.cos(self.angle), self.targetY + 190. * math.sin(self.angle)))
             end
 
             DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Orc\\FeralSpirit\\feralspiritdone.mdl", self.targetX, self.targetY))
@@ -5614,14 +5768,14 @@ OnInit.final("HeroSpells", function(Require)
 
                 for _ = 0, 2 do
                     local spawnangle = self.angle + bj_PI + GetRandomReal(bj_PI * -0.15, bj_PI * 0.15) ---@type number
-                    local x = self.x + GetRandomReal(70., 200.) * Cos(spawnangle) ---@type number
-                    local y = self.y + GetRandomReal(70., 200.) * Sin(spawnangle) ---@type number
-                    local moveangle = Atan2(self.targetY - y, self.targetX - x)
+                    local x = self.x + GetRandomReal(70., 200.) * math.cos(spawnangle) ---@type number
+                    local y = self.y + GetRandomReal(70., 200.) * math.sin(spawnangle) ---@type number
+                    local moveangle = atan(self.targetY - y, self.targetX - x)
                     local missile = setmetatable({}, missile_template)
                     missile.x = x
                     missile.y = y
-                    missile.vx = missile.speed * Cos(moveangle)
-                    missile.vy = missile.speed * Sin(moveangle)
+                    missile.vx = missile.speed * math.cos(moveangle)
+                    missile.vy = missile.speed * math.sin(moveangle)
                     missile.visual = AddSpecialEffect("Abilities\\Weapons\\WardenMissile\\WardenMissile.mdl", x, y)
                     BlzSetSpecialEffectScale(missile.visual, 1.15)
                     missile.source = self.caster
@@ -5657,13 +5811,11 @@ OnInit.final("HeroSpells", function(Require)
 
     ---@class BLADESPIN : Spell
     ---@field id2 integer
-    ---@field spin function
     ---@field times function
     ---@field amdg function
     ---@field aoe number
     ---@field pdmg function
     ---@field count number[]
-    ---@field onHit function
     ---@field admg function
     BLADESPIN = Spell.define("A0AS", "A0AQ")
     do
@@ -5671,15 +5823,15 @@ OnInit.final("HeroSpells", function(Require)
         thistype.id2 = FourCC("A0AQ")
 
         thistype.values = {
-            times = function(pid) return math.max(8 - GetHeroLevel(Hero[pid]) // 100, 5) end,
-            pdmg = function(pid) return 8. * GetHeroAgi(Hero[pid], true) end,
+            times = function(pid, u) return math.max(8 - GetHeroLevel(u) // 100, 5) end,
+            pdmg = function(pid, u) return 8. * GetHeroAgi(u, true) end,
             aoe = 250.,
-            admg = function(pid) return 4. * GetHeroAgi(Hero[pid], true) end,
+            admg = function(pid, u) return 4. * GetHeroAgi(u, true) end,
         }
         thistype.count = __jarray(0)
 
         ---@type fun(caster: unit, active: boolean)
-        function thistype.spin(caster, active)
+        local function spin(caster, active)
             local ug = CreateGroup()
             local pid = GetPlayerId(GetOwningPlayer(caster)) + 1
 
@@ -5687,39 +5839,58 @@ OnInit.final("HeroSpells", function(Require)
             SetUnitTimeScale(caster, 1.75)
             SetUnitAnimationByIndex(caster, 5)
 
-            local dummy = Dummy.create(GetUnitX(caster), GetUnitY(caster), 0, 0).unit
-            BlzSetUnitSkin(dummy, FourCC('h00C'))
-            SetUnitTimeScale(dummy, 0.5)
-            SetUnitScale(dummy, 1.35, 1.35, 1.35)
-            SetUnitAnimationByIndex(dummy, 0)
-            SetUnitFlyHeight(dummy, 75., 0)
-            BlzSetUnitFacingEx(dummy, GetUnitFacing(caster))
+            local x, y = GetUnitX(caster), GetUnitY(caster)
 
-            dummy = Dummy.create(GetUnitX(caster), GetUnitY(caster), 0, 0).unit
-            BlzSetUnitSkin(dummy, FourCC('h00C'))
-            SetUnitTimeScale(dummy, 0.5)
-            SetUnitScale(dummy, 1.35, 1.35, 1.35)
-            SetUnitAnimationByIndex(dummy, 0)
-            SetUnitFlyHeight(dummy, 75., 0)
-            BlzSetUnitFacingEx(dummy, GetUnitFacing(caster) + 180)
+            for i = 0, 1 do
+                local sfx = AddSpecialEffect("war3mapImported\\Ephemeral Slash Jade.mdl", x, y)
+                BlzSetSpecialEffectZ(sfx, GetUnitZ(caster) + 75.)
+                BlzSetSpecialEffectScale(sfx, 1.35)
+                BlzSetSpecialEffectTimeScale(sfx, 0.5)
+                BlzSetSpecialEffectYaw(sfx, (GetUnitFacing(caster) + 180 * i) * bj_DEGTORAD)
+                DestroyEffect(sfx)
+            end
 
-            MakeGroupInRange(pid, ug, GetUnitX(caster), GetUnitY(caster), thistype.aoe * LBOOST[pid], Condition(FilterEnemy))
+            MakeGroupInRange(pid, ug, x, y, thistype.aoe * LBOOST[pid], Condition(FilterEnemy))
 
             for target in each(ug) do
                 DestroyEffect(AddSpecialEffectTarget("Objects\\Spawnmodels\\Critters\\Albatross\\CritterBloodAlbatross.mdl", target, "chest"))
                 if active then
-                    DamageTarget(caster, target, thistype.admg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    DamageTarget(caster, target, thistype.admg(pid, caster) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 else
-                    DamageTarget(caster, target, thistype.pdmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+                    DamageTarget(caster, target, thistype.pdmg(pid, caster) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
                 end
             end
 
             DestroyGroup(ug)
         end
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
             thistype.count[pid] = thistype.count[pid] + 1
+        end
+
+        local function on_attack(source, target)
+            local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+            if thistype.count[pid] >= thistype.times(pid) - 1 then
+                thistype.count[pid] = 0
+
+                spin(source, false)
+            end
+        end
+
+        local function on_order(source, target, id)
+            if id == ORDER_ID_MANA_SHIELD and GetUnitAbilityLevel(source, thistype.id) > 0 then
+                if GetUnitState(source, UNIT_STATE_MANA) >= BlzGetUnitMaxMana(source) * 0.075 then
+                    SetUnitState(source, UNIT_STATE_MANA, GetUnitState(source, UNIT_STATE_MANA) - BlzGetUnitMaxMana(source) * 0.075)
+
+                    UnitRemoveAbility(source, thistype.id)
+                    UnitDisableAbility(source, thistype.id2, false)
+                    spin(source, true)
+                else
+                    UnitRemoveAbility(source, thistype.id)
+                    UnitAddAbility(source, thistype.id)
+                end
+            end
         end
 
         local manacost = function(u)
@@ -5727,10 +5898,12 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_HIT:register_unit_action(u, onHit)
-            UnitRemoveAbility(u, thistype.id)
-
+            EVENT_ON_HIT:register_unit_action(u, on_hit)
+            EVENT_ON_ATTACK:register_unit_action(u, on_attack)
+            EVENT_ON_ORDER:register_unit_action(u, on_order)
             EVENT_STAT_CHANGE:register_unit_action(u, manacost)
+
+            TimerQueue:callDelayed(0.01, UnitRemoveAbility, u, thistype.id)
         end
     end
 
@@ -5755,9 +5928,9 @@ OnInit.final("HeroSpells", function(Require)
 
             if pt.dur > 0. then
                 --movement
-                if IsTerrainWalkable(x + pt.speed * Cos(pt.angle), y + pt.speed * Sin(pt.angle)) then
-                    SetUnitXBounded(pt.source, x + pt.speed * Cos(pt.angle))
-                    SetUnitYBounded(pt.source, y + pt.speed * Sin(pt.angle))
+                if IsTerrainWalkable(x + pt.speed * math.cos(pt.angle), y + pt.speed * math.sin(pt.angle)) then
+                    SetUnitXBounded(pt.source, x + pt.speed * math.cos(pt.angle))
+                    SetUnitYBounded(pt.source, y + pt.speed * math.sin(pt.angle))
                 else
                     pt.dur = 0.
                 end
@@ -5802,7 +5975,7 @@ OnInit.final("HeroSpells", function(Require)
             pt.dur = math.min(750., SquareRoot(Pow(self.targetX - self.x, 2) + Pow(self.targetY - self.y, 2)))
             pt.speed = 60.
             pt.dmg = self.dmg * BOOST[self.pid]
-            pt.angle = Atan2(self.targetY - self.y, self.targetX - self.x)
+            pt.angle = atan(self.targetY - self.y, self.targetX - self.x)
             pt.source = self.caster
             pt.ug = CreateGroup()
             pt.onRemove = onRemove
@@ -5822,6 +5995,23 @@ OnInit.final("HeroSpells", function(Require)
             BlzPlaySpecialEffectWithTimeScale(sfx, ANIM_TYPE_ATTACK, 1.5)
         end
 
+        local function on_order(source, target, id)
+            if id == ORDER_ID_IMMOLATION and GetUnitAbilityLevel(source, thistype.id) > 0 and not IsUnitStunned(source) then
+                local pid = GetPlayerId(GetOwningPlayer(source)) + 1
+                local x, y = GetMouseX(pid), GetMouseY(pid)
+
+                if x ~= 0 and y ~= 0 and not thistype.slashing[pid] then
+                    local spell = thistype:create(source)
+                    spell.targetX = x
+                    spell.targetY = y
+                    spell.x = GetUnitX(source)
+                    spell.y = GetUnitY(source)
+
+                    spell:onCast()
+                end
+            end
+        end
+
         local manacost = function(u)
             local ablev = GetUnitAbilityLevel(u, thistype.id)
             BlzSetUnitAbilityManaCost(u, thistype.id, ablev - 1, R2I(BlzGetUnitMaxMana(u) * (.1 - 0.025 * ablev)))
@@ -5829,6 +6019,7 @@ OnInit.final("HeroSpells", function(Require)
 
         function thistype.onLearn(source, ablev, pid)
             EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+            EVENT_ON_ORDER:register_unit_action(source, on_order)
         end
     end
 
@@ -5967,8 +6158,8 @@ OnInit.final("HeroSpells", function(Require)
                 local missile = setmetatable({}, missile_template)
                 missile.x = GetUnitX(self.caster)
                 missile.y = GetUnitY(self.caster)
-                missile.vx = missile.speed * Cos(self.angle)
-                missile.vy = missile.speed * Sin(self.angle)
+                missile.vx = missile.speed * math.cos(self.angle)
+                missile.vy = missile.speed * math.sin(self.angle)
                 missile.visual = AddSpecialEffect("ArcaneRocketProjectile.mdl", self.x, self.y)
                 BlzSetSpecialEffectScale(missile.visual, 1.4)
                 missile.source = self.caster
@@ -6047,8 +6238,8 @@ OnInit.final("HeroSpells", function(Require)
                     end
 
                     local missile = setmetatable({}, missile_template)
-                    missile.x = self.x + 40. * Cos(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
-                    missile.y = self.y + 40. * Sin(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
+                    missile.x = self.x + 40. * math.cos(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
+                    missile.y = self.y + 40. * math.sin(bj_DEGTORAD * (GetUnitFacing(Hero[self.pid]) + i * (360. / size)))
                     missile.z = GetUnitZ(self.caster)
                     missile.visual = AddSpecialEffect("war3mapImported\\TinkerRocketMissileModified2.mdl", self.x, self.y)
                     BlzSetSpecialEffectScale(missile.visual, 1.1)
@@ -6338,7 +6529,7 @@ OnInit.final("HeroSpells", function(Require)
             dur = 3.,
         }
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             local pid = GetPlayerId(GetOwningPlayer(source)) + 1
 
             DamageTarget(source, target, thistype.dmg(pid) * BOOST[pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
@@ -6364,7 +6555,7 @@ OnInit.final("HeroSpells", function(Require)
                     target = BlzGroupUnitAt(ug, i)
                     if not target then break end
                     local dummy = Dummy.create(x, y, FourCC('A01Y'), 1, 2.5)
-                    dummy:attack(target, pt.source, onHit)
+                    dummy:attack(target, pt.source, on_hit)
                 end
 
                 --dark seal augment
@@ -6380,11 +6571,11 @@ OnInit.final("HeroSpells", function(Require)
 
                             if GetUnitAbilityLevel(target, FourCC('A06W')) > 0 then
                                 local angle = 360. / count * (index + 1) * bj_DEGTORAD
-                                x = b.x + 380 * Cos(angle)
-                                y = b.y + 380 * Sin(angle)
+                                x = b.x + 380 * math.cos(angle)
+                                y = b.y + 380 * math.sin(angle)
 
                                 local dummy = Dummy.create(x, y, FourCC('A01Y'), 1, 2.5)
-                                dummy:attack(target, pt.source, onHit)
+                                dummy:attack(target, pt.source, on_hit)
                             end
                         end
                     end
@@ -6487,7 +6678,7 @@ OnInit.final("HeroSpells", function(Require)
             dmg = function(pid) local ablev = GetUnitAbilityLevel(Hero[pid], thistype.id) return (0.6 + 0.1 * ablev) * GetHeroInt(Hero[pid], true) end,
         }
 
-        local function onHit(source, target)
+        local function on_hit(source, target)
             if GetUnitAbilityLevel(source, FourCC('B01A')) > 0 then
                 local pid = GetPlayerId(GetOwningPlayer(source)) + 1
                 local maxmp = BlzGetUnitMaxMana(source)
@@ -6504,7 +6695,7 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype.onLearn(source, ablev, pid)
-            EVENT_ON_HIT:register_unit_action(source, onHit)
+            EVENT_ON_HIT:register_unit_action(source, on_hit)
         end
     end
 
@@ -6609,6 +6800,8 @@ OnInit.final("HeroSpells", function(Require)
         BlzSetSpecialEffectColorByPlayer(songeffect[self.pid], Player(song_color[song]))
     end
 
+    local SONGSOFTHETRAVELLER = Spell.define("A02F")
+
     ---@class SONGOFFATIGUE : Spell
     local SONGOFFATIGUE = Spell.define("A025")
     do
@@ -6655,7 +6848,7 @@ OnInit.final("HeroSpells", function(Require)
     ---@field heal function
     ---@field peacedur number
     ---@field fatiguedur number
-    ---@field onHit function
+    ---@field on_hit function
     ENCORE = Spell.define("A0AZ")
     do
         local thistype = ENCORE
@@ -6756,6 +6949,7 @@ OnInit.final("HeroSpells", function(Require)
         function thistype.onLearn(source, ablev, pid)
             EVENT_ON_CAST:register_unit_action(source, manacost)
             EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+            manacost(source)
         end
     end
 
@@ -6855,8 +7049,17 @@ OnInit.final("HeroSpells", function(Require)
             BlzSetUnitAbilityManaCost(u, thistype.id, GetUnitAbilityLevel(u, thistype.id) - 1, R2I(BlzGetUnitMaxMana(u) * 0.02))
         end
 
+        local function on_order(source, target, id)
+            if id == ORDER_ID_UNIMMOLATION then
+                if IsUnitPaused(source) == false and IsUnitLoaded(source) == false then
+                    InspireBuff:dispel(source, source)
+                end
+            end
+        end
+
         function thistype.onLearn(source, ablev, pid)
             EVENT_STAT_CHANGE:register_unit_action(source, manacost)
+            EVENT_ON_ORDER:register_unit_action(source, on_order)
         end
     end
 
@@ -6874,68 +7077,79 @@ OnInit.final("HeroSpells", function(Require)
             dur = 5.,
         }
 
-        ---@type fun(pt: PlayerTimer)
-        local function periodic(pt)
+        local missile_template = {
+            selfInteractions = {
+                CAT_MoveAutoHeight,
+                CAT_Orient2D,
+                CAT_Decay,
+            },
+            identifier = "missile",
+            speed = 125.,
+            visualZ = 75.,
+        }
+        missile_template.__index = missile_template
 
-            pt.count = pt.count + 1
-            pt.dur = pt.dur - FPS_32
+        local function valid_pull_target(object, missile)
+            return UnitAlive(object) and IsUnitEnemy(object, missile.owner) and GetUnitMoveSpeed(object) > 0
+        end
 
-            if pt.dur > 0. then
-                x = GetUnitX(pt.target) + 3 * Cos(pt.angle)
-                y = GetUnitY(pt.target) + 3 * Sin(pt.angle)
-
-                --blackhole movement
-                SetUnitXBounded(pt.target, x)
-                SetUnitYBounded(pt.target, y)
-
-                local ug = CreateGroup()
-                local rand = GetRandomReal(bj_PI // -9., bj_PI // 9.) ---@type number 
-
-                MakeGroupInRange(pt.pid, ug, GetUnitX(pt.target), GetUnitY(pt.target), pt.aoe, Condition(FilterEnemy))
-
-                for target in each(ug) do
-                    --enemy movement
-                    if GetUnitMoveSpeed(target) > 0 then
-                        local angle = Atan2(GetUnitY(pt.target) - GetUnitY(target), GetUnitX(pt.target) - GetUnitX(target))
-                        local x = GetUnitX(target) + (17. + 30. / (UnitDistance(target, pt.target) + 1)) * Cos(angle + rand)
-                        local y = GetUnitY(target) + (17. + 30. / (UnitDistance(target, pt.target) + 1)) * Sin(angle + rand)
-
-                        if GetUnitMoveSpeed(target) > 0 and IsTerrainWalkable(x, y) then
-                            if IsUnitType(target, UNIT_TYPE_HERO) == false then
-                                SetUnitPathing(target, false)
-                            end
-                            SetUnitXBounded(target, x)
-                            SetUnitYBounded(target, y)
-                        end
-                    end
-
-                    --damage per second
-                    if ModuloInteger(pt.count,32) == 0 then
-                        DamageTarget(Hero[pt.pid], target, pt.dmg * BOOST[pt.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
-                    end
+        local function pull_force(target, missile)
+            local x2, y2 = GetUnitX(target), GetUnitY(target)
+            local dist = DistanceCoords(missile.x, missile.y, x2, y2)
+            if dist > 75 then
+                local angle = atan(missile.y - y2, missile.x - x2)
+                local strength = 5000. / dist
+                local new_x, new_y = x2 + strength * math.cos(angle), y2 + strength * math.sin(angle)
+                if IsTerrainWalkable(new_x, new_y) then
+                    SetUnitXBounded(target, new_x)
+                    SetUnitYBounded(target, new_y)
                 end
+            end
+        end
 
-                DestroyGroup(ug)
+        local function pull(missile)
+            if missile.lifetime > 0 then
+                ALICE_ForAllObjectsInRangeDo(pull_force, missile.x, missile.y, 800., "nonhero", valid_pull_target, missile)
+                TimerQueue:callDelayed(FPS_32, pull, missile)
+            end
+        end
 
-                pt.timer:callDelayed(FPS_32, periodic, pt)
-            else
-                pt:destroy()
+        local function do_damage(object, missile)
+            DamageTarget(missile.source, object, missile.dmg * BOOST[missile.pid], ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
+        end
+
+        local function valid_damage_target(object, missile)
+            return UnitAlive(object) and IsUnitEnemy(object, missile.owner)
+        end
+
+        local function damage(missile)
+            if missile.lifetime > 0 then
+                ALICE_ForAllObjectsInRangeDo(do_damage, missile.x, missile.y, missile.aoe, "unit", valid_damage_target, missile)
+                TimerQueue:callDelayed(1., damage, missile)
             end
         end
 
         function thistype:onCast()
-            local pt = TimerList[self.pid]:add()
+            local missile = setmetatable({}, missile_template)
+            missile.x = self.x
+            missile.y = self.y
+            missile.z = GetUnitZ(self.caster)
+            missile.visual = AddSpecialEffect("war3mapImported\\BlackHoleSpell.mdx", self.x, self.y)
+            BlzSetSpecialEffectScale(missile.visual, 0.5)
+            missile.launchOffset = 250.
+            missile.vx = missile.speed * math.cos(self.angle)
+            missile.vy = missile.speed * math.sin(self.angle)
+            missile.owner = Player(self.pid - 1)
+            missile.source = self.caster
+            missile.aoe = self.aoe * LBOOST[self.pid]
+            missile.dmg = self.dmg
+            missile.pid = self.pid
+            missile.lifetime = self.dur * LBOOST[self.pid]
 
-            pt.angle = self.angle
-            pt.target = Dummy.create(self.x + 250 * Cos(pt.angle), self.y + 250 * Sin(pt.angle), 0, 0, 6.).unit
-            pt.sfx = AddSpecialEffectTarget("war3mapImported\\BlackHoleSpell.mdx", pt.target, "origin")
-            pt.aoe = self.aoe * LBOOST[self.pid]
-            pt.dmg = self.dmg
-            pt.dur = self.dur * LBOOST[self.pid]
-            pt.count = 0
-            SetUnitScale(pt.target, 0.5, 0.5, 0.5)
+            ALICE_Create(missile)
 
-            pt.timer:callDelayed(FPS_32, periodic, pt)
+            TimerQueue:callDelayed(0.25, damage, missile)
+            TimerQueue:callDelayed(FPS_32, pull, missile)
         end
 
         local manacost = function(u)
