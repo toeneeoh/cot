@@ -159,6 +159,7 @@ dofile('Utility/ALICE/CAT_missiles.lua')
 dofile('Utility/ALICE/CAT_collisions2d.lua')
 dofile('Utility/ALICE/CAT_collisions3d.lua')
 dofile('Utility/ALICE/CAT_ballistics.lua')
+dofile('Utility/ALICE/CAT_forces2d.lua')
 
 dofile('Events/events.lua')
 dofile('Events/attacked.lua')
