@@ -267,9 +267,7 @@ OnInit.final("SpellView", function()
                         spellType = BlzGetAbilityId(abi)
 
                         if Spells[spellType] then
-                            local mySpell = Spells[spellType]:create(u)
-
-                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipText", 0), mySpell:getTooltip())
+                            BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipText", 0), Spells[spellType]:getTooltip(u, level))
                         else
                             if level > 0 then
                                 BlzFrameSetText(BlzGetFrameByName("TasSpellViewTooltipText", 0), BlzGetAbilityExtendedTooltip(abiCode, level - 1))
