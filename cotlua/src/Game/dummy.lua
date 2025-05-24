@@ -54,11 +54,11 @@ OnInit.final("Dummy", function(Require)
                 IssueImmediateOrder(self.unit, order)
             -- target cast
             elseif type(a == "userdata") then
-                BlzSetUnitFacingEx(self.unit, bj_RADTODEG * Atan2(GetUnitY(a) - GetUnitY(self.unit), GetUnitX(a) - GetUnitX(self.unit)))
+                BlzSetUnitFacingEx(self.unit, bj_RADTODEG * math.atan(GetUnitY(a) - GetUnitY(self.unit), GetUnitX(a) - GetUnitX(self.unit)))
                 IssueTargetOrder(self.unit, order, a)
             -- point cast
             elseif type(a == "number") then
-                BlzSetUnitFacingEx(self.unit, bj_RADTODEG * Atan2(b - GetUnitY(self.unit), a - GetUnitX(self.unit)))
+                BlzSetUnitFacingEx(self.unit, bj_RADTODEG * math.atan(b - GetUnitY(self.unit), a - GetUnitX(self.unit)))
                 IssuePointOrder(self.unit, order, a, b)
             end
         end
@@ -155,7 +155,7 @@ OnInit.final("Dummy", function(Require)
 
         ---@type fun(self: Dummy, enemy: unit, source: unit, func: function)
         function thistype:attack(enemy, source, func)
-            BlzSetUnitFacingEx(self.unit, bj_RADTODEG * Atan2(GetUnitY(enemy) - GetUnitY(self.unit), GetUnitX(enemy) - GetUnitX(self.unit)))
+            BlzSetUnitFacingEx(self.unit, bj_RADTODEG * math.atan(GetUnitY(enemy) - GetUnitY(self.unit), GetUnitX(enemy) - GetUnitX(self.unit)))
             UnitDisableAbility(self.unit, FourCC('Amov'), true)
             self.source = source or self.unit
             SetUnitOwner(self.unit, GetOwningPlayer(source), false)
