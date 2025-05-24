@@ -38,7 +38,7 @@ OnInit.final("Timers", function(Require)
     local gpi, glp = GetPlayerId, GetLocalPlayer
 
     local is_camera_locked = {} ---@type boolean[] 
-    local selecting_hero, zoom = SELECTING_HERO, ZOOM
+    local zoom = ZOOM
 
     function SetCameraLocked(pid, lock)
         if not is_camera_locked[pid] then
@@ -50,7 +50,7 @@ OnInit.final("Timers", function(Require)
         local pid = gpi(glp()) + 1
 
         -- camera lock
-        if is_camera_locked[pid] and not selecting_hero[pid] then
+        if is_camera_locked[pid] then
             setcamerafield(CAMERA_FIELD_TARGET_DISTANCE, zoom[pid], 0)
         end
     end
@@ -78,14 +78,10 @@ OnInit.final("Timers", function(Require)
             SetWidgetLife(u, hp + BlzGetUnitMaxHP(u))
         end
 
-        if mp < BlzGetUnitMaxMana(u) * 0.99 then
+        if mp < BlzGetUnitMaxMana(u) * 0.99 and Unit[u].nomanaregen == false then
             DestroyEffect(AddSpecialEffectTarget("Abilities\\Spells\\Items\\AIma\\AImaTarget.mdl", u, "origin"))
             SetUnitState(u, UNIT_STATE_MANA, mp + BlzGetUnitMaxMana(u))
         end
-    end
-
-    local fountain_filter = function(object)
-        return Unit[object].nomanaregen == false
     end
 
     local function RefreshHeroes()
@@ -124,7 +120,7 @@ OnInit.final("Timers", function(Require)
         SetCameraQuickPositionLoc(TOWN_CENTER)
 
         -- fountain regeneration
-        ALICE_ForAllObjectsInRangeDo(fountain, -260., 350., 600., "unit", fountain_filter)
+        ALICE_ForAllObjectsInRangeDo(fountain, -260., 350., 600., "unit")
 
         -- refresh auras, mana costs, etc.
         RefreshHeroes()
