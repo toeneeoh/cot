@@ -46,6 +46,7 @@ OnInit.final("Spells", function(Require)
     ---@field tag string
     ---@field define function
     ---@field getTooltip function
+    ---@field setTooltip function
     ---@field preCast function
     ---@field onCast function
     ---@field onLearn function
@@ -60,11 +61,12 @@ OnInit.final("Spells", function(Require)
         -- memoize metatables for inheritance
         local mts = {}
 
-        ---@type fun(self: Spell, u: unit, sid: integer?): Spell
-        function thistype:create(u, sid)
+        ---@type fun(self: Spell, u: unit): Spell
+        function thistype:create(u)
             local spell = {
+                caster = u,
                 pid = GetPlayerId(GetOwningPlayer(u)) + 1,
-                ablev = GetUnitAbilityLevel(u, (sid or self.id))
+                ablev = GetUnitAbilityLevel(u, self.id)
             }
 
             mts[self] = mts[self] or { __index = self }
@@ -75,7 +77,7 @@ OnInit.final("Spells", function(Require)
             if self.values then
                 for k, v in pairs(self.values) do -- sync safe
                     if type(v) == "function" then
-                        spell[k] = v(spell.pid)
+                        spell[k] = v(spell.pid, u)
                     else
                         spell[k] = v
                     end
@@ -127,7 +129,7 @@ OnInit.final("Spells", function(Require)
             return self
         end
 
-        -- TODO: get key status function in hotkeys?
+        -- TODO: use get key status function in hotkeys?
         local alt_down = {} ---@type boolean[]
 
         ---@param pid integer
@@ -166,54 +168,71 @@ OnInit.final("Spells", function(Require)
         RegisterHotkeyToFunc('ALT', nil, extended_spell_tooltip, nil, true)
         RegisterHotkeyToFunc('ALT+ALT', nil, extended_spell_tooltip, nil, true)
 
-        local curr
-        --[[
-            >: no color
-            ~: only shows calculated value
-            [: normal boost
-            {: low boost
-            \: no boost
-            =: tag identifier
-        ]]
-        local function parse_brackets(defaultflag, colorflag, prefix, tag, content)
-            local color = (colorflag ~= ">" and true) or false
-            local alt = alt_down[curr.pid] or defaultflag == "~"
+        ---@type fun(self: Spell, u: unit?, ablev: integer?): string
+        function thistype:getTooltip(u, ablev)
+            local orig = thistype.TOOLTIPS[self.id][self.ablev or ablev or 1]
 
-            if alt then
-                local v = curr[tag]
-                local calc = (type(v) == "table" and v[curr.pid]) or v
+            -- create temporary spell object to calculate values
+            if not self.pid and u then
+                self = self:create(u)
+            end
+
+            -- return original tooltip if no values to parse
+            if not self.values then
+                return orig
+            end
+
+            --[[
+                >: no color
+                ~: only shows calculated value
+                [: normal boost
+                {: low boost
+                \: no boost
+                =: tag identifier
+            ]]
+            local pattern = "(~?)(>?)([\\{\x25[])(\x25w-)=(.-)]"
+            orig = string.gsub(orig, pattern, function(defaultflag, colorflag, prefix, tag, content)
+                local color = (colorflag ~= ">")
+                local alt   = alt_down[self.pid] or defaultflag == "~"
+                if not alt or not u then
+                    return content
+                end
+
+                -- calculate value based on bracket type
+                local val  = self[tag]
+                local calc = (type(val) == "table") and val[self.pid] or val
 
                 if prefix == "[" then
-                    local sb = Unit[Hero[curr.pid]].spellboost
-                    return HL(RealToString(calc * (1. + sb - 0.2)) .. " - " .. RealToString(calc * (1. + sb + 0.2)), color)
+                    local sb = Unit[u].spellboost
+                    return HL(RealToString(calc * (1 + sb - 0.2)) .. " - " .. RealToString(calc * (1 + sb + 0.2)), color)
+
                 elseif prefix == "{" then
-                    if calc < 10 then
-                        return HL(string.format("\x25.2f", calc * LBOOST[curr.pid]), color)
-                    elseif calc < 1000 then
-                        return HL(string.format("\x25.1f", calc * LBOOST[curr.pid]), color)
+                    local out
+                    if calc < 1000 then
+                        out = string.format("\x25.2f", calc * LBOOST[self.pid])
                     else
-                        return HL(RealToString(calc * LBOOST[curr.pid]), color)
+                        out = RealToString(calc * LBOOST[self.pid])
                     end
+                    return HL(out, color)
+
                 elseif prefix == "\\" then
                     return HL(RealToString(calc), color)
                 end
-            else
-                return content
-            end
-        end
-
-        ---@type fun(spell: Spell):string
-        function thistype:getTooltip()
-            local orig = Spell.TOOLTIPS[self.id][self.ablev]
-
-            if self.values then
-                local gsub = string.gsub
-                local pattern = "(~?)(>?)([\\{\x25[])(\x25w-)=(.-)]"
-                curr = self
-                orig = gsub(orig, pattern, parse_brackets)
-            end
+            end)
 
             return orig
+        end
+
+        ---@type fun(self: Spell, u: unit, sid: integer?)
+        function thistype:setTooltip(u, sid)
+            local ablev = GetUnitAbilityLevel(u, sid)
+            local skill = self:create(u)
+            local tooltip = skill:getTooltip(u, ablev)
+
+            if GetLocalPlayer() == GetOwningPlayer(u) then
+                BlzSetAbilityExtendedTooltip(sid, tooltip, ablev - 1)
+                BlzSetAbilityActivatedExtendedTooltip(sid, tooltip, ablev - 1)
+            end
         end
 
         -- Stub methods
@@ -241,7 +260,7 @@ OnInit.final("Spells", function(Require)
             Unit[caster].orderX = x
             Unit[caster].orderY = y
             if Unit[caster].movespeed > MOVESPEED.MAX then
-                BlzSetUnitFacingEx(caster, bj_RADTODEG * Atan2(targetY - y, targetX - x))
+                BlzSetUnitFacingEx(caster, bj_RADTODEG * math.atan(targetY - y, targetX - x))
             end
         end
 
@@ -309,7 +328,7 @@ OnInit.final("Spells", function(Require)
 
         -- check existing spell definition
         if Spells[sid] then
-            local spell = Spells[sid]:create(caster, sid)
+            local spell = Spells[sid]:create(caster)
             spell.sid = sid
             spell.tpid = tpid
             spell.caster = caster
@@ -319,7 +338,7 @@ OnInit.final("Spells", function(Require)
             spell.y = y
             spell.targetX = targetX
             spell.targetY = targetY
-            spell.angle = Atan2(spell.targetY - y, spell.targetX - x)
+            spell.angle = math.atan(spell.targetY - y, spell.targetX - x)
 
             spell:onCast()
         elseif UNIT_SPELLS[sid] then
@@ -371,6 +390,36 @@ OnInit.final("Spells", function(Require)
             SetPlayerAbilityAvailable(p, SONG_WAR, false)
             SetPlayerAbilityAvailable(p, SONG_FATIGUE, false)
         end
+    end
+
+    -- Hook UnitAddAbility
+    function Hook:UnitAddAbility(whichUnit, id)
+        local returnValue = self.old(whichUnit, id)
+
+        -- force mana cost update
+        EVENT_STAT_CHANGE:trigger(whichUnit)
+
+        return returnValue
+    end
+
+    ---@param u unit
+    function UpdateSpellTooltips(u)
+        local i = 0
+        local abil = BlzGetUnitAbilityByIndex(u, i)
+
+        while abil do
+            local sid = BlzGetAbilityId(abil)
+
+            if Spells[sid] then
+                Spells[sid]:setTooltip(u, sid)
+            end
+
+            i = i + 1
+            abil = BlzGetUnitAbilityByIndex(u, i)
+        end
+
+        SetPlayerAbilityAvailable(PLAYER_CREEP, FourCC('Agyv'), true)
+        SetPlayerAbilityAvailable(PLAYER_CREEP, FourCC('Agyv'), false)
     end
 
     RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_SPELL_CAST, SpellCast)
