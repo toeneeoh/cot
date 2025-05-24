@@ -203,7 +203,6 @@ OnInit.global("Profile", function(Require)
                     DisplayTextToPlayer(p, 0, 0, "You can't repick right now.")
                     return
                 elseif RectContainsUnit(gg_rct_Tavern, Hero[self.pid]) or RectContainsUnit(gg_rct_Town_Main, Hero[self.pid]) or RectContainsUnit(gg_rct_Church, Hero[self.pid]) then
-                    ShowHeroCircle(p, true)
                 else
                     DisplayTextToPlayer(p, 0, 0, "You can only repick in church, town or tavern.")
                     return
@@ -299,7 +298,6 @@ OnInit.global("Profile", function(Require)
                     dw:display()
                 else
                     if not SELECTING_HERO[pid] then
-                        DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 30.0, "Select a |c006969ffhero|r using the left and right arrow keys.")
                         thistype[pid].new_char = true
                         thistype[pid]:hero_select()
                     end
@@ -352,12 +350,13 @@ OnInit.global("Profile", function(Require)
                 EnableSelect(false, false)
                 SetDayNightModels("Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx","Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx")
             end
-            SetCamera(self.pid, gg_rct_Tavern)
-            StartHeroSelect(self.pid)
 
             Backpack[self.pid] = nil
             SELECTING_HERO[self.pid] = true
             SetCurrency(self.pid, GOLD, 100)
+            SetCamera(self.pid, gg_rct_Tavern)
+
+            StartHeroSelect(self.pid)
         end
 
         function thistype:open_dialog()
@@ -579,8 +578,8 @@ OnInit.global("Profile", function(Require)
 
     local function backpack_periodic(bp, pid)
         if bp then
-            local x = GetUnitX(Hero[pid]) + 50 * Cos((GetUnitFacing(Hero[pid]) - 45) * bj_DEGTORAD)
-            local y = GetUnitY(Hero[pid]) + 50 * Sin((GetUnitFacing(Hero[pid]) - 45) * bj_DEGTORAD)
+            local x = GetUnitX(Hero[pid]) + 50 * math.cos((GetUnitFacing(Hero[pid]) - 45) * bj_DEGTORAD)
+            local y = GetUnitY(Hero[pid]) + 50 * math.sin((GetUnitFacing(Hero[pid]) - 45) * bj_DEGTORAD)
 
             if IsUnitInRange(Hero[pid], bp, 1000.) == false then
                 SetUnitXBounded(bp, x)
@@ -636,12 +635,12 @@ OnInit.global("Profile", function(Require)
                 HeroID[pid] = id
                 PLAYER_SELECTED_UNIT[pid] = hero
 
-                Unit[hero].mr = HeroStats[id].magic_resist
-                Unit[hero].pr = HeroStats[id].phys_resist
-                Unit[hero].pm = HeroStats[id].phys_damage
-                Unit[hero].cc_flat = HeroStats[id].crit_chance
-                Unit[hero].cd_flat = HeroStats[id].crit_damage
-                Unit[hero].mana_regen_max = HeroStats[id].mana_regen_max or 0
+                Unit[hero].mr = HERO_STATS[id].magic_resist
+                Unit[hero].pr = HERO_STATS[id].phys_resist
+                Unit[hero].pm = HERO_STATS[id].phys_damage
+                Unit[hero].cc_flat = HERO_STATS[id].crit_chance
+                Unit[hero].cd_flat = HERO_STATS[id].crit_damage
+                Unit[hero].mana_regen_max = HERO_STATS[id].mana_regen_max or 0
 
                 -- backpack
                 local backpack = CreateUnit(Player(pid - 1), BACKPACK, GetRectCenterX(gg_rct_ChurchSpawn), GetRectCenterY(gg_rct_ChurchSpawn), 0)
@@ -842,7 +841,7 @@ OnInit.global("Profile", function(Require)
         end
 
         if GetLocalPlayer() == Player(pid - 1) then
-            BlzSetAbilityPosY(HeroStats[HeroID[pid]].passive, 0)
+            BlzSetAbilityPosY(HERO_STATS[HeroID[pid]].passive, 0)
         end
 
         SetUnitPosition(Hero[pid], x, y)
