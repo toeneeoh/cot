@@ -51,8 +51,8 @@ OnInit.final("Regions", function(Require)
             DisplayTimedTextToPlayer(p, 0, 0, 30., "You may now save.")
         end
     end}
-    REGION_DATA[REGION_DATA[3]]  = { x = 22191., y = 3441., facing = 180., extra = function(pid, p) ShowHeroCircle(p, false) end }
-    REGION_DATA[REGION_DATA[4]]  = { x = -690., y = -238., facing = 0., extra = function(pid, p) ShowHeroCircle(p, true) end }
+    REGION_DATA[REGION_DATA[3]]  = { x = 22191., y = 3441., facing = 180. }
+    REGION_DATA[REGION_DATA[4]]  = { x = -690., y = -238., facing = 0. }
     REGION_DATA[REGION_DATA[5]]  = { x = 27145., y = -5489., facing = 0.}
     REGION_DATA[REGION_DATA[6]]  = { x = -15245., y = -14100., facing = 0., }
     REGION_DATA[REGION_DATA[7]]  = { x = 19709., y = -20237., facing = 0.}
