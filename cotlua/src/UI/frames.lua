@@ -63,7 +63,7 @@ OnInit.final("Frames", function(Require)
         BlzFrameSetLevel(backdrop, 0)
 
         -- Create Bottom UI Texture
-        PLAYERUI = BlzCreateFrameByType("SIMPLESTATUSBAR", "", BlzGetFrameByName("ConsoleUI", 0), "", 0)
+        PLAYERUI = BlzCreateFrameByType("SIMPLESTATUSBAR", "", backdrop, "", 0)
         BlzFrameClearAllPoints(PLAYERUI)
         BlzFrameSetTexture(PLAYERUI, PLAYER_UI_TEXTURE, 0, true)
         BlzFrameSetAbsPoint(PLAYERUI, FRAMEPOINT_BOTTOMLEFT, -0.018, 0.0)
@@ -311,27 +311,6 @@ OnInit.final("Frames", function(Require)
     BlzFrameSetTexture(votingButtonIconNo, "war3mapImported\\Xframe.dds", 0, true)
     BlzFrameSetPoint(VOTING_BUTTON_FRAME2, FRAMEPOINT_CENTER, VOTING_BACKDROP, FRAMEPOINT_CENTER, 0.015, - 0.015)
     BlzFrameSetSize(VOTING_BUTTON_FRAME2, 0.03, 0.03)
-
-    --hardcore UI
-    HARDCORE_BACKDROP = BlzCreateFrameByType("BACKDROP", "HARDCORE_BACKDROP", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "ButtonBackdropTemplate", 0)
-    BlzFrameSetPoint(HARDCORE_BACKDROP, FRAMEPOINT_CENTER, BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), FRAMEPOINT_TOP, 0, - 0.27)
-    BlzFrameSetTexture(HARDCORE_BACKDROP, "war3mapImported\\hardcoreframe.dds", 0, true)
-    BlzFrameSetSize(HARDCORE_BACKDROP, 0.40, 0.25)
-    BlzFrameSetVisible(HARDCORE_BACKDROP, false)
-
-    HARDCORE_BUTTON_FRAME = BlzCreateFrameByType("GLUEBUTTON", "FaceButton", HARDCORE_BACKDROP, "ScoreScreenTabButtonTemplate", 0)
-    hardcoreButtonIcon = BlzCreateFrameByType("BACKDROP", "FaceButtonIcon", HARDCORE_BUTTON_FRAME, "", 0)
-    BlzFrameSetAllPoints(hardcoreButtonIcon, HARDCORE_BUTTON_FRAME)
-    BlzFrameSetTexture(hardcoreButtonIcon, "war3mapImported\\Checkframe.dds", 0, true)
-    BlzFrameSetPoint(HARDCORE_BUTTON_FRAME, FRAMEPOINT_CENTER, HARDCORE_BACKDROP, FRAMEPOINT_CENTER, - 0.030, - 0.051)
-    BlzFrameSetSize(HARDCORE_BUTTON_FRAME, 0.03, 0.03)
-
-    HARDCORE_BUTTON_FRAME2 = BlzCreateFrameByType("GLUEBUTTON", "FaceButton", HARDCORE_BACKDROP, "ScoreScreenTabButtonTemplate", 0)
-    hardcoreButtonIcon2 = BlzCreateFrameByType("BACKDROP", "FaceButtonIcon", HARDCORE_BUTTON_FRAME2, "", 0)
-    BlzFrameSetAllPoints(hardcoreButtonIcon2, HARDCORE_BUTTON_FRAME2)
-    BlzFrameSetTexture(hardcoreButtonIcon2, "war3mapImported\\Xframe.dds", 0, true)
-    BlzFrameSetPoint(HARDCORE_BUTTON_FRAME2, FRAMEPOINT_CENTER, HARDCORE_BACKDROP, FRAMEPOINT_CENTER, 0.030, - 0.051)
-    BlzFrameSetSize(HARDCORE_BUTTON_FRAME2, 0.03, 0.03)
 
     --punching bag UI
     do
