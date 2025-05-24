@@ -191,10 +191,13 @@ OnInit.final("Events", function()
     EVENT_ON_FATAL_DAMAGE            = EVENT.create() ---@type EVENT
     EVENT_ENEMY_AI                   = EVENT.create() ---@type EVENT
 
+    EVENT_ON_ATTACK                  = EVENT.create() ---@type EVENT
+
     -- death events
     EVENT_ON_DEATH    = EVENT.create()
     EVENT_GRAVE_DEATH = EVENT.create()
     EVENT_ON_KILL     = EVENT.create()
+    EVENT_ON_REVIVE   = EVENT.create()
 
     -- unit order events
     EVENT_ON_AGGRO = EVENT.create()
