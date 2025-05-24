@@ -99,10 +99,6 @@ OnInit.final("Commands", function(Require)
                         SetCameraLocked(pid, true)
                     end
                     ZOOM[pid] = MathClamp(tonumber(zoom), 100, 3000)
-
-                    if not SELECTING_HERO[pid] then
-                        SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, zoom, 0)
-                    end
                 end
             end
         end,
@@ -112,10 +108,6 @@ OnInit.final("Commands", function(Require)
                 SetCameraLocked(pid, true)
             end
             ZOOM[pid] = 2500
-
-            if not SELECTING_HERO[pid] then
-                SetCameraFieldForPlayer(p, CAMERA_FIELD_TARGET_DISTANCE, 2500, 0)
-            end
         end,
         ["-lock"] = function(p, pid, args)
             SetCameraLocked(pid, true)
