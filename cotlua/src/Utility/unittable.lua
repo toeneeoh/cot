@@ -228,13 +228,11 @@ OnInit.final("UnitTable", function(Require)
                 UnitSetBonus(tbl.unit, BONUS_LIFE_REGEN, new_regen)
                 rawset(tbl.proxy, "regen", new_regen)
             end,
-
             regen_percent = function(tbl, val)
                 local new_regen = (tbl.proxy.noregen and 0) or ( tbl.proxy.regen_flat + tbl.proxy.regen_max * tbl.proxy.hp * 0.01) * val
                 UnitSetBonus(tbl.unit, BONUS_LIFE_REGEN, new_regen)
                 rawset(tbl.proxy, "regen", new_regen)
             end,
-
             regen_max = function(tbl, val)
                 local new_regen = (tbl.proxy.noregen and 0) or ( tbl.proxy.regen_flat + val * tbl.proxy.hp * 0.01) * tbl.proxy.regen_percent
                 UnitSetBonus(tbl.unit, BONUS_LIFE_REGEN, new_regen)
@@ -245,7 +243,6 @@ OnInit.final("UnitTable", function(Require)
                 UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, m)
                 rawset(tbl.proxy, "mana_regen", m)
             end,
-
             mana_regen_percent = function(tbl, val)
                 local m = (tbl.proxy.nomanaregen and 0) or ( tbl.proxy.mana_regen_flat + tbl.proxy.int * 0.05 + tbl.proxy.mana_regen_max * tbl.proxy.mana * 0.01) * val
                 UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, m)
@@ -255,6 +252,9 @@ OnInit.final("UnitTable", function(Require)
                 local m = (tbl.proxy.nomanaregen and 0) or ( tbl.proxy.mana_regen_flat + tbl.proxy.int * 0.05 + val * tbl.proxy.mana * 0.01) * tbl.proxy.mana_regen_percent
                 UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, m)
                 rawset(tbl.proxy, "mana_regen", m)
+            end,
+            nomanaregen = function(tbl, val)
+                UnitSetBonus(tbl.unit, BONUS_MANA_REGEN, val and 0 or tbl.mana_regen)
             end,
             attack = function(tbl, val)
                 rawset(tbl, "can_attack", val)
@@ -402,6 +402,13 @@ OnInit.final("UnitTable", function(Require)
         end
     end
 
+    local function on_cleanup(source, target, id)
+        -- if unit is removed
+        if id == ORDER_ID_UNDEFEND then
+            Unit[source]:destroy()
+        end
+    end
+
     ---@type fun(u: unit)
     function UnitIndex(u)
         if u and not IsDummy(u) and GetUnitAbilityLevel(u, DETECT_LEAVE_ABILITY) == 0 then
@@ -411,8 +418,11 @@ OnInit.final("UnitTable", function(Require)
 
             while abil do
                 local id = BlzGetAbilityId(abil)
-                if Spells[id] and Spells[id].setup then
-                    Spells[id]:setup(u)
+                if Spells[id] then
+                    Spells[id]:setTooltip(u, id)
+                    if Spells[id].setup then
+                        Spells[id]:setup(u)
+                    end
                 end
 
                 index = index + 1
@@ -421,6 +431,8 @@ OnInit.final("UnitTable", function(Require)
 
             UnitAddAbility(u, DETECT_LEAVE_ABILITY)
             UnitMakeAbilityPermanent(u, true, DETECT_LEAVE_ABILITY)
+
+            EVENT_ON_ORDER:register_unit_action(u, on_cleanup)
         end
     end
 
