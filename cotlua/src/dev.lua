@@ -227,8 +227,7 @@ modifiers:
                     PlayerCleanup(id)
                 end
 
-                Selection(id, SAVE_UNIT_TYPE[type])
-                StartGame(id)
+                SelectHero(id, SAVE_UNIT_TYPE[type])
             end
         end,
         ["sharecontrol"] = function(p, pid, args)
@@ -246,7 +245,7 @@ modifiers:
 
             for i = 0, S2I(args[2]) do
                 local r = bj_PI * 2 * i / max
-                CreateUnit(PLAYER_CREEP, FourCC('h02D'), GetUnitX(Hero[pid]) + Cos(r) * 30 * i / max, GetUnitY(Hero[pid]) + Sin(r) * 30 * i / max, 270.)
+                CreateUnit(PLAYER_CREEP, FourCC('h02D'), GetUnitX(Hero[pid]) + math.cos(r) * 30 * i / max, GetUnitY(Hero[pid]) + math.sin(r) * 30 * i / max, 270.)
             end
         end,
         ["shopkeeper"] = function(p, pid, args)
@@ -627,16 +626,11 @@ modifiers:
         ["go"] = function(p, pid, args)
             local hero = (args[2]) or "oblivion"
 
-            for i = 0, HERO_TOTAL - 1 do
-                local id = HeroCircle[i].skin
-                local name = GetObjectName(id):lower()
+            for _, v in ipairs(HERO_STATS) do
+                local name = v.name:lower()
 
                 if name:find(hero, nil, true) then
-                    Selection(pid, id)
-                    StartGame(pid)
-                    if (GetLocalPlayer() == p) then
-                        BlzFrameSetVisible(HARDCORE_BACKDROP, false)
-                    end
+                    SelectHero(pid, v.id)
                     break
                 end
             end
