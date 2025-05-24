@@ -283,12 +283,12 @@ OnInit.final("StatView", function(Require)
 
     STAT_TAG[ITEM_HEALTH].getter = function(u) return RealToString(GetWidgetLife(u)) .. " / " .. RealToString(Unit[u].hp) end
     STAT_TAG[ITEM_MANA].getter = function(u) return RealToString(GetUnitState(u, UNIT_STATE_MANA)) .. " / " .. RealToString(GetUnitState(u, UNIT_STATE_MAX_MANA)) end
-    STAT_TAG[ITEM_DAMAGE].getter = function(u) return RealToString(Unit[u].damage) end
+    STAT_TAG[ITEM_DAMAGE].getter = function(u) return RealToString(Unit[u].damage + 1) end -- include dice
     STAT_TAG[ITEM_DAMAGE].breakdown = function(u)
         return "|cffffcc00Base Damage:|r " .. BlzGetUnitBaseDamage(u, 0) ..
             "\n|cffffcc00Spell/Item Bonus:|r " .. Unit[u].bonus_damage ..
             "\n|cffffcc00Percent Bonus:|r " .. string.format("\x25.3f", (Unit[u].damage_percent - 1.) * 100.) .. "\x25" .. " (" .. string.format("\x25.3f", Unit[u].damage - Unit[u].bonus_damage - BlzGetUnitBaseDamage(u, 0)) .. ")" ..
-            "\n|cffffcc00Total Damage:|r " .. Unit[u].damage
+            "\n|cffffcc00Total Damage:|r " .. (Unit[u].damage + 1)
     end
     STAT_TAG[ITEM_ARMOR].getter = function(u) return RealToString(BlzGetUnitArmor(u)) end
     STAT_TAG[ITEM_STRENGTH].getter = function(u) return RealToString(GetHeroStr(u, true)) end
@@ -314,8 +314,8 @@ OnInit.final("StatView", function(Require)
         local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
         local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
         local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. string.format("\x25.3f", (1. - chaos_reduc) * 100) .. "\x25" or "")
-        return "|cffffcc00Base Reduction:|r " .. string.format("\x25.3f", 100. - (HeroStats[GetUnitTypeId(u)].phys_resist) * 100.)  .. "\x25" ..
-            "\n|cffffcc00Spell/Item Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].pr) / HeroStats[GetUnitTypeId(u)].phys_resist * 100.)  .. "\x25" ..
+        return "|cffffcc00Base Reduction:|r " .. string.format("\x25.3f", 100. - (HERO_STATS[GetType(u)].phys_resist) * 100.)  .. "\x25" ..
+            "\n|cffffcc00Spell/Item Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].pr) / HERO_STATS[GetType(u)].phys_resist * 100.)  .. "\x25" ..
             "\n|cffffcc00Armor Reduction:|r " .. string.format("\x25.3f", ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u))) * 100.)  .. "\x25" ..
             chaos ..
             "\n|cffffcc00Total Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].pr) * 100. * (1. - ((0.05 * BlzGetUnitArmor(u)) / (1. + 0.05 * BlzGetUnitArmor(u)))) * chaos_reduc) .. "\x25"
@@ -331,8 +331,8 @@ OnInit.final("StatView", function(Require)
         local dtype = BlzGetUnitIntegerField(u, UNIT_IF_DEFENSE_TYPE)
         local chaos_reduc = (dtype == ARMOR_CHAOS or dtype == ARMOR_CHAOS_BOSS) and 0.03 or 1.
         local chaos = (chaos_reduc == 0.03 and "\n|cffffcc00Chaos Reduction:|r " .. string.format("\x25.3f", (1. - chaos_reduc) * 100) .. "\x25" or "")
-        return "|cffffcc00Base Reduction:|r " .. string.format("\x25.3f", 100. - (HeroStats[GetUnitTypeId(u)].magic_resist) * 100.)  .. "\x25" ..
-            "\n|cffffcc00Spell/Item Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].mr) / HeroStats[GetUnitTypeId(u)].magic_resist * 100.)  .. "\x25" ..
+        return "|cffffcc00Base Reduction:|r " .. string.format("\x25.3f", 100. - (HERO_STATS[GetType(u)].magic_resist) * 100.)  .. "\x25" ..
+            "\n|cffffcc00Spell/Item Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].mr) / HERO_STATS[GetType(u)].magic_resist * 100.)  .. "\x25" ..
             chaos ..
             "\n|cffffcc00Total Reduction:|r " .. string.format("\x25.3f", 100. - (Unit[u].dr * Unit[u].mr) * 100. * chaos_reduc) .. "\x25"
     end
