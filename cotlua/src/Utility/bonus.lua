@@ -4,7 +4,9 @@
     A module that provides direct modification of a unit's stats using object natives.
 ]]
 
-OnInit.global("Bonus", function()
+OnInit.global("Bonus", function(Require)
+    Require('UnitTable')
+
     BONUS_ARMOR         = 1
     BONUS_DAMAGE        = 2
     BONUS_HERO_STR      = 3
@@ -18,12 +20,15 @@ OnInit.global("Bonus", function()
     BONUS_MOVE_SPEED    = 11
     BONUS_MANA_REGEN    = 12
 
+    local atan = math.atan
+
     local turn_speed_order = function(source, target)
-        BlzSetUnitFacingEx(source, bj_RADTODEG * Atan2(Unit[source].orderY - GetUnitY(source), Unit[source].orderX - GetUnitX(source)))
+        local u = Unit[source]
+        BlzSetUnitFacingEx(source, bj_RADTODEG * atan(u.orderY - u.y, u.orderX - u.x))
     end
 
     local turn_speed = function(source, target)
-        BlzSetUnitFacingEx(source, bj_RADTODEG * Atan2(GetUnitY(target) - GetUnitY(source), GetUnitX(target) - GetUnitX(source)))
+        BlzSetUnitFacingEx(source, bj_RADTODEG * atan(GetUnitY(target) - GetUnitY(source), GetUnitX(target) - GetUnitX(source)))
     end
 
     local BONUS_ABIL = { ---@type integer
