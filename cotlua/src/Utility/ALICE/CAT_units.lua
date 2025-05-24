@@ -36,7 +36,7 @@ do
     local atan2                             = math.atan
 
     local mt                                = {__mode = "k"}
-    local knockbackItem                     = nil       ---@type item
+    local knockbackItem                     = true       ---@type item
     local HiddenItems                       = {}        ---@type item[]
     local knockbackSpeed                    = setmetatable({}, {
                                                 __index = function(parent, parentKey)
