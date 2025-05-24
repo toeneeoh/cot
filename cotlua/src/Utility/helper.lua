@@ -230,7 +230,7 @@ do
 
             while i <= #instances do
                 local self = instances[i]
-                local p = Sin(bj_PI * (self.time / self.timeScale))
+                local p = math.sin(bj_PI * (self.time / self.timeScale))
                 self.time = self.time - FPS_32
                 self.x = self.x + self.ac
                 self.y = self.y + self.as
@@ -270,8 +270,8 @@ do
                 x = GetUnitX(u),
                 y = GetUnitY(u),
                 time = TIME_LIFE,
-                as = Sin(a) * VELOCITY,
-                ac = Cos(a) * VELOCITY,
+                as = math.sin(a) * VELOCITY,
+                ac = math.cos(a) * VELOCITY,
             }
 
             local pid = GetPlayerId(GetLocalPlayer()) + 1 ---@type integer 
@@ -401,9 +401,9 @@ do
 
         ---@type fun(self: shield, dmg: number, source: unit): number
         function thistype:damage(dmg, source)
-            local angle = Atan2(GetUnitY(source) - GetUnitY(self.target), GetUnitX(source) - GetUnitX(self.target)) ---@type number 
-            local x     = GetUnitX(self.target) + 80. * Cos(angle) ---@type number 
-            local y     = GetUnitY(self.target) + 80. * Sin(angle) ---@type number 
+            local angle = math.atan(GetUnitY(source) - GetUnitY(self.target), GetUnitX(source) - GetUnitX(self.target)) ---@type number 
+            local x     = GetUnitX(self.target) + 80. * math.cos(angle) ---@type number 
+            local y     = GetUnitY(self.target) + 80. * math.sin(angle) ---@type number 
             local e     = AddSpecialEffect("war3mapImported\\BoneArmorCasterTC.mdx", x, y) ---@type effect 
 
             BlzSetSpecialEffectZ(e, BlzGetUnitZ(self.target) + 90.)
@@ -1152,7 +1152,7 @@ function isalive()
     and not IsDummy(u))
 end
 
-local unit_drop_types = {
+local similar_units = {
     [FourCC('nitt')] = FourCC('n0tb'), --troll
     [FourCC('n0tw')] = FourCC('n0ts'), --tuskarr
     [FourCC('n0tc')] = FourCC('n0ts'),
@@ -1183,17 +1183,20 @@ local unit_drop_types = {
     [FourCC('n01X')] = FourCC('n03J'), --existence
     [FourCC('n01V')] = FourCC('n03M'), --astral
     [FourCC('n03T')] = FourCC('n026'), --dimensional
+
+    [HERO_DARK_SAVIOR_DEMON] = HERO_DARK_SAVIOR,
+    [HERO_MARKSMAN_SNIPER] = HERO_MARKSMAN,
 }
 
---[[unifies different unit types together to reference one item-pool]]
+---unifies different unit types together
 ---@type fun(id: any): integer
 function GetType(id)
     if type(id) == "userdata" then
         id = GetUnitTypeId(id)
     end
 
-    if unit_drop_types[id] then
-        return unit_drop_types[id]
+    if similar_units[id] then
+        return similar_units[id]
     end
 
     return id
@@ -1300,10 +1303,10 @@ end
 ---@param y number
 ---@return boolean
 function NearbyRect(r, x, y)
-    local angle = Atan2(GetRectCenterY(r) - y, GetRectCenterX(r) - x) ---@type number 
+    local angle = math.atan(GetRectCenterY(r) - y, GetRectCenterX(r) - x) ---@type number 
 
     for i = 5, 50, 5 do
-        if RectContainsCoords(r, x + i * Cos(angle), y + Sin(angle) * i) then
+        if RectContainsCoords(r, x + i * math.cos(angle), y + math.sin(angle) * i) then
             return true
         end
     end
@@ -1473,24 +1476,6 @@ end
 ---@type fun(pid: integer): string
 function GetProfilePath(pid)
     return MAP_NAME .. "\\" .. User[pid - 1].name .. "\\profile.pld"
-end
-
----@param p player
----@param show boolean
-function ShowHeroCircle(p, show)
-    if show then
-        if GetLocalPlayer() == p then
-            for i = 0, HERO_TOTAL -1 do
-                BlzSetUnitSkin(HeroCircle[i].unit, GetUnitTypeId(HeroCircle[i].unit))
-            end
-        end
-    else
-        if GetLocalPlayer() == p then
-            for i = 0, HERO_TOTAL -1 do
-                BlzSetUnitSkin(HeroCircle[i].unit, DUMMY_VISION)
-            end
-        end
-    end
 end
 
 -- use for any instance of player removal (leave, repick, permanent death)
@@ -1700,11 +1685,11 @@ end
 function HasProficiency(pid, prof)
     local id = HeroID[pid]
 
-    if not HeroStats[id] then
+    if not HERO_STATS[id] then
         return false
     end
 
-    return BlzBitAnd(HeroStats[id].prof, prof) ~= 0 or prof == 0 or prof == PROF_SHIELD or prof == PROF_POTION
+    return BlzBitAnd(HERO_STATS[id].prof, prof) ~= 0 or prof == 0 or prof == PROF_SHIELD or prof == PROF_POTION
 end
 
 ---@type fun(id: integer, pid: integer):number
@@ -2110,33 +2095,6 @@ function CastSpell(u, id, dur, anim, timescale)
     TimerQueue:callDelayed(dur, finish_cast, u)
 end
 
----@param u unit
-function UpdateSpellTooltips(u)
-    local i = 0
-    local pid = GetPlayerId(GetOwningPlayer(u)) + 1
-    local abil = BlzGetUnitAbilityByIndex(u, i)
-
-    while abil do
-        local sid = BlzGetAbilityId(abil)
-
-        if Spells[sid] then
-            local mySpell = Spells[sid]:create(u, sid) ---@type Spell
-            local tooltip = mySpell:getTooltip()
-
-            if GetLocalPlayer() == Player(pid - 1) then
-                BlzSetAbilityExtendedTooltip(sid, tooltip, mySpell.ablev - 1)
-                BlzSetAbilityActivatedExtendedTooltip(sid, tooltip, mySpell.ablev - 1)
-            end
-        end
-
-        i = i + 1
-        abil = BlzGetUnitAbilityByIndex(u, i)
-    end
-
-    SetPlayerAbilityAvailable(PLAYER_CREEP, FourCC('Agyv'), true)
-    SetPlayerAbilityAvailable(PLAYER_CREEP, FourCC('Agyv'), false)
-end
-
 function SetCamera(pid, r)
     local data = REGION_DATA[r]
 
@@ -2215,7 +2173,7 @@ function ConversionEffect(pid)
             for j = 1, i * 4 do
                 local dist = i * 40
                 local angle = 2. * bj_PI / (i * 4) * j
-                local sfx = AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", x + dist * Cos(angle), y + dist * Sin(angle))
+                local sfx = AddSpecialEffect("Abilities\\Spells\\Items\\ResourceItems\\ResourceEffectTarget.mdl", x + dist * math.cos(angle), y + dist * math.sin(angle))
                 BlzSetSpecialEffectColor(sfx, 50, 50, 255)
                 DestroyEffect(sfx)
             end
@@ -2526,8 +2484,8 @@ end
 ---@param pid integer
 function RecallSummons(pid)
     local p = Player(pid - 1) 
-    local x = GetUnitX(Hero[pid]) + 200 * Cos(bj_DEGTORAD * GetUnitFacing(Hero[pid])) ---@type number 
-    local y = GetUnitY(Hero[pid]) + 200 * Sin(bj_DEGTORAD * GetUnitFacing(Hero[pid])) ---@type number 
+    local x = GetUnitX(Hero[pid]) + 200 * math.cos(bj_DEGTORAD * GetUnitFacing(Hero[pid])) ---@type number 
+    local y = GetUnitY(Hero[pid]) + 200 * math.sin(bj_DEGTORAD * GetUnitFacing(Hero[pid])) ---@type number 
 
     for i = 1, #SummonGroup do
         local target = SummonGroup[i]
@@ -2695,6 +2653,10 @@ end
 ---@field enable function
 ---@field enabled boolean
 ---@field texture string
+---@field visible function
+---@field setTooltipIcon function
+---@field setTooltipText function
+---@field setTooltipName function
 SimpleButton = {}
 do
     local thistype = SimpleButton
@@ -3056,9 +3018,7 @@ function RevivePlayer(pid, x, y, percenthp, percentmana)
     SetUnitPropWindow(Hero[pid], bj_DEGTORAD * 60.)
     SetUnitPathing(Hero[pid], true)
 
-    if MULTISHOT.enabled[pid] then
-        IssueImmediateOrder(Hero[pid], "immolation")
-    end
+    EVENT_ON_REVIVE:trigger(Hero[pid])
 end
 
 ---@param mana number
