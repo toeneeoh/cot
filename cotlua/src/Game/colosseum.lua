@@ -88,8 +88,8 @@ OnInit.final("Colosseum", function(Require)
             end
 
             -- horizontal drift
-            x = x + Cos(angle) * speed * FPS_32
-            y = y + Sin(angle) * speed * FPS_32
+            x = x + math.cos(angle) * speed * FPS_32
+            y = y + math.sin(angle) * speed * FPS_32
 
             -- vertical arc under gravity
             zVel = zVel - GRAVITY * FPS_32
