@@ -56,7 +56,7 @@ OnInit.final("UnitSpells", function(Require)
             local angle = bj_PI * i /9.
             local dummy = Dummy.create(castx, casty, effectability, 1).unit
             SetUnitFlyHeight(dummy, 150., 0)
-            IssuePointOrder(dummy, "breathoffire", castx + 40 * Cos(angle), casty + 40 * Sin(angle))
+            IssuePointOrder(dummy, "breathoffire", castx + 40 * math.cos(angle), casty + 40 * math.sin(angle))
         end
         GroupEnumUnitsInRange(ug, castx, casty, AOE, Condition(ishostileEnemy))
         for target in each(ug) do
@@ -145,8 +145,8 @@ OnInit.final("UnitSpells", function(Require)
 
         for i = 0, 6 do
             angle= bj_PI *i /3.
-            DestroyEffect(AddSpecialEffect(speffect, castx +AOE*.4 * Cos(angle), casty +AOE*.4 * Sin(angle)))
-            DestroyEffect(AddSpecialEffect(speffect, castx +AOE*.8 * Cos(angle), casty +AOE*.8 * Sin(angle)))
+            DestroyEffect(AddSpecialEffect(speffect, castx +AOE*.4 * math.cos(angle), casty +AOE*.4 * math.sin(angle)))
+            DestroyEffect(AddSpecialEffect(speffect, castx +AOE*.8 * math.cos(angle), casty +AOE*.8 * math.sin(angle)))
         end
 
         local ug = CreateGroup()
@@ -171,8 +171,8 @@ OnInit.final("UnitSpells", function(Require)
 
         for i = 0, 10 do
             angle = bj_PI * i / 5.
-            DestroyEffect(AddSpecialEffect(speffect, castx + (innerRadius + distance / 6.) * Cos(angle), casty + (innerRadius + distance / 6.) * Sin(angle)))
-            DestroyEffect(AddSpecialEffect(speffect, castx + (outerRadius - distance / 6.) * Cos(angle), casty + (outerRadius - distance / 6.) * Sin(angle)))
+            DestroyEffect(AddSpecialEffect(speffect, castx + (innerRadius + distance / 6.) * math.cos(angle), casty + (innerRadius + distance / 6.) * math.sin(angle)))
+            DestroyEffect(AddSpecialEffect(speffect, castx + (outerRadius - distance / 6.) * math.cos(angle), casty + (outerRadius - distance / 6.) * math.sin(angle)))
         end
 
         local ug = CreateGroup()
@@ -536,10 +536,10 @@ OnInit.final("UnitSpells", function(Require)
                 MakeGroupInRange(pid, ug, GetUnitX(caster), GetUnitY(caster), 600. * LBOOST[pid], Condition(FilterEnemy))
 
                 for target in each(ug) do
-                    local angle = Atan2(GetUnitY(caster) - GetUnitY(target), GetUnitX(caster) - GetUnitX(target))
-                    if GetUnitMoveSpeed(target) > 0 and IsTerrainWalkable(GetUnitX(target) + (7. * Cos(angle)), GetUnitY(target) + (7. * Sin(angle))) then
-                        SetUnitXBounded(target, GetUnitX(target) + (7. * Cos(angle)))
-                        SetUnitYBounded(target, GetUnitY(target) + (7. * Sin(angle)))
+                    local angle = math.atan(GetUnitY(caster) - GetUnitY(target), GetUnitX(caster) - GetUnitX(target))
+                    if GetUnitMoveSpeed(target) > 0 and IsTerrainWalkable(GetUnitX(target) + (7. * math.cos(angle)), GetUnitY(target) + (7. * math.sin(angle))) then
+                        SetUnitXBounded(target, GetUnitX(target) + (7. * math.cos(angle)))
+                        SetUnitYBounded(target, GetUnitY(target) + (7. * math.sin(angle)))
                     end
                 end
 
@@ -756,8 +756,8 @@ OnInit.final("UnitSpells", function(Require)
 
         local function onStruck(target, source, amount)
             if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and amount.value > 10000. then
-                local angle = Atan2(GetUnitY(source) - GetUnitY(target), GetUnitX(source) - GetUnitX(target))
-                local sfx = AddSpecialEffect("war3mapImported\\BoneArmorCasterTC.mdx", GetUnitX(target) + 75. * Cos(angle), GetUnitY(target) + 75. * Sin(angle))
+                local angle = math.atan(GetUnitY(source) - GetUnitY(target), GetUnitX(source) - GetUnitX(target))
+                local sfx = AddSpecialEffect("war3mapImported\\BoneArmorCasterTC.mdx", GetUnitX(target) + 75. * math.cos(angle), GetUnitY(target) + 75. * math.sin(angle))
 
                 BlzSetSpecialEffectZ(sfx, BlzGetUnitZ(target) + 80.)
                 BlzSetSpecialEffectColorByPlayer(sfx, Player(0))
@@ -860,7 +860,7 @@ OnInit.final("UnitSpells", function(Require)
             SetUnitAnimation(self.caster, "channel")
             TimerQueue:callDelayed(2., periodic, self.caster, 41)
             for i = 0, 3 do
-                local sfx = AddSpecialEffect("Abilities\\Spells\\Undead\\PlagueCloud\\PlagueCloudCaster.mdl", self.x + 175 * Cos(bj_PI * i / 2 + (bj_PI / 4.)), self.y + 175 * Sin(bj_PI * i / 2 + (bj_PI / 4.)))
+                local sfx = AddSpecialEffect("Abilities\\Spells\\Undead\\PlagueCloud\\PlagueCloudCaster.mdl", self.x + 175 * math.cos(bj_PI * i / 2 + (bj_PI / 4.)), self.y + 175 * math.sin(bj_PI * i / 2 + (bj_PI / 4.)))
                 BlzSetSpecialEffectScale(sfx, 2.)
                 TimerQueue:callDelayed(21., DestroyEffect, sfx)
             end
@@ -938,9 +938,9 @@ OnInit.final("UnitSpells", function(Require)
                 if random() < 0.75 then
                     GroupRemoveUnit(ug, target)
                 end
-                local x, y = self.x + random(125, 250) * Cos(bj_DEGTORAD * (rand + i * 30)), self.y + random(125, 250) * Sin(bj_DEGTORAD * (rand + i * 30))
+                local x, y = self.x + random(125, 250) * math.cos(bj_DEGTORAD * (rand + i * 30)), self.y + random(125, 250) * math.sin(bj_DEGTORAD * (rand + i * 30))
                 local beetle = CreateUnit(Player(self.pid - 1), FourCC('u002'), x, y, 0)
-                BlzSetUnitFacingEx(beetle, bj_RADTODEG * Atan2(GetUnitY(target) - y, GetUnitX(target) - x))
+                BlzSetUnitFacingEx(beetle, bj_RADTODEG * math.atan(GetUnitY(target) - y, GetUnitX(target) - x))
                 PauseUnit(beetle, true)
                 UnitAddAbility(beetle, FourCC('Avul'))
                 SetUnitAnimation(beetle, "birth")
@@ -1201,7 +1201,7 @@ OnInit.final("UnitSpells", function(Require)
                     for i = 1, 11 do
                         for j = 0, 9 do
                             local angle = 2 * bj_PI * i / 11.
-                            DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", x + 100 * j * Cos(angle), y + 100 * j * Sin(angle)))
+                            DestroyEffect(AddSpecialEffect("war3mapImported\\NeutralExplosion.mdx", x + 100 * j * math.cos(angle), y + 100 * j * math.sin(angle)))
                         end
                     end
 
@@ -1268,8 +1268,8 @@ OnInit.final("UnitSpells", function(Require)
 
                     for i = 1, 8 do
                         for i2 = -1, 1 do
-                            x = GetUnitX(pt.source) + (150 * i) * Cos(bj_DEGTORAD * (pt.angle + 40 * i2))
-                            y = GetUnitY(pt.source) + (150 * i) * Sin(bj_DEGTORAD * (pt.angle + 40 * i2))
+                            x = GetUnitX(pt.source) + (150 * i) * math.cos(bj_DEGTORAD * (pt.angle + 40 * i2))
+                            y = GetUnitY(pt.source) + (150 * i) * math.sin(bj_DEGTORAD * (pt.angle + 40 * i2))
                             DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", x, y))
                             if i2 == 0 and playerBonus > 0 then
                                 GroupEnumUnitsInRangeEx(pt.pid, ug, x, y, 130. + playerBonus, Condition(FilterEnemy))
@@ -1436,12 +1436,12 @@ OnInit.final("UnitSpells", function(Require)
             if BlzGetUnitAbilityCooldownRemaining(target, thistype.id) <= 0 and UnitDistance(source, target) < 600. then
                 CastSpell(target, thistype.id, 1., 15, 1)
                 local x, y = GetUnitX(target), GetUnitY(target)
-                local angle = Atan2(GetUnitX(source) - y, GetUnitY(source) - x)
+                local angle = math.atan(GetUnitX(source) - y, GetUnitY(source) - x)
                 local missile = setmetatable({}, missile_template)
                 missile.x = x
                 missile.y = y
-                missile.vx = missile.speed * Cos(angle)
-                missile.vy = missile.speed * Sin(angle)
+                missile.vx = missile.speed * math.cos(angle)
+                missile.vy = missile.speed * math.sin(angle)
                 missile.visual = AddSpecialEffect("Abilities\\Spells\\Orc\\Shockwave\\ShockwaveMissile.mdl", x, y)
                 BlzSetSpecialEffectScale(missile.visual, 1.1)
                 missile.source = target
@@ -1627,8 +1627,8 @@ OnInit.final("UnitSpells", function(Require)
                 CastSpell(target, thistype.id, 1.5, 8, 1.)
 
                 for i = 0, 4 do
-                    DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl", GetUnitX(target) + 80. * Cos(bj_PI * i * 0.4), GetUnitY(target) + 80. * Sin(bj_PI * i * 0.4)))
-                    local dummy = CreateUnit(PLAYER_BOSS, FourCC('n00E'), GetUnitX(target) + 80. * Cos(bj_PI * i * 0.4), GetUnitY(target) + 80. * Sin(bj_PI * i * 0.4), GetUnitFacing(target))
+                    DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl", GetUnitX(target) + 80. * math.cos(bj_PI * i * 0.4), GetUnitY(target) + 80. * math.sin(bj_PI * i * 0.4)))
+                    local dummy = CreateUnit(PLAYER_BOSS, FourCC('n00E'), GetUnitX(target) + 80. * math.cos(bj_PI * i * 0.4), GetUnitY(target) + 80. * math.sin(bj_PI * i * 0.4), GetUnitFacing(target))
                     CastSpell(dummy, 0, 1.5, 9, 1.)
                     UnitApplyTimedLife(dummy, FourCC('BTLF'), 30.)
                 end
@@ -1925,12 +1925,12 @@ OnInit.final("UnitSpells", function(Require)
                     UnitAddAbility(target, FourCC('A043'))
                     IssueImmediateOrder(target, "windwalk")
 
-                    local angle = Atan2(GetUnitY(u) - GetUnitY(target), GetUnitX(u) - GetUnitX(target))
+                    local angle = math.atan(GetUnitY(u) - GetUnitY(target), GetUnitX(u) - GetUnitX(target))
                     UnitAddAbility(target, FourCC('Amrf'))
-                    IssuePointOrder(target, "move", GetUnitX(u) + 300 * Cos(angle), GetUnitY(u) + 300 * Sin(angle))
+                    IssuePointOrder(target, "move", GetUnitX(u) + 300 * math.cos(angle), GetUnitY(u) + 300 * math.sin(angle))
                     local pt = TimerList[BOSS_ID]:add()
-                    pt.x = GetUnitX(u) + 150 * Cos(angle)
-                    pt.y = GetUnitY(u) + 150 * Sin(angle)
+                    pt.x = GetUnitX(u) + 150 * math.cos(angle)
+                    pt.y = GetUnitY(u) + 150 * math.sin(angle)
                     pt.source = target
                     pt.timer:callDelayed(2., expire, pt)
                 end
@@ -1975,7 +1975,7 @@ OnInit.final("UnitSpells", function(Require)
                 pt.dur = 8.
                 pt.source = target
 
-                BlzSetUnitFacingEx(target, Atan2(pt.y - GetUnitY(target), pt.x - GetUnitX(target)) * bj_RADTODEG)
+                BlzSetUnitFacingEx(target, math.atan(pt.y - GetUnitY(target), pt.x - GetUnitX(target)) * bj_RADTODEG)
                 CastSpell(target, thistype.id, 1.5, 3, 1.2)
 
                 pt.timer:callDelayed(1., periodic, pt)
@@ -2341,8 +2341,8 @@ OnInit.final("UnitSpells", function(Require)
         local thistype = REINFORCEMENTS
 
         local function summon(angle, x, y)
-            UnitApplyTimedLife(CreateUnit(PLAYER_BOSS, FourCC('o034'), x + 400 * Cos((angle + 90) * bj_DEGTORAD), y + 400 * Sin((angle + 90) * bj_DEGTORAD), angle), FourCC('BTLF'), 120.)
-            UnitApplyTimedLife(CreateUnit(PLAYER_BOSS, FourCC('o034'), x + 400 * Cos((angle - 90) * bj_DEGTORAD), y + 400 * Sin((angle - 90) * bj_DEGTORAD), angle), FourCC('BTLF'), 120.)
+            UnitApplyTimedLife(CreateUnit(PLAYER_BOSS, FourCC('o034'), x + 400 * math.cos((angle + 90) * bj_DEGTORAD), y + 400 * math.sin((angle + 90) * bj_DEGTORAD), angle), FourCC('BTLF'), 120.)
+            UnitApplyTimedLife(CreateUnit(PLAYER_BOSS, FourCC('o034'), x + 400 * math.cos((angle - 90) * bj_DEGTORAD), y + 400 * math.sin((angle - 90) * bj_DEGTORAD), angle), FourCC('BTLF'), 120.)
         end
 
         local function onStruck(target, source)
@@ -2350,8 +2350,8 @@ OnInit.final("UnitSpells", function(Require)
                 CastSpell(target, thistype.id, 0., 3, 1.)
                 FloatingTextUnit(thistype.tag, target, 1.75, 100, 0, 12, 255, 0, 0, 0, true)
                 local angle, x, y = GetUnitFacing(target), GetUnitX(target), GetUnitY(target)
-                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", x + 400. * Cos((angle + 90) * bj_DEGTORAD), y + 400. * Sin((angle + 90) * bj_DEGTORAD)))
-                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", x + 400. * Cos((angle - 90) * bj_DEGTORAD), y + 400. * Sin((angle - 90) * bj_DEGTORAD)))
+                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", x + 400. * math.cos((angle + 90) * bj_DEGTORAD), y + 400. * math.sin((angle + 90) * bj_DEGTORAD)))
+                DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", x + 400. * math.cos((angle - 90) * bj_DEGTORAD), y + 400. * math.sin((angle - 90) * bj_DEGTORAD)))
                 TimerQueue:callDelayed(2., summon, angle, x, y)
             end
         end
@@ -2378,7 +2378,7 @@ OnInit.final("UnitSpells", function(Require)
                     end
                 end
 
-                pt.angle = Atan2(pt.y - GetUnitY(pt.source), pt.x - GetUnitX(pt.source))
+                pt.angle = math.atan(pt.y - GetUnitY(pt.source), pt.x - GetUnitX(pt.source))
 
                 if IsUnitInRangeXY(pt.source, pt.x, pt.y, 125.) or DistanceCoords(pt.x, pt.y, GetUnitX(pt.source), GetUnitY(pt.source)) > 2500. then
                     SetUnitPathing(pt.source, true)
@@ -2392,8 +2392,8 @@ OnInit.final("UnitSpells", function(Require)
                     pt:destroy()
                 else
                     SetUnitPathing(pt.source, false)
-                    SetUnitXBounded(pt.source, GetUnitX(pt.source) + 55 * Cos(pt.angle))
-                    SetUnitYBounded(pt.source, GetUnitY(pt.source) + 55 * Sin(pt.angle))
+                    SetUnitXBounded(pt.source, GetUnitX(pt.source) + 55 * math.cos(pt.angle))
+                    SetUnitYBounded(pt.source, GetUnitY(pt.source) + 55 * math.sin(pt.angle))
 
                     pt.timer:callDelayed(FPS_32, periodic, pt)
                 end
@@ -2426,7 +2426,7 @@ OnInit.final("UnitSpells", function(Require)
                     pt.x = GetUnitX(u)
                     pt.y = GetUnitY(u)
                     pt.ug = CreateGroup()
-                    pt.angle = Atan2(GetUnitY(u) - GetUnitY(target), GetUnitX(u) - GetUnitX(target))
+                    pt.angle = math.atan(GetUnitY(u) - GetUnitY(target), GetUnitX(u) - GetUnitX(target))
                     pt.source = target
                     BlzSetUnitFacingEx(target, pt.angle * bj_RADTODEG)
                     pt.timer:callDelayed(2.5, periodic, pt)
@@ -2457,8 +2457,8 @@ OnInit.final("UnitSpells", function(Require)
                 MakeGroupInRange(BOSS_ID, ug, x, y, pt.aoe, Condition(FilterEnemy))
 
                 --movement
-                SetUnitXBounded(pt.source, x + pt.speed * Cos(pt.angle))
-                SetUnitYBounded(pt.source, y + pt.speed * Sin(pt.angle))
+                SetUnitXBounded(pt.source, x + pt.speed * math.cos(pt.angle))
+                SetUnitYBounded(pt.source, y + pt.speed * math.sin(pt.angle))
 
                 local target = FirstOfGroup(ug)
 
@@ -2492,7 +2492,7 @@ OnInit.final("UnitSpells", function(Require)
                     CastSpell(pt.source, FourCC('A02V'), 0.75, 5, 1.)
                     local pt2 = TimerList[BOSS_ID]:add()
                     pt2.target = BlzGroupUnitAt(ug, GetRandomInt(0, size - 1))
-                    pt2.angle = Atan2(GetUnitY(pt2.target) - y, GetUnitX(pt2.target) - x)
+                    pt2.angle = math.atan(GetUnitY(pt2.target) - y, GetUnitX(pt2.target) - x)
                     pt2.source = Dummy.create(x, y, 0, 0, 21.).unit
                     pt2.x = GetUnitX(pt2.target)
                     pt2.y = GetUnitY(pt2.target)
@@ -2563,7 +2563,7 @@ OnInit.final("UnitSpells", function(Require)
                             DamageTarget(pt.source, pt.target, 0.001, ATTACK_TYPE_NORMAL, PHYSICAL, "Focus Fire")
                             IssueTargetOrder(pt.source, "attack", pt.target)
                             UnitSetBonus(pt.source, BONUS_ATTACK_SPEED, 8.)
-                            BlzSetUnitFacingEx(pt.source, bj_RADTODEG * Atan2(GetUnitY(pt.target) - y, GetUnitX(pt.target) - x))
+                            BlzSetUnitFacingEx(pt.source, bj_RADTODEG * math.atan(GetUnitY(pt.target) - y, GetUnitX(pt.target) - x))
                         end
                     end
                 end
