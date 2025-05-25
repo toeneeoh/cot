@@ -2307,8 +2307,8 @@ OnInit.final("HeroSpells", function(Require)
         local function regen(pid)
             local hp = GetWidgetLife(Hero[pid])
             local maxhp = BlzGetUnitMaxHP(Hero[pid])
-            thistype.regen[pid] = R2I(GetHeroStr(Hero[pid], true) - (hp / maxhp) * GetHeroStr(Hero[pid], true))
-            return thistype.regen[pid]
+            thistype.values.regen[pid] = R2I(GetHeroStr(Hero[pid], true) - (hp / maxhp) * GetHeroStr(Hero[pid], true))
+            return thistype.values.regen[pid]
         end
 
         -- updates bonus attack and regen periodically
@@ -2317,7 +2317,7 @@ OnInit.final("HeroSpells", function(Require)
             local untouched_damage = BlzGetUnitBaseDamage(Hero[pid], 0) + Unit[Hero[pid]].bonus_damage
 
             u.damage_percent = u.damage_percent - ratio
-            u.regen_flat = u.regen_flat - thistype.regen[pid]
+            u.regen_flat = u.regen_flat - thistype.values.regen[pid]
 
             local maxhp = BlzGetUnitMaxHP(Hero[pid])
             local hp = GetWidgetLife(Hero[pid])
@@ -6321,7 +6321,7 @@ OnInit.final("HeroSpells", function(Require)
             BlzEndUnitAbilityCooldown(self.caster, ARCANEBARRAGE.id)
             BlzSetUnitAbilityCooldown(self.caster, ARCANEBARRAGE.id, GetUnitAbilityLevel(self.caster, ARCANEBARRAGE.id) - 1, 3.)
 
-            pt.timer:callDelayed(0.5, periodic, pt)
+            periodic(pt)
         end
     end
 
@@ -7093,17 +7093,39 @@ OnInit.final("HeroSpells", function(Require)
             return UnitAlive(object) and IsUnitEnemy(object, missile.owner) and GetUnitMoveSpeed(object) > 0
         end
 
+        local SWIRL_RADIUS  = 130    -- distance at which swirling starts
+        local MAX_SWIRL_FORCE = 20   -- max tangential speed when right on top
+
         local function pull_force(target, missile)
-            local x2, y2 = GetUnitX(target), GetUnitY(target)
-            local dist = DistanceCoords(missile.x, missile.y, x2, y2)
-            if dist > 75 then
-                local angle = atan(missile.y - y2, missile.x - x2)
-                local strength = 5000. / dist
-                local new_x, new_y = x2 + strength * math.cos(angle), y2 + strength * math.sin(angle)
-                if IsTerrainWalkable(new_x, new_y) then
-                    SetUnitXBounded(target, new_x)
-                    SetUnitYBounded(target, new_y)
-                end
+            local x, y = GetUnitX(target), GetUnitY(target)
+            local dx, dy = missile.x - x, missile.y - y
+            local dist  = math.sqrt(dx * dx + dy * dy)
+            local angle = math.atan(dy, dx)
+
+            -- radial pull strength
+            local pull
+            if dist > 80 then
+                pull = 5000.0 / dist
+            else
+                pull = 2.0
+            end
+
+            -- compute pull vector
+            local fx = pull * math.cos(angle)
+            local fy = pull * math.sin(angle)
+
+            if dist < SWIRL_RADIUS then
+                local swirl_strength = MAX_SWIRL_FORCE * (1 - dist / SWIRL_RADIUS)
+                local perp = angle + (math.pi * 0.5)
+                fx = fx + swirl_strength * math.cos(perp)
+                fy = fy + swirl_strength * math.sin(perp)
+            end
+
+            -- apply movement if walkable
+            local nx, ny = x + fx, y + fy
+            if IsTerrainWalkable(nx, ny) then
+                SetUnitXBounded(target, nx)
+                SetUnitYBounded(target, ny)
             end
         end
 
