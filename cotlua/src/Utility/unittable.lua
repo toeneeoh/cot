@@ -11,6 +11,8 @@ OnInit.final("UnitTable", function(Require)
     Require('Events')
     Require('Spells')
 
+    local MOVESPEED_CAP = 600
+
     ---@class Unit
     ---@field owner player
     ---@field pid integer
@@ -212,15 +214,15 @@ OnInit.final("UnitTable", function(Require)
                 tbl.cd = tbl.proxy.cd_flat * val
             end,
             ms_flat = function(tbl, val)
-                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED.SOFTCAP, math.ceil(val * tbl.proxy.ms_percent))
+                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED_CAP, math.ceil(val * tbl.proxy.ms_percent))
                 UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, tbl.proxy.movespeed)
             end,
             ms_percent = function(tbl, val)
-                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED.SOFTCAP, math.ceil(tbl.proxy.ms_flat * val))
+                tbl.proxy.movespeed = tbl.proxy.overmovespeed or math.min(MOVESPEED_CAP, math.ceil(tbl.proxy.ms_flat * val))
                 UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, tbl.proxy.movespeed)
             end,
             overmovespeed = function(tbl, val)
-                tbl.proxy.movespeed = val or math.min(MOVESPEED.SOFTCAP, math.ceil(tbl.proxy.ms_flat * tbl.proxy.ms_percent))
+                tbl.proxy.movespeed = val or math.min(MOVESPEED_CAP, math.ceil(tbl.proxy.ms_flat * tbl.proxy.ms_percent))
                 UnitSetBonus(tbl.unit, BONUS_MOVE_SPEED, tbl.proxy.movespeed)
             end,
             regen_flat = function(tbl, val)
@@ -402,7 +404,7 @@ OnInit.final("UnitTable", function(Require)
         end
     end
 
-    local function on_cleanup(source, target, id)
+    local function on_cleanup(source, _, id)
         -- if unit is removed
         if id == ORDER_ID_UNDEFEND then
             Unit[source]:destroy()
