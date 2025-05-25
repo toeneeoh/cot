@@ -2,7 +2,7 @@ if Debug and Debug.beginFile then Debug.beginFile("TimerQueue") end
 --[[------------------------------------------------------------------------------------------------------------------------------------------------------------
 *
 *    --------------------------------
-*    | TimerQueue and Stopwatch 1.3 |
+*    | TimerQueue and Stopwatch 1.4 |
 *    --------------------------------
 *
 *    - by Eikonium
@@ -50,6 +50,17 @@ if Debug and Debug.beginFile then Debug.beginFile("TimerQueue") end
 *    <TimerQueue>:enableCallback(callbackId)
 *        - Enables the specified callback (as per Id returned by TimerQueue:callDelayed) after you have previously disabled it, making it again execute upon timeout.
 *        - Enabling a callback after its timeout has already passed while disabled will not have any effect.
+*    <TimerQueue>:getTimeout(callbackId) --> number | nil
+*        - Returns the original timeout of the specified callback (as per Id returned by TimerQueue:callDelayed).
+*        - Returns nil, if the specified callbackId does not exist or if the callback has already been executed and thus removed from the queue.
+*    <TimerQueue>:getElapsed(callbackId) --> number | nil
+*        - Returns the number of seconds that have passed since the specified callback (as per Id returned by TimerQueue:callDelayed) was queued, not counting time passed while the TimerQueue was paused.
+*        - Returns nil, if the specified callbackId does not exist or if the callback has already been executed and thus removed from the queue.
+*    <TimerQueue>:getRemaining(callbackId) --> number | nil
+*        - Returns the number of seconds that are left until the specified callback (as per Id returned by TimerQueue:callDelayed) will execute.
+*        - Returns nil, if the specified callbackId does not exist or if the callback has already been executed and thus removed from the queue.
+*    <TimerQueue>:hasExpired(callbackId) --> boolean
+*        - Returns true, if the specified callback (as per Id returned by TimerQueue:callDelayed) has already expired (and thus removed from the queue) or never existed in the first place. Returns false otherwise.
 *    <TimerQueue>.debugMode : boolean
 *        - TimerQueues come with their own error handling in case you are not using DebugUtils (https://www.hiveworkshop.com/threads/debug-utils-ingame-console-etc.330758/).
 *        - Set to true to let erroneous function calls through <TimerQueue>:callDelayed print error messages on screen (only takes effect, if Debug Utils is not present. Otherwise you get Debug Utils error handling, which is even better).
@@ -83,13 +94,15 @@ do
     --Help data structures for recycling tables for tasks (TimerQueueElements) in TimerQueues.
     local recycleStack = {} --Used tables are stored here to prevent garbage collection, up to MAX_STACK_SIZE
     local stackSize = 0 --Current number of tables stored in recycleStack
-    local MAX_STACK_SIZE = 256 --Max number of tables that can be stored in recycleStack. Set this to a value > 0 to activate table recycling.
+    local MAX_STACK_SIZE = 128 --Max number of tables that can be stored in recycleStack. Set this to a value > 0 to activate table recycling.
 
     ---@class TimerQueueElement
     ---@field [integer] any arguments to be passed to callback
     TimerQueueElement = {
         next = nil                      ---@type TimerQueueElement next TimerQueueElement to expire after this one
         ,   timeout = 0.                ---@type number time between previous callback and this one
+        ,   timeoutTotal = 0.           ---@type number timeout this element has originally been queued with
+        ,   timerQueueRuntime = 0.      ---@type number runtime of the TimerQueue hosting this element at the moment of insertion. Used to retreive the remaining runtime of this element.
         ,   callback = function() end   ---@type function callback to be executed
         ,   n = 0                       ---@type integer number of arguments passed
         ,   enabled = true              ---@type boolean defines whether the callback shall be executed on timeout or not.
@@ -117,18 +130,20 @@ do
 
     ---Creates a new TimerQueueElement, which points to itself.
     ---@param timeout? number
+    ---@param timeoutTotal? number
+    ---@param timerQueueRuntime? number
     ---@param callback? function
     ---@param ... any arguments for callback
     ---@return TimerQueueElement
-    function TimerQueueElement.create(timeout, callback, ...)
+    function TimerQueueElement.create(timeout, timeoutTotal, timerQueueRuntime, callback, ...)
         local new
         if stackSize == 0 then
-            new = setmetatable({timeout = timeout, callback = callback, id = TimerQueueElement.nextId, n = select('#', ...), ...}, TimerQueueElement)
+            new = setmetatable({timeout = timeout, timeoutTotal = timeoutTotal, timerQueueRuntime = timerQueueRuntime, callback = callback, id = TimerQueueElement.nextId, n = select('#', ...), ...}, TimerQueueElement)
         else
             new = setmetatable(recycleStack[stackSize], TimerQueueElement)
             recycleStack[stackSize] = nil
             stackSize = stackSize - 1
-            new.timeout, new.callback, new.id, new.n = timeout, callback, TimerQueueElement.nextId, select('#', ...)
+            new.timeout, new.timeoutTotal, new.timerQueueRuntime, new.callback, new.id, new.n = timeout, timeoutTotal, timerQueueRuntime, callback, TimerQueueElement.nextId, select('#', ...)
             fillTable(new, 1, new.n, ...) --recursive fillTable is around 20 percent faster than a for-loop based on new[i] = select(i, ...)
         end
         new.next = new
@@ -149,7 +164,7 @@ do
             for i = 1, timerQueueElement.n do
                 timerQueueElement[i] = nil
             end
-            timerQueueElement.next, timerQueueElement.callback, timerQueueElement.n, timerQueueElement.timeout, timerQueueElement.enabled, timerQueueElement.id = nil, nil, nil, nil, nil, nil
+            timerQueueElement.next, timerQueueElement.callback, timerQueueElement.n, timerQueueElement.timeout, timerQueueElement.timeoutTotal, timerQueueElement.timerQueueRuntime, timerQueueElement.enabled, timerQueueElement.id = nil, nil, nil, nil, nil, nil, nil, nil
             --push on stack
             stackSize = stackSize + 1
             recycleStack[stackSize] = timerQueueElement
@@ -160,11 +175,12 @@ do
     ---@class TimerQueue
     TimerQueue = {
         timer = nil                     ---@type timer the single timer this system is based on (one per instance of course)
-        ,   queue = TimerQueueElement.create() -- queue of waiting callbacks to be executed in the future
+        ,   queue = TimerQueueElement.create() ---@type TimerQueueElement queue of waiting callbacks to be executed in the future
         ,   n = 0                       ---@type integer number of elements in the queue
-        ,   on_expire = function() end  ---@type function callback to be executed upon timer expiration (defined further below).
-        ,   debugMode = false           ---@type boolean setting this to true will print error messages, when the input function couldn't be executed properly. Set this to false before releasing your map.
+        ,   on_expire = function() end  ---@type function callback to be executed upon timer expiration.
         ,   paused = false              ---@type boolean whether the queue is paused or not
+        ,   runtime = 0.                ---@type number time the queue has been running with callbacks queued. Only updated upon callback execution, so need to add TimerGetElapsed(self.timer) to get the proper amount.
+        ,   debugMode = false           ---@type boolean If set to true, TimerQueues will print error messages upon failing callback execution. Not necessary if you are using DebugUtils. Set this to false before releasing your map.
     }
 
     TimerQueue.__index = TimerQueue
@@ -175,11 +191,13 @@ do
 
     local unpack, max, timerStart, timerGetElapsed, pauseTimer, try = table.unpack, math.max, TimerStart, TimerGetElapsed, PauseTimer, Debug and Debug.try
 
+    ---Executes the topmost queued callback and removes it from the queue.
     ---@param timerQueue TimerQueue
     local function on_expire(timerQueue)
         local queue, timer = timerQueue.queue, timerQueue.timer
         local topOfQueue = queue.next
         queue.next = topOfQueue.next
+        timerQueue.runtime = timerQueue.runtime + topOfQueue.timeout --add the time that has passed since the last on_expire
         timerQueue.n = timerQueue.n - 1
         if timerQueue.n > 0 then
             timerStart(timer, queue.next.timeout, false, timerQueue.on_expire)
@@ -209,7 +227,7 @@ do
         setmetatable(new, TimerQueue)
         new.n = 0
         new.paused = false
-        new.debugMode = false
+        new.runtime = 0.
         new.timer = CreateTimer()
         new.queue = TimerQueueElement.create()
         new.on_expire = function() on_expire(new) end
@@ -223,22 +241,25 @@ do
     ---@return integer callbackId usually discarded. Can be saved to local var to use in :disableCallback() or :enableCallback() later.
     function TimerQueue:callDelayed(timeout, callback, ...)
         timeout = math.max(timeout, 0.)
+        local timeoutTotal = timeout --remember original timeout, before queue insertion changes it to the diff to the next element
         local queue = self.queue
         self.n = self.n + 1
         -- Sort timeouts in descending order
         local current = queue
-        local current_timeout = current.next.timeout - max(timerGetElapsed(self.timer), 0.) -- don't use TimerGetRemaining to prevent bugs for expired and previously paused timers.
+        local timeElapsed = max(timerGetElapsed(self.timer), 0.)
+        local current_timeout = current.next.timeout - timeElapsed -- don't use TimerGetRemaining to prevent bugs for expired and previously paused timers.
         while current.next ~= queue and timeout >= current_timeout do --there is another element in the queue and the new element shall be executed later than the current
             timeout = timeout - current_timeout
             current = current.next
             current_timeout = current.next.timeout
         end
         -- after loop, current is the element that executes right before the new callback. If the new is the front of the queue, current is the root element (queue).
-        local new = TimerQueueElement.create(timeout, callback, ...)
+        local new = TimerQueueElement.create(timeout, timeoutTotal, self.runtime, callback, ...)
         new.next = current.next
         current.next = new
         -- if the new callback is the next to expire, restart timer with new timeout
         if current == queue then --New callback is the next to expire
+            self.runtime = self.runtime + timeElapsed
             new.next.timeout = max(current_timeout - timeout, 0.) --adapt element that was previously on top. Subtract new timeout and subtract timer elapsed time to get new timeout.
             timerStart(self.timer, timeout, false, self.on_expire)
             if self.paused then
@@ -271,27 +292,30 @@ do
         self:callDelayed(timeout, func, ...)
     end
 
-    ---Recycles all elements of a given TimerQueue, up to the limit given by MAX_STACK_SIZE
+    ---Recycles all elements of a given TimerQueue (including the root element), up to the limit given by MAX_STACK_SIZE
     ---@param timerQueue TimerQueue
     local function recycleQueueElements(timerQueue)
-        --Recycle all TimerQueueElements in the queue, but not the root element (which is used for call-by-reference checks in :callPeriodically)
+        --Recycle all TimerQueueElements in the queue except the root element (which is used for call-by-reference checks in :callPeriodically)
         local current, next = timerQueue.queue.next, nil
         while current ~= timerQueue.queue and stackSize < MAX_STACK_SIZE do --stop recycling early, if MAX_STACK_SIZE is reached. Remaining TimerQueueElements will be garbage collected. Weak values in TimerQueueElement.storage makes sure no reference is left.
             next = current.next --need to save current.next here, as it gets nilled during recycleTimerQueueElement
             recycleTimerQueueElement(current)
             current = next
         end
+        --Recycle root element
         TimerQueueElement.storage[timerQueue.queue.id] = nil
     end
 
     ---Removes all queued calls from the Timer Queue, so any remaining actions will not be executed.
     ---Using <TimerQueue>:callDelayed afterwards will still work.
+    ---Resetting a paused queue will leave it paused.
     function TimerQueue:reset()
         recycleQueueElements(self)
         --Reset timer and create new queue to replace the old
         timerStart(self.timer, 0., false, nil) --don't put in on_expire as handlerFunc. callback can still expire after pausing and resuming the empty queue, which would set n to a value < 0.
         pauseTimer(self.timer)
         self.n = 0
+        self.runtime = 0.
         self.queue = TimerQueueElement.create()
     end
 
@@ -312,6 +336,7 @@ do
     function TimerQueue:resume()
         if self.paused then
             self.paused = false
+            self.runtime = self.runtime + timerGetElapsed(self.timer)
             self.queue.next.timeout = self.queue.next.timeout - timerGetElapsed(self.timer) --need to restart from 0, because TimerGetElapsed(resumedTimer) is doing so as well after a timer is resumed.
             ResumeTimer(self.timer)
         end
@@ -336,7 +361,7 @@ do
             for j = 1, current.n do
                 args[j] = tostring(current[j])
             end
-            result[i] = '(i=' .. i .. ',timeout=' .. current.timeout .. ',enabled = ' .. tostring(current.enabled) .. ',f=' .. tostring(current.callback) .. ',args={' .. table.concat(args, ',',1,current.n) .. '})'
+            result[i] = '(i=' .. i .. ',timeout=' .. current.timeout .. ',enabled=' .. tostring(current.enabled) .. ',f=' .. tostring(current.callback) .. ',args={' .. table.concat(args, ',',1,current.n) .. '})'
             current = current.next
         end
         return '{n = ' .. self.n .. ',queue=(' .. table.concat(result, ',', 1, i) .. ')}'
@@ -359,6 +384,55 @@ do
             TimerQueueElement.storage[callbackId].enabled = true
         end
     end
+
+    ---Returns the original timeout of a callback that is currently queued in the TimerQueue.
+    ---
+    ---Returns nil, if the specified callbackId does not exist or if the callback has already been executed and thus removed from the queue.
+    ---@param callbackId integer the callbackId returned by TimerQueue:callDelayed
+    ---@return number | nil
+    function TimerQueue:getTimeout(callbackId)
+        if TimerQueueElement.storage[callbackId] then
+            return TimerQueueElement.storage[callbackId].timeoutTotal
+        end
+        return nil
+    end
+
+    ---Returns the number of seconds that have passed since the callback was queued in the TimerQueue, not counting time passed while the timer queue was paused.
+    ---
+    ---Returns nil, if the specified callbackId does not exist or if the callback has already been executed and thus removed from the queue.
+    ---@param callbackId integer the callbackId returned by TimerQueue:callDelayed
+    ---@return number | nil
+    function TimerQueue:getElapsed(callbackId)
+        if TimerQueueElement.storage[callbackId] then
+            --The runtime of the timer queue right now minus the runtime it had when the callback was queued.
+            return self.runtime + timerGetElapsed(self.timer) - TimerQueueElement.storage[callbackId].timerQueueRuntime
+        end
+        return nil
+    end
+
+    ---Returns the number of seconds still to go until callback timeout.
+    ---
+    ---Returns nil, if the specified callbackId does not exist or if the callback has already been executed and thus removed from the queue.
+    ---@param callbackId integer the callbackId returned by TimerQueue:callDelayed
+    ---@return number | nil
+    function TimerQueue:getRemaining(callbackId)
+        if TimerQueueElement.storage[callbackId] then
+            return max(self:getTimeout(callbackId) - self:getElapsed(callbackId),0.) --max prevents "-0.0" return value sometimes resulting from floating point arithmetic, e.g. after using getRemaining on a 0-callback.
+        end
+        return nil
+    end
+
+    ---Returns true, if the specified callback has already expired or the callbackId does not exist. Returns false otherwise.
+    ---@param callbackId integer the callbackId returned by TimerQueue:callDelayed
+    ---@return boolean
+    function TimerQueue:hasExpired(callbackId)
+        --if the callbackId is stored in storage, the callback is still running.
+        if TimerQueueElement.storage[callbackId] then
+            return false
+        end
+        return true
+    end
+
 
     ---@class Stopwatch
     Stopwatch = {
