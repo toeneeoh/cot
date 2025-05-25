@@ -256,14 +256,6 @@ OnInit.final("Spells", function(Require)
         local targetX = GetSpellTargetX() ---@type number 
         local targetY = GetSpellTargetY() ---@type number 
 
-        if Unit[caster] and targetX ~= 0 and targetY ~= 0 then
-            Unit[caster].orderX = x
-            Unit[caster].orderY = y
-            if Unit[caster].movespeed > MOVESPEED.MAX then
-                BlzSetUnitFacingEx(caster, bj_RADTODEG * math.atan(targetY - y, targetX - x))
-            end
-        end
-
         if Spells[sid] then
             Spells[sid].preCast(pid, tpid, caster, target, x, y, targetX, targetY)
         end
