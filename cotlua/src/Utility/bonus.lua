@@ -20,17 +20,6 @@ OnInit.global("Bonus", function(Require)
     BONUS_MOVE_SPEED    = 11
     BONUS_MANA_REGEN    = 12
 
-    local atan = math.atan
-
-    local turn_speed_order = function(source, target)
-        local u = Unit[source]
-        BlzSetUnitFacingEx(source, bj_RADTODEG * atan(u.orderY - u.y, u.orderX - u.x))
-    end
-
-    local turn_speed = function(source, target)
-        BlzSetUnitFacingEx(source, bj_RADTODEG * atan(GetUnitY(target) - GetUnitY(source), GetUnitX(target) - GetUnitX(source)))
-    end
-
     local BONUS_ABIL = { ---@type integer
         [BONUS_ARMOR] = FourCC('Z000'),
         [BONUS_DAMAGE] = FourCC('Z001'),
@@ -71,20 +60,11 @@ OnInit.global("Bonus", function(Require)
             local ms = Unit[u].ms_flat * Unit[u].ms_percent
 
             if u == Hero[pid] then
-                --have backpack move at highest possible speed
+                -- have backpack move at highest possible speed
                 SetUnitMoveSpeed(Backpack[pid], math.max(ms, amount))
             end
-            --add to custom movement speed table
-            if amount > MOVESPEED.MAX and not TableHas(MOVESPEED.units, u) then
-                MOVESPEED.units[#MOVESPEED.units + 1] = u
-                EVENT_ON_AGGRO:register_unit_action(u, turn_speed)
-                EVENT_ON_ORDER:register_unit_action(u, turn_speed_order)
-            elseif amount <= MOVESPEED.MAX then
-                TableRemove(MOVESPEED.units, u)
-                EVENT_ON_AGGRO:unregister_unit_action(u, turn_speed)
-                EVENT_ON_ORDER:unregister_unit_action(u, turn_speed_order)
-            end
             SetUnitMoveSpeed(u, amount)
+            MovespeedCheck(u, amount)
         end,
     }
 
