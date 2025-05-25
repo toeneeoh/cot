@@ -1,11 +1,11 @@
-if Debug then Debug.beginFile("ALICE") end
+if Debug then Debug.beginFile "ALICE" end
 ---@diagnostic disable: need-check-nil
 do
     --[[
     =============================================================================================================================================================
                                                             A Limitless Interaction Caller Engine
                                                                          by Antares
-                                                                           v2.8.5
+                                                                            v2.9
 
                                 A Lua system to easily create highly performant checks and interactions, between any type of objects.
                         
@@ -34,12 +34,13 @@ do
 
         --Print out warnings, errors, and enable the "downtherabbithole" cheat code for the players with these names. #XXXX not required.
         ,MAP_CREATORS                       = {         ---@constant string[]
-            "WorldEdit",
-            "lcm#1458"
+            "lcm#1458",
+            "WorldEdit"
         }
 
-        --Abort the cycle the first time it crashes. Makes it easier to identify a bug if downstream errors are prevented. Disable for release version.
-        ,HALT_ON_FIRST_CRASH                = true      ---@constant boolean
+        --Calls all interaction functions in protected mode, so that the main cycle is not interrupted on an error. Each unique error will be printed only once to the
+        --map creator. This is recommended for playtest versions which are not fully stable yet.
+        ,PROCTECTED_MODE                    = false     ---@constant boolean
 
         --These constants control which hotkeys are used for the various commands in debug mode. The key combo is Ctrl + the specified hotkey.
         ,CYCLE_SELECTION_HOTKEY             = "Q"
@@ -56,7 +57,7 @@ do
 
         --This interval is used by a second, faster timer that can be used to update visual effects at a faster rate than the MIN_INTERVAL with ALICE_PairInterpolate.
         --Set to nil to disable.
-        ,INTERPOLATION_INTERVAL             = 0.005     ---@constant number
+        ,INTERPOLATION_INTERVAL             = nil      ---@constant number
 
         --The playable map area is divided into cells of this size. Objects only interact with other objects that share a cell with them. Smaller cells increase the
         --efficiency of interactions at the cost of increased memory usage and overhead.
@@ -97,8 +98,8 @@ do
         --Add identifiers such as "hero" or "mechanical" to units if they have the corresponding classification and "nonhero", "nonmechanical" etc. if they do not.
         --The identifiers will not get updated automatically when a unit gains or loses classifications and you must update them manually with ALICE_SwapIdentifier.
         ,UNIT_ADDED_CLASSIFICATIONS         = {         ---@constant unittype[]
-            UNIT_TYPE_STRUCTURE,
-            UNIT_TYPE_HERO
+            UNIT_TYPE_HERO,
+            UNIT_TYPE_STRUCTURE
         }
 
         --The radius of the unit actors. Set to nil to use DEFAULT_OBJECT_RADIUS.
@@ -219,6 +220,7 @@ do
         setmetatable({}, {__index = function(self, key) self[key] = {} return self[key] end})
     local isInterpolated                        ---@type boolean
     local interpolationCounter = 10             ---@type integer
+    local regions = {}                          ---@type table[]
 
     local functionIsEveryStep = {}              ---@type table<function,boolean>
     local functionIsUnbreakable = {}            ---@type table<function,boolean>
@@ -390,9 +392,9 @@ do
     debug.printFunctionNames = false            ---@type boolean
     debug.evaluationTime = {}                   ---@type table
     debug.gameIsPaused = nil                    ---@type boolean
-    debug.trackedVariables = {}                 ---@type table<string,boolean>
     debug.functionName = {}                     ---@type table<function,string>
     debug.controlIsPressed = false              ---@type boolean
+    debug.errors = {}                           ---@type table<string, boolean>
 
     local eventHooks = {                        ---@type table[]
         onUnitEnter = {},
@@ -1909,8 +1911,10 @@ do
                 actorAlreadyChecked[key] = nil
             end
             actorAlreadyChecked[self] = true
-            for cell, __ in pairs(self.isInCell) do
-                LeaveCell(cell, self)
+            for X = self.minX, self.maxX do
+                for Y = self.minY, self.maxY do
+                    LeaveCell(CELL_LIST[X][Y], self)
+                end
             end
 
             InitCells(self)
@@ -2366,26 +2370,6 @@ do
             end
         end
 
-        if next(debug.trackedVariables) then
-            description = description + "\n\n|cffff0000Tracked variables:|r"
-            for key, __ in pairs(debug.trackedVariables) do
-                if type(self.host) == "table" and self.host[key] then
-                    description = description + "\n|cffffcc00" + key + "|r: " + tostring(self.host[key])
-                end
-                if self.host ~= self.anchor and type(self.anchor) == "table" and self.anchor[key] then
-                    description = description + "\n|cffffcc00" + key + "|r: " + tostring(self.host[key])
-                end
-                if _G[key] then
-                    if _G[key][self.host] then
-                        description = description + "\n|cffffcc00" + key + "|r: " + tostring(_G[key][self.host])
-                    end
-                    if self.host ~= self.anchor and _G[key][self.anchor] then
-                        description = description + "\n|cffffcc00" + key + "|r: " + tostring(_G[key][self.anchor])
-                    end
-                end
-            end
-        end
-
         local str = concat(description)
         if self.isGlobal then
             return str, "|cff00bb00Global Actor|r"
@@ -2726,58 +2710,6 @@ do
     --===========================================================================================================================================================
 
     --#region Repair
-    local function RepairCycle(firstPosition)
-        local numSteps
-        local nextStep
-
-        --Variable Step Cycle
-        local returnValue
-        local pairsThisStep = whichPairs[cycle.counter]
-        for i = firstPosition, numPairs[cycle.counter] do
-            currentPair = pairsThisStep[i]
-            if currentPair.destructionQueued then
-                if currentPair ~= DUMMY_PAIR then
-                    nextStep = cycle.counter + MAX_STEPS
-                    if nextStep > CYCLE_LENGTH then
-                        nextStep = nextStep - CYCLE_LENGTH
-                    end
-
-                    numPairs[nextStep] = numPairs[nextStep] + 1
-                    whichPairs[nextStep][numPairs[nextStep]] = currentPair
-                    currentPair[0x5] = nextStep
-                    currentPair[0x6] = numPairs[nextStep]
-                end
-            else
-                returnValue = currentPair[0x8](currentPair[0x3], currentPair[0x4])
-                if returnValue then
-                    numSteps = (returnValue*INV_MIN_INTERVAL + 1) // 1 --convert seconds to steps, then ceil.
-                    if numSteps < 1 then
-                        numSteps = 1
-                    elseif numSteps > MAX_STEPS then
-                        numSteps = MAX_STEPS
-                    end
-
-                    nextStep = cycle.counter + numSteps
-                    if nextStep > CYCLE_LENGTH then
-                        nextStep = nextStep - CYCLE_LENGTH
-                    end
-
-                    numPairs[nextStep] = numPairs[nextStep] + 1
-                    whichPairs[nextStep][numPairs[nextStep]] = currentPair
-                    currentPair[0x5] = nextStep
-                    currentPair[0x6] = numPairs[nextStep]
-                else
-                    AddPairToEveryStepList(currentPair)
-                    functionIsEveryStep[currentPair[0x8]] = true
-                    currentPair[0x7] = true
-                end
-            end
-        end
-
-        numPairs[cycle.counter] = 0
-
-        currentPair = OUTSIDE_OF_CYCLE
-    end
 
     local function PrintCrashMessage(crashingPairOrCallback, A, B)
         local warning
@@ -2811,60 +2743,6 @@ do
         end
 
         Warning(warning)
-    end
-
-    local function OnCrash()
-        local crashingPair = currentPair
-
-        --Remove pair and continue with cycle after the crashing pair.
-        if crashingPair ~= OUTSIDE_OF_CYCLE then
-            local A = crashingPair[0x1]
-            local B = crashingPair[0x2]
-            pairingExcluded[A][B] = true
-            pairingExcluded[B][A] = true
-
-            PrintCrashMessage(crashingPair, A, B)
-
-            if not crashingPair[0x7] then
-                local nextPosition = crashingPair[0x6] + 1
-
-                numPairs[DO_NOT_EVALUATE] = numPairs[DO_NOT_EVALUATE] + 1
-                whichPairs[DO_NOT_EVALUATE][numPairs[DO_NOT_EVALUATE]] = crashingPair
-                crashingPair[0x5] = DO_NOT_EVALUATE
-                crashingPair[0x6] = numPairs[DO_NOT_EVALUATE]
-
-                cycle.isCrash = true
-                DestroyPair(crashingPair)
-
-                RepairCycle(nextPosition)
-            else
-                cycle.isCrash = true
-                DestroyPair(crashingPair)
-            end
-
-            --If this is the second time the same actor caused a crash, isolate it to prevent it from causing further crashes.
-            if A.causedCrash then
-                Warning("\nActor with identifier " .. Identifier2String(A.identifier) .. ", unique number: " .. A.unique .. " is repeatedly causing crashes. Isolating...")
-                Suspend(A)
-            elseif B.causedCrash and B ~= SELF_INTERACTION_ACTOR then
-                Warning("\nActor with identifier " .. Identifier2String(B.identifier) .. ", unique number: " .. B.unique .. " is repeatedly causing crashes. Isolating...")
-                Suspend(B)
-            end
-
-            A.causedCrash = true
-            B.causedCrash = true
-        elseif ALICE_Where == "callbacks" then
-            local crashingCallback = userCallbacks.first
-            PrintCrashMessage(crashingCallback)
-            RemoveUserCallbackFromList(crashingCallback)
-            while userCallbacks.first and userCallbacks.first.callCounter == cycle.unboundCounter do
-                ExecuteUserCallback(userCallbacks.first)
-            end
-        else
-            Warning("\n|cffff0000Error:|r ALICE Cycle crashed during last execution. The crash occured during " .. ALICE_Where .. ".")
-        end
-
-        cycle.isCrash = false
     end
     --#endregion
 
@@ -3172,6 +3050,7 @@ do
         local MAX_STEPS = MAX_STEPS
         local evalCounter = cycle.unboundCounter - (cycle.unboundCounter // 10)*10 + 1
         local startTime = os.clock()
+        local crashingPairOrCallback, crashingActorA, crashingActorB, success, err
 
         interpolationCounter = 0
         for i = 1, #interpolatedPairs do
@@ -3179,7 +3058,15 @@ do
         end
 
         if ALICE_Where ~= "outsideofcycle" then
-            if config.HALT_ON_FIRST_CRASH then
+            if debug.lastCoroutine and coroutine.status(debug.lastCoroutine) == "suspended" then
+                local tries = 0
+                while ALICE_Where ~= "outsideofcycle" and coroutine.status(debug.lastCoroutine) ~= "dead" do
+                    coroutine.resume(debug.lastCoroutine)
+                    if tries > 100 then
+                        error("Cannot resume ALICE as the previous step's thread was halted and is unable to be resumed.")
+                    end
+                end
+            else
                 if currentPair ~= OUTSIDE_OF_CYCLE then
                     local A = currentPair[0x1]
                     local B = currentPair[0x2]
@@ -3199,10 +3086,9 @@ do
                 end
                 ALICE_Where = "outsideofcycle"
                 return
-            else
-                OnCrash()
             end
         end
+        debug.lastCoroutine = coroutine.running()
 
         ALICE_Where = "precleanup"
 
@@ -3224,8 +3110,23 @@ do
 
         ALICE_Where = "callbacks"
 
-        while userCallbacks.first and userCallbacks.first.callCounter == cycle.unboundCounter do
-            ExecuteUserCallback(userCallbacks.first)
+        if ALICE_Config.PROCTECTED_MODE then
+            while userCallbacks.first and userCallbacks.first.callCounter == cycle.unboundCounter do
+                success, err = pcall(ExecuteUserCallback, userCallbacks.first)
+                if not success then
+                    if Debug then
+                        Debug.throwError(err)
+                    end
+                    if not crashingPairOrCallback then
+                        crashingPairOrCallback = userCallbacks.first
+                    end
+                    RemoveUserCallbackFromList(userCallbacks.first)
+                end
+            end
+        else
+            while userCallbacks.first and userCallbacks.first.callCounter == cycle.unboundCounter do
+                ExecuteUserCallback(userCallbacks.first)
+            end
         end
 
         if cycle.isHalted and not nextStep then
@@ -3267,10 +3168,38 @@ do
 
         --Every Step Cycle
         currentPair = firstEveryStepPair
-        for __ = 1, numEveryStepPairs do
-            currentPair = currentPair[0x5]
-            if not currentPair.destructionQueued then
-                currentPair[0x8](currentPair[0x3], currentPair[0x4])
+        if ALICE_Config.PROCTECTED_MODE then
+            local pairsToRemove
+            for __ = 1, numEveryStepPairs do
+                currentPair = currentPair[0x5]
+                if not currentPair.destructionQueued then
+                    success, err = pcall(currentPair[0x8], currentPair[0x3], currentPair[0x4])
+                    if not success then
+                        if not crashingPairOrCallback then
+                            crashingPairOrCallback = currentPair
+                            crashingActorA = currentPair[0x1]
+                            crashingActorB = currentPair[0x2]
+                        end
+                        pairsToRemove = pairsToRemove or {}
+                        pairsToRemove[#pairsToRemove + 1] = currentPair
+                    end
+                end
+            end
+            if pairsToRemove then
+                for i = 1, #pairsToRemove do
+                    RemovePairFromEveryStepList(pairsToRemove[i])
+                    if pairsToRemove[i][0x2] ~= SELF_INTERACTION_ACTOR then
+                        pairingExcluded[pairsToRemove[i]][0x1][0x2] = true
+                        pairingExcluded[pairsToRemove[i]][0x2][0x1] = true
+                    end
+                end
+            end
+        else
+            for __ = 1, numEveryStepPairs do
+                currentPair = currentPair[0x5]
+                if not currentPair.destructionQueued then
+                    currentPair[0x8](currentPair[0x3], currentPair[0x4])
+                end
             end
         end
 
@@ -3284,45 +3213,98 @@ do
         --Variable Step Cycle
         local returnValue
         local pairsThisStep = whichPairs[currentCounter]
-        for i = 1, numPairs[currentCounter] do
-            currentPair = pairsThisStep[i]
-            if currentPair.destructionQueued then
-                if currentPair ~= DUMMY_PAIR then
-                    nextStep = currentCounter + MAX_STEPS
-                    if nextStep > CYCLE_LENGTH then
-                        nextStep = nextStep - CYCLE_LENGTH
-                    end
+        if ALICE_Config.PROCTECTED_MODE then
+            for i = 1, numPairs[currentCounter] do
+                currentPair = pairsThisStep[i]
+                if currentPair.destructionQueued then
+                    if currentPair ~= DUMMY_PAIR then
+                        nextStep = currentCounter + MAX_STEPS
+                        if nextStep > CYCLE_LENGTH then
+                            nextStep = nextStep - CYCLE_LENGTH
+                        end
 
-                    numPairs[nextStep] = numPairs[nextStep] + 1
-                    whichPairs[nextStep][numPairs[nextStep]] = currentPair
-                    currentPair[0x5] = nextStep
-                    currentPair[0x6] = numPairs[nextStep]
-                end
-            else
-                returnValue = currentPair[0x8](currentPair[0x3], currentPair[0x4])
-                if returnValue then
-                    numSteps = (returnValue*INV_MIN_INTERVAL + 1) // 1 --convert seconds to steps, then ceil.
-                    if numSteps < 1 then
-                        numSteps = 1
-                    elseif numSteps > MAX_STEPS then
-                        numSteps = MAX_STEPS
+                        numPairs[nextStep] = numPairs[nextStep] + 1
+                        whichPairs[nextStep][numPairs[nextStep]] = currentPair
+                        currentPair[0x5] = nextStep
+                        currentPair[0x6] = numPairs[nextStep]
                     end
-
-                    nextStep = currentCounter + numSteps
-                    if nextStep > CYCLE_LENGTH then
-                        nextStep = nextStep - CYCLE_LENGTH
-                    end
-
-                    numPairs[nextStep] = numPairs[nextStep] + 1
-                    whichPairs[nextStep][numPairs[nextStep]] = currentPair
-                    currentPair[0x5] = nextStep
-                    currentPair[0x6] = numPairs[nextStep]
                 else
-                    AddPairToEveryStepList(currentPair)
-                    if currentPair[0x8] ~= PeriodicWrapper and currentPair[0x8] ~= RepeatedWrapper then
-                        functionIsEveryStep[currentPair[0x8]] = true
+                    success, returnValue = pcall(currentPair[0x8], currentPair[0x3], currentPair[0x4])
+                    if not success then
+                        err = returnValue
+                        if not crashingPairOrCallback then
+                            crashingPairOrCallback = currentPair
+                            crashingActorA = currentPair[0x1]
+                            crashingActorB = currentPair[0x2]
+                        end
+                        currentPair[0x5] = DO_NOT_EVALUATE
+                    elseif returnValue then
+                        numSteps = (returnValue*INV_MIN_INTERVAL + 1) // 1 --convert seconds to steps, then ceil.
+                        if numSteps < 1 then
+                            numSteps = 1
+                        elseif numSteps > MAX_STEPS then
+                            numSteps = MAX_STEPS
+                        end
+
+                        nextStep = currentCounter + numSteps
+                        if nextStep > CYCLE_LENGTH then
+                            nextStep = nextStep - CYCLE_LENGTH
+                        end
+
+                        numPairs[nextStep] = numPairs[nextStep] + 1
+                        whichPairs[nextStep][numPairs[nextStep]] = currentPair
+                        currentPair[0x5] = nextStep
+                        currentPair[0x6] = numPairs[nextStep]
+                    else
+                        AddPairToEveryStepList(currentPair)
+                        if currentPair[0x8] ~= PeriodicWrapper and currentPair[0x8] ~= RepeatedWrapper then
+                            functionIsEveryStep[currentPair[0x8]] = true
+                        end
+                        currentPair[0x7] = true
                     end
-                    currentPair[0x7] = true
+                end
+            end
+        else
+            for i = 1, numPairs[currentCounter] do
+                currentPair = pairsThisStep[i]
+                if currentPair.destructionQueued then
+                    if currentPair ~= DUMMY_PAIR then
+                        nextStep = currentCounter + MAX_STEPS
+                        if nextStep > CYCLE_LENGTH then
+                            nextStep = nextStep - CYCLE_LENGTH
+                        end
+
+                        numPairs[nextStep] = numPairs[nextStep] + 1
+                        whichPairs[nextStep][numPairs[nextStep]] = currentPair
+                        currentPair[0x5] = nextStep
+                        currentPair[0x6] = numPairs[nextStep]
+                    end
+                else
+                    returnValue = currentPair[0x8](currentPair[0x3], currentPair[0x4])
+                    if returnValue then
+                        numSteps = (returnValue*INV_MIN_INTERVAL + 1) // 1 --convert seconds to steps, then ceil.
+                        if numSteps < 1 then
+                            numSteps = 1
+                        elseif numSteps > MAX_STEPS then
+                            numSteps = MAX_STEPS
+                        end
+
+                        nextStep = currentCounter + numSteps
+                        if nextStep > CYCLE_LENGTH then
+                            nextStep = nextStep - CYCLE_LENGTH
+                        end
+
+                        numPairs[nextStep] = numPairs[nextStep] + 1
+                        whichPairs[nextStep][numPairs[nextStep]] = currentPair
+                        currentPair[0x5] = nextStep
+                        currentPair[0x6] = numPairs[nextStep]
+                    else
+                        AddPairToEveryStepList(currentPair)
+                        if currentPair[0x8] ~= PeriodicWrapper and currentPair[0x8] ~= RepeatedWrapper then
+                            functionIsEveryStep[currentPair[0x8]] = true
+                        end
+                        currentPair[0x7] = true
+                    end
                 end
             end
         end
@@ -3347,6 +3329,14 @@ do
         ALICE_CPULoad = (endTime - startTime)/config.MIN_INTERVAL
 
         ALICE_Where = "outsideofcycle"
+
+        if crashingPairOrCallback then
+            if not debug.errors[err] then
+                PrintCrashMessage(crashingPairOrCallback, crashingActorA, crashingActorB)
+                error(err, 0)
+                debug.errors[err] = true
+            end
+        end
     end
     --#endregion
 
@@ -3998,8 +3988,8 @@ do
 
     --#region Init
     local function Init()
-        Require("HandleType")
-        Require("Hook")
+        Require "HandleType"
+        Require "Hook"
 
         timers.MASTER = CreateTimer()
         timers.INTERPOLATION = CreateTimer()
@@ -4085,7 +4075,7 @@ do
             TimerStart(timers.INTERPOLATION, config.INTERPOLATION_INTERVAL, true, Interpolate)
         end
 
-        local precomputedHeightMap = Require.optionally("PrecomputedHeightMap")
+        local precomputedHeightMap = Require.optionally "PrecomputedHeightMap"
 
         if precomputedHeightMap then
             GetTerrainZ = _G.GetTerrainZ
@@ -4703,7 +4693,7 @@ do
     ---@param identifier string | table
     ---@param condition? function
     ---@vararg any
-    ---@return table
+    ---@return Object[]
     function ALICE_EnumObjects(identifier, condition, ...)
         local returnTable = GetTable()
 
@@ -4748,7 +4738,7 @@ do
     ---@param identifier string | table
     ---@param condition? function
     ---@vararg any
-    ---@return table
+    ---@return Object[]
     function ALICE_EnumObjectsInRange(x, y, range, identifier, condition, ...)
         local returnTable = GetTable()
 
@@ -4784,7 +4774,7 @@ do
                         end
                     else
                         for __ = 1, cell.numActors do
-                            if HasIdentifierFromTable(actor, identifier) and not alreadyEnumerated[actor] and (condition == nil or condition(actor.host, ...)) then
+                            if not alreadyEnumerated[actor] and HasIdentifierFromTable(actor, identifier) and (condition == nil or condition(actor.host, ...)) then
                                 alreadyEnumerated[actor] = true
                                 dx = actor.x[actor.anchor] - x
                                 dy = actor.y[actor.anchor] - y
@@ -4830,7 +4820,7 @@ do
     ---@param identifier string | table
     ---@param condition? function
     ---@vararg any
-    ---@return table
+    ---@return Object[]
     function ALICE_EnumObjectsInRect(minx, miny, maxx, maxy, identifier, condition, ...)
         local returnTable = GetTable()
 
@@ -4865,7 +4855,7 @@ do
                         end
                     else
                         for __ = 1, cell.numActors do
-                            if HasIdentifierFromTable(actor, identifier) and not alreadyEnumerated[actor] and (condition == nil or condition(actor.host, ...)) then
+                            if not alreadyEnumerated[actor] and HasIdentifierFromTable(actor, identifier) and (condition == nil or condition(actor.host, ...)) then
                                 alreadyEnumerated[actor] = true
                                 x = actor.x[actor.anchor]
                                 y = actor.y[actor.anchor]
@@ -4913,7 +4903,7 @@ do
     ---@param identifier string | table
     ---@param condition? function
     ---@vararg any
-    ---@return table
+    ---@return Object[]
     function ALICE_EnumObjectsInLineSegment(x1, y1, x2, y2, halfWidth, identifier, condition, ...)
         if x2 == x1 then
             return ALICE_EnumObjectsInRect(x1 - halfWidth, min(y1, y2), x1 + halfWidth, max(y1, y2), identifier, condition, ...)
@@ -5020,7 +5010,7 @@ do
                     end
                 else
                     for __ = 1, cell.numActors do
-                        if HasIdentifierFromTable(actor, identifier) and not alreadyEnumerated[actor] and (condition == nil or condition(actor.host, ...)) then
+                        if not alreadyEnumerated[actor] and HasIdentifierFromTable(actor, identifier) and (condition == nil or condition(actor.host, ...)) then
                             alreadyEnumerated[actor] = true
                             dx = actor.x[actor.anchor] - x1
                             dy = actor.y[actor.anchor] - y1
@@ -5057,6 +5047,165 @@ do
     ---@vararg any
     function ALICE_ForAllObjectsInLineSegmentDo(action, x1, y1, x2, y2, halfWidth, identifier, condition, ...)
         local list = ALICE_EnumObjectsInLineSegment(x1, y1, x2, y2, halfWidth, identifier, condition, ...)
+        for __, object in ipairs(list) do
+            action(object, ...)
+        end
+        ReturnTable(list)
+    end
+
+    ---Function for performant enumeration of objects within a region. The region does not use the native region type, but is represented by a rect array or a table array, where each table must hold the minX, minY, maxX, and maxY fields. Region data is cached on the first call and the region object must not change afterwards. Identifier can be a string or a table. If it is a table, the last entry must be MATCHING_TYPE_ANY or MATCHING_TYPE_ALL. Optional condition to specify an additional filter function, which takes the enumerated objects as an argument and returns a boolean. Additional arguments are passed into the filter function.
+    ---@param whichRegion rect[] | table[]
+    ---@param identifier string | table
+    ---@param condition? function
+    ---@vararg any
+    ---@return Object[]
+    function ALICE_EnumObjectsInRegion(whichRegion, identifier, condition, ...)
+        local returnTable = GetTable()
+
+        ResetCoordinateLookupTables()
+
+        local identifierIsString = type(identifier) == "string"
+
+        if not regions[whichRegion] then
+            regions[whichRegion] = {
+                cells = {}
+            }
+
+            if type(whichRegion[1]) == "table" then
+                regions[whichRegion].rects = whichRegion
+            else
+                regions[whichRegion].rects = {}
+                for __, rect in ipairs(whichRegion) do
+                    regions[whichRegion].rects[#regions[whichRegion].rects + 1] = {
+                        minX = GetRectMinX(rect),
+                        minY = GetRectMinY(rect),
+                        maxX = GetRectMaxX(rect),
+                        maxY = GetRectMaxY(rect)
+                    }
+                end
+            end
+
+            local minx, miny, maxx, maxy, minI, minJ, maxI, maxJ
+            local cellIsInRegion = {}
+
+            for __, rect in ipairs(regions[whichRegion].rects) do
+                minx = rect.minX
+                miny = rect.minY
+                maxx = rect.maxX
+                maxy = rect.maxY
+                minI = min(NUM_CELLS_X, max(1, (NUM_CELLS_X*(minx - MAP_MIN_X)/MAP_SIZE_X) // 1 + 1))
+                minJ = min(NUM_CELLS_Y, max(1, (NUM_CELLS_Y*(miny - MAP_MIN_Y)/MAP_SIZE_Y) // 1 + 1))
+                maxI = min(NUM_CELLS_X, max(1, (NUM_CELLS_X*(maxx - MAP_MIN_X)/MAP_SIZE_X) // 1 + 1))
+                maxJ = min(NUM_CELLS_Y, max(1, (NUM_CELLS_Y*(maxy - MAP_MIN_Y)/MAP_SIZE_Y) // 1 + 1))
+
+                for i = minI, maxI do
+                    for j = minJ, maxJ do
+                        if not cellIsInRegion[CELL_LIST[i][j]] then
+                            cellIsInRegion[CELL_LIST[i][j]] = true
+                            regions[whichRegion].cells[#regions[whichRegion].cells + 1] = CELL_LIST[i][j]
+                        end
+                    end
+                end
+            end
+        end
+
+        local cell, actor
+        local cells = regions[whichRegion].cells
+        local rects = regions[whichRegion].rects
+
+        local x, y
+        for i = 1, #cells do
+            cell = cells[i]
+            actor = cell.first
+            if actor then
+                if identifierIsString then
+                    for __ = 1, cell.numActors do
+                        if actor.identifier[identifier] and not alreadyEnumerated[actor] and (condition == nil or condition(actor.host, ...)) then
+                            alreadyEnumerated[actor] = true
+                            x = actor.x[actor.anchor]
+                            y = actor.y[actor.anchor]
+                            for __, rect in ipairs(rects) do
+                                if x > rect.minX and x < rect.maxX and y > rect.minY and y < rect.maxY then
+                                    if rect.missingVertex then
+                                        local xr = (x - rect.minX)/(rect.maxX - rect.minX)
+                                        local yr = (y - rect.minY)/(rect.maxY - rect.minY)
+                                        if rect.missingVertex == "topright" then
+                                            if xr + yr < 1 then
+                                                returnTable[#returnTable + 1] = actor.host
+                                            end
+                                        elseif rect.missingVertex == "topleft" then
+                                            if  xr - yr > 0 then
+                                                returnTable[#returnTable + 1] = actor.host
+                                            end
+                                        elseif rect.missingVertex == "bottomleft" then
+                                            if xr + yr > 1 then
+                                                returnTable[#returnTable + 1] = actor.host
+                                            end
+                                        elseif xr - yr < 0 then
+                                            returnTable[#returnTable + 1] = actor.host
+                                        end
+                                    else
+                                        returnTable[#returnTable + 1] = actor.host
+                                    end
+                                    break
+                                end
+                            end
+                        end
+                        actor = actor.nextInCell[cell]
+                    end
+                else
+                    for __ = 1, cell.numActors do
+                        if not alreadyEnumerated[actor] and HasIdentifierFromTable(actor, identifier) and (condition == nil or condition(actor.host, ...)) then
+                            alreadyEnumerated[actor] = true
+                            x = actor.x[actor.anchor]
+                            y = actor.y[actor.anchor]
+                            for __, rect in ipairs(rects) do
+                                if x > rect.minX and x < rect.maxX and y > rect.minY and y < rect.maxY then
+                                    if rect.missingVertex then
+                                        local xr = (x - rect.minX)/(rect.maxX - rect.minX)
+                                        local yr = (y - rect.minY)/(rect.maxY - rect.minY)
+                                        if rect.missingVertex == "topright" then
+                                            if xr + yr < 1 then
+                                                returnTable[#returnTable + 1] = actor.host
+                                            end
+                                        elseif rect.missingVertex == "topleft" then
+                                            if  xr - yr > 0 then
+                                                returnTable[#returnTable + 1] = actor.host
+                                            end
+                                        elseif rect.missingVertex == "bottomleft" then
+                                            if xr + yr > 1 then
+                                                returnTable[#returnTable + 1] = actor.host
+                                            end
+                                        elseif xr - yr < 0 then
+                                            returnTable[#returnTable + 1] = actor.host
+                                        end
+                                    else
+                                        returnTable[#returnTable + 1] = actor.host
+                                    end
+                                end
+                            end
+                        end
+                        actor = actor.nextInCell[cell]
+                    end
+                end
+            end
+        end
+
+        for key, __ in pairs(alreadyEnumerated) do
+            alreadyEnumerated[key] = nil
+        end
+
+        return returnTable
+    end
+
+    ---Performs the action on all objects within a region that have the specified identifier. The region does not use the native region type, but is represented by a rect array or a table array, where each table must hold the minX, minY, maxX, and maxY fields. Region data is cached on the first call and the region object must not change afterwards. Identifier can be a string or a table. If it is a table, the last entry must be MATCHING_TYPE_ANY or MATCHING_TYPE_ALL. Optional condition to specify an additional filter function, which takes the enumerated objects as an argument and returns a boolean. Additional arguments are passed into both the filter and the action function.
+    ---@param action function
+    ---@param whichRegion rect[] | table[]
+    ---@param identifier string | table
+    ---@param condition? function
+    ---@vararg any
+    function ALICE_ForAllObjectsInRegionDo(action, whichRegion, identifier, condition, ...)
+        local list = ALICE_EnumObjectsInRegion(whichRegion, identifier, condition, ...)
         for __, object in ipairs(list) do
             action(object, ...)
         end
@@ -5228,16 +5377,34 @@ do
         end
     end
 
+    ---Returns the host of the actor currently selected in debug mode.
+    ---@return Object | nil
+    function ALICE_GetSelectedObject()
+        if debug.selectedActor then
+            return debug.selectedActor.host
+        end
+        return nil
+    end
+
+    ---Returns whether an actor attached to the specified object is selected.
+    function ALICE_IsSelected(whichObject)
+        local actor = actorOf[whichObject]
+        if actor.isActor then
+            return actor == debug.selectedActor
+        else
+            for i = 1, #actor do
+                if actor[i] == debug.selectedActor then
+                    return true
+                end
+            end
+            return false
+        end
+    end
+
     ---Returns true if one of the actors in the current pair is selected.
     ---@return boolean
     function ALICE_PairIsSelected()
         return debug.selectedActor == currentPair[0x1] or debug.selectedActor == currentPair[0x2]
-    end
-
-    ---Create a lightning effect between the objects of the current pair. Optional lightning type argument.
-    ---@param lightningType? string
-    function ALICE_PairVisualize(lightningType)
-        VisualizationLightning(currentPair, lightningType or "DRAL")
     end
 
     ---Pause the entire cycle. Optional pauseGame parameter to pause all units on the map.
@@ -5324,14 +5491,6 @@ do
     ---Continuously prints the cycle evaluation time and the number of actors, pair interactions, and cell checks until disabled.
     function ALICE_Benchmark()
         debug.benchmark = not debug.benchmark
-    end
-
-    ---Prints the values of _G.whichVar[host], if _G.whichVar exists, as well as host.whichVar, if the host is a table, in the actor tooltips in debug mode. You can list multiple variables.
-    ---@vararg ... string
-    function ALICE_TrackVariables(...)
-        for i = 1, select("#", ...) do
-            debug.trackedVariables[select(i, ...)] = true
-        end
     end
 
     ---Attempts to find the pair of the specified objects and prints the state of that pair. Pass integers to select by unique numbers. Possible return values are "active", "outofrange", "paused", "disabled", and "uninitialized".  Optional keyword parameters to specify actor with the keyword in its identifier for objects with multiple actors.
