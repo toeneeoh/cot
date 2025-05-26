@@ -73,7 +73,8 @@ OnInit.global("Profile", function(Require)
     ---@field create function
     ---@field saveCooldown function
     ---@field toggleAutoSave function
-    ---@field save_timer TimerQueue
+    ---@field save_timer integer
+    ---@field save function
     ---@field autosave boolean
     ---@field destroy function
     ---@field get_empty_slot function
@@ -105,18 +106,30 @@ OnInit.global("Profile", function(Require)
                 return rawget(thistype, key)
             end}
 
+        local function on_cleanup(pid)
+            local profile = Profile[pid]
+
+            profile.playing = false
+            if profile.save_timer then
+                TimerQueue:disableCallback(profile.save_timer)
+                profile.save_timer = nil
+            end
+            profile.autosave = false
+        end
+
         ---@type fun(pid: integer): Profile
         function Profile.create(pid)
             local self = setmetatable({
                 pid = pid,
                 checksums = __jarray(0),
                 timers = {},
-                save_timer = TimerQueue.create(),
                 total_time = 0,
                 character_code = {},
                 storage = {}, ---@type HeroData[]
                 current_slot = 1,
             }, mt)
+
+            EVENT_ON_CLEANUP:register_action(pid, on_cleanup)
 
             return self
         end
@@ -220,7 +233,6 @@ OnInit.global("Profile", function(Require)
             mb.available[self.pid] = false
             MULTIBOARD.MAIN:display(self.pid)
 
-            self.save_timer:reset()
             PlayerCleanup(self.pid)
             self:hero_select()
 
@@ -228,27 +240,33 @@ OnInit.global("Profile", function(Require)
             self.new_char = true
         end
 
-        ---@type fun(self: Profile)
-        local function SaveTimerExpire(self)
-            local success = Save(Player(self.pid - 1))
+        local function on_save_expire(self)
+            local success = self:save()
 
-            if not success then
-                self.save_timer:callDelayed(30., SaveTimerExpire, self)
-            elseif success then
-                self.save_timer:callDelayed(1800., DoNothing)
+            -- save timer logic
+            if self.autosave then
+                if not success then
+                    self.save_timer = TimerQueue:callDelayed(30., on_save_expire, self)
+                elseif success then
+                    self.save_timer = TimerQueue:callDelayed(1800., on_save_expire, self)
+                end
+            else
+                if success then
+                    self.save_timer = TimerQueue:callDelayed(1800., DoNothing)
+                end
             end
         end
 
         ---@type fun(self: Profile)
         function thistype:toggleAutoSave()
-            local time = TimerGetRemaining(self.save_timer.timer)
-            self.save_timer:reset()
+            local time = self.save_timer and TimerQueue:getRemaining(self.save_timer) or 1800.
 
-            if self.autosave == true then
-                self.save_timer:callDelayed(time, DoNothing)
+            if self.autosave then
+                TimerQueue:disableCallback(self.save_timer)
+                self.save_timer = TimerQueue:callDelayed(time, DoNothing)
                 DisplayTextToPlayer(Player(self.pid - 1), 0, 0, "|cffffcc00Autosave disabled.|r")
             else
-                self.save_timer:callDelayed(time, SaveTimerExpire, self)
+                self.save_timer = TimerQueue:callDelayed(time, on_save_expire, self.pid)
                 DisplayTextToPlayer(Player(self.pid - 1), 0, 0, "|cffffcc00Autosave is now enabled -- you will save every 30 minutes or when your next save is available as Hardcore.|r")
             end
 
@@ -258,11 +276,58 @@ OnInit.global("Profile", function(Require)
         ---Displays save cooldown
         ---@type fun(self: Profile)
         function thistype:saveCooldown()
-            if self.autosave == true then
-                DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 20, "Your next autosave is in " .. RemainingTimeString(self.save_timer.timer) .. ".")
-            elseif self.hero.hardcore > 0 then
-                DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 20, RemainingTimeString(self.save_timer.timer) .. " until you can save again.")
+            if self.save_timer then
+                local time = TimerQueue:getRemaining(self.save_timer)
+                local text = RemainingTimeString(time)
+
+                if self.autosave then
+                    DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 20, "Your next autosave is in " .. text .. ".")
+                elseif self.hero.hardcore > 0 then
+                    DisplayTimedTextToPlayer(Player(self.pid - 1), 0, 0, 20, text .. " until you can save again.")
+                end
             end
+        end
+
+        function thistype:save()
+            local p = Player(self.pid - 1)
+
+            if not self.cannot_load then
+                DisplayTextToPlayer(p, 0, 0, "You must leave the church to save.")
+                return false
+            end
+
+            if not self.playing or GetUnitTypeId(Hero[self.pid]) == 0 or UnitAlive(Hero[self.pid]) == false then
+                DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
+                return false
+            end
+
+            -- autosave ignores location save restrictions
+            if not self.autosave then
+
+                -- hardcore save logic
+                if self.hero.hardcore > 0 then
+                    local time = self.save_timer and TimerQueue:getRemaining(self.save_timer) or 0
+
+                    if time > 1 then
+                        local text = RemainingTimeString(time)
+                        DisplayTimedTextToPlayer(p, 0, 0, 20, text .. " until you can save again.")
+                        return false
+                    elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[self.pid]), GetUnitY(Hero[self.pid])) == false then
+                        DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffFF0000You're playing in hardcore mode, you may only save inside the church in town.|r")
+                        return false
+                    end
+                end
+
+                self.save_timer = TimerQueue:callDelayed(1800., DoNothing)
+            end
+
+            if GetLocalPlayer() == p then
+                ClearTextMessages()
+            end
+
+            self:save_character()
+
+            return true
         end
 
         function thistype:new_character(id)
@@ -351,7 +416,6 @@ OnInit.global("Profile", function(Require)
                 SetDayNightModels("Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx","Environment\\DNC\\DNCAshenvale\\DNCAshenValeTerrain\\DNCAshenValeTerrain.mdx")
             end
 
-            Backpack[self.pid] = nil
             SELECTING_HERO[self.pid] = true
             SetCurrency(self.pid, GOLD, 100)
             SetCamera(self.pid, gg_rct_Tavern)

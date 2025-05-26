@@ -86,55 +86,17 @@ OnInit.final("SaveLoad", function(Require)
 
     ---@return boolean
     local function on_save()
-        local cmd = GetEventPlayerChatStringMatched()
         local p = GetTriggerPlayer()
         local pid = GetPlayerId(p) + 1
+        local profile = Profile[pid]
 
-        if UnitAlive(Hero[pid]) == false then
-            DisplayTextToPlayer(p, 0, 0, "You cannot do this while dead!")
-            return false
-        end
-
-        if (cmd == "-save") then
-            if Profile[pid].hero.hardcore > 0 then
-                if TimerGetRemaining(Profile[pid].save_timer.timer) > 1 then
-                    DisplayTimedTextToPlayer(p, 0, 0, 20, RemainingTimeString(Profile[pid].save_timer.timer) .. " until you can save again.")
-                elseif RectContainsCoords(gg_rct_Church, GetUnitX(Hero[pid]), GetUnitY(Hero[pid])) == false then
-                    DisplayTimedTextToPlayer(p, 0, 0, 30, "|cffFF0000You're playing in hardcore mode, you may only save inside the church in town.|r")
-                else
-                    Save(p)
-                end
-            else
-                Save(p)
-            end
+        if profile.autosave then
+            DisplayTimedTextToPlayer(p, 0, 0, 60., "You cannot save manually with autosave enabled!")
+        else
+            Profile[pid]:save()
         end
 
         return false
-    end
-
-    ---@param p player
-    ---@return boolean
-    function Save(p)
-        local pid = GetPlayerId(p) + 1 ---@type integer 
-        local profile = Profile[pid]
-
-        if not profile.cannot_load then
-            DisplayTextToPlayer(p, 0, 0, "You must leave the church to save.")
-            return false
-        end
-
-        if not profile.playing or GetUnitTypeId(Hero[pid]) == 0 or UnitAlive(Hero[pid]) == false then
-            DisplayTextToPlayer(p, 0, 0, "An error occured while attempting to save.")
-            return false
-        end
-
-        if GetLocalPlayer() == p then
-            ClearTextMessages()
-        end
-
-        profile:save_character()
-
-        return true
     end
 
     local threads = {} -- use coroutines to "concurrently" load player profile and character codes

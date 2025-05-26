@@ -415,7 +415,7 @@ modifiers:
         ["saveall"] = function(p, pid, args)
             local U = User.first
             while U do
-                Save(U.player)
+                Profile[pid]:save()
                 U = U.next
             end
         end,

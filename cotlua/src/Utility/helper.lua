@@ -1067,12 +1067,11 @@ function SoundHandler(path, is3D, p, u)
     KillSoundWhenDone(s)
 end
 
----@param t timer
+---@param time number
 ---@return string
-function RemainingTimeString(t)
-    local time = TimerGetRemaining(t)
+function RemainingTimeString(time)
     local minutes = time // 60
-    local seconds = ModuloInteger(R2I(time), 60)
+    local seconds = math.fmod(R2I(time), 60)
 
     return (minutes > 0 and (minutes) .. " minutes") or (seconds) .. " seconds"
 end
@@ -1082,19 +1081,6 @@ function IsDummy(u)
     local id = GetUnitTypeId(u)
 
     return (id == DUMMY_CASTER or id == DUMMY_VISION)
-end
-
-local tempplayer = nil
-function ItemRepickRemove()
-    local itm = GetEnumItem()
-
-    if itm == PATH_ITEM then
-        return
-    end
-
-    if Item[itm].owner == tempplayer then
-        Item[itm]:destroy()
-    end
 end
 
 ---@return boolean
@@ -1478,12 +1464,22 @@ function GetProfilePath(pid)
     return MAP_NAME .. "\\" .. User[pid - 1].name .. "\\profile.pld"
 end
 
+local function CleanupBoundItems(object, p)
+    local itm = Item[object]
+
+    if itm.owner == p then
+        itm:destroy()
+    end
+end
+
+local function valid_item(object)
+    return Item[object] and object ~= PATH_ITEM
+end
+
 -- use for any instance of player removal (leave, repick, permanent death)
 ---@type fun(pid: integer)
 function PlayerCleanup(pid)
     local p = Player(pid - 1)
-
-    Profile[pid].playing = false
 
     -- close actions spellbook
     UnitRemoveAbility(Hero[pid], FourCC('A03C'))
@@ -1497,10 +1493,6 @@ function PlayerCleanup(pid)
         end
     end
 
-    if Profile[pid].autosave == true then
-        Profile[pid]:toggleAutoSave()
-        Profile[pid].save_timer:reset()
-    end
     TimerList[pid]:stopAllTimers()
 
     PLAYER_SELECTED_UNIT[pid] = nil
@@ -1508,8 +1500,8 @@ function PlayerCleanup(pid)
     -- TODO: Use this more
     EVENT_ON_CLEANUP:trigger(pid)
 
-    tempplayer = p
-    EnumItemsInRect(WorldBounds.rect, nil, ItemRepickRemove)
+    -- cleanup bound items
+    ALICE_ForAllObjectsDo(CleanupBoundItems, "item", valid_item, p)
 
     RemovePlayerUnits(pid)
     SetCameraLocked(pid, false)
