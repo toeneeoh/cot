@@ -1,17 +1,17 @@
 do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils begins.
 --[[
- --------------------------
- -- | Debug Utils 2.1a | --
- --------------------------
+ -------------------------
+ -- | Debug Utils 2.4 | --
+ -------------------------
 
  --> https://www.hiveworkshop.com/threads/lua-debug-utils-incl-ingame-console.353720/
 
  - by Eikonium, with special thanks to:
     - @Bribe, for pretty table print, showing that xpcall's message handler executes before the stack unwinds and useful suggestions like name caching and stack trace improvements.
     - @Jampion, for useful suggestions like print caching and applying Debug.try to all code entry points
-    - @Luashine, for useful feedback and building "WC3 Debug Console Paste Helper​" (https://github.com/Luashine/wc3-debug-console-paste-helper#readme)
+    - @Luashine, for useful feedback and building "WC3 Debug Console Paste Helper" (https://github.com/Luashine/wc3-debug-console-paste-helper#readme)
     - @HerlySQR, for showing a way to get a stack trace in Wc3 (https://www.hiveworkshop.com/threads/lua-getstacktrace.340841/)
-    - @Macadamia, for showing a way to print warnings upon accessing undeclared globals, where this all started with (https://www.hiveworkshop.com/threads/lua-very-simply-trick-to-help-lua-users-track-syntax-errors.326266/)
+    - @Macadamia, for showing a way to print warnings upon accessing nil globals, where this all started with (https://www.hiveworkshop.com/threads/lua-very-simply-trick-to-help-lua-users-track-syntax-errors.326266/)
 
 -----------------------------------------------------------------------------------------------------------------------------
 | Provides debugging utility for Wc3-maps using Lua.                                                                        |
@@ -19,7 +19,7 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
 | Including:                                                                                                                |
 |   1. Automatic ingame error messages upon running erroneous code from triggers or timers.                                 |
 |   2. Ingame Console that allows you to execute code via Wc3 ingame chat.                                                  |
-|   3. Automatic warnings upon reading undeclared globals (which also triggers after misspelling globals)                   |
+|   3. Automatic warnings upon reading nil globals (which also triggers after misspelling globals)                   |
 |   4. Debug-Library functions for manual error handling.                                                                   |
 |   5. Caching of loading screen print messages until game start (which simplifies error handling during loading screen)    |
 |   6. Overwritten tostring/print-functions to show the actual string-name of an object instead of the memory position.     |
@@ -39,7 +39,7 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
 |  - Debug Utils is meant to provide debugging utility and as such, shall be removed or invalidated from the map closely before release.                                    |
 |  - Optimally delete the whole Debug library. If that isn't suitable (because you have used library functions at too many places), you can instead replace Debug Utils     |
 |    by the following line of code that will invalidate all Debug functionality (without breaking your code):                                                               |
-|    Debug = setmetatable({try = function(...) return select(2,pcall(...)) end}, {__index = function(t,k) return DoNothing end}); try = Debug.try                           |
+|    Debug = setmetatable({try = function(...) return select(2,pcall(...)) end, original = _G}, {__index = function(t,k) return DoNothing end}); try = Debug.try                           |
 |  - If that is also not suitable for you (because your systems rely on the Debug functionality to some degree), at least set ALLOW_INGAME_CODE_EXECUTION to false.         |
 |  - Be sure to test your map thoroughly after removing Debug Utils.                                                                                                        |
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -76,6 +76,10 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
 *    Debug.log(...)
 *        - Logs the specified parameters to the Debug-log. The Debug-log will be printed upon the next error being catched by Debug.try, Debug.assert or Debug.throwError.
 *        - The Debug-log will only hold one set of parameters per code-location. That means, if you call Debug.log() inside any function, only the params saved within the latest call of that function will be kept.
+*    Debug.first()
+*        - Re-prints the very first error on screen that was thrown during map runtime and prevents further error messages and nil-warnings from being printed afterwards.
+*        - Useful, if a constant stream of error messages hinders you from reading any of them.
+*        - IngameConsole will still output error messages afterwards for code executed in it.
 *    Debug.throwError(...)
 *        - Prints an error message including document, line number, stack trace, previously logged parameters and all specified parameters on screen. Parameters can have any type.
 *        - In contrast to Lua's native error function, this can be called outside of protected mode and doesn't halt code execution.
@@ -93,12 +97,16 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
 *        - Takes an error message containing a file and a linenumber and converts war3map.lua-lines to local document lines as defined by uses of Debug.beginFile() and Debug.endFile().
 *        - Error Msg must be formatted like "<document>:<linenumber><Rest>".
 *
-* -----------------------------------
-* | Warnings for undeclared globals |
-* -----------------------------------
-*        - DebugUtils will print warnings on screen, if you read an undeclared global variable.
-*        - This is technically the case, when you misspelled on a function name, like calling CraeteUnit instead of CreateUnit.
-*        - Keep in mind though that the same warning will pop up after reading a global that was intentionally nilled. If you don't like this, turn of this feature in the settings.
+* ----------------------------
+* | Warnings for nil-globals |
+* ----------------------------
+*        - DebugUtils will print warnings on screen, if you read any global variable in your code that contains nil.
+*        - This feature is meant to spot any case where you forgot to initialize a variable with a value or misspelled a variable or function name, such as calling CraeteUnit instead of CreateUnit.
+*        - By default, warnings are disabled for globals that have been initialized with any value (including nil). I.e. you can disable nil-warnings by explicitly setting MyGlobalVariable = nil. This behaviour can be changed in the settings.
+*
+*    Debug.disableNilWarningsFor(variableName:string)
+*        - Manually disables nil-warnings for the specified global variable.
+*        - Variable must be inputted as string, e.g. Debug.disableNilWarningsFor("MyGlobalVariable").
 *
 * -----------------
 * | Print Caching |
@@ -128,7 +136,7 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
 * | Name Caching |
 * ----------------
 *        - DebugUtils overwrites the tostring-function so that it prints the name of a non-primitive object (if available) instead of its memory position. The same applies to print().
-*        - For instance, print(CreateUnit) will show "function: CreateUnit" on screen instead of "function: 0063A698".
+*        - For instance, print(CreateUnit) will show "function: CreateUnit" on screen instead of "function: 0063A698". If you still need the second, use Debug.original.tostring instead.
 *        - The table holding all those names is referred to as "Name Cache".
 *        - All names of objects in global scope will automatically be added to the Name Cache both within Lua root and again at game start (to get names for overwritten natives and your own objects).
 *        - New names entering global scope will also automatically be added, even after game start. The same applies to subtables of _G up to a depth of Debug.settings.NAME_CACHE_DEPTH.
@@ -146,8 +154,6 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
 *        - You can optionally specify a parentTableName to use that for the entry naming instead of the existing name. Doing so will also register that name for the parentTable, if it doesn't already has one.
 *        - Specifying the empty string as parentTableName will suppress it in the naming and just register all values as "<key>". Note that only string keys will be considered this way.
 *        - In contrast to Debug.registerName(), this function will NOT overwrite existing names, but just add names for new objects.
-*    Debug.oldTostring(object:any) -> string
-*        - The old tostring-function in case you still need outputs like "function: 0063A698".
 *
 * -----------------
 * | Other Utility |
@@ -166,6 +172,12 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
 *    table.print(whichTable [, depth:integer] [, pretty_yn:boolean])
 *        - Prints table.tostring(...).
 *
+* ----------------------
+* | Original Functions |
+* ----------------------
+*        - DebugUtils overrides several functions to add error handling or related functionality to them. This involves both Wc3 natives and Lua functions.
+*        - The following functions have been overridden: tostring, print, coroutine.create, coroutine.wrap, TimerStart, TriggerAddAction, Condition, Filter, ForGroup, ForForce, EnumItemsInRect, EnumDestructablesInRect
+*        - DebugUtils still provides the original unaltered functions in the 'original' subtable. E.g.: Debug.original.tostring, Debug.original.coroutine.create.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------]]
 
     -- disable sumneko extension warnings for imported resource
@@ -178,21 +190,34 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
     Debug = {
         --BEGIN OF SETTINGS--
         settings = {
+            --Ingame Error Messages
                 SHOW_TRACE_ON_ERROR = true                      ---Set to true to show a stack trace on every error in addition to the regular message (msg sources: automatic error handling, Debug.try, Debug.throwError, ...)
-            ,   INCLUDE_DEBUGUTILS_INTO_TRACE = false           ---Set to true to include lines from Debug Utils into the stack trace. Those show the source of error handling, which you might consider redundant.
+            ,   INCLUDE_DEBUGUTILS_INTO_TRACE = true            ---Set to true to include lines from Debug Utils into the stack trace. Those show the source of error handling, which you might consider redundant.
             ,   USE_TRY_ON_TRIGGERADDACTION = true              ---Set to true for automatic error handling on TriggerAddAction (applies Debug.try on every trigger action).
             ,   USE_TRY_ON_CONDITION = true                     ---Set to true for automatic error handling on boolexpressions created via Condition() or Filter() (essentially applies Debug.try on every trigger condition).
             ,   USE_TRY_ON_TIMERSTART = true                    ---Set to true for automatic error handling on TimerStart (applies Debug.try on every timer callback).
             ,   USE_TRY_ON_ENUMFUNCS = true                     ---Set to true for automatic error handling on ForGroup, ForForce, EnumItemsInRect and EnumDestructablesInRect (applies Debug.try on every enum callback)
             ,   USE_TRY_ON_COROUTINES = true                    ---Set to true for improved stack traces on errors within coroutines (applies Debug.try on coroutine.create and coroutine.wrap). This lets stack traces point to the erroneous function executed within the coroutine (instead of the function creating the coroutine).
+            --Ingame Console and -exec
             ,   ALLOW_INGAME_CODE_EXECUTION = true              ---Set to true to enable IngameConsole and -exec command.
-            ,   WARNING_FOR_UNDECLARED_GLOBALS = true           ---Set to true to print warnings upon accessing undeclared globals (i.e. globals with nil-value). This is technically the case after having misspelled on a function name (like CraeteUnit instead of CreateUnit).
-            ,   SHOW_TRACE_FOR_UNDECLARED_GLOBALS = false       ---Set to true to include a stack trace into undeclared global warnings. Only takes effect, if WARNING_FOR_UNDECLARED_GLOBALS is also true.
+            --Warnings for nil globals
+            ,   WARNING_FOR_NIL_GLOBALS = true                  ---Set to true to print warnings upon accessing nil-globals (i.e. globals containing no value).
+            ,   SHOW_TRACE_FOR_NIL_WARNINGS = false              ---Set to true to include a stack trace into nil-warnings.
+            ,   EXCLUDE_BJ_GLOBALS_FROM_NIL_WARNINGS = false    ---Set to true to exclude bj_ variables from nil-warnings.
+            ,   EXCLUDE_INITIALIZED_GLOBALS_FROM_NIL_WARNINGS = true  ---Set to true to disable warnings for initialized globals, (i.e. nil globals that held a value at some point will be treated intentionally nilled and no longer prompt warnings).
+            --Print Caching
             ,   USE_PRINT_CACHE = true                          ---Set to true to let print()-calls during loading screen be cached until the game starts.
-            ,   PRINT_DURATION = nil                            ---Adjust the duration in seconds that values printed by print() last on screen. Set to nil to use default duration (which depends on string length).
+            ,   PRINT_DURATION = nil                            ---@type float Adjusts the duration in seconds that values printed by print() last on screen. Set to nil to use default duration (which depends on string length).
+            --Name Caching
             ,   USE_NAME_CACHE = true                           ---Set to true to let tostring/print output the string-name of an object instead of its memory location (except for booleans/numbers/strings). E.g. print(CreateUnit) will output "function: CreateUnit" instead of "function: 0063A698".
             ,   AUTO_REGISTER_NEW_NAMES = true                  ---Automatically adds new names from global scope (and subtables of _G up to NAME_CACHE_DEPTH) to the name cache by adding metatables with the __newindex metamethod to ALL tables accessible from global scope.
             ,   NAME_CACHE_DEPTH = 4                            ---Set to 0 to only affect globals. Experimental feature: Set to an integer > 0 to also cache names for subtables of _G (up to the specified depth). Warning: This will alter the __newindex metamethod of subtables of _G (but not break existing functionality).
+            --Colors
+            ,   colors = {
+                    error = 'ff5555'                            ---@type string Color to be applied to error messages
+                ,   log = '888888'                              ---@type string Color to be applied to logged messages through Debug.log().
+                ,   nilWarning = 'ffffff'                       ---@type string Color to be applied to nil-warnings.
+            }
         }
         --END OF SETTINGS--
         --START OF CODE--
@@ -204,10 +229,27 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
             ,   paramLog = {}                                   ---@type table<string,string> saves logged information per code location. to be filled by Debug.log(), to be printed by Debug.try()
             ,   sourceMap = {{firstLine= 1,file='DebugUtils'}}  ---@type table<integer,{firstLine:integer,file:string,lastLine?:integer}> saves lines and file names of all documents registered via Debug.beginFile().
             ,   printCache = {n=0}                              ---@type string[] contains the strings that were attempted to print during loading screen.
+            ,   globalWarningExclusions = {}                    ---@type table<string,boolean> contains global variable names that should be excluded from warnings.
+            ,   printErrors_yn = true                           ---@type boolean Set to false to disable error messages. Used by Debug.first.
+            ,   firstError = nil                                ---@type string? contains the first error that was thrown. Used by Debug.first.
+        }
+        --provide references to the unaltered functions before DebugUtils overrides them.
+        ,   original = {
+                coroutine = {create = coroutine.create, wrap = coroutine.wrap}
+            ,   tostring = tostring
+            ,   print = print
+            ,   TimerStart = TimerStart
+            ,   TriggerAddAction = TriggerAddAction
+            ,   Condition = Condition
+            ,   Filter = Filter
+            ,   ForGroup = ForGroup
+            ,   ForForce = ForForce
+            ,   EnumItemsInRect = EnumItemsInRect
+            ,   EnumDestructablesInRect = EnumDestructablesInRect
         }
     }
     --localization
-    local settings, paramLog, nameCache, nameDepths, autoIndexedTables, nameCacheMirror, sourceMap, printCache = Debug.settings, Debug.data.paramLog, Debug.data.nameCache, Debug.data.nameDepths, Debug.data.autoIndexedTables, Debug.data.nameCacheMirror, Debug.data.sourceMap, Debug.data.printCache
+    local settings, paramLog, nameCache, nameDepths, autoIndexedTables, nameCacheMirror, sourceMap, printCache, data = Debug.settings, Debug.data.paramLog, Debug.data.nameCache, Debug.data.nameDepths, Debug.data.autoIndexedTables, Debug.data.nameCacheMirror, Debug.data.sourceMap, Debug.data.printCache, Debug.data
 
     --Write DebugUtils first line number to sourceMap:
     ---@diagnostic disable-next-line
@@ -325,20 +367,25 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
     ---Adds stack trace plus formatting to the message and prints it.
     ---@param errorMsg string
     ---@param startDepth? integer default: 4 for use in xpcall
+    ---@return string
     local function errorHandler(errorMsg, startDepth)
         startDepth = startDepth or 4 --xpcall doesn't specify this param, so it must default to 4 for this case
         errorMsg = convertToLocalErrorMsg(errorMsg)
-        --Print original error message and stack trace.
-        print("|cffff5555ERROR at " .. errorMsg .. "|r")
+        --Original error message and stack trace.
+        local toPrint = "|cff" .. settings.colors.error .. "ERROR at " .. errorMsg .. "|r"
         if settings.SHOW_TRACE_ON_ERROR then
-            print("|cffff5555Traceback (most recent call first):|r")
-            print("|cffff5555" .. getStackTrace(startDepth,200) .. "|r")
+            toPrint = toPrint .. "\n|cff" .. settings.colors.error .. "Traceback (most recent call first):|r\n|cff" .. settings.colors.error .. getStackTrace(startDepth,200) .. "|r"
         end
         --Also print entries from param log, if there are any.
         for location, loggedParams in pairs(paramLog) do
-            print("|cff888888Logged at " .. convertToLocalErrorMsg(location) .. loggedParams .. "|r")
+            toPrint = toPrint .. "\n|cff" .. settings.colors.log .. "Logged at " .. convertToLocalErrorMsg(location) .. loggedParams .. "|r"
             paramLog[location] = nil
         end
+        data.firstError = data.firstError or toPrint
+        if data.printErrors_yn then --don't print error, if execution of Debug.firstError() has disabled it.
+            print(toPrint)
+        end
+        return toPrint
     end
 
     ---Tries to execute the specified function with the specified parameters in protected mode and prints an error message (including stack trace), if unsuccessful.
@@ -361,8 +408,9 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
     ---
     ---In contrast to Lua's native error function, this can be called outside of protected mode and doesn't halt code execution.
     ---@param ... any objects/errormessages to be printed (doesn't have to be strings)
+    ---@return string
     function Debug.throwError(...)
-        errorHandler(getStackTrace(4,4) .. ": " .. concat(...), 5)
+        return errorHandler(getStackTrace(4,4) .. ": " .. concat(...), 5)
     end
 
     ---Prints the specified error message, if the specified condition fails (i.e. if it resolves to false or nil).
@@ -376,7 +424,7 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
     function Debug.assert(condition, errorMsg, ...)
         if condition then
             return ...
-        else
+        else --don't return the value from errorHandler below, as it would create return value ambiguity.
             errorHandler(getStackTrace(4,4) .. ": " .. errorMsg, 5)
         end
     end
@@ -394,6 +442,28 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
     function Debug.log(...)
         local _, location = pcall(error, "", 3) ---@diagnostic disable-next-line: need-check-nil
         paramLog[location or ''] = concat(...)
+    end
+
+    ---Re-prints the very first error that occured during map runtime and prevents any further error messages and nil-warnings from being printed afterwards (for the rest of the game).
+    ---Use this, if a constant stream of error messages hinders you from reading any of them.
+    ---IngameConsole will still output error messages afterwards for code executed in it.
+    function Debug.first()
+        data.printErrors_yn = false
+        print(data.firstError)
+    end
+
+    ----------------------------------
+    --| Undeclared Global Warnings |--
+    ----------------------------------
+    
+    --Utility function here. _G metatable behaviour is defined in Gamestart section further below.
+
+    local globalWarningExclusions = Debug.data.globalWarningExclusions
+
+    ---Disables nil-warnings for the specified variable.
+    ---@param variableName string
+    function Debug.disableNilWarningsFor(variableName)
+        globalWarningExclusions[variableName] = true
     end
 
     ------------------------------------
@@ -473,7 +543,7 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
     local function registerAllObjectsInTable(parentTable, parentTableName)
         parentTableName = parentTableName or nameCache[parentTable] or ""
         --Register all call-by-ref-objects in parentTable
-        for key, object in pairs(parentTable) do
+        for key, object in next, parentTable do --use native pairs even if a custom __pairs metamethod has been defined. We only want to add names for true subtables, not pseudo-ones. This should also prevent bugs with multi-parameter implementations of pairs() like in MDTable.
             addNameToCache(parentTableName, key, object, nameDepths[parentTable])
         end
     end
@@ -504,7 +574,7 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
         registerAllObjectsInTable(parentTable, parentTableName)
         --if depth > 1 was specified, also register Names from subtables.
         if depth > 1 then
-            for _, object in pairs(parentTable) do
+            for _, object in next, parentTable do --use native pairs even if a custom __pairs metamethod has been defined. We only want to add names for true subtables, not pseudo-ones. This should also prevent bugs with multi-parameter implementations of pairs() like in MDTable.
                 if type(object) == 'table' then
                     Debug.registerNamesFrom(object, nil, depth - 1)
                 end
@@ -532,7 +602,7 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
         end
     end
 
-    --Set empty metatable to _G. __index is added when game starts (for "attempt to read undeclared global"-errors), __newindex is added right below (for building the name cache).
+    --Set empty metatable to _G. __index is added when game starts (for "attempt to read nil-global"-errors), __newindex is added right below (for building the name cache).
     setmetatable(_G, getmetatable(_G) or {}) --getmetatable(_G) should always return nil provided that DebugUtils is the topmost script file in the trigger editor, but we still include this for safety-
 
     -- Save old tostring into Debug Library before overwriting it.
@@ -725,21 +795,47 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
         end
     end
 
+    --------------------------------
+    --| Warnings for Nil Globals |--
+    --------------------------------
+
+    --Exclude initialized globals from warnings, even if initialized with nil.
+    --These warning exclusions take effect immediately, while the warnings take effect at game start (see code after MarkGameStarted below).
+    if settings.WARNING_FOR_NIL_GLOBALS and settings.EXCLUDE_INITIALIZED_GLOBALS_FROM_NIL_WARNINGS then
+        local existingNewIndex = getmetatable(_G).__newindex
+        local isTable_yn = (type(existingNewIndex) == 'table')
+        getmetatable(_G).__newindex = function(t,k,v)
+            --First, exclude the initialized global from future warnings
+            globalWarningExclusions[k] = true
+            --Second, execute existing newindex, if there is one in place.
+            if existingNewIndex then
+                if isTable_yn then
+                    existingNewIndex[k] = v
+                else
+                    existingNewIndex(t,k,v)
+                end
+            else
+                rawset(t,k,v)
+            end
+        end
+    end
+
     -------------------------
     --| Modify Game Start |--
     -------------------------
 
+    local originalMarkGameStarted = MarkGameStarted
     --Hook certain actions into the start of the game.
     MarkGameStarted = function()
-        bj_gameStarted=true
-        DestroyTimer(GetExpiredTimer())
-        if settings.WARNING_FOR_UNDECLARED_GLOBALS then
+        originalMarkGameStarted()
+        if settings.WARNING_FOR_NIL_GLOBALS then
             local existingIndex = getmetatable(_G).__index
             local isTable_yn = (type(existingIndex) == 'table')
             getmetatable(_G).__index = function(t, k) --we made sure that _G has a metatable further above.
-                if string.sub(tostring(k),1,3) ~= 'bj_' then --prevents intentionally nilled bj-variables from triggering the check within Blizzard.j-functions, like bj_cineFadeFinishTimer.
-                    print("Trying to read undeclared global at " .. getStackTrace(4,4) .. ": " .. tostring(k)
-                        .. (settings.SHOW_TRACE_FOR_UNDECLARED_GLOBALS and "\nTraceback (most recent call first):\n" .. getStackTrace(4,200) or ""))
+                --Don't show warning, if the variable name has been actively excluded or if it's a bj_ variable (and those are excluded).
+                if data.printErrors_yn and (not globalWarningExclusions[k]) and ((not settings.EXCLUDE_BJ_GLOBALS_FROM_NIL_WARNINGS) or string.sub(tostring(k),1,3) ~= 'bj_') then --prevents intentionally nilled bj-variables from triggering the check within Blizzard.j-functions, like bj_cineFadeFinishTimer.
+                    print("|cff" .. settings.colors.nilWarning .. "Trying to read nil global at " .. getStackTrace(4,4) .. ": " .. tostring(k) .. "|r"
+                        .. (settings.SHOW_TRACE_FOR_NIL_WARNINGS and "\n|cff" .. settings.colors.nilWarning .. "Traceback (most recent call first):|r\n|cff" .. settings.colors.nilWarning .. getStackTrace(4,200) .. "|r" or ""))
                 end
                 if existingIndex then
                     if isTable_yn then
@@ -766,7 +862,6 @@ do; local _, codeLoc = pcall(error, "", 2) --get line number where DebugUtils be
             for _, str in ipairs(printCache) do
                 print(str)
             end ---@diagnostic disable-next-line: cast-local-type
-            XXX = printCache
             printCache = nil --frees reference for the garbage collector
         end
 

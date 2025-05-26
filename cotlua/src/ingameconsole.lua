@@ -73,7 +73,7 @@ IngameConsole = {
     ,   mainColMaxWidth = 0.8           ---@type number Maximum Scren share of the console main column.
     ,   tsColumnWidth = 0.06            ---@type number Screen Share of the Timestamp Column
     ,   linebreakBuffer = 0.008         ---@type number Screen Share that is added to longest string in display to calculate the screen share for the console main column. Compensates for the small inaccuracy of the String Width function.
-    ,   maxLinebreaks = 50               ---@type integer Defines the maximum amount of linebreaks, before the remaining output string will be cut and not further displayed.
+    ,   maxLinebreaks = 8               ---@type integer Defines the maximum amount of linebreaks, before the remaining output string will be cut and not further displayed.
     ,   printToConsole = true           ---@type boolean defines, if the print function should print to the console or to the chat
     ,   sharedConsole = false           ---@type boolean defines, if the console is displayed to each player at the same time (accepting all players input) or if all players much start their own console.
     ,   showTraceOnError = false        ---@type boolean defines, if the console shows a trace upon printing errors. Usually not too useful within console, because you have just initiated the erroneous call.
@@ -116,7 +116,7 @@ IngameConsole.__name = 'IngameConsole'
 ---@param consolePlayer player player for whom the console is being created
 ---@return IngameConsole
 function IngameConsole.create(consolePlayer)
-    ---@diagnostic disable-next-line: missing-fields
+---@diagnostic disable-next-line: missing-fields
     local new = {} ---@type IngameConsole
     setmetatable(new, IngameConsole)
     ---setup Object data
@@ -153,7 +153,7 @@ function IngameConsole:setupMultiboard()
         for row = 1, self.numRows + 1 do --Title row adds 1
             mbitem = MultiboardGetItem(self.multiboard, row -1, col -1)
             MultiboardSetItemStyle(mbitem, true, false)
-            MultiboardSetItemValueColor(mbitem, 255, 255, 255, 255)	-- Colors get applied via text color code
+            MultiboardSetItemValueColor(mbitem, 255, 255, 255, 255)    -- Colors get applied via text color code
             MultiboardSetItemWidth(mbitem, (col == 1 and self.tsColumnWidth) or self.currentWidth )
             MultiboardReleaseItem(mbitem)
         end
