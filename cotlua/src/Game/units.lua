@@ -11,6 +11,7 @@ OnInit.final("Units", function(Require)
     Require('Items')
     Require('Damage')
 
+    GHOST_UNITS = {} ---@type unit[]
     UnitData = {}
 
     ---@return boolean

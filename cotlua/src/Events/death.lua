@@ -11,11 +11,8 @@ OnInit.final("Death", function(Require)
     Require('Spells')
     Require('Events')
 
-    GHOST_UNITS       = {} ---@type unit[]
     REVIVE_INDICATOR  = {} ---@type effect[] 
     REVIVE_BAR        = {} ---@type effect[] 
-    StruggleWaveGroup = CreateGroup()
-    ColoWaveGroup     = CreateGroup()
 
     -- Grave Revive
     local GRAVE_REVIVE = Spell.define('A042', 'A044', 'A045')
