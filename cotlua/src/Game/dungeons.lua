@@ -64,7 +64,7 @@ OnInit.final("Dungeons", function(Require)
             self.enemies[#self.enemies + 1] = u
 
             if self.creepDeath then
-                EVENT_ON_DEATH:register_unit_action(u, self.creepDeath)
+                EVENT_ON_UNIT_DEATH:register_unit_action(u, self.creepDeath)
             end
 
             return u
@@ -314,7 +314,7 @@ OnInit.final("Dungeons", function(Require)
             SetUnitTimeScale(thistype.boss, 0.)
             TimerQueue:callDelayed(5., unpause_boss, false)
 
-            EVENT_ON_DEATH:register_unit_action(Boss[BOSS_AZAZOTH].unit, onComplete)
+            EVENT_ON_UNIT_DEATH:register_unit_action(Boss[BOSS_AZAZOTH].unit, onComplete)
         end
     end
 
@@ -370,7 +370,7 @@ OnInit.final("Dungeons", function(Require)
 
         local create_unit = function(...)
             local u = thistype:createUnit(...)
-            EVENT_ON_DEATH:register_unit_action(u, creepDeath)
+            EVENT_ON_UNIT_DEATH:register_unit_action(u, creepDeath)
             Unit[u].dr = (1 - #thistype.players * 0.1)
             return u
         end
@@ -405,7 +405,7 @@ OnInit.final("Dungeons", function(Require)
                 thistype.boss = create_unit(type, -20828, -10500, 180)
                 AddSpecialEffectTarget("LightYellow30.mdl", thistype.boss, "origin")
                 SetHeroLevel(thistype.boss, 500, false)
-                EVENT_ON_DEATH:register_unit_action(thistype.boss, onComplete)
+                EVENT_ON_UNIT_DEATH:register_unit_action(thistype.boss, onComplete)
             end
         end
 

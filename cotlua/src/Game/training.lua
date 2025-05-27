@@ -82,7 +82,7 @@ OnInit.final("Training", function(Require)
         local r = ((flag == 0) and gg_rct_PrechaosTrainingSpawn) or gg_rct_ChaosTrainingSpawn
 
         u = CreateUnit(PLAYER_CREEP, UnitData[trainerItem.spawn], GetRandomReal(GetRectMinX(r), GetRectMaxX(r)), GetRandomReal(GetRectMinY(r), GetRectMaxY(r)), GetRandomReal(0,359))
-        EVENT_ON_DEATH:register_unit_action(u, on_death)
+        EVENT_ON_UNIT_DEATH:register_unit_action(u, on_death)
     end
 
     -- change difficulty

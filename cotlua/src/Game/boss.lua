@@ -185,7 +185,7 @@ OnInit.final("Boss", function(Require)
                 DeadGods = 4
                 DisplayTimedTextToForce(FORCE_PLAYING, 10, "You may now -flee.")
                 power_crystal = CreateUnit(PLAYER_CREEP, FourCC('h04S'), -2026.936, -27753.830, bj_UNIT_FACING)
-                EVENT_ON_DEATH:register_unit_action(power_crystal, BeginChaos)
+                EVENT_ON_UNIT_DEATH:register_unit_action(power_crystal, BeginChaos)
 
                 return false
             end,
@@ -296,7 +296,7 @@ OnInit.final("Boss", function(Require)
 
             -- boss spell casting
             EVENT_ON_STRUCK_FINAL:register_unit_action(self.unit, BossAI)
-            EVENT_ON_DEATH:register_unit_action(self.unit, on_boss_death)
+            EVENT_ON_UNIT_DEATH:register_unit_action(self.unit, on_boss_death)
 
             EVENT_ON_AGGRO:register_unit_action(self.unit, start_boss_threat)
 
@@ -554,7 +554,7 @@ OnInit.final("Boss", function(Require)
         function thistype:revive()
             self.unit = CreateUnitAtLoc(PLAYER_BOSS, self.id, self.loc, self.facing)
             EVENT_ON_STRUCK_FINAL:register_unit_action(self.unit, BossAI)
-            EVENT_ON_DEATH:register_unit_action(self.unit, on_boss_death)
+            EVENT_ON_UNIT_DEATH:register_unit_action(self.unit, on_boss_death)
 
             self:setup_range_event()
 

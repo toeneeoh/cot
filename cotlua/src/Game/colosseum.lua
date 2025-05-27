@@ -184,7 +184,7 @@ OnInit.final("Colosseum", function(Require)
 
         setup_unit(u, spawn, skin, dmg, hp, armor)
 
-        EVENT_ON_DEATH:register_unit_action(u, on_boss_kill)
+        EVENT_ON_UNIT_DEATH:register_unit_action(u, on_boss_kill)
     end
 
     local spawn_units = function()
@@ -205,7 +205,7 @@ OnInit.final("Colosseum", function(Require)
 
             Unit[u].ms_percent = Unit[u].ms_percent + 0.05 * wave
 
-            EVENT_ON_DEATH:register_unit_action(u, on_kill)
+            EVENT_ON_UNIT_DEATH:register_unit_action(u, on_kill)
         end
     end
 
@@ -408,7 +408,7 @@ OnInit.final("Colosseum", function(Require)
             DestroyGroup(ug)
         end
         martyrdom.spawn = function(u)
-            EVENT_ON_DEATH:register_unit_action(u, explode)
+            EVENT_ON_UNIT_DEATH:register_unit_action(u, explode)
         end
     end
     local earthquake = Encounter.create("Earthquake", "Players have a |cffffcc00" .. "50" .. "%|r movespeed and healing reduction."

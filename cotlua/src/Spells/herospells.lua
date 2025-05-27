@@ -401,7 +401,7 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_DEATH:register_unit_action(u, on_death)
+            EVENT_ON_UNIT_DEATH:register_unit_action(u, on_death)
             EVENT_ON_CLEANUP:register_action(Unit[u].pid, on_cleanup)
         end
     end
@@ -1818,7 +1818,7 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype:setup(u)
-            EVENT_ON_DEATH:register_unit_action(u, on_death)
+            EVENT_ON_UNIT_DEATH:register_unit_action(u, on_death)
         end
     end
 
@@ -4070,7 +4070,7 @@ OnInit.final("HeroSpells", function(Require)
         end
 
         function thistype.onLearn(source)
-            EVENT_ON_DEATH:register_unit_action(source, on_death)
+            EVENT_ON_UNIT_DEATH:register_unit_action(source, on_death)
             EVENT_ON_CAST:register_unit_action(source, manacost)
             EVENT_STAT_CHANGE:register_unit_action(source, manacost)
         end
@@ -6482,6 +6482,20 @@ OnInit.final("HeroSpells", function(Require)
     SOULSTEAL = Spell.define("A08Z")
     do
         local thistype = SOULSTEAL
+
+        local function on_death(pid, killed, killer)
+            local U = User.first
+            while U do
+                if UnitAlive(Hero[U.id]) and IsUnitInRange(Hero[U.id], killed, 1000. * LBOOST[U.id]) and GetUnitAbilityLevel(Hero[U.id], thistype.id) > 0 then
+                    HP(Hero[U.id], Hero[U.id], BlzGetUnitMaxHP(Hero[U.id]) * 0.04, thistype.tag)
+                    MP(Hero[U.id], BlzGetUnitMaxMana(Hero[U.id]) * 0.04)
+                end
+                U = U.next
+            end
+        end
+
+        EVENT_ON_DEATH:register_action(BOSS_ID, on_death)
+        EVENT_ON_DEATH:register_action(CREEP_ID, on_death)
     end
 
     ---@class DARKSEAL : Spell

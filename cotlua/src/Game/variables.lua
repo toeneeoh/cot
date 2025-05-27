@@ -18,6 +18,7 @@ OnInit.global("Variables", function()
     PLAYER_CREEP                       = Player(PLAYER_NEUTRAL_AGGRESSIVE)
     PLAYER_TOWN                        = 8
     PLAYER_BOSS                        = Player(11)
+    CREEP_ID                           = PLAYER_NEUTRAL_AGGRESSIVE + 1
     BOSS_ID                            = 12
     TOWN_ID                            = 9
     FPS_32                             = 0.03125

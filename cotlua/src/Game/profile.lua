@@ -885,6 +885,25 @@ OnInit.global("Profile", function(Require)
         return math.floor(level ^ 4 * 0.000003 + 10 * level + level ^ 3 * 0.0005)
     end
 
+    local function on_hero_death(killed, killer)
+        local pid = GetPlayerId(GetOwningPlayer(killed)) + 1
+
+        -- disable backpack teleports
+        DisableBackpackTeleports(pid, true)
+        -- disable inventory (ankh cheese)
+        DisableItems(pid, true)
+        -- grave
+        UnitRemoveAbility(Hero[pid], FourCC('BEme')) -- remove meta
+        ShowUnit(HeroGrave[pid], true)
+        SetUnitVertexColor(HeroGrave[pid], 175, 175, 175, 0)
+        if IsTerrainWalkable(x, y) then
+            SetUnitPosition(HeroGrave[pid], x, y)
+        else
+            SetUnitPosition(HeroGrave[pid], TERRAIN_X, TERRAIN_Y)
+        end
+        TimerQueue:callDelayed(1., SpawnGrave, pid)
+    end
+
     ---@type fun(pid: integer, load: boolean)
     function CharacterSetup(pid, load)
         local hero = Profile[pid].hero
@@ -920,6 +939,7 @@ OnInit.global("Profile", function(Require)
         SetWidgetLife(Hero[pid], BlzGetUnitMaxHP(Hero[pid]))
         SetUnitState(Hero[pid], UNIT_STATE_MANA, (HeroID[pid] ~= HERO_VAMPIRE and BlzGetUnitMaxMana(Hero[pid])) or 0)
 
+        EVENT_ON_UNIT_DEATH:register_unit_action(Hero[pid], on_hero_death)
         EVENT_STAT_CHANGE:register_unit_action(Hero[pid], UpdateSpellTooltips)
         EVENT_ON_SETUP:trigger(pid)
     end

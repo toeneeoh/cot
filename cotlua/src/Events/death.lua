@@ -130,7 +130,7 @@ OnInit.final("Death", function(Require)
     end
 
     ---@type fun(pid: integer)
-    local function spawn_grave(pid)
+    function SpawnGrave(pid)
         local itm = GetResurrectionItem(pid, false)
         local scale = 0 ---@type number 
 
@@ -175,18 +175,11 @@ OnInit.final("Death", function(Require)
         pt.timer:callDelayed(12.5, grave_expire, pt)
     end
 
-    local function OnDeath()
-        local killed       = GetTriggerUnit()
-        local killer       = GetKillingUnit()
-        local x            = GetUnitX(killed)
-        local y            = GetUnitY(killed)
-        local uid          = GetUnitTypeId(killed)
-        local p            = GetOwningPlayer(killed)
-        local p2           = GetOwningPlayer(killer)
-        local pid          = GetPlayerId(p) + 1
-        local kpid         = GetPlayerId(p2) + 1
-        local unitType     = GetType(uid)
-        local U            = User.first
+    -- main death event
+    local function on_death()
+        local killed = GetTriggerUnit()
+        local killer = GetKillingUnit()
+        local pid    = GetPlayerId(GetOwningPlayer(killed)) + 1
 
         -- on kill trigger
         if killer then
@@ -194,50 +187,11 @@ OnInit.final("Death", function(Require)
         end
 
         -- on death trigger
-        EVENT_ON_DEATH:trigger(killed, killer)
-
-        -- hero skills
-        while U do
-            -- dark savior soul steal
-            if IsEnemy(pid) and IsUnitInRange(Hero[U.id], killed, 1000. * LBOOST[U.id]) and UnitAlive(Hero[U.id]) and GetUnitAbilityLevel(Hero[U.id], SOULSTEAL.id) > 0 then
-                HP(Hero[U.id], Hero[U.id], BlzGetUnitMaxHP(Hero[U.id]) * 0.04, SOULSTEAL.tag)
-                MP(Hero[U.id], BlzGetUnitMaxMana(Hero[U.id]) * 0.04)
-            end
-            U = U.next
-        end
-
-        -- kill quests
-        if unitType > 0 and KillQuest[unitType].status == 1 and GetHeroLevel(Hero[kpid]) <= KillQuest[unitType].max + LEECH_CONSTANT then
-            KillQuest[unitType].count = KillQuest[unitType].count + 1
-            FloatingTextUnit(KillQuest[unitType].name .. " " .. (KillQuest[unitType].count) .. "/" .. (KillQuest[unitType].goal), killed, 3.1 ,80, 90, 9, 125, 200, 200, 0, true)
-
-            if KillQuest[unitType].count >= KillQuest[unitType].goal then
-                KillQuest[unitType].status = 2
-                KillQuest[unitType].last = uid
-                DisplayTimedTextToForce(FORCE_PLAYING, 12, KillQuest[unitType].name .. " quest completed, talk to the Huntsman for your reward.")
-            end
-        end
-
-        -- hero death
-        if killed == Hero[pid] then
-            -- disable backpack teleports
-            DisableBackpackTeleports(pid, true)
-            -- disable inventory (ankh cheese)
-            DisableItems(pid, true)
-            -- grave
-            UnitRemoveAbility(Hero[pid], FourCC('BEme')) -- remove meta
-            ShowUnit(HeroGrave[pid], true)
-            SetUnitVertexColor(HeroGrave[pid], 175, 175, 175, 0)
-            if IsTerrainWalkable(x, y) then
-                SetUnitPosition(HeroGrave[pid], x, y)
-            else
-                SetUnitPosition(HeroGrave[pid], TERRAIN_X, TERRAIN_Y)
-            end
-            TimerQueue:callDelayed(1., spawn_grave, pid)
-        end
+        EVENT_ON_UNIT_DEATH:trigger(killed, killer)
+        EVENT_ON_DEATH:trigger(pid, killed, killer)
 
         return false
     end
 
-    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DEATH, OnDeath)
+    RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DEATH, on_death)
 end, Debug and Debug.getLine())

@@ -85,7 +85,7 @@ OnInit.final("Quests", function(Require)
                     UnitRemoveAbility(kroresh, FourCC('Avul'))
                     PingMinimap(14500., -15180., 3)
                     SetCinematicScene(GetUnitTypeId(kroresh), GetPlayerColor(PLAYER_BOSS), "Kroresh Foretooth", "You dare slaughter my men? Damn you!", 5, 4)
-                    EVENT_ON_DEATH:register_unit_action(kroresh, kroresh_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(kroresh, kroresh_death)
                 end
 
                 DestroyGroup(ug)
@@ -102,29 +102,29 @@ OnInit.final("Quests", function(Require)
                     --bottom side
                     local u = CreateUnit(PLAYER_BOSS, FourCC('o01I'), 12687, -15414, 45)
                     IssuePointOrder(u, "patrol", 668, -2146)
-                    EVENT_ON_DEATH:register_unit_action(u, orc_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(u, orc_death)
                     u = CreateUnit(PLAYER_BOSS, FourCC('o01I'), 12866, -15589, 45)
                     IssuePointOrder(u, "patrol", 668, -2146)
-                    EVENT_ON_DEATH:register_unit_action(u, orc_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(u, orc_death)
                     u = CreateUnit(PLAYER_BOSS, FourCC('o01I'), 12539, -15589, 45)
                     IssuePointOrder(u, "patrol", 668, -2146)
-                    EVENT_ON_DEATH:register_unit_action(u, orc_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(u, orc_death)
                     u = CreateUnit(PLAYER_BOSS, FourCC('o01I'), 12744, -15765, 45)
                     IssuePointOrder(u, "patrol", 668, -2146)
-                    EVENT_ON_DEATH:register_unit_action(u, orc_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(u, orc_death)
                     --top side
                     u = CreateUnit(PLAYER_BOSS, FourCC('o01I'), 15048, -12603, 225)
                     IssuePointOrder(u, "patrol", 668, -2146)
-                    EVENT_ON_DEATH:register_unit_action(u, orc_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(u, orc_death)
                     u = CreateUnit(PLAYER_BOSS, FourCC('o01I'), 15307, -12843, 225)
                     IssuePointOrder(u, "patrol", 668, -2146)
-                    EVENT_ON_DEATH:register_unit_action(u, orc_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(u, orc_death)
                     u = CreateUnit(PLAYER_BOSS, FourCC('o01I'), 15299, -12355, 225)
                     IssuePointOrder(u, "patrol", 668, -2146)
-                    EVENT_ON_DEATH:register_unit_action(u, orc_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(u, orc_death)
                     u = CreateUnit(PLAYER_BOSS, FourCC('o01I'), 15543, -12630, 225)
                     IssuePointOrder(u, "patrol", 668, -2146)
-                    EVENT_ON_DEATH:register_unit_action(u, orc_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(u, orc_death)
 
                     if UnitAlive(kroresh) then
                         UnitAddAbility(kroresh, FourCC('Avul'))
@@ -369,6 +369,28 @@ OnInit.final("Quests", function(Require)
         for i = 1, #polarbear do
             CreateItem(polarbear[i], 30000., 30000., 0.01)
         end
+    end
+
+    -- kill quests
+    do
+        local function on_death(pid, killed, killer)
+            local uid      = GetUnitTypeId(killed)
+            local unitType = GetType(uid)
+            local kpid     = GetPlayerId(GetOwningPlayer(killer)) + 1
+
+            if unitType > 0 and KillQuest[unitType].status == 1 and GetHeroLevel(Hero[kpid]) <= KillQuest[unitType].max + LEECH_CONSTANT then
+                KillQuest[unitType].count = KillQuest[unitType].count + 1
+                FloatingTextUnit(KillQuest[unitType].name .. " " .. (KillQuest[unitType].count) .. "/" .. (KillQuest[unitType].goal), killed, 3.1 ,80, 90, 9, 125, 200, 200, 0, true)
+
+                if KillQuest[unitType].count >= KillQuest[unitType].goal then
+                    KillQuest[unitType].status = 2
+                    KillQuest[unitType].last = uid
+                    DisplayTimedTextToForce(FORCE_PLAYING, 12, KillQuest[unitType].name .. " quest completed, talk to the Huntsman for your reward.")
+                end
+            end
+        end
+
+        EVENT_ON_DEATH:register_action(CREEP_ID, on_death)
     end
 
         -- F9 info

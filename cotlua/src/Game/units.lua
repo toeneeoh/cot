@@ -57,7 +57,7 @@ OnInit.final("Units", function(Require)
             GroupEnumUnitsInRange(ug, x, y, 800., Condition(respawn_filter))
 
             local creep = CreateUnit(PLAYER_CREEP, uid, x, y, math.random(0, 359))
-            EVENT_ON_DEATH:register_unit_action(creep, func)
+            EVENT_ON_UNIT_DEATH:register_unit_action(creep, func)
 
             if FirstOfGroup(ug) ~= nil then
                 BlzSetItemSkin(PATH_ITEM, BlzGetUnitSkin(creep))
@@ -185,7 +185,7 @@ OnInit.final("Units", function(Require)
                     local u = CreateUnit(PLAYER_CREEP, id, x, y, GetRandomInt(0, 359))
 
                     -- on death logic
-                    EVENT_ON_DEATH:register_unit_action(u, on_death)
+                    EVENT_ON_UNIT_DEATH:register_unit_action(u, on_death)
 
                     -- safe zone logic
                     EVENT_ON_ENTER_SAFE_AREA:register_unit_action(u, on_enter_safe_zone)
@@ -203,7 +203,7 @@ OnInit.final("Units", function(Require)
     SetHeroLevel(zeknen, 150, false)
     PauseUnit(zeknen, true)
     UnitAddAbility(zeknen, FourCC('Avul'))
-    EVENT_ON_DEATH:register_unit_action(zeknen, function()
+    EVENT_ON_UNIT_DEATH:register_unit_action(zeknen, function()
         DeadGods = 0
         SetCinematicScene(Boss[BOSS_LIFE].id, GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), "Goddess of Life", "You are foolish to challenge us in our realm. Prepare yourself.", 9, 7)
 
@@ -320,7 +320,7 @@ OnInit.final("Units", function(Require)
     wander = TimerQueue:callDelayed(15., paladin_wander)
     EVENT_ON_STRUCK_FINAL:register_unit_action(townpaladin, paladin_on_struck)
     EVENT_ON_KILL:register_unit_action(townpaladin, paladin_on_kill)
-    EVENT_ON_DEATH:register_unit_action(townpaladin, function(u)
+    EVENT_ON_UNIT_DEATH:register_unit_action(townpaladin, function(u)
         TimerQueue:disableCallback(wander)
         CreateItem(FourCC('I01Y'), GetUnitX(u), GetUnitY(u)) -- cheese
     end)
@@ -348,21 +348,21 @@ OnInit.final("Units", function(Require)
     pinky = CreateUnit(PLAYER_CREEP, FourCC('O019'), 11528., 8168., 180.)
     SetHeroLevel(pinky, 100, false)
     UnitAddItemById(pinky, FourCC('I02Y'))
-    EVENT_ON_DEATH:register_unit_action(pinky, function(u)
+    EVENT_ON_UNIT_DEATH:register_unit_action(pinky, function(u)
         CreateItem(FourCC('I02Y'), GetUnitX(u), GetUnitY(u)) -- pinky pick
     end)
     -- bryan
     bryan = CreateUnit(PLAYER_CREEP, FourCC('H043'), 11528., 7880., 180.)
     SetHeroLevel(bryan, 100, false)
     UnitAddItemById(bryan, FourCC('I02X'))
-    EVENT_ON_DEATH:register_unit_action(bryan, function(u)
+    EVENT_ON_UNIT_DEATH:register_unit_action(bryan, function(u)
         CreateItem(FourCC('I02X'), GetUnitX(u), GetUnitY(u)) -- bryan pick
     end)
     -- ice troll
     ice_troll = CreateUnit(PLAYER_CREEP, FourCC('O00T'), 15833., 4382., 254.)
     SetHeroLevel(ice_troll, 100, false)
     UnitAddItemById(ice_troll, FourCC('I03Z'))
-    EVENT_ON_DEATH:register_unit_action(ice_troll, function(u)
+    EVENT_ON_UNIT_DEATH:register_unit_action(ice_troll, function(u)
         CreateItem(FourCC('I040'), GetUnitX(u), GetUnitY(u)) -- key of redemption
         CreateItem(FourCC('I03Z'), GetUnitX(u), GetUnitY(u)) -- da's dingo
     end)
@@ -373,7 +373,7 @@ OnInit.final("Units", function(Require)
     UnitAddItemById(kroresh, FourCC('I0BZ'))
     UnitAddItemById(kroresh, FourCC('I064'))
     UnitAddItemById(kroresh, FourCC('I04B'))
-    EVENT_ON_DEATH:register_unit_action(kroresh, function(u)
+    EVENT_ON_UNIT_DEATH:register_unit_action(kroresh, function(u)
         CreateItem(FourCC('I04B'), GetUnitX(u), GetUnitY(u), 600.) -- jewel of the horde
     end)
     -- zeknen
@@ -450,7 +450,7 @@ OnInit.final("Units", function(Require)
         DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", GetUnitX(god_angel), GetUnitY(god_angel)))
         SetCinematicScene(GetUnitTypeId(god_angel), GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)), "Angel", "Halt! Before proceeding you must bring me the 3 keys to unlock the seal and face the gods in their domain.", 8, 7)
     end
-    EVENT_ON_DEATH:register_unit_action(boss, arkaden_death)
+    EVENT_ON_UNIT_DEATH:register_unit_action(boss, arkaden_death)
 
     -- start death march cooldown
     BlzStartUnitAbilityCooldown(Boss[BOSS_DEATH_KNIGHT].unit, FourCC('A0AU'), 2040. - (User.AmountPlaying * 240))
@@ -464,7 +464,7 @@ OnInit.final("Units", function(Require)
     do
         evilshopkeeperbrother = gg_unit_n02S_0098
         evilshopkeeper = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), FourCC('n01F'), 7284., -13177., 270.)
-        EVENT_ON_DEATH:register_unit_action(evilshopkeeper, function(u)
+        EVENT_ON_UNIT_DEATH:register_unit_action(evilshopkeeper, function(u)
             CreateItem(FourCC('I045'), GetUnitX(u), GetUnitY(u)) -- bloodstained cloak
         end)
     end
