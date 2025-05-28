@@ -29,7 +29,7 @@ OnInit.final("HeroSelect", function(Require)
         BlzFrameSetAbsPoint(frame, FRAMEPOINT_TOP, 0.4, 0.53)
         BlzFrameSetSize(frame, 0.7, 0.35)
         BlzFrameSetEnable(frame, false)
-        BlzFrameSetTexture(frame, "war3mapImported\\HeroSelectionUI4.dds", 0, true)
+        BlzFrameSetTexture(frame, "CHARSELECTUI5.dds", 0, true)
         BlzFrameSetVisible(frame, false)
 
         local sprite_frame = BlzCreateFrameByType("SPRITE", "", frame, "", 0)
@@ -47,17 +47,21 @@ OnInit.final("HeroSelect", function(Require)
         BlzFrameSetPoint(name_label, FRAMEPOINT_BOTTOM, select_button.frame, FRAMEPOINT_TOP, 0., 0.277)
         BlzFrameSetScale(name_label, 0.85)
 
-        local stat_text1 = BlzCreateFrameByType("TEXT", "", frame, "", 0)
-        BlzFrameSetPoint(stat_text1, FRAMEPOINT_TOP, frame, FRAMEPOINT_TOP, 0.105, -0.06)
-        BlzFrameSetTextAlignment(stat_text1, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
-        BlzFrameSetSize(stat_text1, 0.3, 0.)
-        BlzFrameSetScale(stat_text1, 1.25)
+        local stars = {}
+        local roles = { "Tank", "Single Target", "AoE", "Support", "Solo" }
 
-        local stat_text2 = BlzCreateFrameByType("TEXT", "", frame, "", 0)
-        BlzFrameSetPoint(stat_text2, FRAMEPOINT_TOP, frame, FRAMEPOINT_TOP, 0.18, -0.06)
-        BlzFrameSetTextAlignment(stat_text2, TEXT_JUSTIFY_CENTER, TEXT_JUSTIFY_LEFT)
-        BlzFrameSetSize(stat_text2, 0.3, 0.)
-        BlzFrameSetScale(stat_text2, 1.25)
+        for i = 1, 5 do
+            stars[i] = {}
+            local role = SimpleButton.create(frame, "trans32.blp", 0.023, 0.023, FRAMEPOINT_TOP, FRAMEPOINT_TOP, -0.07, -0.038 - 0.025 * i, nil, roles[i], FRAMEPOINT_TOP, FRAMEPOINT_BOTTOM)
+
+            for j = 1, 3 do
+                stars[i][j] = BlzCreateFrameByType("BACKDROP", "", frame, "", 0)
+                BlzFrameSetPoint(stars[i][j], FRAMEPOINT_LEFT, j == 1 and role.frame or stars[i][j - 1], FRAMEPOINT_RIGHT, j == 1 and 0.015 or 0.005, 0.)
+                BlzFrameSetSize(stars[i][j], 0.018, 0.018)
+                BlzFrameSetEnable(stars[i][j], false)
+                BlzFrameSetTexture(stars[i][j], "CharSelectStarWhole.dds", 0, true)
+            end
+        end
 
         -- TODO: make a SimpleCheckbox class?
         local hardcore_ticker = BlzCreateFrame("EscMenuCheckBoxTemplate", frame, 0, 0)
@@ -119,7 +123,13 @@ OnInit.final("HeroSelect", function(Require)
             hero_buttons[i]:makeTooltip(FRAMEPOINT_TOPLEFT, 0.2)
             hero_buttons[i]:setTooltipIcon(BlzGetAbilityIcon(v.id))
             hero_buttons[i]:setTooltipName(v.name)
-            hero_buttons[i]:setTooltipText(BlzGetAbilityExtendedTooltip(v.select, 0))
+            hero_buttons[i]:setTooltipText(BlzGetAbilityExtendedTooltip(v.select, 0) ..
+            "\n\n" .. "|cffbb0000Strength:|r " .. v.str .. " (+" .. (v.str_gain or 0) ..
+            ")\n" .. "|cff008800Agility:|r " .. v.agi .. " (+" .. (v.agi_gain or 0) ..
+            ")\n" .. "|cff2255ffIntelligence:|r " .. v.int .. " (+" .. (v.int_gain or 0) ..
+            ")\n" .. "|cffff6600Damage:|r " .. (v[v.main] + 1) ..
+            "\n" .. "|cffa4a4feArmor:|r " .. v.armor ..
+            "\nRange: " .. v.range)
         end
 
         local selected = {}
@@ -171,6 +181,8 @@ OnInit.final("HeroSelect", function(Require)
                 if f == v.frame then
                     local hero = heroes[i]
                     selected[pid] = i
+
+                    -- set sprite, name, info
                     if GetLocalPlayer() == p then
                         select_button:visible(true)
                         info:visible(true)
@@ -178,13 +190,32 @@ OnInit.final("HeroSelect", function(Require)
                         info:setTooltipIcon(BlzGetAbilityIcon(hero.passive))
                         info:setTooltipName(GetAbilityName(hero.passive))
                         info:setTooltipText(BlzGetAbilityExtendedTooltip(hero.passive, 0))
-                        BlzFrameSetText(stat_text1, hero.str .. " (+" .. (hero.str_gain or 0) .. ")\n\n\n" .. hero.agi .. " (+" .. (hero.agi_gain or 0) .. ")\n\n\n" .. hero.int .. " (+" .. (hero.int_gain or 0) .. ")\n\n\n")
-                        BlzFrameSetText(stat_text2, (hero[hero.main] + 1) .. "\n\n\n" .. hero.armor .. "\n\n\n" .. hero.range .. "\n\n\n")
                         BlzFrameSetText(name_label, hero.name)
                         BlzFrameSetModel(sprite_frame, hero.model, 1)
                         BlzFrameSetSpriteAnimate(sprite_frame, 2, 0)
                     end
 
+                    -- populate stars
+                    for j = 1, 5 do
+                        local val = hero.stars[j]
+                        for k = 1, 3 do
+                            if val > k - 1 and val < k then
+                                if GetLocalPlayer() == p then
+                                    BlzFrameSetTexture(stars[j][k], "CharSelectStarHalf.dds", 0, true)
+                                end
+                            elseif val >= k then
+                                if GetLocalPlayer() == p then
+                                    BlzFrameSetTexture(stars[j][k], "CharSelectStarWhole.dds", 0, true)
+                                end
+                            else
+                                if GetLocalPlayer() == p then
+                                    BlzFrameSetTexture(stars[j][k], "trans32.blp", 0, true)
+                                end
+                            end
+                        end
+                    end
+
+                    -- populate hero buttons
                     for j = 1, 6 do
                         if hero.skills[j] then
                             local abil = FourCC(hero.skills[j])

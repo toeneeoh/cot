@@ -90,7 +90,8 @@ OnInit.global("Variables", function()
         int_gain     = 1.5,
         main         = "str",
         range        = "Melee",
-        skills       = {"A07R", "A07O", "A076", "A05S", "A047", "A0GJ"}
+        skills       = {"A07R", "A07O", "A076", "A05S", "A047", "A0GJ"},
+        stars        = {3, 1, 0, 0, 1}
         },
         [HERO_BLOODZERKER] = {
         model        = "BloodzerkerSprite.mdx",
@@ -111,7 +112,8 @@ OnInit.global("Variables", function()
         int_gain     = 0.5,
         main         = "str",
         range        = "Melee",
-        skills       = {"A05Y", "A05Z", "A06H", "A05X", "A0GZ", "A0AD"}
+        skills       = {"A05Y", "A05Z", "A06H", "A05X", "A0GZ", "A0AD"},
+        stars        = {1, 3, 1, 1, 1}
         },
         [HERO_ROYAL_GUARDIAN] = {
         model        = "RoyalGuardianSprite.mdx",
@@ -132,7 +134,8 @@ OnInit.global("Variables", function()
         int_gain     = 0.5,
         main         = "str",
         range        = "Melee",
-        skills       = {"A06B", "A0HT", "A0EG", "A04Y", "A0HS", "A09E"}
+        skills       = {"A06B", "A0HT", "A0EG", "A04Y", "A0HS", "A09E"},
+        stars        = {3, 0, 0, 1, 0}
         },
         [HERO_WARRIOR] = {
         model        = "WarriorSprite.mdx",
@@ -153,7 +156,8 @@ OnInit.global("Variables", function()
         int_gain     = 0.5,
         main         = "str",
         range        = "Melee",
-        skills       = {"A0AI", "A0EE", "A00L", "A001", "A0AH", "A02R"}
+        skills       = {"A0AI", "A0EE", "A00L", "A001", "A0AH", "A02R"},
+        stars        = {1, 1, 3, 1, 2}
         },
         [HERO_VAMPIRE] = {
         model        = "VampireLordSprite.mdx",
@@ -174,7 +178,8 @@ OnInit.global("Variables", function()
         int_gain     = 1.0,
         main         = "str",
         range        = "Melee",
-        skills       = {"A07K", "A07A", "A09B", "A093", "A09A", "A097"}
+        skills       = {"A07K", "A07A", "A09B", "A093", "A09A", "A097"},
+        stars        = {3, 2, 2, 0, 3}
         },
         [HERO_SAVIOR] = {
         model        = "war3mapImported\\TheCaptain.mdx",
@@ -195,7 +200,8 @@ OnInit.global("Variables", function()
         int_gain     = 0.4,
         main         = "str",
         range        = "Melee",
-        skills       = {"A07C", "A038", "A0KU", "A0AT", "A0GG", "A08R"}
+        skills       = {"A07C", "A038", "A0KU", "A0AT", "A0GG", "A08R"},
+        stars        = {2, 3, 2, 1, 3}
         },
         [HERO_DARK_SAVIOR] = {
         model        = "war3mapImported\\BloodElfLieutenant.mdx",
@@ -216,7 +222,8 @@ OnInit.global("Variables", function()
         int_gain     = 2.5,
         main         = "int",
         range        = "Melee",
-        skills       = {"A0GO", "A08Z", "A019", "A074", "AEim", "A02S"}
+        skills       = {"A0GO", "A08Z", "A019", "A074", "AEim", "A02S"},
+        stars        = {1, 3, 3, 1, 1}
         },
         [HERO_CRUSADER] = {
         model        = "war3mapImported\\HeroBloodKnight.mdx",
@@ -237,7 +244,8 @@ OnInit.global("Variables", function()
         int_gain     = 2.1,
         main         = "int",
         range        = "Melee",
-        skills       = {"A06A", "A0KD", "A06D", "A07D", "A06E", "A07P"}
+        skills       = {"A06A", "A0KD", "A06D", "A07D", "A06E", "A07P"},
+        stars        = {1, 0, 1, 3, 0}
         },
         [HERO_ARCANIST] = {
         model        = "units\\human\\Kael\\Kael.mdx",
@@ -258,7 +266,8 @@ OnInit.global("Variables", function()
         int_gain     = 4,
         main         = "int",
         range        = "600",
-        skills       = {"A00W", "A05Q", "A02N", "A078", "A075", "A079"}
+        skills       = {"A00W", "A05Q", "A02N", "A078", "A075", "A079"},
+        stars        = {0, 2, 2, 1, 0}
         },
         [HERO_DARK_SUMMONER] = {
         model        = "war3mapImported\\HeroDeposedWarlock.mdx",
@@ -279,7 +288,8 @@ OnInit.global("Variables", function()
         int_gain     = 6.5,
         main         = "int",
         range        = "600",
-        skills       = {"A022", "A0KF", "A0KH", "A0KG", "A063", "A0K1"}
+        skills       = {"A022", "A0KF", "A0KH", "A0KG", "A063", "A0K1"},
+        stars        = {2.5, 2.5, 1, 0, 2}
         },
         [HERO_BARD] = {
         model        = "war3mapImported\\Medivh.mdx",
@@ -300,7 +310,8 @@ OnInit.global("Variables", function()
         int_gain     = 2.2,
         main         = "int",
         range        = "400",
-        skills       = {"A02F", "A0AZ", "A02H", "A09Y", "A06Y", "A02K"}
+        skills       = {"A02F", "A0AZ", "A02H", "A09Y", "A06Y", "A02K"},
+        stars        = {0, 1, 1, 3, 0}
         },
         [HERO_HYDROMANCER] = {
         model        = "JainaProudmooreSprite.mdx",
@@ -321,7 +332,8 @@ OnInit.global("Variables", function()
         int_gain     = 4.0,
         main         = "int",
         range        = "600",
-        skills       = {"A0DY", "A0GI", "A03X", "A077", "A08E", "A098"}
+        skills       = {"A0DY", "A0GI", "A03X", "A077", "A08E", "A098"},
+        stars        = {0, 1, 3, 3, 1}
         },
         [HERO_HIGH_PRIEST] = {
         model        = "war3mapImported\\HighElfPriestess.mdx",
@@ -342,7 +354,8 @@ OnInit.global("Variables", function()
         int_gain     = 3.8,
         main         = "int",
         range        = "700",
-        skills       = {"A0DU", "A0JE", "A0JG", "A0JD", "A0J3", "A048"}
+        skills       = {"A0DU", "A0JE", "A0JG", "A0JD", "A0J3", "A048"},
+        stars        = {0, 0.5, 0, 3, 0}
         },
         [HERO_ELEMENTALIST] = {
         model        = "war3mapImported\\Geomancer_E_002.mdx",
@@ -363,7 +376,8 @@ OnInit.global("Variables", function()
         int_gain     = 8.4,
         main         = "int",
         range        = "600",
-        skills       = {"A0J5", "A0GV", "A011", "A032", "A01U", "A04H"}
+        skills       = {"A0J5", "A0GV", "A011", "A032", "A01U", "A04H"},
+        stars        = {0, 2, 3, 1, 2}
         },
         [HERO_ASSASSIN] = {
         model          = "war3mapImported\\ShadowWarrior.mdx",
@@ -385,7 +399,8 @@ OnInit.global("Variables", function()
         int_gain       = 1.5,
         main           = "agi",
         range          = "Melee",
-        skills         = {"A0AQ", "A0BG", "A00T", "A01E", "A00P", "A07Y"}
+        skills         = {"A0AQ", "A0BG", "A00T", "A01E", "A00P", "A07Y"},
+        stars          = {0, 2, 1, 1, 0}
         },
         [HERO_THUNDERBLADE] = {
         model        = "war3mapImported\\WanderingSwordman3.mdx",
@@ -406,7 +421,8 @@ OnInit.global("Variables", function()
         int_gain     = 1.4,
         main         = "agi",
         range        = "Melee",
-        skills       = {"A096", "A095", "A03O", "A0MN", "A0os", "A01L"}
+        skills       = {"A096", "A095", "A03O", "A0MN", "A0os", "A01L"},
+        stars        = {0, 2, 2, 0, 0}
         },
         [HERO_MASTER_ROGUE] = {
         model        = "war3mapImported\\BloodelfPhoenixGuard.mdx",
@@ -427,7 +443,8 @@ OnInit.global("Variables", function()
         int_gain     = 0.1,
         main         = "agi",
         range        = "Melee",
-        skills       = {"A0QQ", "A0QV", "A0F5", "A0F7", "A0QP", "A0QU"}
+        skills       = {"A0QQ", "A0QV", "A0F5", "A0F7", "A0QP", "A0QU"},
+        stars        = {0, 3, 0, 1, 0}
         },
         [HERO_MARKSMAN] = {
         model        = "war3mapImported\\HeroGoblinGunner.mdx",
@@ -448,7 +465,8 @@ OnInit.global("Variables", function()
         int_gain     = 0.5,
         main         = "agi",
         range        = "650",
-        skills       = {"A049", "A06I", "A06U", "A05D", "A0J4", "A06V"}
+        skills       = {"A049", "A06I", "A06U", "A05D", "A0J4", "A06V"},
+        stars        = {0, 3, 2, 0, 0}
         },
         [HERO_PHOENIX_RANGER] = {
         model        = "war3mapImported\\Bloodelf_ArcherMaiden.mdx",
@@ -469,7 +487,8 @@ OnInit.global("Variables", function()
         int_gain     = 0.5,
         main         = "agi",
         range        = "650",
-        skills       = {"A05T", "A05R", "A0FT", "A0IB", "A090", "A0F6"}
+        skills       = {"A05T", "A05R", "A0FT", "A0IB", "A090", "A0F6"},
+        stars        = {0, 3, 2, 0, 0}
         },
     }
 
