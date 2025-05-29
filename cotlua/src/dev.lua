@@ -549,12 +549,6 @@ modifiers:
                 print("The host is " .. User[host].nameColored)
             end
         end,
-        ["removetest"] = function(p, pid, args)
-            awesome_unit = CreateUnit(Player(0), FourCC('h00F'), 0, 0, 0)
-            print(type(awesome_unit))
-            RemoveUnit(awesome_unit)
-            print(type(awesome_unit))
-        end,
         ["keys"] = function(p, pid, args)
             for index = 8,255 do
                 local trigger = CreateTrigger()
