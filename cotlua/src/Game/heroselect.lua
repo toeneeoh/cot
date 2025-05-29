@@ -59,7 +59,7 @@ OnInit.final("HeroSelect", function(Require)
                 BlzFrameSetPoint(stars[i][j], FRAMEPOINT_LEFT, j == 1 and role.frame or stars[i][j - 1], FRAMEPOINT_RIGHT, j == 1 and 0.015 or 0.005, 0.)
                 BlzFrameSetSize(stars[i][j], 0.018, 0.018)
                 BlzFrameSetEnable(stars[i][j], false)
-                BlzFrameSetTexture(stars[i][j], "CharSelectStarWhole.dds", 0, true)
+                BlzFrameSetTexture(stars[i][j], "trans32.blp", 0, true)
             end
         end
 
