@@ -7,9 +7,11 @@
 OnInit.global("Buffs", function(Require)
     Require('BuffSystem')
     Require('UnitTable')
+    Require('SpellTools')
 
     local FPS_32 = FPS_32
     local atan = math.atan
+    local valid_pull_target = VALID_PULL_TARGET
     PHASED_MOVEMENT = FourCC('I0OE')
 
     local mt = { __index = Buff }
@@ -400,10 +402,6 @@ OnInit.global("Buffs", function(Require)
             Taunt(self.target, aoe)
 
             self.callback = Buff.timer:callDelayed(3., taunt, self, aoe)
-        end
-
-        local function valid_pull_target(object, source)
-            return UnitAlive(object) and IsUnitEnemy(object, source) and GetUnitMoveSpeed(object) > 0
         end
 
         local function pull_force(target, _, x, y)

@@ -19,6 +19,7 @@ OnInit.final("Spells", function(Require)
     SONG_HARMONY = FourCC('A01A') ---@type integer 
     SONG_PEACE   = FourCC('A09X') ---@type integer 
     SONG_FATIGUE = FourCC('A00N') ---@type integer 
+    LAST_CAST    = __jarray(0) ---@type integer[] 
 
     --storage for spell definitions
     Spells = {} ---@type Spell[]
@@ -42,7 +43,7 @@ OnInit.final("Spells", function(Require)
     ---@field destroy function
     ---@field onEquip function
     ---@field onUnequip function
-    ---@field setup function
+    ---@field onSetup function
     ---@field tag string
     ---@field define function
     ---@field getTooltip function
@@ -241,7 +242,7 @@ OnInit.final("Spells", function(Require)
         function thistype.onUnequip(itm, id, index) end
         function thistype.onEquip(itm, id, index) end
         --function thistype.onLearn(source, ablev, pid) end
-        --function thistype.setup(source) end
+        --function thistype.onSetup(source) end
     end
 
     local function SpellCast()
@@ -315,12 +316,13 @@ OnInit.final("Spells", function(Require)
 
         -- remember last cast spell id
         if sid ~= ADAPTIVESTRIKE.id and sid ~= LIMITBREAK.id then
-            lastCast[pid] = sid
+            LAST_CAST[pid] = sid
         end
 
         -- check existing spell definition
         if Spells[sid] then
             local spell = Spells[sid]:create(caster)
+            spell.owner = p
             spell.sid = sid
             spell.tpid = tpid
             spell.caster = caster
@@ -338,30 +340,6 @@ OnInit.final("Spells", function(Require)
         end
 
         return false
-    end
-
-    -- reused precast behavior
-    DASH_PRECAST = function(pid, tpid, caster, target, x, y, targetX, targetY)
-        local r = GetRectFromCoords(x, y)
-        local r2 = GetRectFromCoords(targetX, targetY)
-
-        if not IsTerrainWalkable(targetX, targetY) or r2 ~= r then
-            IssueImmediateOrderById(caster, ORDER_ID_STOP)
-            DisplayTextToPlayer(Player(pid - 1), 0, 0, INVALID_TARGET_MESSAGE)
-            return false
-        end
-
-        return true
-    end
-
-    TERRAIN_PRECAST = function(pid, tpid, caster, target, x, y, targetX, targetY)
-        if not IsTerrainWalkable(targetX, targetY) then
-            IssueImmediateOrderById(caster, ORDER_ID_STOP)
-            DisplayTextToPlayer(Player(pid - 1), 0, 0, INVALID_TARGET_MESSAGE)
-            return false
-        end
-
-        return true
     end
 
     for k = 0, bj_MAX_PLAYER_SLOTS do
