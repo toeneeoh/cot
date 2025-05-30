@@ -289,6 +289,8 @@ OnInit.final("UnitSpells", function(Require)
         end
     end
 
+    DMG_NUMBERS = __jarray(0) ---@type integer[] 
+
     -- fairly simple spells
     UNIT_SPELLS = {
         [FourCC('A00I')] = function(_, pid) -- change hotkeys
@@ -687,7 +689,7 @@ OnInit.final("UnitSpells", function(Require)
     do
         local thistype = MAGIC_RESIST
 
-        function thistype:setup(u)
+        function thistype.setup(u)
             Unit[u].mr = Unit[u].mr * 0.7
         end
     end
@@ -700,7 +702,7 @@ OnInit.final("UnitSpells", function(Require)
             IssueTargetOrder(target, "frostnova", source)
         end
 
-        function thistype:setup(u)
+        function thistype.setup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -715,7 +717,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -729,7 +731,7 @@ OnInit.final("UnitSpells", function(Require)
             DamageTarget(source, target, dmg, ATTACK_TYPE_NORMAL, MAGIC, thistype.tag)
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_HIT_EVADE:register_unit_action(u, onHit)
         end
     end
@@ -745,7 +747,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_HIT_EVADE:register_unit_action(u, onHit)
         end
     end
@@ -775,7 +777,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_STRUCK_MULTIPLIER:register_unit_action(u, onStruck)
         end
     end
@@ -800,7 +802,7 @@ OnInit.final("UnitSpells", function(Require)
             amount.value = math.max(0., 0. - dmg * 3.)
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_STRUCK_AFTER_REDUCTIONS:register_unit_action(u, onStruck)
         end
     end
@@ -826,7 +828,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -872,7 +874,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -897,7 +899,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -933,12 +935,12 @@ OnInit.final("UnitSpells", function(Require)
             GroupEnumUnitsInRange(ug, self.x, self.y, 1250., Condition(isplayerunit))
 
             local target = FirstOfGroup(ug)
-            local rand = random(0, 359)
             while target do
                 if random() < 0.75 then
                     GroupRemoveUnit(ug, target)
                 end
-                local x, y = self.x + random(125, 250) * math.cos(bj_DEGTORAD * (rand + i * 30)), self.y + random(125, 250) * math.sin(bj_DEGTORAD * (rand + i * 30))
+                local rand = random(0, 359)
+                local x, y = self.x + random(150, 250) * math.cos(bj_DEGTORAD * rand), self.y + random(125, 250) * math.sin(bj_DEGTORAD * rand)
                 local beetle = CreateUnit(Player(self.pid - 1), FourCC('u002'), x, y, 0)
                 BlzSetUnitFacingEx(beetle, bj_RADTODEG * math.atan(GetUnitY(target) - y, GetUnitX(target) - x))
                 PauseUnit(beetle, true)
@@ -957,7 +959,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -996,7 +998,7 @@ OnInit.final("UnitSpells", function(Require)
             source.tri_target = target
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             Unit[u].hits = 0
             EVENT_ON_HIT_EVADE:register_unit_action(u, onHit)
         end
@@ -1070,7 +1072,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1121,7 +1123,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1177,7 +1179,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1237,7 +1239,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1310,7 +1312,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1327,7 +1329,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_STRUCK:register_unit_action(u, onStruck)
         end
     end
@@ -1343,7 +1345,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_STRUCK:register_unit_action(u, onStruck)
         end
     end
@@ -1359,7 +1361,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1375,7 +1377,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1396,7 +1398,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1451,7 +1453,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1473,7 +1475,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1497,7 +1499,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_STRUCK:register_unit_action(u, onStruck)
         end
     end
@@ -1512,7 +1514,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1534,7 +1536,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1550,7 +1552,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_STRUCK:register_unit_action(u, onStruck)
         end
     end
@@ -1598,7 +1600,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1613,7 +1615,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_STRUCK:register_unit_action(u, onStruck)
         end
     end
@@ -1635,7 +1637,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1647,11 +1649,11 @@ OnInit.final("UnitSpells", function(Require)
         local function onStruck(target, source)
             if GetWidgetLife(target) < BlzGetUnitMaxHP(target) * 0.5 then
                 IssueImmediateOrder(target, "metamorphosis")
-                RAISE_SKELETON:setup(target)
+                RAISE_SKELETON.onSetup(target)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1690,7 +1692,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1730,7 +1732,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1764,7 +1766,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1789,7 +1791,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1805,7 +1807,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1852,7 +1854,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1869,7 +1871,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1937,7 +1939,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -1982,7 +1984,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2017,7 +2019,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2044,7 +2046,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             local boss = IsBoss(u)
             SetUnitAbilityLevel(u, FourCC('A064'), boss.difficulty)
             SetUnitAbilityLevel(u, thistype.id, boss.difficulty)
@@ -2087,7 +2089,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2119,7 +2121,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2144,7 +2146,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_STRUCK:register_unit_action(u, onStruck)
         end
     end
@@ -2160,7 +2162,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             if not IsUnitIllusion(u) then
                 EVENT_ENEMY_AI:register_unit_action(u, onStruck)
             end
@@ -2189,7 +2191,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             if not IsUnitIllusion(u) then
                 EVENT_ENEMY_AI:register_unit_action(u, onStruck)
             end
@@ -2233,7 +2235,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2256,7 +2258,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2315,7 +2317,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2331,7 +2333,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ON_STRUCK:register_unit_action(u, onStruck)
         end
     end
@@ -2356,7 +2358,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2436,7 +2438,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2611,7 +2613,7 @@ OnInit.final("UnitSpells", function(Require)
             end
         end
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             EVENT_ENEMY_AI:register_unit_action(u, onStruck)
         end
     end
@@ -2620,7 +2622,7 @@ OnInit.final("UnitSpells", function(Require)
     do
         local thistype = MINK_LUCK
 
-        function thistype:setup(u)
+        function thistype.onSetup(u)
             Unit[u].evasion = Unit[u].evasion + 50
         end
     end

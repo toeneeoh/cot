@@ -422,8 +422,8 @@ OnInit.final("UnitTable", function(Require)
                 local id = BlzGetAbilityId(abil)
                 if Spells[id] then
                     Spells[id]:setTooltip(u, id)
-                    if Spells[id].setup then
-                        Spells[id]:setup(u)
+                    if Spells[id].onSetup then
+                        Spells[id].onSetup(u)
                     end
                 end
 
