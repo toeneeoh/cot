@@ -452,7 +452,9 @@ do
                 end
             end
 
-            thistype.queue:callDelayed(FPS_32, update)
+            if thistype.queue then
+                thistype.queue:callDelayed(FPS_32, update)
+            end
         end
 
         local function onStruck(target, source, amount, amount_after_red)
